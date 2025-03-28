@@ -5,6 +5,7 @@ import { calculateHeight, calculateTopPosition, formatTime, getPeriodColor } fro
 
 interface PeriodBlockProps {
   period: Period;
+  index?: number; // Add the index prop as optional
   onClick: () => void;
 }
 
