@@ -6,9 +6,10 @@ import { useIsMobile } from '@/hooks/use-mobile';
 interface TimeAxisProps {
   minHour: number;
   maxHour: number;
+  heightPerHour?: number;
 }
 
-export const TimeAxis: React.FC<TimeAxisProps> = ({ minHour, maxHour }) => {
+export const TimeAxis: React.FC<TimeAxisProps> = ({ minHour, maxHour, heightPerHour = 60 }) => {
   const isMobile = useIsMobile();
   const hours = getHoursArray(minHour, maxHour);
   
@@ -22,7 +23,7 @@ export const TimeAxis: React.FC<TimeAxisProps> = ({ minHour, maxHour }) => {
         <div 
           key={hour}
           className="absolute left-0 right-0 border-b border-dashed flex items-center h-[1px]"
-          style={{ top: getHourPosition(hour, minHour) }}
+          style={{ top: getHourPosition(hour, minHour, heightPerHour) }}
         >
           <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground bg-card px-1 -mt-2 ml-1`}>
             {isMobile ? hour.replace(':00', '').replace(' ', '') : hour}

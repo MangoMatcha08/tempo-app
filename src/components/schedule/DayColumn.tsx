@@ -12,6 +12,7 @@ interface DayColumnProps {
   onPeriodClick: (period: Period) => void;
   minHour: number;
   maxHour: number;
+  heightPerHour?: number;
 }
 
 export const DayColumn: React.FC<DayColumnProps> = ({
@@ -19,7 +20,8 @@ export const DayColumn: React.FC<DayColumnProps> = ({
   periods,
   onPeriodClick,
   minHour,
-  maxHour
+  maxHour,
+  heightPerHour = 60
 }) => {
   const isMobile = useIsMobile();
   const isTodayFlag = isToday(day);
@@ -42,6 +44,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
           index={index}
           onClick={() => onPeriodClick(period)}
           minHour={minHour}
+          heightPerHour={heightPerHour}
         />
       ))}
     </div>

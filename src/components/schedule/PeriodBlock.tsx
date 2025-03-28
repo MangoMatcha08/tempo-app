@@ -9,16 +9,22 @@ interface PeriodBlockProps {
   index?: number;
   onClick: () => void;
   minHour: number;
+  heightPerHour?: number;
 }
 
-export const PeriodBlock: React.FC<PeriodBlockProps> = ({ period, onClick, minHour }) => {
+export const PeriodBlock: React.FC<PeriodBlockProps> = ({ 
+  period, 
+  onClick, 
+  minHour,
+  heightPerHour = 60
+}) => {
   const isMobile = useIsMobile();
   
   // Calculate height based on duration
-  const height = calculateHeight(period.startTime, period.endTime);
+  const height = calculateHeight(period.startTime, period.endTime, heightPerHour);
   
   // Calculate top position based on start time and minHour offset
-  const top = calculateTopPosition(period.startTime, minHour);
+  const top = calculateTopPosition(period.startTime, minHour, heightPerHour);
   
   // Get color class based on period type
   const colorClass = getPeriodColor(period.type);

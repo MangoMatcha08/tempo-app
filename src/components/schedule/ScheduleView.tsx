@@ -20,7 +20,6 @@ export const ScheduleView: React.FC = () => {
     loading, 
     error,
     getPeriodsForDay,
-    addPeriod,
     updatePeriod,
     deletePeriod,
     getDaysOfWeek
@@ -31,16 +30,9 @@ export const ScheduleView: React.FC = () => {
     setIsEditorOpen(true);
   };
   
-  const handleAddPeriod = () => {
-    setSelectedPeriod(null);
-    setIsEditorOpen(true);
-  };
-  
   const handleSavePeriod = (periodData: Partial<Period>) => {
     if (selectedPeriod) {
       updatePeriod(selectedPeriod.id, periodData);
-    } else {
-      addPeriod(periodData as Omit<Period, 'id'>);
     }
     setIsEditorOpen(false);
   };
@@ -79,10 +71,10 @@ export const ScheduleView: React.FC = () => {
         onViewModeChange={setViewMode}
         selectedDate={selectedDate}
         onDateChange={setSelectedDate}
-        onAddPeriod={handleAddPeriod}
+        onAddPeriod={() => {}}
       />
       
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden h-full">
         <WeeklyCalendar 
           daysOfWeek={getDaysOfWeek(selectedDate)}
           periods={periods}

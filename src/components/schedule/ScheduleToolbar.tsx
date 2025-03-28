@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,7 +24,7 @@ export const ScheduleToolbar: React.FC<ScheduleToolbarProps> = ({
   onViewModeChange,
   selectedDate,
   onDateChange,
-  onAddPeriod // We'll keep this in the props but not use it
+  onAddPeriod
 }) => {
   const isMobile = useIsMobile();
   

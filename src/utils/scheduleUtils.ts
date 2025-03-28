@@ -2,20 +2,20 @@
 import { differenceInMinutes, startOfDay, format, parseISO } from 'date-fns';
 
 // Calculate the height of a period block based on duration
-export const calculateHeight = (startTime: Date, endTime: Date): string => {
+export const calculateHeight = (startTime: Date, endTime: Date, heightPerHour: number = 60): string => {
   const durationMinutes = differenceInMinutes(endTime, startTime);
-  // 1px per minute
-  return `${Math.max(durationMinutes, 30)}px`;
+  // Scale based on heightPerHour (pixels per hour)
+  return `${Math.max(durationMinutes * (heightPerHour / 60), 30)}px`;
 };
 
 // Calculate the top position of a period block based on start time and minHour
-export const calculateTopPosition = (startTime: Date, minHour: number = 7): string => {
+export const calculateTopPosition = (startTime: Date, minHour: number = 7, heightPerHour: number = 60): string => {
   const dayStart = startOfDay(startTime);
   const minutesSinceDayStart = differenceInMinutes(startTime, dayStart);
   // Adjust for minHour offset
   const offsetMinutes = (minHour * 60);
-  // 1px per minute matches the scale of the calculateHeight function
-  return `${Math.max(0, minutesSinceDayStart - offsetMinutes)}px`;
+  // Scale based on heightPerHour (pixels per hour)
+  return `${Math.max(0, (minutesSinceDayStart - offsetMinutes) * (heightPerHour / 60))}px`;
 };
 
 // Format time to display
@@ -50,7 +50,7 @@ export const getHoursArray = (minHour: number = 7, maxHour: number = 19): string
 };
 
 // Get position for a specific hour, adjusted for the minHour offset
-export const getHourPosition = (hour: string, minHour: number = 7): string => {
+export const getHourPosition = (hour: string, minHour: number = 7, heightPerHour: number = 60): string => {
   const [hourStr, period] = hour.split(' ');
   const [hours, minutes] = hourStr.split(':').map(Number);
   
@@ -61,8 +61,8 @@ export const getHourPosition = (hour: string, minHour: number = 7): string => {
     hour24 = 0;
   }
   
-  // 60px per hour with minHour offset
-  return `${((hour24 - minHour) * 60 + (minutes || 0))}px`;
+  // Scale based on heightPerHour with minHour offset
+  return `${((hour24 - minHour) * heightPerHour + (minutes || 0) * (heightPerHour / 60))}px`;
 };
 
 // Get color based on period type
