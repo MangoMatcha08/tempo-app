@@ -34,6 +34,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   
   const verifyConnection = async () => {
     try {
+      console.log("Verifying Firebase connection...");
       const { success, error } = await pingFirebase();
       
       if (!success) {
@@ -68,6 +69,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
   
   useEffect(() => {
+    console.log("Setting up Firebase initialization");
     const firebaseInitialized = isFirebaseInitialized();
     const firebaseError = getFirebaseInitError();
     
@@ -85,24 +87,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         duration: 8000,
       });
     } else {
+      console.log("Firebase initialized, verifying connection");
       verifyConnection();
     }
   }, [toast]);
   
   useEffect(() => {
     if (!firebaseReady) {
+      console.log("Firebase not ready, skipping auth state listener setup");
       return () => {};
     }
     
+    console.log("Setting up auth state listener");
     let unsubscribe = () => {};
     
     try {
       unsubscribe = onAuthStateChange((user) => {
+        console.log("Auth state changed, user:", user?.email || "none");
         setUser(user);
         setLoading(false);
         
         if (user) {
           console.log("User authenticated:", user.email);
+          // Log provider data for debugging
+          if (user.providerData && user.providerData.length > 0) {
+            console.log("Auth provider:", user.providerData[0].providerId);
+          }
         } else {
           console.log("No authenticated user");
         }

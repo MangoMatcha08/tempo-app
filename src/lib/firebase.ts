@@ -45,6 +45,15 @@ try {
 const auth = getAuth(firebaseApp);
 const googleProvider = new GoogleAuthProvider();
 
+// Add scopes for Google provider (optional but recommended for more data)
+googleProvider.addScope('profile');
+googleProvider.addScope('email');
+
+// Set custom parameters for a better UX
+googleProvider.setCustomParameters({
+  prompt: 'select_account'
+});
+
 // Check Firebase initialization status
 export const isFirebaseInitialized = () => {
   return !!firebaseApp && !firebaseInitError;
@@ -113,10 +122,22 @@ export const signUpWithEmail = async (email: string, password: string, name: str
 // Sign in with Google
 export const signInWithGoogle = async () => {
   try {
+    console.log("Starting Google sign in process...");
     const userCredential = await signInWithPopup(auth, googleProvider);
+    console.log("Google sign in successful:", userCredential.user?.email);
     return { user: userCredential.user, error: null };
   } catch (error) {
     console.error("Sign in with Google failed:", error);
+    // Log detailed error information for debugging
+    if (error.code) {
+      console.error("Error code:", error.code);
+    }
+    if (error.message) {
+      console.error("Error message:", error.message);
+    }
+    if (error.customData) {
+      console.error("Error custom data:", error.customData);
+    }
     return { user: null, error };
   }
 };
