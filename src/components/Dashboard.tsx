@@ -5,6 +5,7 @@ import { signOutUser } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { Calendar } from "lucide-react";
 import CurrentPeriodIndicator from "@/components/dashboard/CurrentPeriodIndicator";
 import QuickActionsBar from "@/components/dashboard/QuickActionsBar";
 import RemindersSection from "@/components/dashboard/RemindersSection";
@@ -39,11 +40,23 @@ const Dashboard = () => {
     }
   };
 
+  const navigateToSchedule = () => {
+    navigate("/schedule");
+  };
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold">Tempo Dashboard</h1>
         <div className="flex items-center gap-4">
+          <Button 
+            variant="outline" 
+            onClick={navigateToSchedule}
+            className="flex items-center gap-2"
+          >
+            <Calendar className="h-4 w-4" />
+            Schedule
+          </Button>
           <span className="text-sm text-muted-foreground">
             {user?.displayName || user?.email}
           </span>
