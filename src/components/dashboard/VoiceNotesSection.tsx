@@ -8,49 +8,47 @@ const VoiceNotesSection = () => {
   const voiceNotes = [
     {
       id: "1",
-      title: "Feedback for 3rd period presentations",
-      duration: 45, // seconds
-      createdAt: new Date(new Date().getTime() - 3600000), // 1 hour ago
-      transcription: "Remember to provide detailed feedback for Sarah's project on renewable energy. Her research was thorough but presentation needs work."
+      title: "Lesson Plan Ideas",
+      duration: 95, // seconds
+      createdAt: new Date(2025, 2, 28), // Mar 28, 2025
+      transcription: "Incorporate more interactive elements in the geometry lesson. Use the 3D models from cabinet B."
     },
     {
       id: "2",
-      title: "Math lesson plan ideas",
-      duration: 32, // seconds
-      createdAt: new Date(new Date().getTime() - 86400000), // 1 day ago
-      transcription: "Try incorporating the group problem-solving activity for the geometry unit. Use the manipulatives from cabinet B."
+      title: "Student Assessment Notes",
+      duration: 126, // seconds
+      createdAt: new Date(2025, 2, 26), // Mar 26, 2025
+      transcription: "Sarah has shown improvement in algebra. John needs additional help with fractions."
     },
     {
       id: "3",
-      title: "Science lab preparation",
-      duration: 68, // seconds
-      createdAt: new Date(new Date().getTime() - 172800000), // 2 days ago
-      transcription: "Need to prep materials for the chemistry experiment. Check inventory of test tubes and safety goggles before Friday."
+      title: "Lab Preparation Checklist",
+      duration: 77, // seconds
+      createdAt: new Date(2025, 2, 24), // Mar 24, 2025
+      transcription: "Need to order more test tubes. Check safety goggles inventory before Friday's experiment."
     }
   ];
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Mic className="h-5 w-5" />
-          Voice Notes
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {voiceNotes.length > 0 ? (
-          <div className="space-y-4">
-            {voiceNotes.map((note) => (
-              <VoiceNoteItem key={note.id} note={note} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-6 text-muted-foreground">
-            No voice notes yet. Click "Voice Note" to create one.
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <div className="mt-6 md:mt-0">
+      <h2 className="text-xl font-bold mb-3">Recent Voice Notes</h2>
+      
+      <Card>
+        <CardContent className="p-0">
+          {voiceNotes.length > 0 ? (
+            <>
+              {voiceNotes.map((note) => (
+                <VoiceNoteItem key={note.id} note={note} />
+              ))}
+            </>
+          ) : (
+            <div className="text-center py-6 text-muted-foreground">
+              No voice notes yet. Click "Voice Note" to create one.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

@@ -1,5 +1,5 @@
 
-import { Check, Clock } from "lucide-react";
+import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Reminder {
@@ -22,13 +22,24 @@ const ReminderListItem = ({ reminder }: ReminderListItemProps) => {
       case "medium":
         return "bg-amber-500";
       case "low":
-        return "bg-green-500";
+        return "bg-blue-500";
       default:
         return "bg-blue-500";
     }
   };
   
   const formatDueDate = (dueDate: Date) => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    if (
+      dueDate.getDate() === tomorrow.getDate() &&
+      dueDate.getMonth() === tomorrow.getMonth() &&
+      dueDate.getFullYear() === tomorrow.getFullYear()
+    ) {
+      return `Tomorrow • ${dueDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+    }
+    
     return dueDate.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
@@ -39,20 +50,18 @@ const ReminderListItem = ({ reminder }: ReminderListItemProps) => {
   };
 
   return (
-    <div className="flex items-center justify-between p-3 bg-secondary/20 rounded-md">
-      <div className="flex items-center gap-3">
-        <div className={`h-3 w-3 rounded-full ${getPriorityColor(reminder.priority)}`} />
-        <div>
-          <h4 className="font-medium text-sm">{reminder.title}</h4>
-          <div className="flex items-center text-xs text-muted-foreground mt-1">
-            <Clock className="h-3 w-3 mr-1" />
-            {formatDueDate(reminder.dueDate)}
-          </div>
+    <div className="border-b border-muted p-3 flex items-center">
+      <div className={`w-2 h-2 rounded-full ${getPriorityColor(reminder.priority)} mr-3`} />
+      
+      <div className="flex-1">
+        <div className="font-medium">{reminder.title}</div>
+        <div className="text-xs text-muted-foreground">
+          {formatDueDate(reminder.dueDate)}
         </div>
       </div>
       
       <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-        <Check className="h-4 w-4" />
+        <Check className="h-5 w-5 text-green-500" />
         <span className="sr-only">Mark as done</span>
       </Button>
     </div>

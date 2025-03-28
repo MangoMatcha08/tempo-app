@@ -9,6 +9,7 @@ interface Reminder {
   description: string;
   dueDate: Date;
   priority: "low" | "medium" | "high";
+  location?: string;
 }
 
 interface ReminderCardProps {
@@ -16,16 +17,16 @@ interface ReminderCardProps {
 }
 
 const ReminderCard = ({ reminder }: ReminderCardProps) => {
-  const getPriorityColor = (priority: string) => {
+  const getPriorityClass = (priority: string) => {
     switch (priority) {
       case "high":
-        return "border-l-red-500";
+        return "border-l-4 border-l-red-500";
       case "medium":
-        return "border-l-amber-500";
+        return "border-l-4 border-l-amber-500";
       case "low":
-        return "border-l-green-500";
+        return "border-l-4 border-l-blue-500";
       default:
-        return "border-l-blue-500";
+        return "";
     }
   };
   
@@ -44,22 +45,26 @@ const ReminderCard = ({ reminder }: ReminderCardProps) => {
     return `${diffDays} day${diffDays !== 1 ? 's' : ''}`;
   };
 
+  const formattedTime = dueDate => {
+    return dueDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   return (
-    <Card className={`border-l-4 ${getPriorityColor(reminder.priority)}`}>
+    <Card className={`shadow-md ${getPriorityClass(reminder.priority)}`}>
       <CardContent className="p-4">
-        <h3 className="font-medium mb-1">{reminder.title}</h3>
-        <p className="text-sm text-muted-foreground mb-3">{reminder.description}</p>
-        
-        <div className="flex justify-between items-center">
-          <div className="flex items-center text-xs text-muted-foreground">
-            <Clock className="h-3 w-3 mr-1" />
-            {formatTimeRemaining(reminder.dueDate)}
-          </div>
-          
+        <div className="flex justify-between">
+          <h3 className="font-medium">{reminder.title}</h3>
           <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-            <Check className="h-4 w-4" />
+            <Check className="h-5 w-5 text-green-500" />
             <span className="sr-only">Mark as done</span>
           </Button>
+        </div>
+        
+        <p className="text-sm mt-1">{reminder.description}</p>
+        
+        <div className="flex items-center mt-2 text-xs text-muted-foreground">
+          <Clock className="h-4 w-4 mr-1" />
+          <span>{formattedTime(reminder.dueDate)} {reminder.location && `• ${reminder.location}`}</span>
         </div>
       </CardContent>
     </Card>

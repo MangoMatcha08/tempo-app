@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Mic, Bell, Calendar } from "lucide-react";
+import { Mic, Plus, Bell, Calendar } from "lucide-react";
 
 interface QuickActionsBarProps {
   onNewReminder: () => void;
@@ -9,39 +9,40 @@ interface QuickActionsBarProps {
 
 const QuickActionsBar = ({ onNewReminder, onNewVoiceNote }: QuickActionsBarProps) => {
   return (
-    <div className="flex flex-wrap gap-4">
-      <Button
-        className="flex-1 md:flex-none"
-        onClick={onNewReminder}
-      >
-        <Bell className="mr-2 h-4 w-4" />
-        Quick Reminder
-      </Button>
+    <div className="flex justify-between items-center p-2 bg-secondary/10 rounded-lg mb-4">
+      <div className="flex space-x-2">
+        <Button 
+          size="icon" 
+          variant="default" 
+          className="rounded-full"
+          onClick={onNewVoiceNote}
+        >
+          <Mic className="h-5 w-5" />
+          <span className="sr-only">New Voice Note</span>
+        </Button>
+        
+        <Button 
+          size="icon" 
+          variant="secondary" 
+          className="rounded-full"
+          onClick={onNewReminder}
+        >
+          <Plus className="h-5 w-5" />
+          <span className="sr-only">Add New Reminder</span>
+        </Button>
+      </div>
       
-      <Button
-        variant="secondary"
-        className="flex-1 md:flex-none"
-        onClick={onNewVoiceNote}
-      >
-        <Mic className="mr-2 h-4 w-4" />
-        Voice Note
-      </Button>
-      
-      <Button
-        variant="outline"
-        className="flex-1 md:flex-none"
-      >
-        <Calendar className="mr-2 h-4 w-4" />
-        Schedule
-      </Button>
-      
-      <Button
-        variant="outline"
-        className="flex-1 md:flex-none"
-      >
-        <PlusCircle className="mr-2 h-4 w-4" />
-        New Task
-      </Button>
+      <div className="flex items-center">
+        <svg 
+          xmlns="http://www.w3.org/2000/svg" 
+          className="h-5 w-5 text-amber-500 mr-1" 
+          fill="currentColor" 
+          viewBox="0 0 24 24"
+        >
+          <path d="M12 .587l3.668 7.568 8.332 1.151-6.064 5.828 1.48 8.279-7.416-3.967-7.417 3.967 1.481-8.279-6.064-5.828 8.332-1.151z"/>
+        </svg>
+        <span className="font-bold">7 day streak</span>
+      </div>
     </div>
   );
 };

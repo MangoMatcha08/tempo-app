@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -97,5 +98,19 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .priority-high {
+    @apply border-l-4 border-l-red-500;
+  }
+  
+  .priority-medium {
+    @apply border-l-4 border-l-amber-500;
+  }
+  
+  .priority-low {
+    @apply border-l-4 border-l-blue-500;
   }
 }

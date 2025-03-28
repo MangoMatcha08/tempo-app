@@ -40,11 +40,11 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto px-4 py-6 max-w-5xl">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold">Tempo Dashboard</h1>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-muted-foreground">
             {user?.displayName || user?.email}
           </span>
           <Button variant="outline" onClick={handleSignOut}>
@@ -53,22 +53,22 @@ const Dashboard = () => {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left column - 8/12 */}
-        <div className="lg:col-span-8 space-y-6">
-          <CurrentPeriodIndicator />
-          <QuickActionsBar 
-            onNewReminder={() => setShowQuickReminderModal(true)}
-            onNewVoiceNote={() => setShowVoiceRecorderModal(true)}
-          />
+      <CurrentPeriodIndicator />
+      <QuickActionsBar 
+        onNewReminder={() => setShowQuickReminderModal(true)}
+        onNewVoiceNote={() => setShowVoiceRecorderModal(true)}
+      />
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Primary content - 2/3 width on desktop */}
+        <div className="md:col-span-2 space-y-6">
           <RemindersSection />
-          <VoiceNotesSection />
+          <ProgressVisualization />
         </div>
         
-        {/* Right column - 4/12 */}
-        <div className="lg:col-span-4 space-y-6">
-          <ProgressVisualization />
-          <AchievementBadges />
+        {/* Secondary content - 1/3 width on desktop */}
+        <div>
+          <VoiceNotesSection />
         </div>
       </div>
       
