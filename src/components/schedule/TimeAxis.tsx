@@ -8,7 +8,7 @@ export const TimeAxis: React.FC = () => {
   const hours = getHoursArray();
   
   return (
-    <div className={`relative border-r ${isMobile ? 'w-10' : 'w-16'} min-h-[1440px]`}>
+    <div className={`relative border-r ${isMobile ? 'w-10' : 'w-16'}`} style={{ minHeight: '600px' }}>
       <div className="sticky top-0 p-3 border-b bg-card text-center z-10">
         <div className="text-sm text-muted-foreground">Time</div>
       </div>

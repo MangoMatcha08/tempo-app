@@ -1,9 +1,6 @@
 
 import React from 'react';
 import { Period } from '@/contexts/ScheduleContext';
-import { formatDayShort, formatDateShort, getHoursArray, getHourPosition } from '@/utils/scheduleUtils';
-import { PeriodBlock } from './PeriodBlock';
-import { isToday } from 'date-fns';
 import { DayColumn } from './DayColumn';
 import { TimeAxis } from './TimeAxis';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -20,7 +17,6 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   onPeriodClick
 }) => {
   const isMobile = useIsMobile();
-  const hours = getHoursArray();
   
   // Filter periods by day
   const getPeriodsForDay = (day: Date) => {
@@ -45,14 +41,14 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   if (isMobile) {
     // Mobile view: Show days as horizontally scrollable tabs
     return (
-      <div className="relative overflow-x-auto pb-6 card bg-card">
+      <div className="relative overflow-x-auto pb-4 bg-card">
         <div className="overflow-x-auto">
           <div className="flex">
             {/* Time axis always visible */}
             <TimeAxis />
             
             {/* Only show 3 days in view with horizontal scroll */}
-            <div className="grid grid-flow-col auto-cols-[minmax(200px,1fr)]">
+            <div className="grid grid-flow-col auto-cols-[minmax(180px,1fr)]">
               {daysOfWeek.map((day) => (
                 <DayColumn
                   key={day.toISOString()}
@@ -70,7 +66,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   
   // Desktop view: Show full week grid
   return (
-    <div className="relative overflow-x-auto pb-6 card bg-card">
+    <div className="relative overflow-x-auto pb-4 bg-card">
       <div className="grid grid-cols-8 min-w-[800px]">
         {/* Time axis */}
         <TimeAxis />

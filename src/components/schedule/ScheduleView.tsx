@@ -52,8 +52,8 @@ export const ScheduleView: React.FC = () => {
   
   if (loading) {
     return (
-      <Card className="p-6">
-        <div className="flex justify-center items-center h-64">
+      <Card className="p-4">
+        <div className="flex justify-center items-center h-32">
           <p className="text-muted-foreground">Loading schedule...</p>
         </div>
       </Card>
@@ -62,8 +62,8 @@ export const ScheduleView: React.FC = () => {
   
   if (error) {
     return (
-      <Card className="p-6">
-        <div className="flex justify-center items-center h-64">
+      <Card className="p-4">
+        <div className="flex justify-center items-center h-32">
           <p className="text-destructive">Error loading schedule: {error.message}</p>
         </div>
       </Card>
@@ -71,7 +71,7 @@ export const ScheduleView: React.FC = () => {
   }
   
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <ScheduleToolbar 
         viewMode={viewMode}
         onViewModeChange={setViewMode}
@@ -80,7 +80,7 @@ export const ScheduleView: React.FC = () => {
         onAddPeriod={handleAddPeriod}
       />
       
-      <Card>
+      <Card className="overflow-hidden">
         <WeeklyCalendar 
           daysOfWeek={getDaysOfWeek(selectedDate)}
           periods={periods}
