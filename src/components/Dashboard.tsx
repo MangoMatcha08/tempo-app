@@ -1,14 +1,25 @@
 
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { signOutUser } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import CurrentPeriodIndicator from "@/components/dashboard/CurrentPeriodIndicator";
+import QuickActionsBar from "@/components/dashboard/QuickActionsBar";
+import RemindersSection from "@/components/dashboard/RemindersSection";
+import ProgressVisualization from "@/components/dashboard/ProgressVisualization";
+import VoiceNotesSection from "@/components/dashboard/VoiceNotesSection";
+import AchievementBadges from "@/components/dashboard/AchievementBadges";
+import QuickReminderModal from "@/components/dashboard/QuickReminderModal";
+import VoiceRecorderModal from "@/components/dashboard/VoiceRecorderModal";
 
 const Dashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [showQuickReminderModal, setShowQuickReminderModal] = useState(false);
+  const [showVoiceRecorderModal, setShowVoiceRecorderModal] = useState(false);
 
   const handleSignOut = async () => {
     const { success, error } = await signOutUser();
@@ -18,7 +29,6 @@ const Dashboard = () => {
         title: "Signed out",
         description: "You have been signed out successfully.",
       });
-      // Redirect to the sign in page after successful sign out
       navigate("/");
     } else {
       toast({
@@ -43,15 +53,35 @@ const Dashboard = () => {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Dashboard content will go here */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold mb-4">Welcome to Tempo</h2>
-          <p className="text-gray-600">
-            Your teaching productivity dashboard is being set up. More features coming soon!
-          </p>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left column - 8/12 */}
+        <div className="lg:col-span-8 space-y-6">
+          <CurrentPeriodIndicator />
+          <QuickActionsBar 
+            onNewReminder={() => setShowQuickReminderModal(true)}
+            onNewVoiceNote={() => setShowVoiceRecorderModal(true)}
+          />
+          <RemindersSection />
+          <VoiceNotesSection />
+        </div>
+        
+        {/* Right column - 4/12 */}
+        <div className="lg:col-span-4 space-y-6">
+          <ProgressVisualization />
+          <AchievementBadges />
         </div>
       </div>
+      
+      {/* Modals */}
+      <QuickReminderModal
+        open={showQuickReminderModal}
+        onOpenChange={setShowQuickReminderModal}
+      />
+      
+      <VoiceRecorderModal
+        open={showVoiceRecorderModal}
+        onOpenChange={setShowVoiceRecorderModal}
+      />
     </div>
   );
 };
