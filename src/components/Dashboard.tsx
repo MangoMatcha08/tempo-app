@@ -3,10 +3,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { signOutUser } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     const { success, error } = await signOutUser();
@@ -16,6 +18,8 @@ const Dashboard = () => {
         title: "Signed out",
         description: "You have been signed out successfully.",
       });
+      // Redirect to the sign in page after successful sign out
+      navigate("/");
     } else {
       toast({
         title: "Sign out failed",
