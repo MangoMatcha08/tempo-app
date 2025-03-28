@@ -12,14 +12,14 @@ const RemindersSection = () => {
       title: "Grade final papers",
       description: "Need to complete before end of day",
       dueDate: new Date(new Date().getTime() + 3600000), // 1 hour from now
-      priority: "high",
+      priority: "high" as const,
     },
     {
       id: "2",
       title: "Submit attendance",
       description: "For 3rd period class",
       dueDate: new Date(new Date().getTime() + 1800000), // 30 mins from now
-      priority: "medium",
+      priority: "medium" as const,
     },
   ];
   
@@ -29,21 +29,21 @@ const RemindersSection = () => {
       title: "Parent-teacher conference",
       description: "Meeting with Smith family",
       dueDate: new Date(new Date().getTime() + 86400000), // Tomorrow
-      priority: "medium",
+      priority: "medium" as const,
     },
     {
       id: "4",
       title: "Department meeting",
       description: "Curriculum planning",
       dueDate: new Date(new Date().getTime() + 172800000), // Day after tomorrow
-      priority: "low",
+      priority: "low" as const,
     },
     {
       id: "5",
       title: "Order lab supplies",
       description: "For next month's experiments",
       dueDate: new Date(new Date().getTime() + 259200000), // 3 days from now
-      priority: "medium",
+      priority: "medium" as const,
     },
   ];
 
