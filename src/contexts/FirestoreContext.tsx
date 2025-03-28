@@ -1,6 +1,7 @@
 
 import { createContext, useContext, ReactNode } from "react";
 import { isFirebaseInitialized } from "@/lib/firebase";
+import { ScheduleProvider } from "./ScheduleContext";
 
 interface FirestoreContextType {
   isReady: boolean;
@@ -15,7 +16,9 @@ export const FirestoreProvider = ({ children }: { children: ReactNode }) => {
   
   return (
     <FirestoreContext.Provider value={{ isReady }}>
-      {children}
+      <ScheduleProvider>
+        {children}
+      </ScheduleProvider>
     </FirestoreContext.Provider>
   );
 };
