@@ -1,6 +1,5 @@
 
 import { createContext, useContext, ReactNode } from "react";
-import { getFirestore, collection, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { isFirebaseInitialized } from "@/lib/firebase";
 
 interface FirestoreContextType {
