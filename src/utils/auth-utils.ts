@@ -17,6 +17,8 @@ export const getAuthErrorMessage = (error: any) => {
       return "Too many attempts, please try again later";
     case "auth/network-request-failed":
       return "Network error, please check your connection";
+    case "auth/unauthorized-domain":
+      return "This domain is not authorized for authentication. Please try using email/password login instead, or try from an authorized domain like localhost or the production site.";
     case "auth/popup-closed-by-user":
       return "Sign in was cancelled. Please try again.";
     case "auth/popup-blocked":

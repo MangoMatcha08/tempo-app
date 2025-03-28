@@ -13,11 +13,14 @@ import AuthErrorAlert from "@/components/auth/AuthErrorAlert";
 import CreateAccountButton from "@/components/auth/CreateAccountButton";
 import { signInSchema, type SignInFormValues } from "@/schemas/auth";
 import { getAuthErrorMessage } from "@/utils/auth-utils";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { InfoIcon } from "lucide-react";
 
 const SignInForm = ({ onCreateAccount }: { onCreateAccount?: () => void }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isUnauthorizedDomain, setIsUnauthorizedDomain] = useState(false);
   const { firebaseReady, verifyConnection } = useAuth();
   const { toast } = useToast();
 
@@ -70,6 +73,7 @@ const SignInForm = ({ onCreateAccount }: { onCreateAccount?: () => void }) => {
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     setAuthError(null);
+    setIsUnauthorizedDomain(false);
     
     if (!firebaseReady) {
       setIsGoogleLoading(false);
@@ -89,6 +93,12 @@ const SignInForm = ({ onCreateAccount }: { onCreateAccount?: () => void }) => {
         console.error("Google sign in failed:", error);
         const errorMessage = getAuthErrorMessage(error);
         setAuthError(errorMessage);
+        
+        // Specifically check for unauthorized domain error
+        if (error.code === "auth/unauthorized-domain") {
+          setIsUnauthorizedDomain(true);
+        }
+        
         toast({
           title: "Google sign in failed",
           description: errorMessage,
@@ -137,6 +147,16 @@ const SignInForm = ({ onCreateAccount }: { onCreateAccount?: () => void }) => {
         error={authError} 
         firebaseReady={firebaseReady} 
       />
+      
+      {isUnauthorizedDomain && (
+        <Alert className="mb-4 bg-amber-50 text-amber-800 border-amber-200">
+          <InfoIcon className="h-4 w-4 mr-2" />
+          <AlertDescription>
+            You're accessing this app on a domain not authorized for Google sign-in. 
+            Please use email/password login instead, or try from localhost or the production site.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <form onSubmit={form.handleSubmit(handleSignIn)} className="space-y-4">
         <div className="space-y-2">
