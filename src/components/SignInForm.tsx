@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { UserPlus } from "lucide-react";
 
 const signInSchema = z.object({
   email: z.string().email("Valid email is required"),
@@ -18,7 +19,7 @@ const signInSchema = z.object({
 
 type SignInFormValues = z.infer<typeof signInSchema>;
 
-const SignInForm = () => {
+const SignInForm = ({ onCreateAccount }: { onCreateAccount?: () => void }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const { firebaseReady, verifyConnection } = useAuth();
@@ -132,7 +133,7 @@ const SignInForm = () => {
   };
 
   const fillTestCredentials = () => {
-    form.setValue("email", "test@example.com");
+    form.setValue("email", "test@email.com");
     form.setValue("password", "password123");
   };
 
@@ -234,6 +235,22 @@ const SignInForm = () => {
       >
         Google
       </Button>
+
+      {onCreateAccount && (
+        <div className="text-center mt-6">
+          <p className="text-sm text-gray-600">
+            Don't have an account?{" "}
+            <button
+              type="button"
+              onClick={onCreateAccount}
+              className="text-primary hover:underline font-medium flex items-center justify-center mx-auto mt-2"
+            >
+              <UserPlus className="mr-2 h-4 w-4" />
+              Create an account
+            </button>
+          </p>
+        </div>
+      )}
     </div>
   );
 };
