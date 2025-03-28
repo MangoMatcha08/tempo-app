@@ -6,25 +6,26 @@ import { useIsMobile } from '@/hooks/use-mobile';
 
 interface PeriodBlockProps {
   period: Period;
-  index?: number; // Add the index prop as optional
+  index?: number;
   onClick: () => void;
+  minHour: number;
 }
 
-export const PeriodBlock: React.FC<PeriodBlockProps> = ({ period, onClick }) => {
+export const PeriodBlock: React.FC<PeriodBlockProps> = ({ period, onClick, minHour }) => {
   const isMobile = useIsMobile();
   
   // Calculate height based on duration
   const height = calculateHeight(period.startTime, period.endTime);
   
-  // Calculate top position based on start time
-  const top = calculateTopPosition(period.startTime);
+  // Calculate top position based on start time and minHour offset
+  const top = calculateTopPosition(period.startTime, minHour);
   
   // Get color class based on period type
   const colorClass = getPeriodColor(period.type);
   
   return (
     <div
-      className={`absolute left-1 right-1 rounded-md p-2 shadow-sm cursor-pointer text-white
+      className={`absolute left-1 right-1 rounded-md p-1.5 shadow-sm cursor-pointer text-white
         border-l-4 z-10 overflow-hidden hover:shadow-md transition-shadow
         ${colorClass} ${period.isSpecialDay ? 'bg-opacity-70' : ''}`}
       style={{
@@ -41,13 +42,13 @@ export const PeriodBlock: React.FC<PeriodBlockProps> = ({ period, onClick }) => 
         </div>
         
         {period.location && (
-          <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} mt-1 opacity-80 truncate`}>
+          <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} mt-0.5 opacity-80 truncate`}>
             {period.location}
           </div>
         )}
         
-        {period.notes && height.replace('px', '') > (isMobile ? '80' : '100') && (
-          <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} mt-2 opacity-80 line-clamp-2`}>
+        {period.notes && height.replace('px', '') > (isMobile ? '60' : '80') && (
+          <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} mt-1 opacity-80 line-clamp-1`}>
             {period.notes}
           </div>
         )}

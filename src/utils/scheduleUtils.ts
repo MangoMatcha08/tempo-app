@@ -1,18 +1,21 @@
+
 import { differenceInMinutes, startOfDay, format, parseISO } from 'date-fns';
 
-// Calculate the height of a period block based on duration, using a more compact scale
+// Calculate the height of a period block based on duration
 export const calculateHeight = (startTime: Date, endTime: Date): string => {
   const durationMinutes = differenceInMinutes(endTime, startTime);
-  // 1.5px per minute for a more compact view (previously 2px)
-  return `${Math.max(durationMinutes, 30) * 1.5}px`;
+  // 1px per minute
+  return `${Math.max(durationMinutes, 30)}px`;
 };
 
-// Calculate the top position of a period block based on start time
-export const calculateTopPosition = (startTime: Date): string => {
+// Calculate the top position of a period block based on start time and minHour
+export const calculateTopPosition = (startTime: Date, minHour: number = 7): string => {
   const dayStart = startOfDay(startTime);
   const minutesSinceDayStart = differenceInMinutes(startTime, dayStart);
-  // 1.5px per minute matches the scale of the calculateHeight function
-  return `${minutesSinceDayStart * 1.5}px`;
+  // Adjust for minHour offset
+  const offsetMinutes = (minHour * 60);
+  // 1px per minute matches the scale of the calculateHeight function
+  return `${Math.max(0, minutesSinceDayStart - offsetMinutes)}px`;
 };
 
 // Format time to display
@@ -35,17 +38,19 @@ export const formatDateShort = (date: Date): string => {
   return format(date, 'MMM d');
 };
 
-// Get hours array for time axis, with fewer entries for a more compact view
-export const getHoursArray = (): string[] => {
-  return [
-    '7:00 AM', '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', 
-    '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM',
-    '6:00 PM', '7:00 PM'
-  ];
+// Get hours array for time axis based on min and max hours
+export const getHoursArray = (minHour: number = 7, maxHour: number = 19): string[] => {
+  const hours = [];
+  for (let hour = minHour; hour <= maxHour; hour++) {
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
+    hours.push(`${hour12}:00 ${period}`);
+  }
+  return hours;
 };
 
-// Get position for a specific hour, adjusted for the new scale
-export const getHourPosition = (hour: string): string => {
+// Get position for a specific hour, adjusted for the minHour offset
+export const getHourPosition = (hour: string, minHour: number = 7): string => {
   const [hourStr, period] = hour.split(' ');
   const [hours, minutes] = hourStr.split(':').map(Number);
   
@@ -56,8 +61,8 @@ export const getHourPosition = (hour: string): string => {
     hour24 = 0;
   }
   
-  // 1.5px per minute, 60 minutes per hour
-  return `${(hour24 * 60 + (minutes || 0)) * 1.5}px`;
+  // 60px per hour with minHour offset
+  return `${((hour24 - minHour) * 60 + (minutes || 0))}px`;
 };
 
 // Get color based on period type

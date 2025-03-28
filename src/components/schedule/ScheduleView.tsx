@@ -6,8 +6,10 @@ import { WeeklyCalendar } from './WeeklyCalendar';
 import { ScheduleToolbar } from './ScheduleToolbar';
 import { PeriodEditor } from './PeriodEditor';
 import { Period } from '@/contexts/ScheduleContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export const ScheduleView: React.FC = () => {
+  const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<'week' | 'day'>('week');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
@@ -52,8 +54,8 @@ export const ScheduleView: React.FC = () => {
   
   if (loading) {
     return (
-      <Card className="p-4">
-        <div className="flex justify-center items-center h-32">
+      <Card className="p-3">
+        <div className="flex justify-center items-center h-16">
           <p className="text-muted-foreground">Loading schedule...</p>
         </div>
       </Card>
@@ -62,8 +64,8 @@ export const ScheduleView: React.FC = () => {
   
   if (error) {
     return (
-      <Card className="p-4">
-        <div className="flex justify-center items-center h-32">
+      <Card className="p-3">
+        <div className="flex justify-center items-center h-16">
           <p className="text-destructive">Error loading schedule: {error.message}</p>
         </div>
       </Card>
@@ -71,7 +73,7 @@ export const ScheduleView: React.FC = () => {
   }
   
   return (
-    <div className="space-y-4">
+    <div className={`space-y-${isMobile ? '2' : '4'}`}>
       <ScheduleToolbar 
         viewMode={viewMode}
         onViewModeChange={setViewMode}

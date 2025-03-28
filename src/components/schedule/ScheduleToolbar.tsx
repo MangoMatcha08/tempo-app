@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CalendarIcon, PlusIcon } from 'lucide-react';
+import { CalendarIcon } from 'lucide-react';
 import { addDays, subDays, format } from 'date-fns';
 import { 
   DropdownMenu,
@@ -10,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ScheduleToolbarProps {
   viewMode: 'week' | 'day';
@@ -24,8 +25,10 @@ export const ScheduleToolbar: React.FC<ScheduleToolbarProps> = ({
   onViewModeChange,
   selectedDate,
   onDateChange,
-  onAddPeriod
+  onAddPeriod // We'll keep this in the props but not use it
 }) => {
+  const isMobile = useIsMobile();
+  
   const handlePreviousWeek = () => {
     onDateChange(subDays(selectedDate, 7));
   };
@@ -40,22 +43,22 @@ export const ScheduleToolbar: React.FC<ScheduleToolbarProps> = ({
   
   return (
     <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+      <CardContent className={`${isMobile ? 'p-2' : 'p-4'}`}>
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handlePreviousWeek}>
+            <Button variant="outline" size={isMobile ? "sm" : "default"} onClick={handlePreviousWeek}>
               Previous
             </Button>
-            <Button variant="outline" size="sm" onClick={handleToday}>
+            <Button variant="outline" size={isMobile ? "sm" : "default"} onClick={handleToday}>
               Today
             </Button>
-            <Button variant="outline" size="sm" onClick={handleNextWeek}>
+            <Button variant="outline" size={isMobile ? "sm" : "default"} onClick={handleNextWeek}>
               Next
             </Button>
           </div>
           
           <div className="flex items-center gap-2">
-            <span className="font-medium">
+            <span className={`font-medium ${isMobile ? 'text-sm' : ''}`}>
               {format(selectedDate, 'MMMM yyyy')}
             </span>
             <DropdownMenu>
@@ -73,10 +76,6 @@ export const ScheduleToolbar: React.FC<ScheduleToolbarProps> = ({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button onClick={onAddPeriod}>
-              <PlusIcon className="h-4 w-4 mr-2" />
-              Add Period
-            </Button>
           </div>
         </div>
       </CardContent>

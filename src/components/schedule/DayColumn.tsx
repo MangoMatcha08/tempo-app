@@ -10,12 +10,16 @@ interface DayColumnProps {
   day: Date;
   periods: Period[];
   onPeriodClick: (period: Period) => void;
+  minHour: number;
+  maxHour: number;
 }
 
 export const DayColumn: React.FC<DayColumnProps> = ({
   day,
   periods,
-  onPeriodClick
+  onPeriodClick,
+  minHour,
+  maxHour
 }) => {
   const isMobile = useIsMobile();
   const isTodayFlag = isToday(day);
@@ -23,8 +27,8 @@ export const DayColumn: React.FC<DayColumnProps> = ({
   return (
     <div className={`relative border-r ${
       isTodayFlag ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-    } ${isMobile ? 'min-w-[180px]' : ''}`} style={{ minHeight: '600px' }}>
-      <div className={`sticky top-0 p-3 text-center border-b z-10 ${
+    } ${isMobile ? 'min-w-[130px]' : ''}`}>
+      <div className={`sticky top-0 p-2 text-center border-b z-10 ${
         isTodayFlag ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-card'
       }`}>
         <div className="font-medium">{formatDayShort(day)}</div>
@@ -37,6 +41,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
           period={period}
           index={index}
           onClick={() => onPeriodClick(period)}
+          minHour={minHour}
         />
       ))}
     </div>
