@@ -4,6 +4,7 @@ import { Period } from '@/contexts/ScheduleContext';
 import { PeriodBlock } from './PeriodBlock';
 import { formatDateShort, formatDayShort } from '@/utils/scheduleUtils';
 import { isToday } from 'date-fns';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface DayColumnProps {
   day: Date;
@@ -16,13 +17,14 @@ export const DayColumn: React.FC<DayColumnProps> = ({
   periods,
   onPeriodClick
 }) => {
+  const isMobile = useIsMobile();
   const isTodayFlag = isToday(day);
-
+  
   return (
     <div className={`relative border-r min-h-[1440px] ${
       isTodayFlag ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-    }`}>
-      <div className={`sticky top-0 p-3 text-center border-b ${
+    } ${isMobile ? 'min-w-[180px]' : ''}`}>
+      <div className={`sticky top-0 p-3 text-center border-b z-10 ${
         isTodayFlag ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-card'
       }`}>
         <div className="font-medium">{formatDayShort(day)}</div>

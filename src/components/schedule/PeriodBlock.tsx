@@ -2,6 +2,7 @@
 import React from 'react';
 import { Period } from '@/contexts/ScheduleContext';
 import { calculateHeight, calculateTopPosition, formatTime, getPeriodColor } from '@/utils/scheduleUtils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface PeriodBlockProps {
   period: Period;
@@ -10,6 +11,8 @@ interface PeriodBlockProps {
 }
 
 export const PeriodBlock: React.FC<PeriodBlockProps> = ({ period, onClick }) => {
+  const isMobile = useIsMobile();
+  
   // Calculate height based on duration
   const height = calculateHeight(period.startTime, period.endTime);
   
@@ -31,20 +34,20 @@ export const PeriodBlock: React.FC<PeriodBlockProps> = ({ period, onClick }) => 
       onClick={onClick}
     >
       <div className="h-full flex flex-col">
-        <h3 className="font-medium text-sm truncate">{period.title}</h3>
+        <h3 className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'} truncate`}>{period.title}</h3>
         
-        <div className="text-xs opacity-90 mt-0.5">
+        <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} opacity-90 mt-0.5`}>
           {formatTime(period.startTime)} - {formatTime(period.endTime)}
         </div>
         
         {period.location && (
-          <div className="text-xs mt-1 opacity-80 truncate">
+          <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} mt-1 opacity-80 truncate`}>
             {period.location}
           </div>
         )}
         
-        {period.notes && height.replace('px', '') > '100' && (
-          <div className="text-xs mt-2 opacity-80 line-clamp-2">
+        {period.notes && height.replace('px', '') > (isMobile ? '80' : '100') && (
+          <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} mt-2 opacity-80 line-clamp-2`}>
             {period.notes}
           </div>
         )}

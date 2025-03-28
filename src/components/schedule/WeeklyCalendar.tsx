@@ -6,6 +6,7 @@ import { PeriodBlock } from './PeriodBlock';
 import { isToday } from 'date-fns';
 import { DayColumn } from './DayColumn';
 import { TimeAxis } from './TimeAxis';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface WeeklyCalendarProps {
   daysOfWeek: Date[];
@@ -18,6 +19,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   periods,
   onPeriodClick
 }) => {
+  const isMobile = useIsMobile();
   const hours = getHoursArray();
   
   // Filter periods by day
@@ -40,6 +42,33 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
     });
   };
   
+  if (isMobile) {
+    // Mobile view: Show days as horizontally scrollable tabs
+    return (
+      <div className="relative overflow-x-auto pb-6 card bg-card">
+        <div className="overflow-x-auto">
+          <div className="flex">
+            {/* Time axis always visible */}
+            <TimeAxis />
+            
+            {/* Only show 3 days in view with horizontal scroll */}
+            <div className="grid grid-flow-col auto-cols-[minmax(200px,1fr)]">
+              {daysOfWeek.map((day) => (
+                <DayColumn
+                  key={day.toISOString()}
+                  day={day}
+                  periods={getPeriodsForDay(day)}
+                  onPeriodClick={onPeriodClick}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Desktop view: Show full week grid
   return (
     <div className="relative overflow-x-auto pb-6 card bg-card">
       <div className="grid grid-cols-8 min-w-[800px]">
