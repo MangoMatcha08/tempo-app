@@ -7,7 +7,7 @@ import {
   getFirebaseInitError,
   pingFirebase
 } from "@/lib/firebase";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 
 interface AuthContextType {
   user: User | null;
@@ -30,7 +30,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [firebaseReady, setFirebaseReady] = useState(false);
-  const { toast } = useToast();
   
   const verifyConnection = async () => {
     try {
@@ -90,7 +89,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log("Firebase initialized, verifying connection");
       verifyConnection();
     }
-  }, [toast]);
+  }, []);
   
   useEffect(() => {
     if (!firebaseReady) {
@@ -127,7 +126,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log("Cleaning up auth state listener");
       unsubscribe();
     };
-  }, [firebaseReady, toast]);
+  }, [firebaseReady]);
 
   return (
     <AuthContext.Provider value={{ user, loading, error, firebaseReady, verifyConnection }}>
