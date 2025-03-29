@@ -81,3 +81,24 @@ export const getPeriodColor = (type: string): string => {
       return 'bg-slate-500 border-slate-600';
   }
 };
+
+// Get color for reminder indicators
+export const getReminderColors = (): string[] => {
+  return [
+    '#0EA5E9', // Ocean Blue
+    '#F97316', // Bright Orange 
+    '#8B5CF6', // Vivid Purple
+    '#D946EF', // Magenta Pink
+    '#ea384c', // Red
+  ];
+};
+
+// Estimate reminder count from period data
+export const estimateReminderCount = (period: any): number => {
+  // In a real app, this would query actual reminders
+  // For now, we'll estimate based on notes length if available
+  if (period.notes) {
+    return Math.min(Math.ceil(period.notes.length / 20), 5);
+  }
+  return 0;
+};

@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useScheduleContext, Period, PeriodType } from '@/contexts/ScheduleContext';
 import { addMinutes, addDays, startOfWeek, isToday } from 'date-fns';
@@ -18,7 +17,7 @@ const generateMockPeriods = (): Period[] => {
       location: 'Room 204',
       isRecurring: true,
       daysOfWeek: [1, 3, 5], // Mon, Wed, Fri
-      notes: 'Chapter 5 review',
+      notes: 'Collect homework, Review Chapter 5, Quiz preparation',
     },
     {
       id: '2',
@@ -29,6 +28,7 @@ const generateMockPeriods = (): Period[] => {
       location: 'Room 115',
       isRecurring: true,
       daysOfWeek: [1, 3, 5], // Mon, Wed, Fri
+      notes: 'Essay due date, Discussion on Hamlet',
     },
     {
       id: '3',
@@ -39,6 +39,7 @@ const generateMockPeriods = (): Period[] => {
       location: 'Teachers Lounge',
       isRecurring: true,
       daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
+      notes: 'Grade papers, Prepare test materials',
     },
     {
       id: '4',
@@ -58,6 +59,7 @@ const generateMockPeriods = (): Period[] => {
       location: 'Lab 3',
       isRecurring: true,
       daysOfWeek: [2, 4], // Tue, Thu
+      notes: 'Chemical reactions demo, Safety procedures review',
     },
     {
       id: '6',
@@ -68,6 +70,7 @@ const generateMockPeriods = (): Period[] => {
       location: 'Art Studio',
       isRecurring: true,
       daysOfWeek: [1, 3, 5], // Mon, Wed, Fri
+      notes: 'Materials for next project, Student showcase preparation',
     },
     {
       id: '7',
@@ -78,7 +81,7 @@ const generateMockPeriods = (): Period[] => {
       location: 'Conference Room',
       isRecurring: true,
       daysOfWeek: [3], // Wed only
-      notes: 'Bring semester plans',
+      notes: 'Budget discussion, Upcoming events, Parent-teacher conferences',
     },
   ];
   
@@ -91,12 +94,10 @@ export const useSchedule = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   
-  // Get periods for a specific day
   const getPeriodsForDay = useCallback((date: Date) => {
     const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
     
     return periods.filter(period => {
-      // For non-recurring periods, check exact date
       if (!period.isRecurring) {
         const periodDate = period.startTime;
         return (
@@ -106,12 +107,10 @@ export const useSchedule = () => {
         );
       }
       
-      // For recurring periods, check if this day of week is included
       return period.daysOfWeek?.includes(dayOfWeek) ?? false;
     });
   }, [periods]);
   
-  // Get the current active period
   const getCurrentPeriod = useCallback(() => {
     if (!isReady) return null;
     
@@ -123,7 +122,6 @@ export const useSchedule = () => {
     }) || null;
   }, [getPeriodsForDay, isReady]);
   
-  // Add a new period
   const addPeriod = useCallback((periodData: Omit<Period, 'id'>) => {
     const newPeriod: Period = {
       ...periodData,
@@ -136,7 +134,6 @@ export const useSchedule = () => {
     return newPeriod;
   }, []);
   
-  // Update an existing period
   const updatePeriod = useCallback((periodId: string, periodData: Partial<Period>) => {
     setPeriods(prev => prev.map(period => {
       if (period.id === periodId) {
@@ -150,12 +147,10 @@ export const useSchedule = () => {
     }));
   }, []);
   
-  // Delete a period
   const deletePeriod = useCallback((periodId: string) => {
     setPeriods(prev => prev.filter(period => period.id !== periodId));
   }, []);
   
-  // Get days of the week for the weekly calendar
   const getDaysOfWeek = useCallback((referenceDate: Date) => {
     const result: Date[] = [];
     const startDay = startOfWeek(referenceDate, { weekStartsOn: 1 }); // Week starts on Monday

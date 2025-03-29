@@ -28,6 +28,9 @@ export const PeriodBlock: React.FC<PeriodBlockProps> = ({
   
   // Get color class based on period type
   const colorClass = getPeriodColor(period.type);
+
+  // Simulate reminder counts (in a real app, these would come from your data)
+  const reminderCount = period.notes ? Math.min(Math.ceil(period.notes.length / 20), 5) : 0;
   
   return (
     <div
@@ -41,20 +44,35 @@ export const PeriodBlock: React.FC<PeriodBlockProps> = ({
       onClick={onClick}
     >
       <div className="h-full flex flex-col">
-        <h3 className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'} truncate`}>{period.title}</h3>
-        
-        <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} opacity-90 mt-0.5`}>
-          {formatTime(period.startTime)} - {formatTime(period.endTime)}
+        <div className="flex justify-between items-start">
+          <h3 className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'} truncate flex-1`}>
+            {period.title}
+          </h3>
+          <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} opacity-90`}>
+            {formatTime(period.startTime)}
+          </div>
         </div>
-        
-        {period.location && (
-          <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} mt-0.5 opacity-80 truncate`}>
-            {period.location}
+
+        {/* Reminder indicators */}
+        {reminderCount > 0 && (
+          <div className="flex mt-1 gap-1">
+            {Array.from({ length: reminderCount }).map((_, i) => (
+              <div 
+                key={i} 
+                className="h-1.5 rounded-full" 
+                style={{ 
+                  backgroundColor: getReminderColor(i),
+                  width: i === 0 ? '30%' : `${Math.max(10, 30 - i * 5)}%`,
+                  opacity: 0.9
+                }}
+              />
+            ))}
           </div>
         )}
-        
-        {period.notes && height.replace('px', '') > (isMobile ? '60' : '80') && (
-          <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} mt-1 opacity-80 line-clamp-1`}>
+
+        {/* Only show notes preview if we have enough space and notes exist */}
+        {period.notes && parseInt(height.replace('px', '')) > 60 && (
+          <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} mt-1 opacity-90 line-clamp-2`}>
             {period.notes}
           </div>
         )}
@@ -62,3 +80,16 @@ export const PeriodBlock: React.FC<PeriodBlockProps> = ({
     </div>
   );
 };
+
+// Helper function to get colors for reminder indicators
+function getReminderColor(index: number): string {
+  const colors = [
+    '#0EA5E9', // Ocean Blue
+    '#F97316', // Bright Orange
+    '#8B5CF6', // Vivid Purple
+    '#D946EF', // Magenta Pink
+    '#ea384c', // Red
+  ];
+  
+  return colors[index % colors.length];
+}
