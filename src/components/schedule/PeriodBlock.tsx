@@ -48,7 +48,7 @@ export const PeriodBlock: React.FC<PeriodBlockProps> = ({
           {period.title}
         </h3>
 
-        {/* Reminder indicators */}
+        {/* Reminder indicators - Make sure these always appear when reminderCount > 0 */}
         {reminderCount > 0 && (
           <div className="flex mt-1 gap-1">
             {Array.from({ length: reminderCount }).map((_, i) => (

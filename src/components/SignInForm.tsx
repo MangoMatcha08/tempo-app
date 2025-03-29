@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -63,8 +62,9 @@ const SignInForm = ({ onCreateAccount }: { onCreateAccount?: () => void }) => {
     
     console.log("Sign in successful:", user?.email);
     toast({
-      title: "Sign in successful",
+      title: "Signed in",
       description: "You are now signed in.",
+      className: "bottom-toast",
     });
     
     await verifyConnection();
@@ -94,7 +94,6 @@ const SignInForm = ({ onCreateAccount }: { onCreateAccount?: () => void }) => {
         const errorMessage = getAuthErrorMessage(error);
         setAuthError(errorMessage);
         
-        // Specifically check for unauthorized domain error
         if (error.code === "auth/unauthorized-domain") {
           setIsUnauthorizedDomain(true);
         }
