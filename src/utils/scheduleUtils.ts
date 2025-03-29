@@ -33,12 +33,13 @@ export const formatDayShort = (date: Date): string => {
   return format(date, 'EEE');
 };
 
-// Format short date with fixed-width month to prevent layout issues
+// Format short date with consistent 3-letter month abbreviation
 export const formatDateShort = (date: Date): string => {
-  // Use fixed 3-char month format to ensure consistent layout
-  const month = format(date, 'MMM').substring(0, 3);
+  // Fixed 3-letter month abbreviation followed by day
+  const month = format(date, 'MMM');
+  const threeLetterMonth = month.length > 3 ? month.substring(0, 3) : month.padEnd(3, ' ');
   const day = format(date, 'd');
-  return `${month} ${day}`;
+  return `${threeLetterMonth} ${day}`;
 };
 
 // Get hours array for time axis based on min and max hours

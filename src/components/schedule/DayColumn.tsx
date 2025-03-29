@@ -39,7 +39,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
         onClick={() => onDayClick(day)}
       >
         <div className="font-medium">{formatDayShort(day)}</div>
-        <div className="text-sm text-muted-foreground">{formatDateShort(day)}</div>
+        <div className="text-sm text-muted-foreground whitespace-nowrap">{formatDateShort(day)}</div>
       </div>
       
       <div className="relative" style={{ height: `${(maxHour - minHour) * heightPerHour}px` }}>
