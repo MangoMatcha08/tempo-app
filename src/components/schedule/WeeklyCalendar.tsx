@@ -43,7 +43,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
     
     return periods.filter(period => {
       if (!period.isRecurring) {
-        // For non-recurring periods, check exact date
+        // For non-recurring periods, check exact date (year, month, day)
         const periodDate = period.startTime;
         return (
           periodDate.getFullYear() === day.getFullYear() &&

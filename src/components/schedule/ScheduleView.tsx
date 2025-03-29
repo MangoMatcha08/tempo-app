@@ -8,6 +8,7 @@ import { PeriodEditor } from './PeriodEditor';
 import { Period } from '@/contexts/ScheduleContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DayDetailView } from './DayDetailView';
+import { format } from 'date-fns';
 
 export const ScheduleView: React.FC = () => {
   const isMobile = useIsMobile();
@@ -29,19 +30,29 @@ export const ScheduleView: React.FC = () => {
   } = useSchedule();
   
   const handlePeriodClick = (period: Period) => {
-    // Use the actual day from the period's startTime
-    const periodDay = new Date(period.startTime);
+    // For recurring periods, get the actual day of the week from the display
+    // The periods come from mock data where startTime might not reflect the displayed day
+    if (period.isRecurring) {
+      // Find which day column this period is being displayed in
+      const currentDays = getDaysOfWeek(selectedDate);
+      const dayIndex = period.daysOfWeek?.[0] || 1; // Default to Monday (1) if no days specified
+      
+      // Find the matching day in the current view (accounting for weekStartsOn=1 in getDaysOfWeek)
+      const matchingDay = currentDays.find(day => day.getDay() === dayIndex);
+      
+      if (matchingDay) {
+        setSelectedDay(matchingDay);
+      } else {
+        // Fallback to using period's startTime (should rarely happen)
+        setSelectedDay(new Date(period.startTime));
+      }
+    } else {
+      // For non-recurring events, use the period's startTime
+      setSelectedDay(new Date(period.startTime));
+    }
     
-    // Create a new Date that only contains the year, month, and day (not time)
-    // This prevents issues with time zones affecting the day display
-    const dayOnly = new Date(
-      periodDay.getFullYear(), 
-      periodDay.getMonth(), 
-      periodDay.getDate()
-    );
-    
-    setSelectedDay(dayOnly);
     setIsDayDetailOpen(true);
+    console.log(`Selected day: ${selectedDay ? format(selectedDay, 'EEEE, MMMM d') : 'none'}`);
   };
   
   const handleDayClick = (day: Date) => {
