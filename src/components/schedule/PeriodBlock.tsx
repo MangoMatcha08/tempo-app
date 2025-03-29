@@ -29,8 +29,10 @@ export const PeriodBlock: React.FC<PeriodBlockProps> = ({
   // Get color class based on period type
   const colorClass = getPeriodColor(period.type);
 
-  // Calculate reminder count based on period notes
-  const reminderCount = period.notes ? Math.min(Math.ceil(period.notes.length / 20), 5) : 0;
+  // Ensure we always have a valid reminderCount
+  // The check is simplified to better handle different cases
+  const hasNotes = period.notes && period.notes.trim().length > 0;
+  const reminderCount = hasNotes ? Math.min(Math.ceil(period.notes.length / 20), 5) : 0;
   
   return (
     <div
@@ -43,13 +45,13 @@ export const PeriodBlock: React.FC<PeriodBlockProps> = ({
       }}
       onClick={onClick}
     >
-      <div className="h-full flex flex-col">
+      <div className="h-full flex flex-col justify-between">
         <h3 className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'} truncate flex-1`}>
           {period.title}
         </h3>
 
-        {/* Reminder indicators - Make sure these always appear when reminderCount > 0 */}
-        {reminderCount > 0 && (
+        {/* Reminder indicators - Force display when there are notes */}
+        {hasNotes && (
           <div className="flex mt-1 gap-1">
             {Array.from({ length: reminderCount }).map((_, i) => (
               <div 
