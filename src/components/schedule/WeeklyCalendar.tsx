@@ -8,7 +8,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 interface WeeklyCalendarProps {
   daysOfWeek: Date[];
   periods: Period[];
-  onPeriodClick: (period: Period) => void;
+  onPeriodClick: (period: Period, displayDay: Date) => void;
   onDayClick: (day: Date) => void;
 }
 
@@ -105,7 +105,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                   key={day.toISOString()}
                   day={day}
                   periods={getPeriodsForDay(day)}
-                  onPeriodClick={onPeriodClick}
+                  onPeriodClick={(period) => onPeriodClick(period, day)}
                   onDayClick={onDayClick}
                   minHour={minHour}
                   maxHour={maxHour}
@@ -137,7 +137,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
               key={day.toISOString()}
               day={day}
               periods={getPeriodsForDay(day)}
-              onPeriodClick={onPeriodClick}
+              onPeriodClick={(period) => onPeriodClick(period, day)}
               onDayClick={onDayClick}
               minHour={minHour}
               maxHour={maxHour}

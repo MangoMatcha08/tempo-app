@@ -1,4 +1,3 @@
-
 import { differenceInMinutes, startOfDay, format, parseISO } from 'date-fns';
 
 // Calculate the height of a period block based on duration
@@ -33,9 +32,10 @@ export const formatDayShort = (date: Date): string => {
   return format(date, 'EEE');
 };
 
-// Format short date
+// Format short date - now using shorter month format to prevent layout issues
 export const formatDateShort = (date: Date): string => {
-  return format(date, 'MMM d');
+  // Use 3-letter month abbreviation to ensure consistent layout
+  return format(date, 'MMM d').slice(0, 3) + ' ' + format(date, 'd');
 };
 
 // Get hours array for time axis based on min and max hours

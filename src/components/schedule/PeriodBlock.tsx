@@ -51,14 +51,14 @@ export const PeriodBlock: React.FC<PeriodBlockProps> = ({
 
         {/* Render reminder indicators when notes exist */}
         {hasNotes && (
-          <div className="flex mt-1 gap-1">
+          <div className="flex flex-wrap mt-1 gap-1">
             {Array.from({ length: reminderCount }).map((_, i) => (
               <div 
                 key={i} 
-                className="h-1.5 w-8 rounded-full" 
+                className="h-1.5 rounded-full" 
                 style={{ 
                   backgroundColor: getReminderColor(i),
-                  width: i === 0 ? '30%' : `${Math.max(10, 30 - i * 5)}%`,
+                  width: `${Math.max(20, 30 - i * 5)}%`,
                   opacity: 0.9
                 }}
               />

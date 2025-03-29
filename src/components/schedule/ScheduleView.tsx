@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { useSchedule } from '@/hooks/useSchedule';
@@ -29,28 +28,8 @@ export const ScheduleView: React.FC = () => {
     getDaysOfWeek
   } = useSchedule();
   
-  const handlePeriodClick = (period: Period) => {
-    // For recurring periods, get the actual day of the week from the display
-    // The periods come from mock data where startTime might not reflect the displayed day
-    if (period.isRecurring) {
-      // Find which day column this period is being displayed in
-      const currentDays = getDaysOfWeek(selectedDate);
-      const dayIndex = period.daysOfWeek?.[0] || 1; // Default to Monday (1) if no days specified
-      
-      // Find the matching day in the current view (accounting for weekStartsOn=1 in getDaysOfWeek)
-      const matchingDay = currentDays.find(day => day.getDay() === dayIndex);
-      
-      if (matchingDay) {
-        setSelectedDay(matchingDay);
-      } else {
-        // Fallback to using period's startTime (should rarely happen)
-        setSelectedDay(new Date(period.startTime));
-      }
-    } else {
-      // For non-recurring events, use the period's startTime
-      setSelectedDay(new Date(period.startTime));
-    }
-    
+  const handlePeriodClick = (period: Period, displayDay: Date) => {
+    setSelectedDay(displayDay);
     setIsDayDetailOpen(true);
     console.log(`Selected day: ${selectedDay ? format(selectedDay, 'EEEE, MMMM d') : 'none'}`);
   };
@@ -94,7 +73,6 @@ export const ScheduleView: React.FC = () => {
     );
   }
 
-  // Get periods for the selected day if one is selected
   const dayPeriods = selectedDay ? getPeriodsForDay(selectedDay) : [];
   
   return (
