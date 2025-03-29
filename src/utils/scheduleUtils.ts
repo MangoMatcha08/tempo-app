@@ -35,9 +35,10 @@ export const formatDayShort = (date: Date): string => {
 
 // Format short date with consistent 3-letter month abbreviation
 export const formatDateShort = (date: Date): string => {
-  // Fixed 3-letter month abbreviation followed by day
+  // Get month abbreviation and ensure it's exactly 3 characters
   const month = format(date, 'MMM');
-  const threeLetterMonth = month.length > 3 ? month.substring(0, 3) : month.padEnd(3, ' ');
+  // Fix the month abbreviation to exactly 3 characters
+  const threeLetterMonth = month.substring(0, 3);
   const day = format(date, 'd');
   return `${threeLetterMonth} ${day}`;
 };

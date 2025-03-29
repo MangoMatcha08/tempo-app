@@ -45,7 +45,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
       <div className="relative" style={{ height: `${(maxHour - minHour) * heightPerHour}px` }}>
         {periods.map((period, index) => (
           <PeriodBlock 
-            key={period.id} 
+            key={`${period.id}-${index}`} 
             period={period}
             index={index}
             onClick={() => onPeriodClick(period, day)}
