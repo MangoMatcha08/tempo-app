@@ -37,7 +37,7 @@ export const DayDetailView: React.FC<DayDetailViewProps> = ({
         <ScrollArea className="max-h-[60vh] overflow-y-auto mt-4">
           {sortedPeriods.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No events scheduled for this day
+              No reminders for this day
             </div>
           ) : (
             <div className="flex flex-col space-y-3">

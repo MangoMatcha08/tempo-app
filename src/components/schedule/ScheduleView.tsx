@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { useSchedule } from '@/hooks/useSchedule';
@@ -28,6 +29,7 @@ export const ScheduleView: React.FC = () => {
   } = useSchedule();
   
   const handlePeriodClick = (period: Period) => {
+    // Instead of opening the editor, show the day detail view
     const periodDay = new Date(period.startTime);
     setSelectedDay(periodDay);
     setIsDayDetailOpen(true);

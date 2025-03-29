@@ -29,7 +29,7 @@ export const PeriodBlock: React.FC<PeriodBlockProps> = ({
   // Get color class based on period type
   const colorClass = getPeriodColor(period.type);
 
-  // Simulate reminder counts (in a real app, these would come from your data)
+  // Calculate reminder count based on period notes
   const reminderCount = period.notes ? Math.min(Math.ceil(period.notes.length / 20), 5) : 0;
   
   return (
@@ -62,13 +62,6 @@ export const PeriodBlock: React.FC<PeriodBlockProps> = ({
                 }}
               />
             ))}
-          </div>
-        )}
-
-        {/* Only show notes preview if we have enough space and notes exist */}
-        {period.notes && parseInt(height.replace('px', '')) > 60 && (
-          <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} mt-1 opacity-90 line-clamp-2`}>
-            {period.notes}
           </div>
         )}
       </div>
