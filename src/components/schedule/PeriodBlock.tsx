@@ -29,9 +29,10 @@ export const PeriodBlock: React.FC<PeriodBlockProps> = ({
   // Get color class based on period type
   const colorClass = getPeriodColor(period.type);
 
-  // Ensure we always have a valid reminderCount
-  // The check is simplified to better handle different cases
-  const hasNotes = period.notes && period.notes.trim().length > 0;
+  // Simplified check for notes
+  const hasNotes = Boolean(period.notes && period.notes.trim().length > 0);
+  
+  // Calculate indicator count based on notes length (if present)
   const reminderCount = hasNotes ? Math.min(Math.ceil(period.notes.length / 20), 5) : 0;
   
   return (
@@ -41,16 +42,16 @@ export const PeriodBlock: React.FC<PeriodBlockProps> = ({
         ${colorClass} ${period.isSpecialDay ? 'bg-opacity-70' : ''}`}
       style={{
         height,
-        top: `calc(${top} + 0px)`,
+        top: `${top}px`,
       }}
       onClick={onClick}
     >
       <div className="h-full flex flex-col justify-between">
-        <h3 className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'} truncate flex-1`}>
+        <h3 className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'} truncate`}>
           {period.title}
         </h3>
 
-        {/* Reminder indicators - Force display when there are notes */}
+        {/* Always show reminder indicators when notes exist */}
         {hasNotes && (
           <div className="flex mt-1 gap-1">
             {Array.from({ length: reminderCount }).map((_, i) => (

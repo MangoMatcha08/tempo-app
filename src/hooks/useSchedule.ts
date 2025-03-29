@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useScheduleContext, Period, PeriodType } from '@/contexts/ScheduleContext';
-import { addMinutes, addDays, startOfWeek, isToday } from 'date-fns';
+import { addMinutes, addDays, startOfWeek, isToday, isSameDay } from 'date-fns';
 
 // Mock data generator
 const generateMockPeriods = (): Period[] => {
@@ -99,14 +99,11 @@ export const useSchedule = () => {
     
     return periods.filter(period => {
       if (!period.isRecurring) {
-        const periodDate = period.startTime;
-        return (
-          periodDate.getFullYear() === date.getFullYear() &&
-          periodDate.getMonth() === date.getMonth() &&
-          periodDate.getDate() === date.getDate()
-        );
+        // For non-recurring events, check if the dates match (ignoring time)
+        return isSameDay(period.startTime, date);
       }
       
+      // For recurring periods, check if this day of week is included
       return period.daysOfWeek?.includes(dayOfWeek) ?? false;
     });
   }, [periods]);

@@ -29,9 +29,18 @@ export const ScheduleView: React.FC = () => {
   } = useSchedule();
   
   const handlePeriodClick = (period: Period) => {
-    // Instead of opening the editor, show the day detail view
+    // Use the actual day from the period's startTime
     const periodDay = new Date(period.startTime);
-    setSelectedDay(periodDay);
+    
+    // Create a new Date that only contains the year, month, and day (not time)
+    // This prevents issues with time zones affecting the day display
+    const dayOnly = new Date(
+      periodDay.getFullYear(), 
+      periodDay.getMonth(), 
+      periodDay.getDate()
+    );
+    
+    setSelectedDay(dayOnly);
     setIsDayDetailOpen(true);
   };
   
@@ -74,6 +83,7 @@ export const ScheduleView: React.FC = () => {
     );
   }
 
+  // Get periods for the selected day if one is selected
   const dayPeriods = selectedDay ? getPeriodsForDay(selectedDay) : [];
   
   return (
