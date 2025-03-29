@@ -65,7 +65,7 @@ export const ScheduleView: React.FC = () => {
   }
   
   return (
-    <div className={`space-y-${isMobile ? '2' : '4'}`}>
+    <div className="flex flex-col h-full space-y-2">
       <ScheduleToolbar 
         viewMode={viewMode}
         onViewModeChange={setViewMode}
@@ -74,13 +74,13 @@ export const ScheduleView: React.FC = () => {
         onAddPeriod={() => {}}
       />
       
-      <Card className="overflow-hidden h-full">
+      <div className="flex-1 overflow-hidden">
         <WeeklyCalendar 
           daysOfWeek={getDaysOfWeek(selectedDate)}
           periods={periods}
           onPeriodClick={handlePeriodClick}
         />
-      </Card>
+      </div>
       
       {isEditorOpen && (
         <PeriodEditor

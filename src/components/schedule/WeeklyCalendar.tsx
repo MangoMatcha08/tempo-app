@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Period } from '@/contexts/ScheduleContext';
 import { DayColumn } from './DayColumn';
 import { TimeAxis } from './TimeAxis';
@@ -17,6 +17,23 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   onPeriodClick
 }) => {
   const isMobile = useIsMobile();
+  const [containerHeight, setContainerHeight] = useState<number>(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const updateHeight = () => {
+      if (containerRef.current) {
+        const viewportHeight = window.innerHeight;
+        // Calculate available height (80% of viewport on mobile, 75% on desktop)
+        const availableHeight = isMobile ? viewportHeight * 0.8 : viewportHeight * 0.75;
+        setContainerHeight(availableHeight);
+      }
+    };
+
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, [isMobile]);
   
   // Filter periods by day
   const getPeriodsForDay = (day: Date) => {
@@ -63,32 +80,34 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   };
 
   const { minHour, maxHour } = getScheduleBounds();
-  const heightPerHour = 80; // Increase from default 60px to make it taller
-  const totalHeight = (maxHour - minHour) * heightPerHour;
+  // Calculate heightPerHour based on available space and number of hours to display
+  const heightPerHour = Math.max(60, (containerHeight - 50) / (maxHour - minHour)); 
   
   if (isMobile) {
     // Mobile view: Show days as horizontally scrollable tabs
     return (
-      <div className="relative overflow-x-auto bg-card rounded-b-md" style={{ height: `${totalHeight}px`, minHeight: '500px' }}>
-        <div className="overflow-x-auto">
-          <div className="flex">
-            {/* Time axis always visible */}
-            <TimeAxis minHour={minHour} maxHour={maxHour} heightPerHour={heightPerHour} />
-            
-            {/* Only show days in view with horizontal scroll */}
-            <div className="grid grid-flow-col auto-cols-[minmax(130px,1fr)]">
-              {daysOfWeek.map((day) => (
-                <DayColumn
-                  key={day.toISOString()}
-                  day={day}
-                  periods={getPeriodsForDay(day)}
-                  onPeriodClick={onPeriodClick}
-                  minHour={minHour}
-                  maxHour={maxHour}
-                  heightPerHour={heightPerHour}
-                />
-              ))}
-            </div>
+      <div 
+        ref={containerRef}
+        className="relative overflow-auto bg-card rounded-b-md border-t" 
+        style={{ height: `${containerHeight}px`, minHeight: '400px' }}
+      >
+        <div className="flex h-full">
+          {/* Time axis always visible */}
+          <TimeAxis minHour={minHour} maxHour={maxHour} heightPerHour={heightPerHour} />
+          
+          {/* Only show days in view with horizontal scroll */}
+          <div className="grid grid-flow-col auto-cols-[minmax(120px,1fr)] overflow-x-auto h-full">
+            {daysOfWeek.map((day) => (
+              <DayColumn
+                key={day.toISOString()}
+                day={day}
+                periods={getPeriodsForDay(day)}
+                onPeriodClick={onPeriodClick}
+                minHour={minHour}
+                maxHour={maxHour}
+                heightPerHour={heightPerHour}
+              />
+            ))}
           </div>
         </div>
       </div>
@@ -97,8 +116,12 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   
   // Desktop view: Show full week grid
   return (
-    <div className="relative overflow-x-auto bg-card rounded-b-md" style={{ height: `${totalHeight}px`, minHeight: '600px' }}>
-      <div className="grid grid-cols-8 min-w-[800px]">
+    <div 
+      ref={containerRef}
+      className="relative overflow-auto bg-card rounded-b-md" 
+      style={{ height: `${containerHeight}px`, minHeight: '500px' }}
+    >
+      <div className="grid grid-cols-8 min-w-[800px] h-full">
         {/* Time axis */}
         <TimeAxis minHour={minHour} maxHour={maxHour} heightPerHour={heightPerHour} />
         

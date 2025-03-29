@@ -27,9 +27,9 @@ export const DayColumn: React.FC<DayColumnProps> = ({
   const isTodayFlag = isToday(day);
   
   return (
-    <div className={`relative border-r ${
+    <div className={`relative border-r h-full ${
       isTodayFlag ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-    } ${isMobile ? 'min-w-[130px]' : ''}`}>
+    } ${isMobile ? 'min-w-[120px]' : ''}`}>
       <div className={`sticky top-0 p-2 text-center border-b z-10 ${
         isTodayFlag ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-card'
       }`}>
@@ -37,16 +37,18 @@ export const DayColumn: React.FC<DayColumnProps> = ({
         <div className="text-sm text-muted-foreground">{formatDateShort(day)}</div>
       </div>
       
-      {periods.map((period, index) => (
-        <PeriodBlock 
-          key={period.id} 
-          period={period}
-          index={index}
-          onClick={() => onPeriodClick(period)}
-          minHour={minHour}
-          heightPerHour={heightPerHour}
-        />
-      ))}
+      <div className="relative" style={{ height: `${(maxHour - minHour) * heightPerHour}px` }}>
+        {periods.map((period, index) => (
+          <PeriodBlock 
+            key={period.id} 
+            period={period}
+            index={index}
+            onClick={() => onPeriodClick(period)}
+            minHour={minHour}
+            heightPerHour={heightPerHour}
+          />
+        ))}
+      </div>
     </div>
   );
 };
