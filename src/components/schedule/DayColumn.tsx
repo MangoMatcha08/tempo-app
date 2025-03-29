@@ -30,7 +30,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
     <div className={`relative border-r h-full ${
       isTodayFlag ? 'bg-blue-50 dark:bg-blue-900/20' : ''
     } ${isMobile ? 'min-w-[120px]' : ''}`}>
-      <div className={`sticky top-0 p-2 text-center border-b z-10 ${
+      <div className={`sticky top-0 p-2 text-center border-b z-20 h-[60px] flex flex-col justify-center ${
         isTodayFlag ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-card'
       }`}>
         <div className="font-medium">{formatDayShort(day)}</div>

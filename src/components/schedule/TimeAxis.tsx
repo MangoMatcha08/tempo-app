@@ -14,8 +14,8 @@ export const TimeAxis: React.FC<TimeAxisProps> = ({ minHour, maxHour, heightPerH
   const hours = getHoursArray(minHour, maxHour);
   
   return (
-    <div className={`relative border-r ${isMobile ? 'w-10' : 'w-16'} h-full`}>
-      <div className="sticky top-0 p-2 border-b bg-card text-center z-10">
+    <div className={`relative border-r ${isMobile ? 'w-12' : 'w-16'} h-full`}>
+      <div className="sticky top-0 p-2 border-b bg-card text-center z-10 h-[60px] flex items-center justify-center">
         <div className="text-sm text-muted-foreground">Time</div>
       </div>
       
@@ -23,11 +23,11 @@ export const TimeAxis: React.FC<TimeAxisProps> = ({ minHour, maxHour, heightPerH
         {hours.map((hour) => (
           <div 
             key={hour}
-            className="absolute left-0 right-0 border-b border-dashed flex items-center h-[1px]"
+            className="absolute left-0 right-0 border-b border-dashed flex items-center"
             style={{ top: getHourPosition(hour, minHour, heightPerHour) }}
           >
-            <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground bg-card px-1 -mt-2 ml-1`}>
-              {isMobile ? hour.replace(':00', '').replace(' ', '') : hour}
+            <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground bg-card px-1 -translate-y-1/2 ml-1`}>
+              {isMobile ? hour.replace(':00', '') : hour}
             </span>
           </div>
         ))}

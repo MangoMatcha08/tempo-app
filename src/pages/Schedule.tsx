@@ -11,7 +11,7 @@ const Schedule = () => {
   const isMobile = useIsMobile();
 
   return (
-    <div className="container mx-auto px-1 py-2 max-w-[1200px] h-screen">
+    <div className="container mx-auto px-1 py-2 max-w-[1200px] h-[calc(100vh-1rem)]">
       <div className="flex justify-between items-center mb-3">
         <h1 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold`}>Class Schedule</h1>
         <Button 

@@ -36,7 +36,7 @@ export const PeriodBlock: React.FC<PeriodBlockProps> = ({
         ${colorClass} ${period.isSpecialDay ? 'bg-opacity-70' : ''}`}
       style={{
         height,
-        top,
+        top: `calc(${top} + 0px)`,
       }}
       onClick={onClick}
     >
