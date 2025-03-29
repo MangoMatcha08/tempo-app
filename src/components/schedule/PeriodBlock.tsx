@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Period } from '@/contexts/ScheduleContext';
-import { calculateHeight, calculateTopPosition, formatTime, getPeriodColor } from '@/utils/scheduleUtils';
+import { calculateHeight, calculateTopPosition, getPeriodColor } from '@/utils/scheduleUtils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface PeriodBlockProps {
@@ -44,14 +44,9 @@ export const PeriodBlock: React.FC<PeriodBlockProps> = ({
       onClick={onClick}
     >
       <div className="h-full flex flex-col">
-        <div className="flex justify-between items-start">
-          <h3 className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'} truncate flex-1`}>
-            {period.title}
-          </h3>
-          <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} opacity-90`}>
-            {formatTime(period.startTime)}
-          </div>
-        </div>
+        <h3 className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'} truncate flex-1`}>
+          {period.title}
+        </h3>
 
         {/* Reminder indicators */}
         {reminderCount > 0 && (

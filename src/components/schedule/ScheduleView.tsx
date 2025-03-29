@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { useSchedule } from '@/hooks/useSchedule';
@@ -7,6 +6,7 @@ import { ScheduleToolbar } from './ScheduleToolbar';
 import { PeriodEditor } from './PeriodEditor';
 import { Period } from '@/contexts/ScheduleContext';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { DayDetailView } from './DayDetailView';
 
 export const ScheduleView: React.FC = () => {
   const isMobile = useIsMobile();
@@ -14,6 +14,8 @@ export const ScheduleView: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
   const [selectedPeriod, setSelectedPeriod] = useState<Period | null>(null);
+  const [isDayDetailOpen, setIsDayDetailOpen] = useState<boolean>(false);
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   
   const { 
     periods,
@@ -26,8 +28,14 @@ export const ScheduleView: React.FC = () => {
   } = useSchedule();
   
   const handlePeriodClick = (period: Period) => {
-    setSelectedPeriod(period);
-    setIsEditorOpen(true);
+    const periodDay = new Date(period.startTime);
+    setSelectedDay(periodDay);
+    setIsDayDetailOpen(true);
+  };
+  
+  const handleDayClick = (day: Date) => {
+    setSelectedDay(day);
+    setIsDayDetailOpen(true);
   };
   
   const handleSavePeriod = (periodData: Partial<Period>) => {
@@ -63,6 +71,8 @@ export const ScheduleView: React.FC = () => {
       </Card>
     );
   }
+
+  const dayPeriods = selectedDay ? getPeriodsForDay(selectedDay) : [];
   
   return (
     <div className="flex flex-col h-full space-y-2">
@@ -79,8 +89,16 @@ export const ScheduleView: React.FC = () => {
           daysOfWeek={getDaysOfWeek(selectedDate)}
           periods={periods}
           onPeriodClick={handlePeriodClick}
+          onDayClick={handleDayClick}
         />
       </div>
+      
+      <DayDetailView
+        isOpen={isDayDetailOpen}
+        onClose={() => setIsDayDetailOpen(false)}
+        day={selectedDay}
+        periods={dayPeriods}
+      />
       
       {isEditorOpen && (
         <PeriodEditor

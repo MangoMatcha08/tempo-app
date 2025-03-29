@@ -9,12 +9,14 @@ interface WeeklyCalendarProps {
   daysOfWeek: Date[];
   periods: Period[];
   onPeriodClick: (period: Period) => void;
+  onDayClick: (day: Date) => void;
 }
 
 export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   daysOfWeek,
   periods,
-  onPeriodClick
+  onPeriodClick,
+  onDayClick
 }) => {
   const isMobile = useIsMobile();
   const [containerHeight, setContainerHeight] = useState<number>(0);
@@ -104,6 +106,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                   day={day}
                   periods={getPeriodsForDay(day)}
                   onPeriodClick={onPeriodClick}
+                  onDayClick={onDayClick}
                   minHour={minHour}
                   maxHour={maxHour}
                   heightPerHour={heightPerHour}
@@ -135,6 +138,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
               day={day}
               periods={getPeriodsForDay(day)}
               onPeriodClick={onPeriodClick}
+              onDayClick={onDayClick}
               minHour={minHour}
               maxHour={maxHour}
               heightPerHour={heightPerHour}
