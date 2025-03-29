@@ -49,9 +49,9 @@ export const PeriodBlock: React.FC<PeriodBlockProps> = ({
           {period.title}
         </h3>
 
-        {/* Render reminder indicators when notes exist */}
+        {/* Only show reminder indicators if we have notes */}
         {hasNotes && (
-          <div className="flex flex-wrap mt-1 gap-1">
+          <div className="flex flex-wrap gap-1 mt-auto">
             {Array.from({ length: reminderCount }).map((_, i) => (
               <div 
                 key={i} 

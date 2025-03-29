@@ -9,7 +9,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 interface DayColumnProps {
   day: Date;
   periods: Period[];
-  onPeriodClick: (period: Period) => void;
+  onPeriodClick: (period: Period, day: Date) => void;
   onDayClick: (day: Date) => void;
   minHour: number;
   maxHour: number;
@@ -48,7 +48,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
             key={period.id} 
             period={period}
             index={index}
-            onClick={() => onPeriodClick(period)}
+            onClick={() => onPeriodClick(period, day)}
             minHour={minHour}
             heightPerHour={heightPerHour}
           />
