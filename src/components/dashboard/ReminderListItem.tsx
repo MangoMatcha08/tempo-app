@@ -1,7 +1,7 @@
 
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { useState } from "react";
 
 interface Reminder {
   id: string;
@@ -9,6 +9,7 @@ interface Reminder {
   description: string;
   dueDate: Date;
   priority: "low" | "medium" | "high";
+  location?: string;
   completed?: boolean;
 }
 
@@ -18,6 +19,8 @@ interface ReminderListItemProps {
 }
 
 const ReminderListItem = ({ reminder, onComplete }: ReminderListItemProps) => {
+  const [isCompleting, setIsCompleting] = useState(false);
+  
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high":
@@ -35,25 +38,42 @@ const ReminderListItem = ({ reminder, onComplete }: ReminderListItemProps) => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     
+    let dateText = "";
     if (
       dueDate.getDate() === tomorrow.getDate() &&
       dueDate.getMonth() === tomorrow.getMonth() &&
       dueDate.getFullYear() === tomorrow.getFullYear()
     ) {
-      return `Tomorrow • ${dueDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+      dateText = "Tomorrow";
+    } else {
+      dateText = dueDate.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      });
     }
     
-    return dueDate.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
-    });
+    // Extract location/period as class period
+    const periodText = reminder.location ? `${reminder.location} • ` : "";
+    
+    // Time
+    const timeText = dueDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    
+    return `${dateText} • ${periodText}${timeText}`;
+  };
+
+  const handleComplete = () => {
+    setIsCompleting(true);
+    // Let the animation play before actually completing
+    setTimeout(() => {
+      onComplete(reminder.id);
+    }, 800);
   };
 
   return (
-    <div className="border-b border-muted p-3 flex items-center">
+    <div className={`border-b border-muted p-3 flex items-center transition-all duration-300 ${
+      isCompleting ? "bg-green-100 opacity-0" : ""
+    }`}>
       <div className={`w-2 h-2 rounded-full ${getPriorityColor(reminder.priority)} mr-3`} />
       
       <div className="flex-1">
@@ -67,7 +87,7 @@ const ReminderListItem = ({ reminder, onComplete }: ReminderListItemProps) => {
         size="sm" 
         variant="ghost" 
         className="h-8 w-8 p-0"
-        onClick={() => onComplete(reminder.id)}
+        onClick={handleComplete}
       >
         <Check className="h-5 w-5 text-green-500" />
         <span className="sr-only">Mark as done</span>

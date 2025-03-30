@@ -2,7 +2,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Check, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface Reminder {
   id: string;
@@ -20,6 +20,8 @@ interface ReminderCardProps {
 }
 
 const ReminderCard = ({ reminder, onComplete }: ReminderCardProps) => {
+  const [isCompleting, setIsCompleting] = useState(false);
+  
   const getPriorityClass = (priority: string) => {
     switch (priority) {
       case "high":
@@ -52,8 +54,27 @@ const ReminderCard = ({ reminder, onComplete }: ReminderCardProps) => {
     return dueDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const handleComplete = () => {
+    setIsCompleting(true);
+    // Let the animation play before actually completing
+    setTimeout(() => {
+      onComplete(reminder.id);
+    }, 800);
+  };
+
+  useEffect(() => {
+    return () => {
+      // Cleanup timeout if component unmounts during animation
+      setIsCompleting(false);
+    };
+  }, []);
+
   return (
-    <Card className={`shadow-md ${getPriorityClass(reminder.priority)}`}>
+    <Card 
+      className={`shadow-md ${getPriorityClass(reminder.priority)} transition-all duration-300 ${
+        isCompleting ? "bg-green-100 opacity-0 transform translate-y-2" : ""
+      }`}
+    >
       <CardContent className="p-4">
         <div className="flex justify-between">
           <h3 className="font-medium">{reminder.title}</h3>
@@ -61,7 +82,7 @@ const ReminderCard = ({ reminder, onComplete }: ReminderCardProps) => {
             size="sm" 
             variant="ghost" 
             className="h-8 w-8 p-0"
-            onClick={() => onComplete(reminder.id)}
+            onClick={handleComplete}
           >
             <Check className="h-5 w-5 text-green-500" />
             <span className="sr-only">Mark as done</span>
@@ -72,7 +93,10 @@ const ReminderCard = ({ reminder, onComplete }: ReminderCardProps) => {
         
         <div className="flex items-center mt-2 text-xs text-muted-foreground">
           <Clock className="h-4 w-4 mr-1" />
-          <span>{formattedTime(reminder.dueDate)} {reminder.location && `• ${reminder.location}`}</span>
+          <span>
+            {reminder.location && `${reminder.location} • `}
+            {formattedTime(reminder.dueDate)}
+          </span>
         </div>
       </CardContent>
     </Card>
