@@ -1,11 +1,9 @@
-
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { signOutUser } from "@/lib/firebase";
-import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import CurrentPeriodIndicator from "@/components/dashboard/CurrentPeriodIndicator";
 import QuickActionsBar from "@/components/dashboard/QuickActionsBar";
 import RemindersSection from "@/components/dashboard/RemindersSection";
@@ -27,7 +25,6 @@ interface Reminder {
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const [showQuickReminderModal, setShowQuickReminderModal] = useState(false);
   const [showVoiceRecorderModal, setShowVoiceRecorderModal] = useState(false);
@@ -121,11 +118,6 @@ const Dashboard = () => {
           : reminder
       )
     );
-    
-    toast({
-      title: "Reminder completed",
-      description: "The reminder has been marked as completed.",
-    });
   };
   
   const handleUndoComplete = (id: string) => {
@@ -136,28 +128,15 @@ const Dashboard = () => {
           : reminder
       )
     );
-    
-    toast({
-      title: "Completion undone",
-      description: "The reminder has been moved back to active status.",
-    });
   };
 
   const handleSignOut = async () => {
     const { success, error } = await signOutUser();
     
     if (success) {
-      toast({
-        title: "Signed out",
-        description: "You have been signed out successfully.",
-      });
       navigate("/");
     } else {
-      toast({
-        title: "Sign out failed",
-        description: error?.message || "An error occurred while signing out.",
-        variant: "destructive",
-      });
+      console.error("Sign out failed:", error?.message);
     }
   };
 
