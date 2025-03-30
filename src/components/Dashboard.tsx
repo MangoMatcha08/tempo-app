@@ -10,10 +10,20 @@ import CurrentPeriodIndicator from "@/components/dashboard/CurrentPeriodIndicato
 import QuickActionsBar from "@/components/dashboard/QuickActionsBar";
 import RemindersSection from "@/components/dashboard/RemindersSection";
 import ProgressVisualization from "@/components/dashboard/ProgressVisualization";
-import VoiceNotesSection from "@/components/dashboard/VoiceNotesSection";
-import AchievementBadges from "@/components/dashboard/AchievementBadges";
+import CompletedRemindersSection from "@/components/dashboard/CompletedRemindersSection";
 import QuickReminderModal from "@/components/dashboard/QuickReminderModal";
 import VoiceRecorderModal from "@/components/dashboard/VoiceRecorderModal";
+
+interface Reminder {
+  id: string;
+  title: string;
+  description: string;
+  dueDate: Date;
+  priority: "low" | "medium" | "high";
+  location?: string;
+  completed?: boolean;
+  completedAt?: Date;
+}
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -21,6 +31,117 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [showQuickReminderModal, setShowQuickReminderModal] = useState(false);
   const [showVoiceRecorderModal, setShowVoiceRecorderModal] = useState(false);
+  
+  // Mock data for reminders - in a real app, this would come from a database
+  const [reminders, setReminders] = useState<Reminder[]>([
+    {
+      id: "1",
+      title: "Submit Grades",
+      description: "End of quarter grades due today",
+      dueDate: new Date(new Date().getTime() + 3600000), // 1 hour from now
+      priority: "high",
+      location: "Math 101",
+      completed: false,
+    },
+    {
+      id: "2",
+      title: "Parent Conference",
+      description: "Meeting with Johnson family",
+      dueDate: new Date(new Date().getTime() + 1800000), // 30 mins from now
+      priority: "medium",
+      location: "Conference Room",
+      completed: false,
+    },
+    {
+      id: "3",
+      title: "Order Lab Supplies",
+      description: "For next month's experiments",
+      dueDate: new Date(new Date().getTime() + 86400000), // Tomorrow
+      priority: "low",
+      completed: false,
+    },
+    {
+      id: "4",
+      title: "Staff Meeting",
+      description: "Curriculum planning",
+      dueDate: new Date(new Date().getTime() + 172800000), // Day after tomorrow
+      priority: "medium",
+      completed: false,
+    },
+    {
+      id: "5",
+      title: "Grade Essays",
+      description: "English class essays",
+      dueDate: new Date(new Date().getTime() + 259200000), // 3 days from now
+      priority: "medium",
+      completed: false,
+    },
+    {
+      id: "6",
+      title: "Complete Paperwork",
+      description: "Administrative forms due last week",
+      dueDate: new Date(new Date().getTime() - 259200000), // 3 days ago
+      priority: "high",
+      completed: true,
+      completedAt: new Date(new Date().getTime() - 86400000), // 1 day ago
+    },
+    {
+      id: "7",
+      title: "Call IT Support",
+      description: "About the projector issue",
+      dueDate: new Date(new Date().getTime() - 172800000), // 2 days ago
+      priority: "medium",
+      completed: true,
+      completedAt: new Date(new Date().getTime() - 86400000), // 1 day ago
+    }
+  ]);
+
+  const activeReminders = reminders.filter(r => !r.completed);
+  const completedReminders = reminders.filter(r => r.completed);
+  
+  // Urgent reminders are due within the next 2 hours
+  const urgentReminders = activeReminders.filter(reminder => {
+    const now = new Date();
+    const twoHoursFromNow = new Date(now.getTime() + 7200000);
+    return reminder.dueDate <= twoHoursFromNow;
+  });
+  
+  // Upcoming reminders are all other active reminders
+  const upcomingReminders = activeReminders.filter(reminder => {
+    const now = new Date();
+    const twoHoursFromNow = new Date(now.getTime() + 7200000);
+    return reminder.dueDate > twoHoursFromNow;
+  });
+  
+  const handleCompleteReminder = (id: string) => {
+    setReminders(prev => 
+      prev.map(reminder => 
+        reminder.id === id 
+          ? { ...reminder, completed: true, completedAt: new Date() } 
+          : reminder
+      )
+    );
+    
+    toast({
+      title: "Reminder completed",
+      description: "The reminder has been marked as completed.",
+    });
+  };
+  
+  const handleUndoComplete = (id: string) => {
+    setReminders(prev => 
+      prev.map(reminder => 
+        reminder.id === id 
+          ? { ...reminder, completed: false, completedAt: undefined } 
+          : reminder
+      )
+    );
+    
+    toast({
+      title: "Completion undone",
+      description: "The reminder has been moved back to active status.",
+    });
+  };
 
   const handleSignOut = async () => {
     const { success, error } = await signOutUser();
@@ -75,13 +196,20 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Primary content - 2/3 width on desktop */}
         <div className="md:col-span-2 space-y-6">
-          <RemindersSection />
+          <RemindersSection 
+            urgentReminders={urgentReminders} 
+            upcomingReminders={upcomingReminders} 
+            onCompleteReminder={handleCompleteReminder}
+          />
           <ProgressVisualization />
         </div>
         
         {/* Secondary content - 1/3 width on desktop */}
         <div>
-          <VoiceNotesSection />
+          <CompletedRemindersSection 
+            reminders={completedReminders}
+            onUndoComplete={handleUndoComplete}
+          />
         </div>
       </div>
       

@@ -4,51 +4,27 @@ import { Bell } from "lucide-react";
 import ReminderCard from "./ReminderCard";
 import ReminderListItem from "./ReminderListItem";
 
-const RemindersSection = () => {
-  // Mock data - in a real app, this would come from useReminders hook
-  const urgentReminders = [
-    {
-      id: "1",
-      title: "Submit Grades",
-      description: "End of quarter grades due today",
-      dueDate: new Date(new Date().getTime() + 3600000), // 1 hour from now
-      priority: "high" as const,
-      location: "Math 101",
-    },
-    {
-      id: "2",
-      title: "Parent Conference",
-      description: "Meeting with Johnson family",
-      dueDate: new Date(new Date().getTime() + 1800000), // 30 mins from now
-      priority: "medium" as const,
-      location: "Conference Room",
-    },
-  ];
-  
-  const upcomingReminders = [
-    {
-      id: "3",
-      title: "Order Lab Supplies",
-      description: "For next month's experiments",
-      dueDate: new Date(new Date().getTime() + 86400000), // Tomorrow
-      priority: "low" as const,
-    },
-    {
-      id: "4",
-      title: "Staff Meeting",
-      description: "Curriculum planning",
-      dueDate: new Date(new Date().getTime() + 172800000), // Day after tomorrow
-      priority: "medium" as const,
-    },
-    {
-      id: "5",
-      title: "Grade Essays",
-      description: "English class essays",
-      dueDate: new Date(new Date().getTime() + 259200000), // 3 days from now
-      priority: "medium" as const,
-    },
-  ];
+interface Reminder {
+  id: string;
+  title: string;
+  description: string;
+  dueDate: Date;
+  priority: "low" | "medium" | "high";
+  location?: string;
+  completed?: boolean;
+}
 
+interface RemindersSectionProps {
+  urgentReminders: Reminder[];
+  upcomingReminders: Reminder[];
+  onCompleteReminder: (id: string) => void;
+}
+
+const RemindersSection = ({ 
+  urgentReminders, 
+  upcomingReminders, 
+  onCompleteReminder 
+}: RemindersSectionProps) => {
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold">Reminders</h2>
@@ -56,7 +32,11 @@ const RemindersSection = () => {
       {urgentReminders.length > 0 && (
         <div className="space-y-3">
           {urgentReminders.map((reminder) => (
-            <ReminderCard key={reminder.id} reminder={reminder} />
+            <ReminderCard 
+              key={reminder.id} 
+              reminder={reminder} 
+              onComplete={onCompleteReminder}
+            />
           ))}
         </div>
       )}
@@ -67,7 +47,11 @@ const RemindersSection = () => {
           <Card>
             <CardContent className="p-0">
               {upcomingReminders.map((reminder) => (
-                <ReminderListItem key={reminder.id} reminder={reminder} />
+                <ReminderListItem 
+                  key={reminder.id} 
+                  reminder={reminder} 
+                  onComplete={onCompleteReminder}
+                />
               ))}
             </CardContent>
           </Card>

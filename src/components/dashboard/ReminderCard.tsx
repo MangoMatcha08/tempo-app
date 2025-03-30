@@ -2,6 +2,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Check, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
 
 interface Reminder {
   id: string;
@@ -10,13 +11,15 @@ interface Reminder {
   dueDate: Date;
   priority: "low" | "medium" | "high";
   location?: string;
+  completed?: boolean;
 }
 
 interface ReminderCardProps {
   reminder: Reminder;
+  onComplete: (id: string) => void;
 }
 
-const ReminderCard = ({ reminder }: ReminderCardProps) => {
+const ReminderCard = ({ reminder, onComplete }: ReminderCardProps) => {
   const getPriorityClass = (priority: string) => {
     switch (priority) {
       case "high":
@@ -45,7 +48,7 @@ const ReminderCard = ({ reminder }: ReminderCardProps) => {
     return `${diffDays} day${diffDays !== 1 ? 's' : ''}`;
   };
 
-  const formattedTime = dueDate => {
+  const formattedTime = (dueDate: Date) => {
     return dueDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
@@ -54,7 +57,12 @@ const ReminderCard = ({ reminder }: ReminderCardProps) => {
       <CardContent className="p-4">
         <div className="flex justify-between">
           <h3 className="font-medium">{reminder.title}</h3>
-          <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+          <Button 
+            size="sm" 
+            variant="ghost" 
+            className="h-8 w-8 p-0"
+            onClick={() => onComplete(reminder.id)}
+          >
             <Check className="h-5 w-5 text-green-500" />
             <span className="sr-only">Mark as done</span>
           </Button>

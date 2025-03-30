@@ -1,6 +1,7 @@
 
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Reminder {
   id: string;
@@ -8,13 +9,15 @@ interface Reminder {
   description: string;
   dueDate: Date;
   priority: "low" | "medium" | "high";
+  completed?: boolean;
 }
 
 interface ReminderListItemProps {
   reminder: Reminder;
+  onComplete: (id: string) => void;
 }
 
-const ReminderListItem = ({ reminder }: ReminderListItemProps) => {
+const ReminderListItem = ({ reminder, onComplete }: ReminderListItemProps) => {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high":
@@ -60,7 +63,12 @@ const ReminderListItem = ({ reminder }: ReminderListItemProps) => {
         </div>
       </div>
       
-      <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+      <Button 
+        size="sm" 
+        variant="ghost" 
+        className="h-8 w-8 p-0"
+        onClick={() => onComplete(reminder.id)}
+      >
         <Check className="h-5 w-5 text-green-500" />
         <span className="sr-only">Mark as done</span>
       </Button>
