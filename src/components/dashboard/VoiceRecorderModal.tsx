@@ -9,7 +9,12 @@ import {
   DialogTitle,
   DialogFooter
 } from "@/components/ui/dialog";
-import { Mic, Square, Pause, Play } from "lucide-react";
+import { Mic, Square, Pause, Play, Loader2 } from "lucide-react";
+import VoiceRecorder from "./VoiceRecorder";
+import { processVoiceInput } from "@/services/nlpService";
+import { createReminder } from "@/utils/reminderUtils";
+import { useToast } from "@/hooks/use-toast";
+import { Reminder } from "@/types/reminderTypes";
 
 interface VoiceRecorderModalProps {
   open: boolean;
@@ -17,73 +22,80 @@ interface VoiceRecorderModalProps {
 }
 
 const VoiceRecorderModal = ({ open, onOpenChange }: VoiceRecorderModalProps) => {
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
   const [title, setTitle] = useState("");
-  const [hasRecording, setHasRecording] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const { toast } = useToast();
   
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
-      setIsRecording(false);
-      setRecordingTime(0);
       setTitle("");
-      setHasRecording(false);
-      setIsPlaying(false);
+      setTranscript("");
+      setIsProcessing(false);
     }
   }, [open]);
   
-  // Handle recording timer
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
+  const handleTranscriptComplete = (text: string) => {
+    setTranscript(text);
+    setIsProcessing(true);
     
-    if (isRecording) {
-      interval = setInterval(() => {
-        setRecordingTime(prevTime => prevTime + 1);
-      }, 1000);
+    try {
+      // Process the transcript with NLP
+      const result = processVoiceInput(text);
+      
+      // Set the title from the processed result
+      setTitle(result.reminder.title);
+      setIsProcessing(false);
+    } catch (error) {
+      console.error('Error processing voice input:', error);
+      setIsProcessing(false);
+      
+      toast({
+        title: "Processing Error",
+        description: "There was an error processing your voice input. Please try again.",
+        variant: "destructive"
+      });
     }
-    
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isRecording]);
-  
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
-  
-  const toggleRecording = () => {
-    if (isRecording) {
-      // Stop recording
-      setIsRecording(false);
-      setHasRecording(true);
-      // In a real app: Stop actual recording
-    } else {
-      // Start recording
-      setIsRecording(true);
-      setRecordingTime(0);
-      setHasRecording(false);
-      // In a real app: Start actual recording
-    }
-  };
-  
-  const togglePlayback = () => {
-    setIsPlaying(!isPlaying);
-    // In a real app: Play/pause the recording
   };
   
   const handleSave = () => {
-    // In a real app, this would call a function from useVoiceRecorder
-    console.log("Saving voice note:", { title, duration: recordingTime });
-    onOpenChange(false);
+    if (!transcript || !title) return;
+    
+    try {
+      // Process the voice input to create a reminder
+      const result = processVoiceInput(transcript);
+      result.reminder.title = title; // Use the user-edited title
+      
+      const newReminder = createReminder(result.reminder);
+      
+      // Add to reminders
+      // In real app, this would use a hook or context to add the reminder
+      console.log("Created voice reminder:", newReminder);
+      
+      toast({
+        title: "Reminder Created",
+        description: "Your voice reminder has been created successfully."
+      });
+      
+      // Reset form and close modal
+      setTitle("");
+      setTranscript("");
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error saving voice reminder:", error);
+      
+      toast({
+        title: "Save Error",
+        description: "There was an error saving your reminder. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Record Voice Note</DialogTitle>
         </DialogHeader>
@@ -99,58 +111,14 @@ const VoiceRecorderModal = ({ open, onOpenChange }: VoiceRecorderModalProps) => 
             />
           </div>
           
-          <div className="flex flex-col items-center justify-center border rounded-md p-6">
-            <div className="text-3xl font-mono mb-4">
-              {formatTime(recordingTime)}
+          <VoiceRecorder onTranscriptComplete={handleTranscriptComplete} />
+          
+          {isProcessing && (
+            <div className="flex items-center justify-center p-4">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <p>Processing your input...</p>
             </div>
-            
-            <div className="flex items-center gap-4">
-              {!hasRecording ? (
-                <Button
-                  onClick={toggleRecording}
-                  variant={isRecording ? "destructive" : "default"}
-                  size="lg"
-                  className="rounded-full h-14 w-14 p-0"
-                >
-                  {isRecording ? (
-                    <Square className="h-6 w-6" />
-                  ) : (
-                    <Mic className="h-6 w-6" />
-                  )}
-                </Button>
-              ) : (
-                <>
-                  <Button
-                    onClick={togglePlayback}
-                    variant="outline"
-                    size="icon"
-                    className="rounded-full h-10 w-10 p-0"
-                  >
-                    {isPlaying ? (
-                      <Pause className="h-5 w-5" />
-                    ) : (
-                      <Play className="h-5 w-5" />
-                    )}
-                  </Button>
-                  
-                  <Button
-                    onClick={toggleRecording}
-                    variant="destructive"
-                    size="icon"
-                    className="rounded-full h-10 w-10 p-0"
-                  >
-                    <Mic className="h-5 w-5" />
-                  </Button>
-                </>
-              )}
-            </div>
-            
-            {isRecording && (
-              <p className="text-xs text-muted-foreground mt-4 animate-pulse">
-                Recording...
-              </p>
-            )}
-          </div>
+          )}
         </div>
         
         <DialogFooter>
@@ -164,7 +132,7 @@ const VoiceRecorderModal = ({ open, onOpenChange }: VoiceRecorderModalProps) => 
           <Button 
             type="button" 
             onClick={handleSave}
-            disabled={!hasRecording || !title}
+            disabled={!transcript || !title}
           >
             Save Note
           </Button>
