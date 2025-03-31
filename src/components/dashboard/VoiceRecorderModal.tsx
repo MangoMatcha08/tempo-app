@@ -212,7 +212,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
                     <SelectValue placeholder="Select period (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {mockPeriods.map(period => (
                       <SelectItem key={period.id} value={period.id}>
                         {period.name} ({period.startTime} - {period.endTime})
