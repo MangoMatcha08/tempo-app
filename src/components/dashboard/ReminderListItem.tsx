@@ -71,9 +71,12 @@ const ReminderListItem = ({ reminder, onComplete }: ReminderListItemProps) => {
   };
 
   return (
-    <div className={`border-b border-muted p-3 flex items-center transition-all duration-300 ${
-      isCompleting ? "bg-green-100 opacity-0" : ""
-    }`}>
+    <div 
+      className={`border-b border-muted p-3 flex items-center transition-all duration-300 ${
+        isCompleting ? "bg-green-100 opacity-0" : ""
+      } cursor-pointer hover:bg-slate-50`}
+      onClick={handleComplete}
+    >
       <div className={`w-2 h-2 rounded-full ${getPriorityColor(reminder.priority)} mr-3`} />
       
       <div className="flex-1">
@@ -87,7 +90,10 @@ const ReminderListItem = ({ reminder, onComplete }: ReminderListItemProps) => {
         size="sm" 
         variant="ghost" 
         className="h-8 w-8 p-0"
-        onClick={handleComplete}
+        onClick={(e) => {
+          e.stopPropagation(); // Prevent row click from triggering twice
+          handleComplete();
+        }}
       >
         <Check className="h-5 w-5 text-green-500" />
         <span className="sr-only">Mark as done</span>

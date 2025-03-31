@@ -73,7 +73,8 @@ const ReminderCard = ({ reminder, onComplete }: ReminderCardProps) => {
     <Card 
       className={`shadow-md ${getPriorityClass(reminder.priority)} transition-all duration-300 ${
         isCompleting ? "bg-green-100 opacity-0 transform translate-y-2" : ""
-      }`}
+      } cursor-pointer hover:bg-slate-50`}
+      onClick={handleComplete}
     >
       <CardContent className="p-4">
         <div className="flex justify-between">
@@ -82,7 +83,10 @@ const ReminderCard = ({ reminder, onComplete }: ReminderCardProps) => {
             size="sm" 
             variant="ghost" 
             className="h-8 w-8 p-0"
-            onClick={handleComplete}
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent card click from triggering twice
+              handleComplete();
+            }}
           >
             <Check className="h-5 w-5 text-green-500" />
             <span className="sr-only">Mark as done</span>
