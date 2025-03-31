@@ -9,22 +9,36 @@ import {
   DialogTitle,
   DialogFooter
 } from "@/components/ui/dialog";
-import { Mic, Square, Pause, Play, Loader2 } from "lucide-react";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
 import VoiceRecorder from "./VoiceRecorder";
 import { processVoiceInput } from "@/services/nlpService";
 import { createReminder } from "@/utils/reminderUtils";
 import { useToast } from "@/hooks/use-toast";
-import { Reminder } from "@/types/reminderTypes";
+import { Reminder, ReminderPriority, ReminderCategory, VoiceProcessingResult } from "@/types/reminderTypes";
+import { mockPeriods } from "@/utils/reminderUtils";
 
 interface VoiceRecorderModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onReminderCreated?: (reminder: Reminder) => void;
 }
 
-const VoiceRecorderModal = ({ open, onOpenChange }: VoiceRecorderModalProps) => {
+const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceRecorderModalProps) => {
   const [title, setTitle] = useState("");
   const [transcript, setTranscript] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [view, setView] = useState<"record" | "confirm">("record");
+  const [processingResult, setProcessingResult] = useState<VoiceProcessingResult | null>(null);
+  const [priority, setPriority] = useState<ReminderPriority>(ReminderPriority.MEDIUM);
+  const [category, setCategory] = useState<ReminderCategory>(ReminderCategory.TASK);
+  const [periodId, setPeriodId] = useState<string>("");
   const { toast } = useToast();
   
   // Reset state when modal opens
@@ -33,6 +47,11 @@ const VoiceRecorderModal = ({ open, onOpenChange }: VoiceRecorderModalProps) => 
       setTitle("");
       setTranscript("");
       setIsProcessing(false);
+      setView("record");
+      setProcessingResult(null);
+      setPriority(ReminderPriority.MEDIUM);
+      setCategory(ReminderCategory.TASK);
+      setPeriodId("");
     }
   }, [open]);
   
@@ -44,8 +63,15 @@ const VoiceRecorderModal = ({ open, onOpenChange }: VoiceRecorderModalProps) => 
       // Process the transcript with NLP
       const result = processVoiceInput(text);
       
-      // Set the title from the processed result
+      // Set the processed data
       setTitle(result.reminder.title);
+      setPriority(result.reminder.priority || ReminderPriority.MEDIUM);
+      setCategory(result.reminder.category || ReminderCategory.TASK);
+      setPeriodId(result.reminder.periodId || "");
+      setProcessingResult(result);
+      
+      // Switch to confirmation view
+      setView("confirm");
       setIsProcessing(false);
     } catch (error) {
       console.error('Error processing voice input:', error);
@@ -63,25 +89,31 @@ const VoiceRecorderModal = ({ open, onOpenChange }: VoiceRecorderModalProps) => 
     if (!transcript || !title) return;
     
     try {
-      // Process the voice input to create a reminder
-      const result = processVoiceInput(transcript);
-      result.reminder.title = title; // Use the user-edited title
+      // Create reminder with the confirmed data
+      const reminderInput = {
+        title,
+        description: transcript,
+        priority,
+        category,
+        periodId,
+        voiceTranscript: transcript,
+        checklist: processingResult?.reminder.checklist || []
+      };
       
-      const newReminder = createReminder(result.reminder);
+      const newReminder = createReminder(reminderInput);
       
-      // Add to reminders
-      // In real app, this would use a hook or context to add the reminder
-      console.log("Created voice reminder:", newReminder);
+      // Call the callback if provided
+      if (onReminderCreated) {
+        onReminderCreated(newReminder);
+      }
       
       toast({
         title: "Reminder Created",
         description: "Your voice reminder has been created successfully."
       });
       
-      // Reset form and close modal
-      setTitle("");
-      setTranscript("");
-      onOpenChange(false);
+      // Reset and close
+      handleCancel();
     } catch (error) {
       console.error("Error saving voice reminder:", error);
       
@@ -92,50 +124,153 @@ const VoiceRecorderModal = ({ open, onOpenChange }: VoiceRecorderModalProps) => 
       });
     }
   };
+  
+  const handleCancel = () => {
+    setTitle("");
+    setTranscript("");
+    setIsProcessing(false);
+    setView("record");
+    setProcessingResult(null);
+    setPriority(ReminderPriority.MEDIUM);
+    setCategory(ReminderCategory.TASK);
+    setPeriodId("");
+    onOpenChange(false);
+  };
+
+  const handleGoBack = () => {
+    setView("record");
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Record Voice Note</DialogTitle>
+          <DialogTitle>
+            {view === "record" ? "Record Voice Reminder" : "Confirm Your Reminder"}
+          </DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-6 py-4">
-          <div className="space-y-2">
-            <label htmlFor="title" className="text-sm font-medium">Title</label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Give your note a title"
-            />
+        {view === "record" ? (
+          <div className="space-y-6 py-4">
+            <VoiceRecorder onTranscriptComplete={handleTranscriptComplete} />
+            
+            {isProcessing && (
+              <div className="flex items-center justify-center p-4">
+                <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                <p>Processing your input...</p>
+              </div>
+            )}
           </div>
-          
-          <VoiceRecorder onTranscriptComplete={handleTranscriptComplete} />
-          
-          {isProcessing && (
-            <div className="flex items-center justify-center p-4">
-              <Loader2 className="h-6 w-6 animate-spin mr-2" />
-              <p>Processing your input...</p>
+        ) : (
+          <div className="space-y-6 py-4">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="title" className="text-sm font-medium">Title</label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Reminder title"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="priority" className="text-sm font-medium">Priority</label>
+                <Select value={priority} onValueChange={(value) => setPriority(value as ReminderPriority)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ReminderPriority.LOW}>Low</SelectItem>
+                    <SelectItem value={ReminderPriority.MEDIUM}>Medium</SelectItem>
+                    <SelectItem value={ReminderPriority.HIGH}>High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="category" className="text-sm font-medium">Category</label>
+                <Select value={category} onValueChange={(value) => setCategory(value as ReminderCategory)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ReminderCategory.TASK}>Task</SelectItem>
+                    <SelectItem value={ReminderCategory.MEETING}>Meeting</SelectItem>
+                    <SelectItem value={ReminderCategory.DEADLINE}>Deadline</SelectItem>
+                    <SelectItem value={ReminderCategory.PREPARATION}>Preparation</SelectItem>
+                    <SelectItem value={ReminderCategory.GRADING}>Grading</SelectItem>
+                    <SelectItem value={ReminderCategory.COMMUNICATION}>Communication</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="period" className="text-sm font-medium">Period</label>
+                <Select value={periodId} onValueChange={setPeriodId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select period (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {mockPeriods.map(period => (
+                      <SelectItem key={period.id} value={period.id}>
+                        {period.name} ({period.startTime} - {period.endTime})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Original Input</label>
+                <div className="p-3 bg-muted/30 rounded-md text-sm italic">
+                  {transcript}
+                </div>
+              </div>
+              
+              {processingResult?.reminder.checklist && processingResult.reminder.checklist.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Detected Checklist Items</label>
+                  <div className="p-3 bg-muted/30 rounded-md text-sm">
+                    <ul className="list-disc pl-5 space-y-1">
+                      {processingResult.reminder.checklist.map((item, index) => (
+                        <li key={index}>{item.text}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
         
         <DialogFooter>
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={() => onOpenChange(false)}
-          >
-            Cancel
-          </Button>
-          <Button 
-            type="button" 
-            onClick={handleSave}
-            disabled={!transcript || !title}
-          >
-            Save Note
-          </Button>
+          {view === "record" ? (
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleCancel}
+            >
+              Cancel
+            </Button>
+          ) : (
+            <>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleGoBack}
+              >
+                Back
+              </Button>
+              <Button 
+                type="button" 
+                onClick={handleSave}
+              >
+                Save Reminder
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -103,6 +103,10 @@ export function useReminders() {
       )
     );
   };
+  
+  const addReminder = (reminder: Reminder) => {
+    setReminders(prev => [reminder, ...prev]);
+  };
 
   return {
     reminders,
@@ -110,6 +114,7 @@ export function useReminders() {
     upcomingReminders,
     completedReminders,
     handleCompleteReminder,
-    handleUndoComplete
+    handleUndoComplete,
+    addReminder
   };
 }

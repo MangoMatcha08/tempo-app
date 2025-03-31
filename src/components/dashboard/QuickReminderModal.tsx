@@ -17,22 +17,57 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { Reminder, ReminderPriority } from "@/types/reminderTypes";
+import { createReminder } from "@/utils/reminderUtils";
 
 interface QuickReminderModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onReminderCreated?: (reminder: Reminder) => void;
 }
 
-const QuickReminderModal = ({ open, onOpenChange }: QuickReminderModalProps) => {
+const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickReminderModalProps) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("medium");
+  const { toast } = useToast();
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would call a function from useQuickReminders
-    console.log("Creating reminder:", { title, description, priority });
-    onOpenChange(false);
+    
+    try {
+      // Create a new reminder
+      const newReminder = createReminder({
+        title,
+        description,
+        priority: priority as ReminderPriority
+      });
+      
+      // Call the callback if provided
+      if (onReminderCreated) {
+        onReminderCreated(newReminder);
+      }
+      
+      toast({
+        title: "Reminder Created",
+        description: "Your reminder has been created successfully."
+      });
+      
+      // Reset form and close modal
+      setTitle("");
+      setDescription("");
+      setPriority("medium");
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error creating reminder:", error);
+      
+      toast({
+        title: "Error",
+        description: "There was an error creating your reminder. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
