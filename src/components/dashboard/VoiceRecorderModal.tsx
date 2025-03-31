@@ -12,7 +12,7 @@ import VoiceRecorder from "./VoiceRecorder";
 import VoiceReminderConfirmView from "./VoiceReminderConfirmView";
 import VoiceReminderProcessingView from "./VoiceReminderProcessingView";
 import { generateMeaningfulTitle } from "@/utils/voiceReminderUtils";
-import { processVoiceInput } from "@/services/nlpService";
+import { processVoiceInput } from "@/services/nlp";
 import { createReminder } from "@/utils/reminderUtils";
 import { useToast } from "@/hooks/use-toast";
 import { Reminder, ReminderPriority, ReminderCategory, VoiceProcessingResult } from "@/types/reminderTypes";
