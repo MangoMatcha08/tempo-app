@@ -35,6 +35,7 @@ export interface CreateReminderInput {
   voiceTranscript?: string;
   checklist?: ChecklistItem[];
   detectedNewPeriod?: DetectedNewPeriod;
+  dueDate?: Date;
 }
 
 export interface Reminder {
@@ -60,5 +61,7 @@ export interface VoiceProcessingResult {
     period?: string;
     newPeriod?: string;
     checklist?: string[];
+    date?: Date;
+    time?: Date;
   };
 }

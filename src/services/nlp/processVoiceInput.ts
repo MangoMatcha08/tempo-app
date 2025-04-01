@@ -4,6 +4,7 @@ import { detectPriority } from './detectPriority';
 import { detectCategory } from './detectCategory';
 import { detectPeriod } from './detectPeriod';
 import { extractChecklistItems } from './extractChecklistItems';
+import { detectDateTime } from './detectDateTime';
 
 // Main function to process voice input
 export const processVoiceInput = (transcript: string): VoiceProcessingResult => {
@@ -22,6 +23,9 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
   // Detect period with improved robustness
   const periodResult = detectPeriod(transcript);
   
+  // Detect date and time
+  const dateTimeResult = detectDateTime(transcript);
+  
   // Extract potential checklist items
   const checklistItems = extractChecklistItems(transcript);
   
@@ -31,13 +35,28 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
     description: transcript,
     priority,
     category,
-    periodId: periodResult.periodId,
+    periodId: dateTimeResult.periodId || periodResult.periodId,
     voiceTranscript: transcript,
     checklist: checklistItems.map(text => ({
       text,
       isCompleted: false
     }))
   };
+  
+  // Add detected date if available
+  if (dateTimeResult.detectedDate) {
+    reminderInput.dueDate = dateTimeResult.detectedDate;
+    
+    // If we also detected a specific time, combine them
+    if (dateTimeResult.detectedTime) {
+      reminderInput.dueDate.setHours(
+        dateTimeResult.detectedTime.getHours(),
+        dateTimeResult.detectedTime.getMinutes(),
+        0,
+        0
+      );
+    }
+  }
   
   // Add detected new period information if applicable
   if (periodResult.isNewPeriod && periodResult.periodName) {
@@ -50,11 +69,13 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
   // Return the processing result
   return {
     reminder: reminderInput,
-    confidence: 0.8, // Placeholder confidence score
+    confidence: Math.max(0.8, dateTimeResult.confidence),
     detectedEntities: {
       priority,
       category,
-      period: periodResult.periodId,
+      period: dateTimeResult.periodId || periodResult.periodId,
+      date: dateTimeResult.detectedDate,
+      time: dateTimeResult.detectedTime,
       newPeriod: periodResult.isNewPeriod ? periodResult.periodName : undefined,
       checklist: checklistItems
     }

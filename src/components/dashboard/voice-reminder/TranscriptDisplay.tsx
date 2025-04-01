@@ -1,8 +1,9 @@
 
 import { VoiceProcessingResult } from "@/types/reminderTypes";
 import { Badge } from "@/components/ui/badge";
-import { Check, ArrowUpCircle } from "lucide-react";
+import { Check, ArrowUpCircle, Calendar, Clock } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { format } from "date-fns";
 
 interface TranscriptDisplayProps {
   transcript: string;
@@ -76,6 +77,20 @@ const TranscriptDisplay = ({
             {processingResult?.detectedEntities.period && (
               <Badge variant="outline" className="flex gap-1 items-center">
                 <span>Period: {processingResult.detectedEntities.period}</span>
+              </Badge>
+            )}
+            
+            {processingResult?.detectedEntities.date && (
+              <Badge variant="outline" className="flex gap-1 items-center bg-blue-50">
+                <Calendar className="h-3 w-3" />
+                <span>Date: {format(processingResult.detectedEntities.date, 'MMMM d, yyyy')}</span>
+              </Badge>
+            )}
+            
+            {processingResult?.detectedEntities.time && (
+              <Badge variant="outline" className="flex gap-1 items-center bg-blue-50">
+                <Clock className="h-3 w-3" />
+                <span>Time: {format(processingResult.detectedEntities.time, 'h:mm a')}</span>
               </Badge>
             )}
             

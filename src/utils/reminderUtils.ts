@@ -40,7 +40,7 @@ export const createReminder = (input: CreateReminderInput): Reminder => {
     id: generateId(),
     title: input.title,
     description: input.description || "",
-    dueDate: tomorrow, // Default to tomorrow morning
+    dueDate: input.dueDate || tomorrow, // Use detected date if available, otherwise default to tomorrow
     priority: input.priority || ReminderPriority.MEDIUM,
     completed: false,
     category: input.category,
