@@ -26,11 +26,10 @@ export const mockPeriods = [
 export const createReminder = (input: CreateReminderInput): Reminder => {
   console.log("Creating reminder from input:", input);
   
-  // Set default date to current time if not provided
+  // Set default date to today if not provided
   const now = new Date();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(9, 0, 0, 0); // Set to 9:00 AM tomorrow
+  const today = new Date(now);
+  today.setHours(9, 0, 0, 0); // Set to 9:00 AM today as default
   
   // For proper ID generation
   const generateId = () => uuidv4();
@@ -40,7 +39,8 @@ export const createReminder = (input: CreateReminderInput): Reminder => {
     id: generateId(),
     title: input.title,
     description: input.description || "",
-    dueDate: input.dueDate || tomorrow, // Use detected date if available, otherwise default to tomorrow
+    // Use detected date if available, otherwise use today
+    dueDate: input.dueDate || today,
     priority: input.priority || ReminderPriority.MEDIUM,
     completed: false,
     category: input.category,
