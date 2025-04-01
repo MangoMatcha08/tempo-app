@@ -1,25 +1,31 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Reminder } from "@/types/reminderTypes";
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from "@/contexts/AuthContext";
-import { getFirestore, collection, addDoc, updateDoc, doc, deleteDoc, getDocs, query, where, orderBy, Timestamp } from "firebase/firestore";
+import { 
+  getFirestore, collection, addDoc, updateDoc, doc, deleteDoc, 
+  getDocs, query, where, orderBy, Timestamp, limit, 
+  startAfter, QuerySnapshot, DocumentData, getCountFromServer
+} from "firebase/firestore";
 import { isFirebaseInitialized } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore } from "@/contexts/FirestoreContext";
 
+const BATCH_SIZE = 50;
+
 export function useReminders() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [lastVisible, setLastVisible] = useState<DocumentData | null>(null);
   const { user } = useAuth();
   const { db, isReady } = useFirestore();
   const { toast } = useToast();
   
-  // Fetch reminders when user changes or db is ready
   useEffect(() => {
-    const fetchReminders = async () => {
+    const fetchInitialReminders = async () => {
       if (!user || !isReady || !db) {
-        // If not logged in or Firestore not ready, use empty array
         setReminders([]);
         setLoading(false);
         return;
@@ -28,46 +34,37 @@ export function useReminders() {
       try {
         setLoading(true);
         console.log("Fetching reminders for user:", user.uid);
+        const startTime = performance.now();
         
         const remindersRef = collection(db, "reminders");
+        const countQuery = query(remindersRef, where("userId", "==", user.uid));
+        const countSnapshot = await getCountFromServer(countQuery);
+        const count = countSnapshot.data().count;
+        setTotalCount(count);
+        console.log(`Total reminders: ${count}`);
+        
         const q = query(
           remindersRef, 
           where("userId", "==", user.uid),
-          orderBy("createdAt", "desc")
+          orderBy("createdAt", "desc"),
+          limit(BATCH_SIZE)
         );
         
         const querySnapshot = await getDocs(q);
-        const fetchedReminders: Reminder[] = [];
         
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          console.log("Raw reminder data:", data);
-          
-          // Convert Firestore timestamps to Date objects
-          const dueDate = data.dueDate instanceof Timestamp 
-            ? data.dueDate.toDate() 
-            : new Date(data.dueDate);
-            
-          const createdAt = data.createdAt instanceof Timestamp 
-            ? data.createdAt.toDate() 
-            : data.createdAt ? new Date(data.createdAt) : new Date();
-            
-          const completedAt = data.completedAt instanceof Timestamp 
-            ? data.completedAt.toDate() 
-            : data.completedAt ? new Date(data.completedAt) : undefined;
-          
-          const reminder: Reminder = {
-            ...data,
-            id: doc.id,
-            dueDate,
-            createdAt,
-            completedAt
-          } as Reminder;
-          
-          fetchedReminders.push(reminder);
-        });
+        if (!querySnapshot.empty) {
+          setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+          setHasMore(querySnapshot.docs.length < count);
+        } else {
+          setLastVisible(null);
+          setHasMore(false);
+        }
         
-        console.log("Fetched reminders:", fetchedReminders);
+        const fetchedReminders = processQuerySnapshot(querySnapshot);
+        
+        const endTime = performance.now();
+        console.log(`Fetched ${fetchedReminders.length} reminders in ${(endTime - startTime).toFixed(2)}ms`);
+        
         setReminders(fetchedReminders);
       } catch (error) {
         console.error("Error fetching reminders:", error);
@@ -81,30 +78,97 @@ export function useReminders() {
       }
     };
     
-    fetchReminders();
+    fetchInitialReminders();
   }, [user, isReady, db, toast]);
   
-  // Process reminders for the UI
+  const processQuerySnapshot = (querySnapshot: QuerySnapshot<DocumentData>) => {
+    const fetchedReminders: Reminder[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      
+      const dueDate = data.dueDate instanceof Timestamp 
+        ? data.dueDate.toDate() 
+        : new Date(data.dueDate);
+        
+      const createdAt = data.createdAt instanceof Timestamp 
+        ? data.createdAt.toDate() 
+        : data.createdAt ? new Date(data.createdAt) : new Date();
+        
+      const completedAt = data.completedAt instanceof Timestamp 
+        ? data.completedAt.toDate() 
+        : data.completedAt ? new Date(data.completedAt) : undefined;
+      
+      const reminder: Reminder = {
+        ...data,
+        id: doc.id,
+        dueDate,
+        createdAt,
+        completedAt
+      } as Reminder;
+      
+      fetchedReminders.push(reminder);
+    });
+    
+    return fetchedReminders;
+  };
+  
+  const loadMoreReminders = useCallback(async () => {
+    if (!user || !isReady || !db || !lastVisible || !hasMore) {
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      const remindersRef = collection(db, "reminders");
+      const q = query(
+        remindersRef,
+        where("userId", "==", user.uid),
+        orderBy("createdAt", "desc"),
+        startAfter(lastVisible),
+        limit(BATCH_SIZE)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+        setHasMore(querySnapshot.docs.length === BATCH_SIZE);
+        
+        const newReminders = processQuerySnapshot(querySnapshot);
+        setReminders(prev => [...prev, ...newReminders]);
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error("Error loading more reminders:", error);
+      toast({
+        title: "Error loading more reminders",
+        description: "Please try again later",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [user, isReady, db, lastVisible, hasMore, toast]);
+  
   const activeReminders = reminders.filter(r => !r.completed);
   
-  // Urgent reminders are due within the next 24 hours from now
   const urgentReminders = activeReminders.filter(reminder => {
     const now = new Date();
     const tomorrowSameTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     return reminder.dueDate <= tomorrowSameTime;
   });
   
-  // Upcoming reminders are all other active reminders
   const upcomingReminders = activeReminders.filter(reminder => {
     const now = new Date();
     const tomorrowSameTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     return reminder.dueDate > tomorrowSameTime;
   });
   
-  // Filter completed reminders
   const completedReminders = reminders.filter(r => r.completed);
   
-  // Debug logging for processed reminders
   useEffect(() => {
     if (reminders.length > 0) {
       console.log("Active reminders:", activeReminders.length);
@@ -122,14 +186,12 @@ export function useReminders() {
       
       const completedAt = new Date();
       
-      // Update in Firestore
       const reminderRef = doc(db, "reminders", id);
       await updateDoc(reminderRef, { 
         completed: true, 
         completedAt: Timestamp.fromDate(completedAt)
       });
       
-      // Update local state
       setReminders(prev => 
         prev.map(reminder => 
           reminder.id === id 
@@ -153,14 +215,12 @@ export function useReminders() {
         return;
       }
       
-      // Update in Firestore
       const reminderRef = doc(db, "reminders", id);
       await updateDoc(reminderRef, { 
         completed: false, 
         completedAt: null 
       });
       
-      // Update local state
       setReminders(prev => 
         prev.map(reminder => 
           reminder.id === id 
@@ -181,7 +241,6 @@ export function useReminders() {
   const addReminder = async (reminder: Reminder) => {
     try {
       if (!user || !isReady || !db) {
-        // Fall back to local behavior if not authenticated or Firebase not ready
         const newReminder = {
           ...reminder,
           id: reminder.id || uuidv4(),
@@ -195,7 +254,6 @@ export function useReminders() {
       
       console.log("Adding reminder to Firestore:", reminder);
       
-      // Ensure we have a proper reminder object with all required fields
       const newReminder = {
         ...reminder,
         userId: user.uid,
@@ -205,14 +263,11 @@ export function useReminders() {
         completedAt: reminder.completedAt ? Timestamp.fromDate(reminder.completedAt) : null
       };
       
-      // Remove the id property for Firestore to auto-generate one
       const { id, ...reminderData } = newReminder;
       
-      // Add to Firestore
       const remindersRef = collection(db, "reminders");
       const docRef = await addDoc(remindersRef, reminderData);
       
-      // Create a proper Reminder object with the Firestore ID
       const savedReminder: Reminder = {
         ...reminder,
         id: docRef.id,
@@ -222,8 +277,9 @@ export function useReminders() {
       
       console.log("Successfully added reminder:", savedReminder);
       
-      // Update the local state with the new reminder
       setReminders(prev => [savedReminder, ...prev]);
+      setTotalCount(prev => prev + 1);
+      
       return savedReminder;
     } catch (error) {
       console.error("Error adding reminder:", error);
@@ -233,7 +289,6 @@ export function useReminders() {
         variant: "destructive",
       });
       
-      // Return the original reminder for UI consistency
       return reminder;
     }
   };
@@ -241,7 +296,6 @@ export function useReminders() {
   const updateReminder = async (updatedReminder: Reminder) => {
     try {
       if (!user || !isReady || !db) {
-        // Fall back to local behavior
         console.log("Updating reminder (local only):", updatedReminder);
         setReminders(prev => 
           prev.map(reminder => 
@@ -255,7 +309,6 @@ export function useReminders() {
       
       console.log("Updating reminder in Firestore:", updatedReminder);
       
-      // Prepare data for Firestore
       const reminderData = {
         ...updatedReminder,
         dueDate: Timestamp.fromDate(updatedReminder.dueDate),
@@ -263,14 +316,11 @@ export function useReminders() {
         completedAt: updatedReminder.completedAt ? Timestamp.fromDate(updatedReminder.completedAt) : null
       };
       
-      // Remove id from the data as it's part of document path
       const { id, ...firestoreData } = reminderData;
       
-      // Update in Firestore
       const reminderRef = doc(db, "reminders", updatedReminder.id);
       await updateDoc(reminderRef, firestoreData);
       
-      // Update local state with the original Date objects
       setReminders(prev => 
         prev.map(reminder => 
           reminder.id === updatedReminder.id 
@@ -288,7 +338,6 @@ export function useReminders() {
         variant: "destructive",
       });
       
-      // Return the original reminder for UI consistency
       return updatedReminder;
     }
   };
@@ -302,6 +351,9 @@ export function useReminders() {
     handleCompleteReminder,
     handleUndoComplete,
     addReminder,
-    updateReminder
+    updateReminder,
+    loadMoreReminders,
+    hasMore,
+    totalCount
   };
 }

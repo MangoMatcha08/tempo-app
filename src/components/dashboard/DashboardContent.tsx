@@ -7,6 +7,7 @@ import ProgressVisualization from "@/components/dashboard/ProgressVisualization"
 import CompletedRemindersSection from "@/components/dashboard/CompletedRemindersSection";
 import ReminderEditDialog from "@/components/dashboard/ReminderEditDialog";
 import { Reminder } from "@/types/reminder";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface DashboardContentProps {
   urgentReminders: Reminder[];

@@ -24,6 +24,7 @@ import { Home, Settings as SettingsIcon, Calendar } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { convertToUIReminder, convertToBackendReminder } from "@/utils/typeUtils";
+import { Button } from "@/components/ui/button";
 
 const Dashboard = () => {
   const [showQuickReminderModal, setShowQuickReminderModal] = useState(false);
@@ -52,15 +53,11 @@ const Dashboard = () => {
     handleCompleteReminder,
     handleUndoComplete,
     addReminder,
-    updateReminder
+    updateReminder,
+    loadMoreReminders,
+    hasMore,
+    totalCount
   } = useReminders();
-
-  // Debug log to check if reminders are being fetched
-  useEffect(() => {
-    console.log("Dashboard reminders:", reminders);
-    console.log("Urgent reminders:", urgentReminders);
-    console.log("Upcoming reminders:", upcomingReminders);
-  }, [reminders, urgentReminders, upcomingReminders]);
 
   // Convert reminders to UI-compatible format
   const convertedUrgentReminders = urgentReminders.map(convertToUIReminder);
@@ -101,6 +98,12 @@ const Dashboard = () => {
       title: "Reminder Updated",
       description: `"${reminder.title}" has been updated.`
     });
+  };
+
+  const handleLoadMore = () => {
+    if (hasMore && !loading) {
+      loadMoreReminders();
+    }
   };
 
   const isActive = (path: string) => {
@@ -173,22 +176,44 @@ const Dashboard = () => {
               <div className={isMobile ? "pt-8" : ""}>
                 <DashboardHeader title="Tempo Dashboard" />
                 
-                {loading ? (
+                {loading && reminders.length === 0 ? (
                   <div className="flex items-center justify-center p-8">
                     <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
                     <span className="ml-2">Loading reminders...</span>
                   </div>
                 ) : (
-                  <DashboardContent 
-                    urgentReminders={convertedUrgentReminders}
-                    upcomingReminders={convertedUpcomingReminders}
-                    completedReminders={convertedCompletedReminders}
-                    onCompleteReminder={handleCompleteReminder}
-                    onUndoComplete={handleUndoComplete}
-                    onNewReminder={() => setShowQuickReminderModal(true)}
-                    onNewVoiceNote={() => setShowVoiceRecorderModal(true)}
-                    onUpdateReminder={handleReminderUpdated}
-                  />
+                  <>
+                    <DashboardContent 
+                      urgentReminders={convertedUrgentReminders}
+                      upcomingReminders={convertedUpcomingReminders}
+                      completedReminders={convertedCompletedReminders}
+                      onCompleteReminder={handleCompleteReminder}
+                      onUndoComplete={handleUndoComplete}
+                      onNewReminder={() => setShowQuickReminderModal(true)}
+                      onNewVoiceNote={() => setShowVoiceRecorderModal(true)}
+                      onUpdateReminder={handleReminderUpdated}
+                    />
+                    
+                    {hasMore && (
+                      <div className="text-center mt-6 mb-8">
+                        <Button 
+                          variant="outline" 
+                          onClick={handleLoadMore} 
+                          disabled={loading}
+                          className="w-full max-w-xs"
+                        >
+                          {loading ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></div>
+                              Loading more...
+                            </>
+                          ) : (
+                            `Load More (${totalCount - reminders.length} remaining)`
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </>
                 )}
                 
                 <DashboardModals 

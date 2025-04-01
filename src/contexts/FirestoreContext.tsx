@@ -1,7 +1,7 @@
 
 import { createContext, useContext, ReactNode, useEffect, useState } from "react";
 import { isFirebaseInitialized } from "@/lib/firebase";
-import { getFirestore, enableIndexedDbPersistence, Firestore, initializeFirestore, CACHE_SIZE_UNLIMITED } from "firebase/firestore";
+import { getFirestore, enableIndexedDbPersistence, Firestore, initializeFirestore, CACHE_SIZE_UNLIMITED, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { ScheduleProvider } from "./ScheduleContext";
 import { useToast } from "@/hooks/use-toast";
 import { app } from "@/services/notifications/firebase";
@@ -21,7 +21,7 @@ export const FirestoreProvider = ({ children }: { children: ReactNode }) => {
   const [db, setDb] = useState<Firestore | null>(null);
   const { toast } = useToast();
   
-  // Initialize Firestore with offline persistence
+  // Initialize Firestore with optimized persistent cache
   useEffect(() => {
     if (!isReady) return;
     
@@ -29,33 +29,38 @@ export const FirestoreProvider = ({ children }: { children: ReactNode }) => {
       try {
         console.log("Initializing Firestore...");
         
-        // Initialize Firestore with optimized settings
+        // Initialize Firestore with modern optimized settings
         let firestore: Firestore;
         
         try {
-          // Use the app instance from the firebase service instead of window.firebase
+          // Use modern persistent cache with multi-tab support
           firestore = initializeFirestore(app, {
-            cacheSizeBytes: CACHE_SIZE_UNLIMITED
+            cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+            localCache: persistentLocalCache({
+              tabManager: persistentMultipleTabManager()
+            })
           });
-          console.log("Initialized Firestore with unlimited cache size");
+          console.log("Initialized Firestore with optimized persistent cache");
+          
+          // No need to call enableIndexedDbPersistence with the new approach
+          // as it's handled by persistentLocalCache
         } catch (err) {
-          console.warn("Could not initialize with enhanced settings, using default:", err);
-          firestore = getFirestore();
-        }
-        
-        // Enable offline persistence
-        try {
-          await enableIndexedDbPersistence(firestore);
-          console.log("Firestore offline persistence enabled");
-        } catch (err: any) {
-          if (err.code === 'failed-precondition') {
-            console.warn("Firestore persistence could not be enabled: Multiple tabs open");
-            // Multiple tabs open, persistence can only be enabled in one tab at a time
-          } else if (err.code === 'unimplemented') {
-            console.warn("Firestore persistence not available in this browser");
-            // The current browser does not support all of the features required for persistence
-          } else {
-            console.error("Error enabling Firestore persistence:", err);
+          console.warn("Could not initialize with enhanced settings, falling back:", err);
+          
+          firestore = getFirestore(app);
+          
+          // Try to enable persistence with older method
+          try {
+            await enableIndexedDbPersistence(firestore);
+            console.log("Firestore persistence enabled with fallback method");
+          } catch (persistErr: any) {
+            if (persistErr.code === 'failed-precondition') {
+              console.warn("Multiple tabs open, persistence can only be enabled in one tab");
+            } else if (persistErr.code === 'unimplemented') {
+              console.warn("Persistence not available in this browser");
+            } else {
+              console.error("Error enabling persistence:", persistErr);
+            }
           }
         }
         
