@@ -11,7 +11,8 @@ export enum ReminderCategory {
   DEADLINE = "deadline",
   PREPARATION = "preparation",
   GRADING = "grading",
-  COMMUNICATION = "communication"
+  COMMUNICATION = "communication",
+  OTHER = "other"
 }
 
 export interface ChecklistItem {

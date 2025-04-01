@@ -51,9 +51,9 @@ const DashboardContent = ({
         onNewVoiceNote={onNewVoiceNote}
       />
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {/* Primary content - 2/3 width on desktop */}
-        <div className="md:col-span-2 space-y-6">
+        <div className="md:col-span-2 space-y-4 md:space-y-6">
           <RemindersSection 
             urgentReminders={urgentReminders} 
             upcomingReminders={upcomingReminders} 
@@ -61,7 +61,7 @@ const DashboardContent = ({
             onEditReminder={handleEditReminder}
           />
           
-          {/* Completed reminders section moved above the progress visualization */}
+          {/* Completed reminders section above the progress visualization */}
           <CompletedRemindersSection 
             reminders={completedReminders}
             onUndoComplete={onUndoComplete}

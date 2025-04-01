@@ -1,131 +1,40 @@
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import React from 'react';
 import { 
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
-  DialogFooter
+  DialogTitle
 } from "@/components/ui/dialog";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { Reminder, ReminderPriority } from "@/types/reminderTypes";
-import { createReminder } from "@/utils/reminderUtils";
+import EnhancedReminderCreator from './EnhancedReminderCreator';
+import { Reminder } from '@/types/reminder';
 
 interface QuickReminderModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onReminderCreated?: (reminder: Reminder) => void;
+  onReminderCreated: (reminder: Reminder) => void;
 }
 
-const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickReminderModalProps) => {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState("medium");
-  const { toast } = useToast();
-  
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      // Create a new reminder
-      const newReminder = createReminder({
-        title,
-        description,
-        priority: priority as ReminderPriority
-      });
-      
-      // Call the callback if provided
-      if (onReminderCreated) {
-        onReminderCreated(newReminder);
-      }
-      
-      toast({
-        title: "Reminder Created",
-        description: "Your reminder has been created successfully."
-      });
-      
-      // Reset form and close modal
-      setTitle("");
-      setDescription("");
-      setPriority("medium");
-      onOpenChange(false);
-    } catch (error) {
-      console.error("Error creating reminder:", error);
-      
-      toast({
-        title: "Error",
-        description: "There was an error creating your reminder. Please try again.",
-        variant: "destructive"
-      });
-    }
+const QuickReminderModal: React.FC<QuickReminderModalProps> = ({
+  open,
+  onOpenChange,
+  onReminderCreated
+}) => {
+  const handleReminderCreated = (reminder: Reminder) => {
+    onReminderCreated(reminder);
+    onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Quick Reminder</DialogTitle>
+          <DialogTitle>Add Reminder</DialogTitle>
         </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-          <div className="space-y-2">
-            <label htmlFor="title" className="text-sm font-medium">Title</label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="What do you need to remember?"
-              required
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <label htmlFor="description" className="text-sm font-medium">Description</label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add more details... (optional)"
-              rows={3}
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <label htmlFor="priority" className="text-sm font-medium">Priority</label>
-            <Select 
-              value={priority} 
-              onValueChange={setPriority}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">
-              Create Reminder
-            </Button>
-          </DialogFooter>
-        </form>
+        <EnhancedReminderCreator 
+          onReminderCreated={handleReminderCreated} 
+          onCancel={() => onOpenChange(false)}
+        />
       </DialogContent>
     </Dialog>
   );
