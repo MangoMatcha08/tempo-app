@@ -13,9 +13,9 @@ export const generateMeaningfulTitle = (category: ReminderCategory, transcript: 
     [ReminderCategory.OTHER]: "Note: "
   };
   
-  // Enhanced cleaning to remove priority and period references
+  // Enhanced cleaning to remove common filler phrases and priority/period references
   let cleanedTranscript = transcript
-    // Remove filler starting phrases
+    // Remove filler starting phrases like "please make a reminder to..."
     .replace(/^(set|create|make|add|remind me|i need|please|can you|would you|could you|i want to|i'd like to)\s+a?\s*(reminder|task|meeting|note|notification)?\s+(to|for|about)?/i, "")
     // Remove priority references
     .replace(/\b(high|medium|low)\s+priority\b/gi, "")

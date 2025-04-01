@@ -1,3 +1,4 @@
+
 import { addDays, addWeeks, setHours, setMinutes, startOfDay, format, parse, isValid } from 'date-fns';
 import { mockPeriods } from '@/utils/reminderUtils';
 
@@ -161,7 +162,7 @@ export const detectDateTime = (text: string): DateTimeInfo => {
     }
   }
   
-  // Check for specific times like "3 PM", "15:30", etc.
+  // Check for specific times like "3 PM", "3 p.m.", "3PM"
   const timePatterns = [
     // 3 PM, 3 p.m., 3PM
     { regex: /\b(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)/i },
@@ -176,10 +177,12 @@ export const detectDateTime = (text: string): DateTimeInfo => {
       const minutes = parseInt(match[2] || '0', 10);
       
       // Handle AM/PM for the first pattern
-      if (match[3] && match[3].toLowerCase().startsWith('p') && hours < 12) {
-        hours += 12;
-      } else if (match[3] && match[3].toLowerCase().startsWith('a') && hours === 12) {
-        hours = 0;
+      if (match[3]) {
+        if (match[3].toLowerCase().startsWith('p') && hours < 12) {
+          hours += 12;
+        } else if (match[3].toLowerCase().startsWith('a') && hours === 12) {
+          hours = 0;
+        }
       }
       
       // Create time
@@ -201,6 +204,32 @@ export const detectDateTime = (text: string): DateTimeInfo => {
     }
   }
   
+  // Look for "during planning period" or similar phrases to link with period times
+  if (lowercaseText.includes('planning period') || lowercaseText.includes('during planning')) {
+    const planningPeriod = mockPeriods.find(p => 
+      p.name.toLowerCase().includes('planning')
+    );
+    
+    if (planningPeriod) {
+      result.periodId = planningPeriod.id;
+      
+      // If we have a date but no specific time was detected, use the period's time
+      if (result.detectedDate && !result.detectedTime && planningPeriod.startTime) {
+        const [hours, minutes] = planningPeriod.startTime.split(':').map(Number);
+        result.detectedTime = setMinutes(setHours(new Date(), hours), minutes);
+      }
+    }
+  }
+  
+  // If we have a period ID but no specific time was detected, use the period's start time
+  if (result.periodId && !result.detectedTime) {
+    const selectedPeriod = mockPeriods.find(p => p.id === result.periodId);
+    if (selectedPeriod && selectedPeriod.startTime) {
+      const [hours, minutes] = selectedPeriod.startTime.split(':').map(Number);
+      result.detectedTime = setMinutes(setHours(new Date(), hours), minutes);
+    }
+  }
+  
   // Set default time if no time was detected
   if (result.detectedDate && !result.detectedTime) {
     // Find "Before School" period for default time
@@ -214,6 +243,15 @@ export const detectDateTime = (text: string): DateTimeInfo => {
       result.periodId = beforeSchoolPeriod.id;
       result.confidence = Math.max(result.confidence, 0.7);
     }
+  }
+  
+  // Debug log the detected date/time
+  if (result.detectedDate || result.detectedTime) {
+    console.log('Detected date/time:', {
+      date: result.detectedDate ? format(result.detectedDate, 'yyyy-MM-dd') : 'none',
+      time: result.detectedTime ? format(result.detectedTime, 'HH:mm') : 'none',
+      periodId: result.periodId || 'none'
+    });
   }
   
   return result;

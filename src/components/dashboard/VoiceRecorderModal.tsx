@@ -74,9 +74,20 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   }, [transcript]);
   
   const handleSave = () => {
-    if (!transcript || !title) return;
+    if (!transcript || !title) {
+      console.error("Cannot save: missing title or transcript");
+      return;
+    }
     
     try {
+      console.log("Creating reminder with:", {
+        title,
+        priority,
+        category,
+        periodId: periodId === "none" ? undefined : periodId,
+        dueDate: processingResult?.reminder.dueDate
+      });
+      
       // Create reminder with the confirmed data
       const reminderInput = {
         title,
@@ -91,10 +102,14 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
       };
       
       const newReminder = createReminder(reminderInput);
+      console.log("Created reminder:", newReminder);
       
       // Call the callback if provided
       if (onReminderCreated) {
+        console.log("Calling onReminderCreated with new reminder");
         onReminderCreated(newReminder);
+      } else {
+        console.warn("onReminderCreated callback is not provided");
       }
       
       toast({

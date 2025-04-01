@@ -1,4 +1,3 @@
-
 import { VoiceProcessingResult, CreateReminderInput, ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
 import { detectPriority } from './detectPriority';
 import { detectCategory } from './detectCategory';
@@ -6,22 +5,20 @@ import { detectPeriod } from './detectPeriod';
 import { extractChecklistItems } from './extractChecklistItems';
 import { detectDateTime } from './detectDateTime';
 import { mockPeriods } from '@/utils/reminderUtils';
+import { generateMeaningfulTitle } from '@/utils/voiceReminderUtils';
 
 // Main function to process voice input
 export const processVoiceInput = (transcript: string): VoiceProcessingResult => {
   console.log('Processing voice input:', transcript);
-  
-  // Extract title (first sentence or phrase)
-  let title = transcript.split(/[.!?]/)[0].trim();
-  if (title.length > 100) {
-    title = title.substring(0, 97) + '...';
-  }
   
   // Detect priority
   const priority = detectPriority(transcript);
   
   // Detect category
   const category = detectCategory(transcript);
+  
+  // Generate a meaningful title based on the transcript and detected category
+  const title = generateMeaningfulTitle(category, transcript);
   
   // Detect period
   const periodResult = detectPeriod(transcript);
