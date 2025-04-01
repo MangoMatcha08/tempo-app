@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Bell, CheckCircle } from "lucide-react";
 import ReminderCard from "./ReminderCard";
 import ReminderListItem from "./ReminderListItem";
+import { memo } from "react";
 
 interface Reminder {
   id: string;
@@ -22,7 +23,8 @@ interface RemindersSectionProps {
   onEditReminder: (reminder: Reminder) => void;
 }
 
-const RemindersSection = ({ 
+// Use React.memo to prevent unnecessary re-renders
+const RemindersSection = memo(({ 
   urgentReminders, 
   upcomingReminders, 
   onCompleteReminder,
@@ -79,6 +81,8 @@ const RemindersSection = ({
       )}
     </div>
   );
-};
+});
+
+RemindersSection.displayName = "RemindersSection";
 
 export default RemindersSection;

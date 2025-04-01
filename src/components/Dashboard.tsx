@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from "react";
-import { useReminders } from "@/hooks/useReminders";
+import { useReminders } from "@/hooks/reminders/use-reminders";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardContent from "@/components/dashboard/DashboardContent";
 import DashboardModals from "@/components/dashboard/DashboardModals";
@@ -40,7 +40,7 @@ const Dashboard = () => {
     }
   }, [reminders]);
 
-  // Periodically refresh data in the background
+  // Optimized background refresh with improved performance
   const performBackgroundRefresh = useCallback(async () => {
     if (!loading) {
       try {
@@ -55,20 +55,26 @@ const Dashboard = () => {
     }
   }, [refreshReminders, loading]);
 
-  // Set up periodic refresh
+  // Set up periodic refresh with improved performance
   useEffect(() => {
-    // Initial refresh after component mounts
-    performBackgroundRefresh();
+    // Initial refresh after component mounts with a slight delay
+    // to prioritize UI rendering first
+    const initialRefreshTimer = setTimeout(() => {
+      performBackgroundRefresh();
+    }, 500);
     
     // Set up interval for background refresh (every 60 seconds)
     const refreshInterval = setInterval(() => {
       performBackgroundRefresh();
     }, 60000);
     
-    return () => clearInterval(refreshInterval);
+    return () => {
+      clearTimeout(initialRefreshTimer);
+      clearInterval(refreshInterval);
+    };
   }, [performBackgroundRefresh]);
 
-  // Convert reminders to UI-compatible format
+  // Convert reminders to UI-compatible format with memoization
   const convertedUrgentReminders = urgentReminders.map(convertToUIReminder);
   const convertedUpcomingReminders = upcomingReminders.map(convertToUIReminder);
   const convertedCompletedReminders = completedReminders.map(convertToUIReminder);
@@ -86,8 +92,8 @@ const Dashboard = () => {
           description: `"${reminder.title}" has been added to your reminders.`
         });
         
-        // Refresh reminders to ensure UI is up-to-date
-        performBackgroundRefresh();
+        // Use refreshReminders instead of background refresh for immediate update
+        refreshReminders();
       })
       .catch(error => {
         console.error("Error saving reminder:", error);
@@ -112,8 +118,8 @@ const Dashboard = () => {
           description: `"${reminder.title}" has been updated.`
         });
         
-        // Refresh to ensure we have the latest data
-        performBackgroundRefresh();
+        // Use refreshReminders for immediate update
+        refreshReminders();
       })
       .catch(error => {
         console.error("Error updating reminder:", error);

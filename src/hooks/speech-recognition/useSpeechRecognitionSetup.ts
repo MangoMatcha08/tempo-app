@@ -22,34 +22,77 @@ export const useSpeechRecognitionSetup = ({
   
   // Initialize speech recognition
   useEffect(() => {
-    const recognitionInstance = createSpeechRecognition();
+    // Check browser support first
+    const isSupported = isSpeechRecognitionSupported();
+    setBrowserSupportsSpeechRecognition(isSupported);
     
-    if (recognitionInstance) {
-      configureSpeechRecognition(recognitionInstance);
+    if (!isSupported) {
+      onError('Your browser does not support speech recognition.');
+      return;
+    }
+    
+    // Create recognition instance with improved error handling
+    try {
+      const recognitionInstance = createSpeechRecognition();
       
-      recognitionInstance.onend = () => {
-        console.log('Speech recognition ended, isListening:', isListening);
+      if (recognitionInstance) {
+        configureSpeechRecognition(recognitionInstance);
         
-        // If still supposed to be listening, restart recognition
-        if (isListening) {
-          console.log('Restarting speech recognition...');
-          try {
-            recognitionInstance.start();
-          } catch (err) {
-            console.error('Error restarting recognition:', err);
-            onError('Failed to restart speech recognition. Please try again.');
+        // Handle recognition end event with better restart logic
+        recognitionInstance.onend = () => {
+          console.log('Speech recognition ended, isListening:', isListening);
+          
+          // Only restart if still supposed to be listening
+          if (isListening) {
+            console.log('Restarting speech recognition...');
+            try {
+              // Small timeout to prevent rapid restart cycles
+              setTimeout(() => {
+                recognitionInstance.start();
+              }, 100);
+            } catch (err) {
+              console.error('Error restarting recognition:', err);
+              onError('Failed to restart speech recognition. Please try again.');
+              setIsListening(false);
+            }
+          }
+        };
+        
+        // Handle recognition errors more gracefully
+        recognitionInstance.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
+          
+          // Handle specific error types
+          switch (event.error) {
+            case 'network':
+              onError('Network error occurred. Please check your internet connection.');
+              break;
+            case 'not-allowed':
+              onError('Microphone access was denied. Please allow microphone access.');
+              break;
+            case 'aborted':
+              // This is often triggered by the user, so don't show an error
+              console.log('Speech recognition aborted');
+              break;
+            default:
+              onError(`Speech recognition error: ${event.error}`);
+          }
+          
+          // Stop listening on critical errors
+          if (['not-allowed', 'network'].includes(event.error)) {
             setIsListening(false);
           }
-        }
-      };
-      
-      setRecognition(recognitionInstance);
-      setBrowserSupportsSpeechRecognition(true);
-    } else {
-      onError('Your browser does not support speech recognition.');
-      setBrowserSupportsSpeechRecognition(false);
+        };
+        
+        setRecognition(recognitionInstance);
+      } else {
+        onError('Failed to initialize speech recognition.');
+      }
+    } catch (error) {
+      console.error('Error setting up speech recognition:', error);
+      onError('Failed to initialize speech recognition.');
     }
-  }, [isListening, onError, setIsListening]);
+  }, [onError, setIsListening]);
 
   return {
     recognition,
