@@ -1,28 +1,17 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { UseSpeechRecognitionReturn } from './types';
+import { 
+  debounce, 
+  createSpeechRecognition, 
+  configureSpeechRecognition,
+  isSpeechRecognitionSupported
+} from './utils';
 
-// Define the interface for the speech recognition hook
-interface UseSpeechRecognitionReturn {
-  transcript: string;
-  isListening: boolean;
-  startListening: () => void;
-  stopListening: () => void;
-  resetTranscript: () => void;
-  browserSupportsSpeechRecognition: boolean;
-  error?: string;
-}
-
-// Debounce function to prevent rapid updates
-const debounce = (func: Function, wait: number) => {
-  let timeout: ReturnType<typeof setTimeout> | null = null;
-  
-  return (...args: any[]) => {
-    if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-};
-
-// Create a custom hook for speech recognition
+/**
+ * Custom hook for speech recognition functionality
+ * @returns Object containing transcript and speech recognition control methods
+ */
 const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   const [transcript, setTranscript] = useState<string>('');
   const [isListening, setIsListening] = useState<boolean>(false);
@@ -44,24 +33,10 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
 
   // Initialize speech recognition
   useEffect(() => {
-    // Check if browser supports speech recognition
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      // @ts-ignore - TypeScript doesn't recognize these browser-specific APIs
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognitionInstance = new SpeechRecognition();
-      
-      recognitionInstance.continuous = true;
-      recognitionInstance.interimResults = true;
-      recognitionInstance.lang = 'en-US';
-      recognitionInstance.maxAlternatives = 1;
-      
-      // Fix: Increase the maximum allowed speech segment to prevent early stopping
-      // This property is non-standard but works in Chrome
-      // @ts-ignore
-      if (typeof recognitionInstance.maxSpeechSegmentDuration === 'number') {
-        // @ts-ignore
-        recognitionInstance.maxSpeechSegmentDuration = 120; // Set to 120 seconds (or higher if needed)
-      }
+    const recognitionInstance = createSpeechRecognition();
+    
+    if (recognitionInstance) {
+      configureSpeechRecognition(recognitionInstance);
       
       recognitionInstance.onresult = (event: any) => {
         // Process results to separate final from interim
@@ -161,7 +136,9 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     };
   }, [debouncedSetTranscript, isListening]);
 
-  // Start listening function
+  /**
+   * Starts the speech recognition process
+   */
   const startListening = useCallback(() => {
     if (!recognition) return;
     
@@ -181,7 +158,9 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     }
   }, [recognition]);
 
-  // Stop listening function
+  /**
+   * Stops the speech recognition process
+   */
   const stopListening = useCallback(() => {
     if (!recognition) return;
     
@@ -195,7 +174,9 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     }
   }, [recognition]);
 
-  // Reset transcript function
+  /**
+   * Resets the transcript to an empty string
+   */
   const resetTranscript = useCallback(() => {
     setTranscript('');
     finalTranscriptRef.current = '';

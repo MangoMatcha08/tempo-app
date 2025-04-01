@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import useSpeechRecognition from '../../hooks/useSpeechRecognition';
+import useSpeechRecognition from '../../hooks/speech-recognition';
 import { Mic, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
