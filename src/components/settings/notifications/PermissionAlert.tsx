@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Bell } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
 interface PermissionAlertProps {
   permissionGranted: boolean;
@@ -62,7 +63,7 @@ const PermissionAlert = ({
             title: "Permission denied",
             description: "You need to enable notifications in your browser settings. Look for the lock/info icon in your address bar.",
             variant: "destructive",
-            duration: 5000,
+            duration: 3000,
           });
         } else {
           toast({
@@ -86,25 +87,34 @@ const PermissionAlert = ({
     }
   };
 
-  if (permissionGranted || !isNativeNotificationsSupported || !masterEnabled || !pushEnabled) {
+  // Always render the component when push is enabled, even if permission is granted
+  // so users can request permissions again on new devices
+  if (!masterEnabled || !pushEnabled) {
     return null;
   }
 
   return (
     <Alert className="bg-yellow-50 border-yellow-200">
       <AlertTriangle className="h-4 w-4 text-yellow-800" />
-      <AlertTitle className="text-yellow-800">Push notifications require permission</AlertTitle>
+      <AlertTitle className="text-yellow-800">
+        {permissionGranted 
+          ? "Need to enable notifications on this device?" 
+          : "Push notifications require permission"}
+      </AlertTitle>
       <AlertDescription className="text-yellow-700">
-        Your browser requires permission to send push notifications.
+        {permissionGranted 
+          ? "If you're using a new device or browser, you'll need to grant permission again."
+          : "Your browser requires permission to send push notifications."}
         <div className="mt-2">
-          <button 
+          <Button 
             type="button"
             onClick={handleRequestPermission}
             className="px-3 py-1 bg-primary text-primary-foreground text-sm rounded-md"
+            disabled={isRequesting}
           >
             <Bell className="h-4 w-4 inline-block mr-1" />
-            Request Permission
-          </button>
+            {isRequesting ? "Requesting..." : "Request Permission"}
+          </Button>
         </div>
       </AlertDescription>
     </Alert>

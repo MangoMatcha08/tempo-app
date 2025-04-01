@@ -12,6 +12,7 @@ interface Reminder {
   priority: "low" | "medium" | "high";
   location?: string;
   completed?: boolean;
+  createdAt?: Date;
 }
 
 interface ReminderListItemProps {
@@ -26,14 +27,22 @@ const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProp
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high":
-        return "bg-red-500";
+        return "border-l-red-500";
       case "medium":
-        return "bg-amber-500";
+        return "border-l-amber-500";
       case "low":
-        return "bg-blue-500";
+        return "border-l-blue-500";
       default:
-        return "bg-blue-500";
+        return "border-l-blue-500";
     }
+  };
+  
+  // Check if reminder was created in the last 2 hours
+  const isRecentlyCreated = () => {
+    if (!reminder.createdAt) return false;
+    const now = new Date();
+    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+    return reminder.createdAt > twoHoursAgo;
   };
   
   const formatDueDate = (dueDate: Date) => {
@@ -74,12 +83,14 @@ const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProp
 
   return (
     <div 
-      className={`border-b border-muted p-3 flex items-center transition-all duration-300 ${
+      className={`border-b border-l-4 ${getPriorityColor(reminder.priority)} p-3 flex items-center transition-all duration-300 ${
         isCompleting ? "bg-green-100 opacity-0" : ""
       } hover:bg-slate-50 cursor-pointer`}
       onClick={() => onEdit(reminder)}
     >
-      <div className={`w-2 h-2 rounded-full ${getPriorityColor(reminder.priority)} mr-3`} />
+      <div 
+        className={`w-2 h-2 rounded-full ${isRecentlyCreated() ? 'bg-green-500' : getPriorityDotColor(reminder.priority)} mr-3`} 
+      />
       
       <div
         className="mr-3"
@@ -119,5 +130,19 @@ const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProp
     </div>
   );
 };
+
+// Helper function to get dot color based on priority
+function getPriorityDotColor(priority: string): string {
+  switch (priority) {
+    case "high":
+      return "bg-red-500";
+    case "medium":
+      return "bg-amber-500";
+    case "low":
+      return "bg-blue-500";
+    default:
+      return "bg-blue-500";
+  }
+}
 
 export default ReminderListItem;

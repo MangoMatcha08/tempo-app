@@ -12,6 +12,7 @@ interface Reminder {
   priority: "low" | "medium" | "high";
   location?: string;
   completed?: boolean;
+  createdAt?: Date;
 }
 
 interface RemindersSectionProps {
@@ -29,7 +30,7 @@ const RemindersSection = ({
 }: RemindersSectionProps) => {
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold">Reminders</h2>
+      <h2 className="text-xl font-bold">Today's Reminders</h2>
       
       {urgentReminders.length > 0 ? (
         <div className="space-y-3">
@@ -52,7 +53,7 @@ const RemindersSection = ({
       
       {upcomingReminders.length > 0 && (
         <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-2">Upcoming</h3>
+          <h3 className="text-lg font-semibold mb-2">Coming Up Later</h3>
           <Card>
             <CardContent className="p-0">
               {upcomingReminders.map((reminder) => (

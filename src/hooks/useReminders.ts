@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Reminder } from "@/types/reminder";
 import { v4 as uuidv4 } from 'uuid';
@@ -14,6 +13,7 @@ export function useReminders() {
       priority: "high",
       location: "Math 101",
       completed: false,
+      createdAt: new Date(new Date().getTime() - 259200000) // 3 days ago
     },
     {
       id: "2",
@@ -23,6 +23,7 @@ export function useReminders() {
       priority: "medium",
       location: "Conference Room",
       completed: false,
+      createdAt: new Date(new Date().getTime() - 172800000) // 2 days ago
     },
     {
       id: "3",
@@ -31,6 +32,7 @@ export function useReminders() {
       dueDate: new Date(new Date().getTime() + 86400000), // Tomorrow
       priority: "low",
       completed: false,
+      createdAt: new Date(new Date().getTime() - 86400000) // 1 day ago
     },
     {
       id: "4",
@@ -39,6 +41,7 @@ export function useReminders() {
       dueDate: new Date(new Date().getTime() + 172800000), // Day after tomorrow
       priority: "medium",
       completed: false,
+      createdAt: new Date(new Date().getTime() - 43200000) // 12 hours ago
     },
     {
       id: "5",
@@ -47,6 +50,7 @@ export function useReminders() {
       dueDate: new Date(new Date().getTime() + 259200000), // 3 days from now
       priority: "medium",
       completed: false,
+      createdAt: new Date() // Just now (for demo of green dot)
     },
     {
       id: "6",
@@ -56,6 +60,7 @@ export function useReminders() {
       priority: "high",
       completed: true,
       completedAt: new Date(new Date().getTime() - 86400000), // 1 day ago
+      createdAt: new Date(new Date().getTime() - 345600000) // 4 days ago
     },
     {
       id: "7",
@@ -65,6 +70,7 @@ export function useReminders() {
       priority: "medium",
       completed: true,
       completedAt: new Date(new Date().getTime() - 86400000), // 1 day ago
+      createdAt: new Date(new Date().getTime() - 259200000) // 3 days ago
     }
   ]);
 
@@ -106,10 +112,11 @@ export function useReminders() {
   };
   
   const addReminder = (reminder: Reminder) => {
-    // Ensure the reminder has a unique ID
+    // Ensure the reminder has a unique ID and creation date
     const newReminder = {
       ...reminder,
-      id: reminder.id || uuidv4()
+      id: reminder.id || uuidv4(),
+      createdAt: reminder.createdAt || new Date()
     };
     
     console.log("Adding reminder:", newReminder);
