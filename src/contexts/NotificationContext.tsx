@@ -14,6 +14,7 @@ import { showNotification } from '@/utils/notificationUtils';
 interface NotificationContextType {
   notificationSettings: NotificationSettings;
   permissionGranted: boolean;
+  isSupported: boolean;
   requestPermission: () => Promise<boolean>;
   showNotification: (reminder: Reminder) => void;
 }
@@ -21,6 +22,7 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType>({
   notificationSettings: defaultNotificationSettings,
   permissionGranted: false,
+  isSupported: true,
   requestPermission: async () => false,
   showNotification: () => {},
 });
@@ -33,7 +35,7 @@ interface NotificationProviderProps {
 
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(defaultNotificationSettings);
-  const { permissionGranted, requestPermission } = useNotificationPermission();
+  const { permissionGranted, isSupported, requestPermission } = useNotificationPermission();
   const { toast } = useToast();
 
   // Initialize notification settings
@@ -81,6 +83,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const contextValue: NotificationContextType = {
     notificationSettings,
     permissionGranted,
+    isSupported,
     requestPermission,
     showNotification: handleShowNotification,
   };

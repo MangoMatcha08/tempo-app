@@ -93,6 +93,22 @@ const PermissionAlert = ({
     return null;
   }
 
+  // Handle the case where notifications are not supported
+  if (!isNativeNotificationsSupported) {
+    return (
+      <Alert className="bg-orange-50 border-orange-200">
+        <AlertTriangle className="h-4 w-4 text-orange-800" />
+        <AlertTitle className="text-orange-800">
+          Push notifications not supported
+        </AlertTitle>
+        <AlertDescription className="text-orange-700">
+          Your current browser or device doesn't support push notifications. 
+          Try using a different browser like Chrome, Firefox, or Safari on a desktop device.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
     <Alert className="bg-yellow-50 border-yellow-200">
       <AlertTriangle className="h-4 w-4 text-yellow-800" />
