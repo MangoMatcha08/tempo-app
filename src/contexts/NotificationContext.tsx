@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { Reminder } from '@/types/reminderTypes';
+import { Reminder, ReminderPriority } from '@/types/reminderTypes';
 import { 
   requestNotificationPermission, 
   setupForegroundMessageListener,
@@ -95,9 +95,12 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   // Show notification based on reminder priority and user settings
   const showNotification = (reminder: Reminder) => {
     if (!notificationSettings.enabled) return;
+    
+    // Convert the string priority to ReminderPriority enum value
+    const reminderPriority = reminder.priority as unknown as ReminderPriority;
 
     // Check if in-app notification should be shown
-    if (shouldSendNotification(reminder.priority, notificationSettings, 'inApp')) {
+    if (shouldSendNotification(reminderPriority, notificationSettings, 'inApp')) {
       toast({
         title: reminder.title,
         description: reminder.description || 'Reminder',
@@ -107,9 +110,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
     // In a real implementation, push and email notifications would be sent from the server
     console.log('Should send push notification:', 
-      shouldSendNotification(reminder.priority, notificationSettings, 'push'));
+      shouldSendNotification(reminderPriority, notificationSettings, 'push'));
     console.log('Should send email notification:', 
-      shouldSendNotification(reminder.priority, notificationSettings, 'email'));
+      shouldSendNotification(reminderPriority, notificationSettings, 'email'));
   };
 
   const contextValue: NotificationContextType = {
