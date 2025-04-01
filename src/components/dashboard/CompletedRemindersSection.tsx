@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Undo2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Reminder {
   id: string;
@@ -39,6 +40,14 @@ const CompletedRemindersSection = ({
           <CardContent className="p-0">
             {sortedReminders.map((reminder) => (
               <div key={reminder.id} className="border-b border-muted p-3 flex items-center">
+                <div className="mr-3">
+                  <Checkbox 
+                    className="h-6 w-6 rounded-sm border-2 border-gray-300"
+                    checked={true}
+                    disabled
+                  />
+                </div>
+                
                 <div className="flex-1">
                   <div className="font-medium line-through text-muted-foreground">{reminder.title}</div>
                   <div className="text-xs text-muted-foreground">

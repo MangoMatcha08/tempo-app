@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Check, Clock, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Reminder {
   id: string;
@@ -77,41 +78,46 @@ const ReminderCard = ({ reminder, onComplete, onEdit }: ReminderCardProps) => {
       } hover:bg-slate-50`}
     >
       <CardContent className="p-4">
-        <div className="flex justify-between">
-          <h3 className="font-medium cursor-pointer" onClick={() => onEdit(reminder)}>{reminder.title}</h3>
-          <div className="flex space-x-1">
-            <Button 
-              size="sm" 
-              variant="ghost" 
-              className="h-8 w-8 p-0"
-              onClick={() => onEdit(reminder)}
-            >
-              <Edit className="h-4 w-4 text-gray-500" />
-              <span className="sr-only">Edit</span>
-            </Button>
-            <Button 
-              size="sm" 
-              variant="ghost" 
-              className="h-8 w-8 p-0"
-              onClick={(e) => {
-                e.stopPropagation(); // Prevent card click from triggering
-                handleComplete();
-              }}
-            >
-              <Check className="h-5 w-5 text-green-500" />
-              <span className="sr-only">Mark as done</span>
-            </Button>
+        <div className="flex items-start">
+          <div 
+            className="mr-3 mt-1 cursor-pointer" 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleComplete();
+            }}
+          >
+            <Checkbox 
+              className="h-6 w-6 rounded-sm border-2 border-gray-300"
+              checked={false}
+              onCheckedChange={() => handleComplete()}
+            />
           </div>
-        </div>
-        
-        <p className="text-sm mt-1">{reminder.description}</p>
-        
-        <div className="flex items-center mt-2 text-xs text-muted-foreground">
-          <Clock className="h-4 w-4 mr-1" />
-          <span>
-            {reminder.location && `${reminder.location} • `}
-            {formattedTime(reminder.dueDate)}
-          </span>
+          
+          <div className="flex-1 cursor-pointer" onClick={() => onEdit(reminder)}>
+            <h3 className="font-medium">{reminder.title}</h3>
+            <p className="text-sm mt-1">{reminder.description}</p>
+            
+            <div className="flex items-center mt-2 text-xs text-muted-foreground">
+              <Clock className="h-4 w-4 mr-1" />
+              <span>
+                {reminder.location && `${reminder.location} • `}
+                {formattedTime(reminder.dueDate)}
+              </span>
+            </div>
+          </div>
+          
+          <Button 
+            size="sm" 
+            variant="ghost" 
+            className="h-8 w-8 p-0 ml-1 flex-shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(reminder);
+            }}
+          >
+            <Edit className="h-4 w-4 text-gray-500" />
+            <span className="sr-only">Edit</span>
+          </Button>
         </div>
       </CardContent>
     </Card>

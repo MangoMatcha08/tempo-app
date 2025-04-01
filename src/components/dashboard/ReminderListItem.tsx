@@ -1,7 +1,8 @@
 
-import { Check, Edit } from "lucide-react";
+import { Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Reminder {
   id: string;
@@ -79,6 +80,20 @@ const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProp
     >
       <div className={`w-2 h-2 rounded-full ${getPriorityColor(reminder.priority)} mr-3`} />
       
+      <div
+        className="mr-3 cursor-pointer"
+        onClick={(e) => {
+          e.stopPropagation();
+          handleComplete();
+        }}
+      >
+        <Checkbox 
+          className="h-6 w-6 rounded-sm border-2 border-gray-300"
+          checked={false}
+          onCheckedChange={() => handleComplete()}
+        />
+      </div>
+      
       <div className="flex-1 cursor-pointer" onClick={() => onEdit(reminder)}>
         <div className="font-medium">{reminder.title}</div>
         <div className="text-xs text-muted-foreground">
@@ -86,30 +101,18 @@ const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProp
         </div>
       </div>
       
-      <div className="flex items-center space-x-1">
-        <Button 
-          size="sm" 
-          variant="ghost" 
-          className="h-8 w-8 p-0"
-          onClick={() => onEdit(reminder)}
-        >
-          <Edit className="h-4 w-4 text-gray-500" />
-          <span className="sr-only">Edit</span>
-        </Button>
-        
-        <Button 
-          size="sm" 
-          variant="ghost" 
-          className="h-8 w-8 p-0"
-          onClick={(e) => {
-            e.stopPropagation(); // Prevent row click from triggering
-            handleComplete();
-          }}
-        >
-          <Check className="h-5 w-5 text-green-500" />
-          <span className="sr-only">Mark as done</span>
-        </Button>
-      </div>
+      <Button 
+        size="sm" 
+        variant="ghost" 
+        className="h-8 w-8 p-0 flex-shrink-0"
+        onClick={(e) => {
+          e.stopPropagation();
+          onEdit(reminder);
+        }}
+      >
+        <Edit className="h-4 w-4 text-gray-500" />
+        <span className="sr-only">Edit</span>
+      </Button>
     </div>
   );
 };
