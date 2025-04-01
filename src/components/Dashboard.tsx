@@ -66,10 +66,10 @@ const Dashboard = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full overflow-hidden">
+    <SidebarProvider defaultOpen={!isMobile}>
+      <div className="flex h-screen w-full overflow-hidden">
         <Sidebar>
-          <SidebarHeader className="flex justify-center items-center py-4">
+          <SidebarHeader className="flex justify-center items-center py-4 bg-sidebar">
             <h2 className="text-lg font-bold">Tempo</h2>
           </SidebarHeader>
           <SidebarContent>
@@ -112,34 +112,36 @@ const Dashboard = () => {
           </SidebarContent>
         </Sidebar>
         
-        <SidebarInset>
-          <div className="container mx-auto px-2 sm:px-4 py-6 max-w-5xl relative">
-            {isMobile && (
-              <div className="absolute top-2 left-2 z-10">
-                <SidebarTrigger className="bg-background shadow-sm" />
+        <SidebarInset className="flex-1 overflow-hidden">
+          <div className="h-full overflow-auto">
+            <div className="container mx-auto px-2 sm:px-4 py-6 max-w-5xl relative">
+              {isMobile && (
+                <div className="absolute top-2 left-2 z-10">
+                  <SidebarTrigger className="bg-background shadow-sm" />
+                </div>
+              )}
+              <div className={isMobile ? "pt-8" : ""}>
+                <DashboardHeader title="Tempo Dashboard" />
+                
+                <DashboardContent 
+                  urgentReminders={urgentReminders}
+                  upcomingReminders={upcomingReminders}
+                  completedReminders={completedReminders}
+                  onCompleteReminder={handleCompleteReminder}
+                  onUndoComplete={handleUndoComplete}
+                  onNewReminder={() => setShowQuickReminderModal(true)}
+                  onNewVoiceNote={() => setShowVoiceRecorderModal(true)}
+                  onUpdateReminder={handleReminderUpdated}
+                />
+                
+                <DashboardModals 
+                  showQuickReminderModal={showQuickReminderModal}
+                  setShowQuickReminderModal={setShowQuickReminderModal}
+                  showVoiceRecorderModal={showVoiceRecorderModal}
+                  setShowVoiceRecorderModal={setShowVoiceRecorderModal}
+                  onReminderCreated={handleReminderCreated}
+                />
               </div>
-            )}
-            <div className={isMobile ? "pt-8" : ""}>
-              <DashboardHeader title="Tempo Dashboard" />
-              
-              <DashboardContent 
-                urgentReminders={urgentReminders}
-                upcomingReminders={upcomingReminders}
-                completedReminders={completedReminders}
-                onCompleteReminder={handleCompleteReminder}
-                onUndoComplete={handleUndoComplete}
-                onNewReminder={() => setShowQuickReminderModal(true)}
-                onNewVoiceNote={() => setShowVoiceRecorderModal(true)}
-                onUpdateReminder={handleReminderUpdated}
-              />
-              
-              <DashboardModals 
-                showQuickReminderModal={showQuickReminderModal}
-                setShowQuickReminderModal={setShowQuickReminderModal}
-                showVoiceRecorderModal={showVoiceRecorderModal}
-                setShowVoiceRecorderModal={setShowVoiceRecorderModal}
-                onReminderCreated={handleReminderCreated}
-              />
             </div>
           </div>
         </SidebarInset>
