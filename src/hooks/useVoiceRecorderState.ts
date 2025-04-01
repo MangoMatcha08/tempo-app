@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { VoiceProcessingResult, ReminderPriority, ReminderCategory } from "@/types/reminderTypes";
 import { generateMeaningfulTitle } from "@/utils/voiceReminderUtils";
 import { processVoiceInput } from "@/services/nlp";
@@ -16,11 +16,14 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   const [periodId, setPeriodId] = useState<string>("none");
   const { toast } = useToast();
   
+  // Ref to track if we're currently in the process of confirming a transcript
+  const isConfirmingRef = useRef(false);
+  
   // Reset state when modal opens - but DO NOT reset if we're already in confirm view
   const resetState = () => {
     console.log("Reset state called, current view:", view);
     // Only reset if we're not already in confirm view to prevent resetting during confirmation
-    if (view !== "confirm") {
+    if (view !== "confirm" && !isConfirmingRef.current) {
       setTitle("");
       setTranscript("");
       setIsProcessing(false);
@@ -38,6 +41,9 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       console.log("Empty transcript received, not processing");
       return;
     }
+    
+    // Set the confirming flag to prevent accidental resets
+    isConfirmingRef.current = true;
     
     setTranscript(text);
     setIsProcessing(true);
@@ -67,6 +73,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     } catch (error) {
       console.error('Error processing voice input:', error);
       setIsProcessing(false);
+      isConfirmingRef.current = false;
       
       toast({
         title: "Processing Error",
@@ -77,12 +84,14 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   };
   
   const handleCancel = () => {
+    isConfirmingRef.current = false;
     resetState();
     onOpenChange(false);
   };
 
   const handleGoBack = () => {
     setView("record");
+    isConfirmingRef.current = false;
   };
   
   return {

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import useSpeechRecognition from '../../hooks/speech-recognition';
 import { Mic, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,14 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) =
 
   const [recordingTime, setRecordingTime] = useState<number>(0);
   const [processingComplete, setProcessingComplete] = useState<boolean>(false);
+  const finalTranscriptRef = useRef<string>('');
+
+  // Update the ref when transcript changes
+  useEffect(() => {
+    if (transcript) {
+      finalTranscriptRef.current = transcript;
+    }
+  }, [transcript]);
 
   // Handle recording timer
   useEffect(() => {
@@ -49,21 +57,29 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) =
   const handleStartRecording = () => {
     resetTranscript();
     setProcessingComplete(false);
+    finalTranscriptRef.current = '';
     startListening();
   };
 
   const handleStopRecording = () => {
     stopListening();
+    
+    // Capture the current transcript immediately
+    const currentTranscript = finalTranscriptRef.current || transcript;
+    console.log("Current transcript on stop:", currentTranscript);
+    
     // Only process non-empty transcripts
-    if (transcript && transcript.trim()) {
-      console.log("Recorded transcript:", transcript.trim());
-      // Ensure we give a delay to get the final transcript
+    if (currentTranscript && currentTranscript.trim()) {
+      console.log("Processing transcript:", currentTranscript.trim());
+      
+      // Use a longer delay to ensure the full transcript is captured
       setTimeout(() => {
         if (!processingComplete) {
+          console.log("Sending final transcript:", currentTranscript.trim());
           setProcessingComplete(true);
-          onTranscriptComplete(transcript.trim());
+          onTranscriptComplete(currentTranscript.trim());
         }
-      }, 800); // Increased delay to ensure full transcript is captured
+      }, 1000); 
     } else {
       console.log("Empty transcript detected - not proceeding to confirmation");
     }

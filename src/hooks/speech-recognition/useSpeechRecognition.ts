@@ -27,7 +27,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   const debouncedSetTranscript = useCallback(
     debounce((text: string) => {
       setTranscript(text);
-    }, 100), // Reduced debounce time for more responsiveness
+    }, 50), // Reduced debounce time for more responsiveness
     []
   );
 
@@ -131,7 +131,11 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     // Cleanup
     return () => {
       if (recognition) {
-        recognition.stop();
+        try {
+          recognition.stop();
+        } catch (err) {
+          console.error('Error stopping recognition during cleanup:', err);
+        }
       }
     };
   }, [debouncedSetTranscript, isListening]);
@@ -166,11 +170,17 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     
     console.log('Stopping speech recognition');
     setIsListening(false);
-    recognition.stop();
-    
-    // Ensure we're showing the final transcript
-    if (finalTranscriptRef.current) {
-      setTranscript(finalTranscriptRef.current);
+    try {
+      recognition.stop();
+      console.log('Speech recognition stopped');
+      
+      // Ensure we're showing the final transcript
+      if (finalTranscriptRef.current) {
+        console.log('Setting final transcript:', finalTranscriptRef.current);
+        setTranscript(finalTranscriptRef.current);
+      }
+    } catch (err) {
+      console.error('Error stopping recognition:', err);
     }
   }, [recognition]);
 

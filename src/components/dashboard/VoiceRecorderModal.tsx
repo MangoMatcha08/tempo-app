@@ -68,6 +68,11 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
     console.log("Current view:", view);
   }, [view]);
   
+  // Monitor transcript changes
+  useEffect(() => {
+    console.log("Transcript updated:", transcript);
+  }, [transcript]);
+  
   const handleSave = () => {
     if (!transcript || !title) return;
     
@@ -108,17 +113,35 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
     }
   };
 
+  // Use a forced view state to prevent issues
+  const actualView = transcript ? view : "record";
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog 
+      open={open} 
+      onOpenChange={(newOpenState) => {
+        // When closing the modal
+        if (!newOpenState && view === "confirm") {
+          // Show confirmation before closing if we're in confirm view
+          console.log("Attempt to close dialog while in confirm view");
+          const shouldClose = window.confirm("Are you sure you want to discard this reminder?");
+          if (shouldClose) {
+            onOpenChange(false);
+          }
+        } else {
+          onOpenChange(newOpenState);
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto" ref={dialogContentRef}>
         <DialogHeader>
           <DialogTitle>
-            {view === "record" ? "Record Voice Reminder" : "Confirm Your Reminder"}
+            {actualView === "record" ? "Record Voice Reminder" : "Confirm Your Reminder"}
           </DialogTitle>
         </DialogHeader>
         
         <ScrollArea className="max-h-[calc(85vh-10rem)]">
-          {view === "record" ? (
+          {actualView === "record" ? (
             <VoiceRecorderView 
               onTranscriptComplete={handleTranscriptComplete}
               isProcessing={isProcessing}
@@ -143,7 +166,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
         </ScrollArea>
         
         <ModalFooterActions
-          view={view}
+          view={actualView}
           onCancel={handleCancel}
           onGoBack={handleGoBack}
           onSave={handleSave}
