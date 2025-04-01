@@ -4,6 +4,7 @@ import { isFirebaseInitialized } from "@/lib/firebase";
 import { getFirestore, enableIndexedDbPersistence, Firestore, initializeFirestore, CACHE_SIZE_UNLIMITED } from "firebase/firestore";
 import { ScheduleProvider } from "./ScheduleContext";
 import { useToast } from "@/hooks/use-toast";
+import { app } from "@/services/notifications/firebase";
 
 interface FirestoreContextType {
   isReady: boolean;
@@ -32,8 +33,8 @@ export const FirestoreProvider = ({ children }: { children: ReactNode }) => {
         let firestore: Firestore;
         
         try {
-          // First try to initialize with enhanced cache
-          firestore = initializeFirestore(window.firebase, {
+          // Use the app instance from the firebase service instead of window.firebase
+          firestore = initializeFirestore(app, {
             cacheSizeBytes: CACHE_SIZE_UNLIMITED
           });
           console.log("Initialized Firestore with unlimited cache size");
