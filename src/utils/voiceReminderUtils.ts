@@ -15,7 +15,6 @@ export const generateMeaningfulTitle = (category: ReminderCategory, transcript: 
   
   // Extract a meaningful portion of the transcript for the title
   // We'll try to grab the first important phrase that gives context about the reminder
-  let contentPreview = "";
   
   // Remove filler starting phrases
   const cleanedTranscript = transcript
@@ -24,7 +23,7 @@ export const generateMeaningfulTitle = (category: ReminderCategory, transcript: 
     .trim();
   
   // Get the most meaningful part from the beginning of the transcript
-  contentPreview = cleanedTranscript.split(/[.!?]/).filter(s => s.trim().length > 0)[0] || cleanedTranscript;
+  let contentPreview = cleanedTranscript.split(/[.!?]/).filter(s => s.trim().length > 0)[0] || cleanedTranscript;
   
   // Limit to a reasonable length
   if (contentPreview.length > 40) {

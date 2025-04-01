@@ -53,6 +53,15 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       recognitionInstance.continuous = true;
       recognitionInstance.interimResults = true;
       recognitionInstance.lang = 'en-US';
+      recognitionInstance.maxAlternatives = 1;
+      
+      // Fix: Increase the maximum allowed speech segment to prevent early stopping
+      // This property is non-standard but works in Chrome
+      // @ts-ignore
+      if (typeof recognitionInstance.maxSpeechSegmentDuration === 'number') {
+        // @ts-ignore
+        recognitionInstance.maxSpeechSegmentDuration = 60; // Set to 60 seconds (or higher if needed)
+      }
       
       recognitionInstance.onresult = (event: any) => {
         // Process results to separate final from interim
@@ -85,13 +94,48 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       };
       
       recognitionInstance.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        
+        // Don't stop listening on "no-speech" errors, just log them
+        if (event.error === 'no-speech') {
+          console.log('No speech detected, continuing to listen...');
+          return;
+        }
+        
+        // For network errors, try to restart recognition
+        if (event.error === 'network') {
+          console.log('Network error, attempting to restart recognition...');
+          setTimeout(() => {
+            if (isListening) {
+              try {
+                recognitionInstance.start();
+              } catch (err) {
+                console.error('Failed to restart after network error:', err);
+                setError(`Speech recognition network error. Please try again.`);
+                setIsListening(false);
+              }
+            }
+          }, 1000);
+          return;
+        }
+        
         setError(`Speech recognition error: ${event.error}`);
         setIsListening(false);
       };
       
       recognitionInstance.onend = () => {
+        console.log('Speech recognition ended, isListening:', isListening);
+        
+        // If still supposed to be listening, restart recognition
         if (isListening) {
-          recognitionInstance.start();
+          console.log('Restarting speech recognition...');
+          try {
+            recognitionInstance.start();
+          } catch (err) {
+            console.error('Error restarting recognition:', err);
+            setError('Failed to restart speech recognition. Please try again.');
+            setIsListening(false);
+          }
         }
       };
       
@@ -118,10 +162,12 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     setTranscript('');
     finalTranscriptRef.current = '';
     interimTranscriptRef.current = '';
+    setError(undefined);
     
     setIsListening(true);
     try {
       recognition.start();
+      console.log('Speech recognition started');
     } catch (err) {
       // Handle the case where recognition is already started
       console.error('Recognition already started:', err);
@@ -132,6 +178,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   const stopListening = useCallback(() => {
     if (!recognition) return;
     
+    console.log('Stopping speech recognition');
     setIsListening(false);
     recognition.stop();
     

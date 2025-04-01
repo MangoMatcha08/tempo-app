@@ -9,6 +9,8 @@ import { mockPeriods } from '@/utils/reminderUtils';
 
 // Main function to process voice input
 export const processVoiceInput = (transcript: string): VoiceProcessingResult => {
+  console.log('Processing voice input:', transcript);
+  
   // Extract title (first sentence or phrase)
   let title = transcript.split(/[.!?]/)[0].trim();
   if (title.length > 100) {
@@ -26,6 +28,7 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
   
   // Detect date and time
   const dateTimeResult = detectDateTime(transcript);
+  console.log('Date/time detection result:', dateTimeResult);
   
   // Extract potential checklist items
   const checklistItems = extractChecklistItems(transcript);
@@ -52,6 +55,7 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
   // Add detected date if available
   if (dateTimeResult.detectedDate) {
     reminderInput.dueDate = dateTimeResult.detectedDate;
+    console.log('Setting due date from detected date:', reminderInput.dueDate);
     
     // If we also detected a specific time, combine them
     if (dateTimeResult.detectedTime) {
@@ -61,11 +65,13 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
         0,
         0
       );
+      console.log('Updated due date with time:', reminderInput.dueDate);
     } else if (beforeSchoolPeriod && beforeSchoolPeriod.startTime) {
       // If no time detected, use before school time as default
       const [hours, minutes] = beforeSchoolPeriod.startTime.split(':').map(Number);
       if (reminderInput.dueDate) {
         reminderInput.dueDate.setHours(hours, minutes, 0, 0);
+        console.log('Updated due date with before school time:', reminderInput.dueDate);
       }
     }
   }

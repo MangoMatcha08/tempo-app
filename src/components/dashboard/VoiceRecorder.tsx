@@ -53,7 +53,10 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) =
   const handleStopRecording = () => {
     stopListening();
     if (transcript.trim()) {
-      onTranscriptComplete(transcript.trim());
+      // Add a small delay to ensure we have the complete transcript
+      setTimeout(() => {
+        onTranscriptComplete(transcript.trim());
+      }, 300);
     }
   };
 
@@ -90,7 +93,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) =
         
         {isListening && (
           <p className="text-xs text-muted-foreground mt-4 animate-pulse">
-            Recording...
+            Recording... {recordingTime > 0 ? `(${formatTime(recordingTime)})` : ''}
           </p>
         )}
       </div>
