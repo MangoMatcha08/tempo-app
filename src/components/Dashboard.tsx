@@ -18,7 +18,8 @@ const Dashboard = () => {
     completedReminders,
     handleCompleteReminder,
     handleUndoComplete,
-    addReminder
+    addReminder,
+    updateReminder
   } = useReminders();
 
   const handleReminderCreated = (reminder: Reminder) => {
@@ -28,6 +29,16 @@ const Dashboard = () => {
     toast({
       title: "Reminder Created",
       description: `"${reminder.title}" has been added to your reminders.`
+    });
+  };
+
+  const handleReminderUpdated = (reminder: Reminder) => {
+    // Update the reminder in the list
+    updateReminder(reminder);
+    
+    toast({
+      title: "Reminder Updated",
+      description: `"${reminder.title}" has been updated.`
     });
   };
 
@@ -43,6 +54,7 @@ const Dashboard = () => {
         onUndoComplete={handleUndoComplete}
         onNewReminder={() => setShowQuickReminderModal(true)}
         onNewVoiceNote={() => setShowVoiceRecorderModal(true)}
+        onUpdateReminder={handleReminderUpdated}
       />
       
       <DashboardModals 

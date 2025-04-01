@@ -1,6 +1,6 @@
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Check, Clock } from "lucide-react";
+import { Check, Clock, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 
@@ -17,9 +17,10 @@ interface Reminder {
 interface ReminderCardProps {
   reminder: Reminder;
   onComplete: (id: string) => void;
+  onEdit: (reminder: Reminder) => void;
 }
 
-const ReminderCard = ({ reminder, onComplete }: ReminderCardProps) => {
+const ReminderCard = ({ reminder, onComplete, onEdit }: ReminderCardProps) => {
   const [isCompleting, setIsCompleting] = useState(false);
   
   const getPriorityClass = (priority: string) => {
@@ -73,24 +74,34 @@ const ReminderCard = ({ reminder, onComplete }: ReminderCardProps) => {
     <Card 
       className={`shadow-md ${getPriorityClass(reminder.priority)} transition-all duration-300 ${
         isCompleting ? "bg-green-100 opacity-0 transform translate-y-2" : ""
-      } cursor-pointer hover:bg-slate-50`}
-      onClick={handleComplete}
+      } hover:bg-slate-50`}
     >
       <CardContent className="p-4">
         <div className="flex justify-between">
-          <h3 className="font-medium">{reminder.title}</h3>
-          <Button 
-            size="sm" 
-            variant="ghost" 
-            className="h-8 w-8 p-0"
-            onClick={(e) => {
-              e.stopPropagation(); // Prevent card click from triggering twice
-              handleComplete();
-            }}
-          >
-            <Check className="h-5 w-5 text-green-500" />
-            <span className="sr-only">Mark as done</span>
-          </Button>
+          <h3 className="font-medium cursor-pointer" onClick={() => onEdit(reminder)}>{reminder.title}</h3>
+          <div className="flex space-x-1">
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              className="h-8 w-8 p-0"
+              onClick={() => onEdit(reminder)}
+            >
+              <Edit className="h-4 w-4 text-gray-500" />
+              <span className="sr-only">Edit</span>
+            </Button>
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              className="h-8 w-8 p-0"
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent card click from triggering
+                handleComplete();
+              }}
+            >
+              <Check className="h-5 w-5 text-green-500" />
+              <span className="sr-only">Mark as done</span>
+            </Button>
+          </div>
         </div>
         
         <p className="text-sm mt-1">{reminder.description}</p>

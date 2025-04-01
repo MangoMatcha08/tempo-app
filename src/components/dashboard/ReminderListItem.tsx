@@ -1,5 +1,5 @@
 
-import { Check } from "lucide-react";
+import { Check, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
@@ -16,9 +16,10 @@ interface Reminder {
 interface ReminderListItemProps {
   reminder: Reminder;
   onComplete: (id: string) => void;
+  onEdit: (reminder: Reminder) => void;
 }
 
-const ReminderListItem = ({ reminder, onComplete }: ReminderListItemProps) => {
+const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProps) => {
   const [isCompleting, setIsCompleting] = useState(false);
   
   const getPriorityColor = (priority: string) => {
@@ -74,30 +75,41 @@ const ReminderListItem = ({ reminder, onComplete }: ReminderListItemProps) => {
     <div 
       className={`border-b border-muted p-3 flex items-center transition-all duration-300 ${
         isCompleting ? "bg-green-100 opacity-0" : ""
-      } cursor-pointer hover:bg-slate-50`}
-      onClick={handleComplete}
+      } hover:bg-slate-50`}
     >
       <div className={`w-2 h-2 rounded-full ${getPriorityColor(reminder.priority)} mr-3`} />
       
-      <div className="flex-1">
+      <div className="flex-1 cursor-pointer" onClick={() => onEdit(reminder)}>
         <div className="font-medium">{reminder.title}</div>
         <div className="text-xs text-muted-foreground">
           {formatDueDate(reminder.dueDate)}
         </div>
       </div>
       
-      <Button 
-        size="sm" 
-        variant="ghost" 
-        className="h-8 w-8 p-0"
-        onClick={(e) => {
-          e.stopPropagation(); // Prevent row click from triggering twice
-          handleComplete();
-        }}
-      >
-        <Check className="h-5 w-5 text-green-500" />
-        <span className="sr-only">Mark as done</span>
-      </Button>
+      <div className="flex items-center space-x-1">
+        <Button 
+          size="sm" 
+          variant="ghost" 
+          className="h-8 w-8 p-0"
+          onClick={() => onEdit(reminder)}
+        >
+          <Edit className="h-4 w-4 text-gray-500" />
+          <span className="sr-only">Edit</span>
+        </Button>
+        
+        <Button 
+          size="sm" 
+          variant="ghost" 
+          className="h-8 w-8 p-0"
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent row click from triggering
+            handleComplete();
+          }}
+        >
+          <Check className="h-5 w-5 text-green-500" />
+          <span className="sr-only">Mark as done</span>
+        </Button>
+      </div>
     </div>
   );
 };

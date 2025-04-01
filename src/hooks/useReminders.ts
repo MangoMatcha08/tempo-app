@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { Reminder } from "@/types/reminder";
+import { v4 as uuidv4 } from 'uuid';
 
 export function useReminders() {
   // Mock data for reminders - in a real app, this would come from a database
@@ -105,7 +106,27 @@ export function useReminders() {
   };
   
   const addReminder = (reminder: Reminder) => {
-    setReminders(prev => [reminder, ...prev]);
+    // Ensure the reminder has a unique ID
+    const newReminder = {
+      ...reminder,
+      id: reminder.id || uuidv4()
+    };
+    
+    console.log("Adding reminder:", newReminder);
+    setReminders(prev => [newReminder, ...prev]);
+    return newReminder;
+  };
+
+  const updateReminder = (updatedReminder: Reminder) => {
+    console.log("Updating reminder:", updatedReminder);
+    setReminders(prev => 
+      prev.map(reminder => 
+        reminder.id === updatedReminder.id 
+          ? { ...updatedReminder } 
+          : reminder
+      )
+    );
+    return updatedReminder;
   };
 
   return {
@@ -115,6 +136,7 @@ export function useReminders() {
     completedReminders,
     handleCompleteReminder,
     handleUndoComplete,
-    addReminder
+    addReminder,
+    updateReminder
   };
 }

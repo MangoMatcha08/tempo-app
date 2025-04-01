@@ -1,9 +1,11 @@
 
+import { useState } from "react";
 import CurrentPeriodIndicator from "@/components/dashboard/CurrentPeriodIndicator";
 import QuickActionsBar from "@/components/dashboard/QuickActionsBar";
 import RemindersSection from "@/components/dashboard/RemindersSection";
 import ProgressVisualization from "@/components/dashboard/ProgressVisualization";
 import CompletedRemindersSection from "@/components/dashboard/CompletedRemindersSection";
+import ReminderEditDialog from "@/components/dashboard/ReminderEditDialog";
 import { Reminder } from "@/types/reminder";
 
 interface DashboardContentProps {
@@ -14,6 +16,7 @@ interface DashboardContentProps {
   onUndoComplete: (id: string) => void;
   onNewReminder: () => void;
   onNewVoiceNote: () => void;
+  onUpdateReminder: (reminder: Reminder) => void;
 }
 
 const DashboardContent = ({
@@ -23,8 +26,23 @@ const DashboardContent = ({
   onCompleteReminder,
   onUndoComplete,
   onNewReminder,
-  onNewVoiceNote
+  onNewVoiceNote,
+  onUpdateReminder
 }: DashboardContentProps) => {
+  const [selectedReminder, setSelectedReminder] = useState<Reminder | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+  const handleEditReminder = (reminder: Reminder) => {
+    setSelectedReminder(reminder);
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveReminder = (updatedReminder: Reminder) => {
+    onUpdateReminder(updatedReminder);
+    setSelectedReminder(null);
+    setEditDialogOpen(false);
+  };
+
   return (
     <>
       <CurrentPeriodIndicator />
@@ -40,6 +58,7 @@ const DashboardContent = ({
             urgentReminders={urgentReminders} 
             upcomingReminders={upcomingReminders} 
             onCompleteReminder={onCompleteReminder}
+            onEditReminder={handleEditReminder}
           />
           <ProgressVisualization />
         </div>
@@ -52,6 +71,13 @@ const DashboardContent = ({
           />
         </div>
       </div>
+
+      <ReminderEditDialog 
+        reminder={selectedReminder}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSave={handleSaveReminder}
+      />
     </>
   );
 };

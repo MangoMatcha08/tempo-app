@@ -18,12 +18,14 @@ interface RemindersSectionProps {
   urgentReminders: Reminder[];
   upcomingReminders: Reminder[];
   onCompleteReminder: (id: string) => void;
+  onEditReminder: (reminder: Reminder) => void;
 }
 
 const RemindersSection = ({ 
   urgentReminders, 
   upcomingReminders, 
-  onCompleteReminder 
+  onCompleteReminder,
+  onEditReminder
 }: RemindersSectionProps) => {
   return (
     <div className="space-y-4">
@@ -36,6 +38,7 @@ const RemindersSection = ({
               key={reminder.id} 
               reminder={reminder} 
               onComplete={onCompleteReminder}
+              onEdit={onEditReminder}
             />
           ))}
         </div>
@@ -57,6 +60,7 @@ const RemindersSection = ({
                   key={reminder.id} 
                   reminder={reminder} 
                   onComplete={onCompleteReminder}
+                  onEdit={onEditReminder}
                 />
               ))}
             </CardContent>
