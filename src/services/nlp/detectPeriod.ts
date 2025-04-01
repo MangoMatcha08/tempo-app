@@ -79,34 +79,54 @@ export const detectPeriod = (text: string): { periodId?: string, isNewPeriod: bo
     }
   }
   
-  // Check for numeric period references (1st, 2nd, 3rd, 4th, etc.)
-  const periodRegex = /(\d+)(st|nd|rd|th)?\s*period|period\s*(\d+)/i;
-  const match = lowercaseText.match(periodRegex);
+  // Enhanced period detection with various formats
+  // Check for numeric period references (1st, 2nd, 3rd, 4th, etc. as well as period 1, period 2, etc.)
+  const periodRegexPatterns = [
+    /(\d+)(st|nd|rd|th)?\s*period/i,  // "2nd period", "3rd period", "4 period"
+    /period\s*(\d+)/i,                // "period 2", "period 3"
+    /period\s*(one|two|three|four|five|six|seven|eight|nine|ten)/i, // "period two"
+    /p(\d+)/i                         // "p2", "P3"
+  ];
   
-  if (match) {
-    // Extract the period number
-    const periodNumber = match[1] || match[3];
-    if (periodNumber) {
-      // Convert to number and find matching period
-      const num = parseInt(periodNumber, 10);
+  for (const regex of periodRegexPatterns) {
+    const match = lowercaseText.match(regex);
+    if (match) {
+      let periodNumber: number;
       
-      // Look for a period with this number in the name
-      const periodMatch = mockPeriods.find(p => 
-        p.name.toLowerCase().includes(`period ${num}`) || 
-        p.name.toLowerCase().includes(`period ${num}`) || 
-        p.name.toLowerCase() === `period${num}` ||
-        p.name.toLowerCase() === `p${num}` ||
-        p.name === `${num}`
-      );
-      
-      if (periodMatch) {
-        result.periodId = periodMatch.id;
-        return result;
+      // First group is a digit
+      if (/^\d+$/.test(match[1])) {
+        periodNumber = parseInt(match[1], 10);
+      } 
+      // First group is a word
+      else if (match[1] && isNaN(Number(match[1]))) {
+        const wordToNumber: Record<string, number> = {
+          'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+          'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
+        };
+        periodNumber = wordToNumber[match[1].toLowerCase()] || 0;
       } else {
-        // This is a new period that doesn't exist in our list
-        result.isNewPeriod = true;
-        result.periodName = `Period ${num}`;
-        return result;
+        continue;
+      }
+      
+      if (periodNumber) {
+        // Look for a period with this number in the name
+        const periodMatch = mockPeriods.find(p => 
+          p.name.toLowerCase().includes(`period ${periodNumber}`) || 
+          p.name.toLowerCase() === `period ${periodNumber}` || 
+          p.name.toLowerCase() === `period${periodNumber}` ||
+          p.name.toLowerCase() === `p${periodNumber}` ||
+          p.name === `${periodNumber}`
+        );
+        
+        if (periodMatch) {
+          result.periodId = periodMatch.id;
+          return result;
+        } else {
+          // This is a new period that doesn't exist in our list
+          result.isNewPeriod = true;
+          result.periodName = `Period ${periodNumber}`;
+          return result;
+        }
       }
     }
   }
@@ -126,24 +146,33 @@ export const detectPeriod = (text: string): { periodId?: string, isNewPeriod: bo
   };
   
   for (const [textNum, num] of Object.entries(textualPeriods)) {
-    if (lowercaseText.includes(`${textNum} period`) || 
-        lowercaseText.includes(`${textNum}-period`) ||
-        lowercaseText.includes(`${textNum} class`)) {
-      // Look for a period with this number in the name
-      const periodMatch = mockPeriods.find(p => 
-        p.name.toLowerCase().includes(`period ${num}`) || 
-        p.name.toLowerCase() === `period ${num}` ||
-        p.name.toLowerCase() === `${textNum} period`
-      );
-      
-      if (periodMatch) {
-        result.periodId = periodMatch.id;
-        return result;
-      } else {
-        // This is a new period that doesn't exist in our list
-        result.isNewPeriod = true;
-        result.periodName = `Period ${num}`;
-        return result;
+    // Check various formulations like "second period", "the second period", etc.
+    const textualPatterns = [
+      `${textNum} period`,
+      `${textNum}-period`,
+      `${textNum} class`,
+      `the ${textNum} period`,
+      `my ${textNum} period`
+    ];
+    
+    for (const pattern of textualPatterns) {
+      if (lowercaseText.includes(pattern)) {
+        // Look for a period with this number in the name
+        const periodMatch = mockPeriods.find(p => 
+          p.name.toLowerCase().includes(`period ${num}`) || 
+          p.name.toLowerCase() === `period ${num}` ||
+          p.name.toLowerCase() === `${textNum} period`
+        );
+        
+        if (periodMatch) {
+          result.periodId = periodMatch.id;
+          return result;
+        } else {
+          // This is a new period that doesn't exist in our list
+          result.isNewPeriod = true;
+          result.periodName = `Period ${num}`;
+          return result;
+        }
       }
     }
   }

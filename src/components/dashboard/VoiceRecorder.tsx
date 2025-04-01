@@ -79,7 +79,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) =
           setProcessingComplete(true);
           onTranscriptComplete(currentTranscript.trim());
         }
-      }, 1000); 
+      }, 1500); // Increased delay for more reliable transcript capture
     } else {
       console.log("Empty transcript detected - not proceeding to confirmation");
     }
