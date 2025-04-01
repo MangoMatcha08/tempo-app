@@ -2,7 +2,6 @@
 // Re-export all notification service functionality
 import { initializeFirebase } from './notifications/firebase';
 import { 
-  NotificationSettings, 
   defaultNotificationSettings 
 } from './notifications/types';
 import { 
@@ -17,12 +16,15 @@ import {
   setupForegroundMessageListener
 } from './notifications/messaging';
 
+// Import and re-export the type correctly
+import type { NotificationSettings } from './notifications/types';
+export type { NotificationSettings };
+
 // Initialize Firebase when this module is loaded
 initializeFirebase().catch(err => console.error('Failed to initialize Firebase:', err));
 
 // Export all functionality
 export {
-  NotificationSettings,
   defaultNotificationSettings,
   getUserNotificationSettings,
   updateUserNotificationSettings,
