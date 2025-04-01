@@ -47,6 +47,7 @@ export interface Reminder {
   location?: string;
   completed?: boolean;
   completedAt?: Date;
+  createdAt?: Date;
   category?: ReminderCategory;
   periodId?: string;
   checklist?: ChecklistItem[];
