@@ -35,7 +35,7 @@ const CompletedRemindersSection = ({
   });
 
   return (
-    <div className="space-y-2 mt-6">
+    <div className="space-y-2">
       <Collapsible
         open={isOpen}
         onOpenChange={setIsOpen}

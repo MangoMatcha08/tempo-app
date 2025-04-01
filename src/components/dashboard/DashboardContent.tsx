@@ -60,15 +60,19 @@ const DashboardContent = ({
             onCompleteReminder={onCompleteReminder}
             onEditReminder={handleEditReminder}
           />
+          
+          {/* Completed reminders section moved above the progress visualization */}
+          <CompletedRemindersSection 
+            reminders={completedReminders}
+            onUndoComplete={onUndoComplete}
+          />
+          
           <ProgressVisualization />
         </div>
         
         {/* Secondary content - 1/3 width on desktop */}
         <div>
-          <CompletedRemindersSection 
-            reminders={completedReminders}
-            onUndoComplete={onUndoComplete}
-          />
+          {/* CompletedRemindersSection has been moved out of here */}
         </div>
       </div>
 
