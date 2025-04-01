@@ -86,7 +86,7 @@ const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProp
       className={`border-b border-l-4 ${getPriorityColor(reminder.priority)} p-3 flex items-center transition-all duration-300 ${
         isCompleting ? "bg-green-100 opacity-0" : ""
       } hover:bg-slate-50 cursor-pointer`}
-      onClick={() => onEdit(reminder)}
+      onClick={handleComplete}
     >
       <div 
         className={`w-2 h-2 rounded-full ${isRecentlyCreated() ? 'bg-green-500' : getPriorityDotColor(reminder.priority)} mr-3`} 

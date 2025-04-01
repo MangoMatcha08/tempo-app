@@ -5,6 +5,7 @@ import { detectCategory } from './detectCategory';
 import { detectPeriod } from './detectPeriod';
 import { extractChecklistItems } from './extractChecklistItems';
 import { detectDateTime } from './detectDateTime';
+import { mockPeriods } from '@/utils/reminderUtils';
 
 // Main function to process voice input
 export const processVoiceInput = (transcript: string): VoiceProcessingResult => {
@@ -29,13 +30,18 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
   // Extract potential checklist items
   const checklistItems = extractChecklistItems(transcript);
   
+  // Find "Before School" period for default time
+  const beforeSchoolPeriod = mockPeriods.find(p => 
+    p.name.toLowerCase().includes('before school')
+  );
+  
   // Create the reminder input
   const reminderInput: CreateReminderInput = {
     title,
     description: transcript,
     priority,
     category,
-    periodId: dateTimeResult.periodId || periodResult.periodId,
+    periodId: dateTimeResult.periodId || periodResult.periodId || (beforeSchoolPeriod ? beforeSchoolPeriod.id : undefined),
     voiceTranscript: transcript,
     checklist: checklistItems.map(text => ({
       text,
@@ -55,6 +61,12 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
         0,
         0
       );
+    } else if (beforeSchoolPeriod && beforeSchoolPeriod.startTime) {
+      // If no time detected, use before school time as default
+      const [hours, minutes] = beforeSchoolPeriod.startTime.split(':').map(Number);
+      if (reminderInput.dueDate) {
+        reminderInput.dueDate.setHours(hours, minutes, 0, 0);
+      }
     }
   }
   
@@ -73,7 +85,7 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
     detectedEntities: {
       priority,
       category,
-      period: dateTimeResult.periodId || periodResult.periodId,
+      period: dateTimeResult.periodId || periodResult.periodId || (beforeSchoolPeriod ? beforeSchoolPeriod.id : undefined),
       date: dateTimeResult.detectedDate,
       time: dateTimeResult.detectedTime,
       newPeriod: periodResult.isNewPeriod ? periodResult.periodName : undefined,

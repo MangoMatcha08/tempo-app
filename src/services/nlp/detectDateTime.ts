@@ -1,4 +1,3 @@
-
 import { addDays, addWeeks, setHours, setMinutes, startOfDay, format, parse, isValid } from 'date-fns';
 import { mockPeriods } from '@/utils/reminderUtils';
 
@@ -50,7 +49,9 @@ export const detectDateTime = (text: string): DateTimeInfo => {
   // Find days of week in the text
   for (const day of daysOfWeek) {
     for (const name of day.names) {
-      if (lowercaseText.includes(name)) {
+      // Use word boundaries to avoid matching words that contain day names
+      const dayRegex = new RegExp(`\\b${name}\\b`, 'i');
+      if (dayRegex.test(lowercaseText)) {
         // Get the current day of week (0-6, where 0 is Sunday)
         const currentDayOfWeek = now.getDay();
         
@@ -197,6 +198,21 @@ export const detectDateTime = (text: string): DateTimeInfo => {
       
       result.confidence = Math.max(result.confidence, 0.8);
       break;
+    }
+  }
+  
+  // Set default time if no time was detected
+  if (result.detectedDate && !result.detectedTime) {
+    // Find "Before School" period for default time
+    const beforeSchoolPeriod = mockPeriods.find(p => 
+      p.name.toLowerCase().includes('before school')
+    );
+    
+    if (beforeSchoolPeriod && beforeSchoolPeriod.startTime) {
+      const [hours, minutes] = beforeSchoolPeriod.startTime.split(':').map(Number);
+      result.detectedTime = setMinutes(setHours(new Date(), hours), minutes);
+      result.periodId = beforeSchoolPeriod.id;
+      result.confidence = Math.max(result.confidence, 0.7);
     }
   }
   

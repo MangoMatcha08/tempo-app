@@ -76,6 +76,7 @@ const ReminderCard = ({ reminder, onComplete, onEdit }: ReminderCardProps) => {
       className={`shadow-md ${getPriorityClass(reminder.priority)} transition-all duration-300 ${
         isCompleting ? "bg-green-100 opacity-0 transform translate-y-2" : ""
       } hover:bg-slate-50`}
+      onClick={handleComplete}
     >
       <CardContent className="p-4">
         <div className="flex items-start">
@@ -93,7 +94,7 @@ const ReminderCard = ({ reminder, onComplete, onEdit }: ReminderCardProps) => {
             />
           </div>
           
-          <div className="flex-1 cursor-pointer" onClick={() => onEdit(reminder)}>
+          <div className="flex-1">
             <h3 className="font-medium">{reminder.title}</h3>
             <p className="text-sm mt-1">{reminder.description}</p>
             
