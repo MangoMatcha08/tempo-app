@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,10 +14,11 @@ import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 import { mockPeriods, createReminder } from '@/utils/reminderUtils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { v4 as uuidv4 } from 'uuid';
-import { Reminder } from '@/types/reminder';
+import { Reminder as UIReminder } from '@/types/reminder';
+import { convertToUIReminder } from '@/utils/typeUtils';
 
 interface EnhancedReminderCreatorProps {
-  onReminderCreated?: (reminder: Reminder) => void;
+  onReminderCreated?: (reminder: UIReminder) => void;
   onCancel?: () => void;
 }
 
@@ -26,7 +26,6 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
   onReminderCreated,
   onCancel 
 }) => {
-  // State for the reminder
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<ReminderPriority>(ReminderPriority.MEDIUM);
@@ -36,17 +35,14 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
   const [dueTime, setDueTime] = useState<string | undefined>(undefined);
   const [checklist, setChecklist] = useState<{ id: string, text: string, isCompleted: boolean }[]>([]);
   
-  // State for the UI
   const [viewMode, setViewMode] = useState<'simple' | 'detailed'>('simple');
   const [showChecklist, setShowChecklist] = useState(false);
   const [newChecklistItem, setNewChecklistItem] = useState('');
   
-  // Toggle between simple and detailed views
   const toggleViewMode = () => {
     setViewMode(viewMode === 'simple' ? 'detailed' : 'simple');
   };
   
-  // Add a new checklist item
   const addChecklistItem = () => {
     if (newChecklistItem.trim()) {
       setChecklist([
@@ -57,19 +53,16 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
     }
   };
   
-  // Remove a checklist item
   const removeChecklistItem = (id: string) => {
     setChecklist(checklist.filter(item => item.id !== id));
   };
   
-  // Toggle checklist item completion
   const toggleChecklistItem = (id: string) => {
     setChecklist(checklist.map(item => 
       item.id === id ? { ...item, isCompleted: !item.isCompleted } : item
     ));
   };
   
-  // Create the reminder
   const handleCreateReminder = () => {
     if (!title.trim()) return;
     
@@ -84,7 +77,6 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
     
     const newReminder = createReminder(reminderInput);
     
-    // If a due date and time were selected, update the dueDate
     if (dueDate) {
       const due = new Date(dueDate);
       
@@ -105,8 +97,10 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
       newReminder.dueDate = due;
     }
     
+    const uiReminder = convertToUIReminder(newReminder);
+    
     if (onReminderCreated) {
-      onReminderCreated(newReminder);
+      onReminderCreated(uiReminder);
     }
     
     resetForm();
@@ -143,7 +137,6 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
       </CardHeader>
       
       <CardContent className="space-y-4">
-        {/* Title - Always visible in both modes */}
         <div className="space-y-2">
           <Label htmlFor="title">Title</Label>
           <Input
@@ -154,7 +147,6 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
           />
         </div>
         
-        {/* Priority - Always visible in both modes */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="priority">Priority</Label>
@@ -188,7 +180,6 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
           </div>
         </div>
         
-        {/* Detailed view additional fields */}
         {viewMode === 'detailed' && (
           <>
             <div className="space-y-2">

@@ -4,7 +4,8 @@ import { useReminders } from "@/hooks/useReminders";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardContent from "@/components/dashboard/DashboardContent";
 import DashboardModals from "@/components/dashboard/DashboardModals";
-import { Reminder } from "@/types/reminderTypes";
+import { Reminder as ReminderType } from "@/types/reminderTypes";
+import { Reminder as UIReminder } from "@/types/reminder";
 import { useToast } from "@/hooks/use-toast";
 import { 
   SidebarProvider, 
@@ -22,6 +23,7 @@ import {
 import { Home, Settings as SettingsIcon, Calendar } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { convertToUIReminder, convertToBackendReminder } from "@/utils/typeUtils";
 
 const Dashboard = () => {
   const [showQuickReminderModal, setShowQuickReminderModal] = useState(false);
@@ -51,9 +53,17 @@ const Dashboard = () => {
     updateReminder
   } = useReminders();
 
-  const handleReminderCreated = (reminder: Reminder) => {
+  // Convert reminders to UI-compatible format
+  const convertedUrgentReminders = urgentReminders.map(convertToUIReminder);
+  const convertedUpcomingReminders = upcomingReminders.map(convertToUIReminder);
+  const convertedCompletedReminders = completedReminders.map(convertToUIReminder);
+
+  const handleReminderCreated = (reminder: UIReminder) => {
+    // Convert UI reminder to backend reminder type
+    const backendReminder = convertToBackendReminder(reminder);
+    
     // Add the new reminder to the list
-    addReminder(reminder);
+    addReminder(backendReminder);
     
     toast({
       title: "Reminder Created",
@@ -61,9 +71,12 @@ const Dashboard = () => {
     });
   };
 
-  const handleReminderUpdated = (reminder: Reminder) => {
+  const handleReminderUpdated = (reminder: UIReminder) => {
+    // Convert UI reminder to backend reminder type
+    const backendReminder = convertToBackendReminder(reminder);
+    
     // Update the reminder in the list
-    updateReminder(reminder);
+    updateReminder(backendReminder);
     
     toast({
       title: "Reminder Updated",
@@ -142,9 +155,9 @@ const Dashboard = () => {
                 <DashboardHeader title="Tempo Dashboard" />
                 
                 <DashboardContent 
-                  urgentReminders={urgentReminders}
-                  upcomingReminders={upcomingReminders}
-                  completedReminders={completedReminders}
+                  urgentReminders={convertedUrgentReminders}
+                  upcomingReminders={convertedUpcomingReminders}
+                  completedReminders={convertedCompletedReminders}
                   onCompleteReminder={handleCompleteReminder}
                   onUndoComplete={handleUndoComplete}
                   onNewReminder={() => setShowQuickReminderModal(true)}
