@@ -46,9 +46,9 @@ const VoiceReminderConfirmView = ({
         <ReminderPriorityField priority={priority} setPriority={setPriority} />
         <ReminderCategoryField category={category} setCategory={setCategory} />
         <ReminderPeriodField periodId={periodId} setPeriodId={setPeriodId} />
-        <TranscriptDisplay transcript={transcript} />
+        <TranscriptDisplay transcript={transcript} processingResult={processingResult} />
         
-        {processingResult?.reminder.checklist && (
+        {processingResult?.reminder.checklist && processingResult.reminder.checklist.length > 0 && (
           <ChecklistDisplay checklist={processingResult.reminder.checklist} />
         )}
       </div>

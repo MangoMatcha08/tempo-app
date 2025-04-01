@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { 
   Dialog,
@@ -16,6 +16,7 @@ import { processVoiceInput } from "@/services/nlp";
 import { createReminder } from "@/utils/reminderUtils";
 import { useToast } from "@/hooks/use-toast";
 import { Reminder, ReminderPriority, ReminderCategory, VoiceProcessingResult } from "@/types/reminderTypes";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface VoiceRecorderModalProps {
   open: boolean;
@@ -33,6 +34,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   const [category, setCategory] = useState<ReminderCategory>(ReminderCategory.TASK);
   const [periodId, setPeriodId] = useState<string>("");
   const { toast } = useToast();
+  const dialogContentRef = useRef<HTMLDivElement>(null);
   
   // Reset state when modal opens
   useEffect(() => {
@@ -47,6 +49,17 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
       setPeriodId("");
     }
   }, [open]);
+  
+  // Scroll to the bottom when view changes to confirm
+  useEffect(() => {
+    if (view === "confirm" && dialogContentRef.current) {
+      setTimeout(() => {
+        if (dialogContentRef.current) {
+          dialogContentRef.current.scrollTop = dialogContentRef.current.scrollHeight;
+        }
+      }, 100);
+    }
+  }, [view, processingResult]);
   
   const handleTranscriptComplete = (text: string) => {
     setTranscript(text);
@@ -94,7 +107,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
         description: transcript,
         priority,
         category,
-        periodId,
+        periodId: periodId || undefined,
         voiceTranscript: transcript,
         checklist: processingResult?.reminder.checklist || []
       };
@@ -142,36 +155,38 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto" ref={dialogContentRef}>
         <DialogHeader>
           <DialogTitle>
             {view === "record" ? "Record Voice Reminder" : "Confirm Your Reminder"}
           </DialogTitle>
         </DialogHeader>
         
-        {view === "record" ? (
-          <div className="space-y-6 py-4">
-            <VoiceRecorder onTranscriptComplete={handleTranscriptComplete} />
-            
-            {isProcessing && <VoiceReminderProcessingView />}
-          </div>
-        ) : (
-          <VoiceReminderConfirmView
-            title={title}
-            setTitle={setTitle}
-            transcript={transcript}
-            priority={priority}
-            setPriority={setPriority}
-            category={category}
-            setCategory={setCategory}
-            periodId={periodId}
-            setPeriodId={setPeriodId}
-            processingResult={processingResult}
-            onSave={handleSave}
-            onCancel={handleCancel}
-            onGoBack={handleGoBack}
-          />
-        )}
+        <ScrollArea className="max-h-[calc(85vh-10rem)]">
+          {view === "record" ? (
+            <div className="space-y-6 py-4">
+              <VoiceRecorder onTranscriptComplete={handleTranscriptComplete} />
+              
+              {isProcessing && <VoiceReminderProcessingView />}
+            </div>
+          ) : (
+            <VoiceReminderConfirmView
+              title={title}
+              setTitle={setTitle}
+              transcript={transcript}
+              priority={priority}
+              setPriority={setPriority}
+              category={category}
+              setCategory={setCategory}
+              periodId={periodId}
+              setPeriodId={setPeriodId}
+              processingResult={processingResult}
+              onSave={handleSave}
+              onCancel={handleCancel}
+              onGoBack={handleGoBack}
+            />
+          )}
+        </ScrollArea>
         
         {view === "record" && (
           <DialogFooter>
@@ -181,6 +196,17 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
               onClick={handleCancel}
             >
               Cancel
+            </Button>
+          </DialogFooter>
+        )}
+        
+        {view === "confirm" && (
+          <DialogFooter className="mt-4 pt-2 border-t">
+            <Button type="button" variant="outline" onClick={handleGoBack}>
+              Back
+            </Button>
+            <Button type="button" onClick={handleSave}>
+              Save Reminder
             </Button>
           </DialogFooter>
         )}

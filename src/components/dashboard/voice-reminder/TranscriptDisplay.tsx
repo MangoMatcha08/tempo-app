@@ -2,6 +2,7 @@
 import { VoiceProcessingResult } from "@/types/reminderTypes";
 import { Badge } from "@/components/ui/badge";
 import { Check, ArrowUpCircle } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface TranscriptDisplayProps {
   transcript: string;
@@ -16,13 +17,39 @@ const TranscriptDisplay = ({
 }: TranscriptDisplayProps) => {
   const hasEntities = processingResult && Object.values(processingResult.detectedEntities).some(value => !!value);
   
+  // Format transcript with proper sentence capitalization and punctuation
+  const formatTranscript = (text: string): string => {
+    if (!text) return "";
+    
+    // Split into sentences (considering various end punctuation)
+    const sentences = text.split(/(?<=[.!?])\s+/);
+    
+    // Format each sentence
+    return sentences.map(sentence => {
+      // Capitalize first letter of each sentence
+      let formatted = sentence.trim();
+      if (formatted.length > 0) {
+        formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1);
+      }
+      
+      // Ensure sentence ends with punctuation
+      if (formatted.length > 0 && !formatted.match(/[.!?]$/)) {
+        formatted += '.';
+      }
+      
+      return formatted;
+    }).join(' ');
+  };
+  
   return (
     <div className="space-y-3">
       <div className="space-y-1">
         <label className="text-sm font-medium">Original Input</label>
-        <div className="p-3 bg-muted/30 rounded-md text-sm italic">
-          {transcript}
-        </div>
+        <ScrollArea className="h-auto max-h-[150px]">
+          <div className="p-3 bg-muted/30 rounded-md text-sm">
+            {formatTranscript(transcript)}
+          </div>
+        </ScrollArea>
       </div>
       
       {showEntities && hasEntities && (

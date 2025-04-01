@@ -6,6 +6,71 @@ export const detectPeriod = (text: string): { periodId?: string, isNewPeriod: bo
   const lowercaseText = text.toLowerCase();
   const result = { periodId: undefined as string | undefined, isNewPeriod: false, periodName: undefined as string | undefined };
   
+  // Check for 'before school' or 'after school' periods
+  if (lowercaseText.includes('before school') || 
+      lowercaseText.includes('morning') || 
+      lowercaseText.includes('early morning')) {
+    // Look for existing 'Before School' period
+    const beforeSchoolPeriod = mockPeriods.find(p => 
+      p.name.toLowerCase().includes('before school') || 
+      p.name.toLowerCase().includes('morning')
+    );
+    
+    if (beforeSchoolPeriod) {
+      result.periodId = beforeSchoolPeriod.id;
+      return result;
+    } else {
+      // This is a new period
+      result.isNewPeriod = true;
+      result.periodName = 'Before School';
+      return result;
+    }
+  }
+  
+  if (lowercaseText.includes('after school') || 
+      lowercaseText.includes('afterschool') || 
+      lowercaseText.includes('end of day') ||
+      lowercaseText.includes('afternoon')) {
+    // Look for existing 'After School' period
+    const afterSchoolPeriod = mockPeriods.find(p => 
+      p.name.toLowerCase().includes('after school')
+    );
+    
+    if (afterSchoolPeriod) {
+      result.periodId = afterSchoolPeriod.id;
+      return result;
+    } else {
+      // This is a new period
+      result.isNewPeriod = true;
+      result.periodName = 'After School';
+      return result;
+    }
+  }
+  
+  // Check for planning/prep periods
+  if (lowercaseText.includes('planning') || 
+      lowercaseText.includes('prep') || 
+      lowercaseText.includes('preparation') ||
+      lowercaseText.includes('prep period') ||
+      lowercaseText.includes('free period')) {
+    // Look for existing planning period
+    const planningPeriod = mockPeriods.find(p => 
+      p.name.toLowerCase().includes('planning') ||
+      p.name.toLowerCase().includes('prep') ||
+      p.name.toLowerCase().includes('preparation')
+    );
+    
+    if (planningPeriod) {
+      result.periodId = planningPeriod.id;
+      return result;
+    } else {
+      // This is a new period
+      result.isNewPeriod = true;
+      result.periodName = 'Planning/Prep Period';
+      return result;
+    }
+  }
+  
   // First check for exact matches with existing periods
   for (const period of mockPeriods) {
     if (lowercaseText.includes(period.name.toLowerCase())) {
@@ -28,7 +93,10 @@ export const detectPeriod = (text: string): { periodId?: string, isNewPeriod: bo
       // Look for a period with this number in the name
       const periodMatch = mockPeriods.find(p => 
         p.name.toLowerCase().includes(`period ${num}`) || 
-        p.name.toLowerCase().includes(`period${num}`)
+        p.name.toLowerCase().includes(`period ${num}`) || 
+        p.name.toLowerCase() === `period${num}` ||
+        p.name.toLowerCase() === `p${num}` ||
+        p.name === `${num}`
       );
       
       if (periodMatch) {
@@ -58,7 +126,9 @@ export const detectPeriod = (text: string): { periodId?: string, isNewPeriod: bo
   };
   
   for (const [textNum, num] of Object.entries(textualPeriods)) {
-    if (lowercaseText.includes(`${textNum} period`) || lowercaseText.includes(`${textNum}-period`)) {
+    if (lowercaseText.includes(`${textNum} period`) || 
+        lowercaseText.includes(`${textNum}-period`) ||
+        lowercaseText.includes(`${textNum} class`)) {
       // Look for a period with this number in the name
       const periodMatch = mockPeriods.find(p => 
         p.name.toLowerCase().includes(`period ${num}`) || 
@@ -78,12 +148,10 @@ export const detectPeriod = (text: string): { periodId?: string, isNewPeriod: bo
     }
   }
   
-  // Check for special periods like lunch, planning, etc.
+  // Check for special periods like lunch, etc.
   const specialPeriods = [
-    { keywords: ['lunch', 'noon'], name: 'Lunch' },
-    { keywords: ['planning', 'prep time', 'preparation time'], name: 'Planning' },
-    { keywords: ['after school', 'afterschool'], name: 'After School' },
-    { keywords: ['morning', 'before school', 'homeroom'], name: 'Morning' }
+    { keywords: ['lunch', 'noon', 'break', 'mid-day', 'midday'], name: 'Lunch' },
+    { keywords: ['homeroom', 'home room', 'advisory'], name: 'Homeroom' }
   ];
   
   for (const special of specialPeriods) {
