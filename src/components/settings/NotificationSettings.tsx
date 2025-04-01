@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { 
   Form, 
@@ -18,41 +18,113 @@ import {
 } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
-
-interface NotificationSettings {
-  emailEnabled: boolean;
-  pushEnabled: boolean;
-  emailPriority: string;
-  pushPriority: string;
-}
+import { 
+  updateUserNotificationSettings,
+  NotificationSettings as NotificationSettingsType
+} from "@/services/notificationService";
+import { useNotifications } from "@/contexts/NotificationContext";
+import { ReminderPriority } from "@/types/reminderTypes";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Bell, AlertTriangle } from "lucide-react";
 
 const NotificationSettings = () => {
   const { toast } = useToast();
-  const form = useForm<NotificationSettings>({
-    defaultValues: {
-      emailEnabled: true,
-      pushEnabled: true,
-      emailPriority: "all",
-      pushPriority: "high",
-    },
+  const { notificationSettings, permissionGranted, requestPermission } = useNotifications();
+  
+  const form = useForm<NotificationSettingsType>({
+    defaultValues: notificationSettings
   });
 
-  const onSubmit = (data: NotificationSettings) => {
-    console.log("Notification settings saved:", data);
-    // In a real app, save these settings to the user's profile in the database
-    toast({
-      title: "Settings saved",
-      description: "Your notification preferences have been updated",
-    });
+  // Update form values when context settings change
+  useEffect(() => {
+    form.reset(notificationSettings);
+  }, [notificationSettings, form]);
+
+  const onSubmit = async (data: NotificationSettingsType) => {
+    try {
+      const userId = localStorage.getItem('userId') || 'anonymous';
+      await updateUserNotificationSettings(userId, data);
+      
+      console.log("Notification settings saved:", data);
+      toast({
+        title: "Settings saved",
+        description: "Your notification preferences have been updated",
+      });
+    } catch (error) {
+      console.error("Error saving notification settings:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save notification settings",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleRequestPermission = async () => {
+    const granted = await requestPermission();
+    if (granted) {
+      toast({
+        title: "Notifications enabled",
+        description: "You will now receive push notifications",
+      });
+    } else {
+      toast({
+        title: "Permission denied",
+        description: "Please enable notifications in your browser settings",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="enabled"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">Master Switch</FormLabel>
+                <FormDescription>
+                  Enable or disable all notifications
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+        
+        {!permissionGranted && form.watch('enabled') && form.watch('push.enabled') && (
+          <Alert className="bg-yellow-50 border-yellow-200">
+            <AlertTriangle className="h-4 w-4 text-yellow-800" />
+            <AlertTitle className="text-yellow-800">Push notifications require permission</AlertTitle>
+            <AlertDescription className="text-yellow-700">
+              Your browser requires permission to send push notifications.
+              <div className="mt-2">
+                <button 
+                  type="button"
+                  onClick={handleRequestPermission}
+                  className="px-3 py-1 bg-primary text-primary-foreground text-sm rounded-md"
+                >
+                  <Bell className="h-4 w-4 inline-block mr-1" />
+                  Request Permission
+                </button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <div className="space-y-4">
           <FormField
             control={form.control}
-            name="emailEnabled"
+            name="email.enabled"
             render={({ field }) => (
               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
@@ -65,42 +137,64 @@ const NotificationSettings = () => {
                   <Switch
                     checked={field.value}
                     onCheckedChange={field.onChange}
+                    disabled={!form.watch('enabled')}
                   />
                 </FormControl>
               </FormItem>
             )}
           />
           
-          {form.watch('emailEnabled') && (
-            <FormField
-              control={form.control}
-              name="emailPriority"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email notification priority</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+          {form.watch('enabled') && form.watch('email.enabled') && (
+            <>
+              <FormField
+                control={form.control}
+                name="email.address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email Address</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select priority level" />
-                      </SelectTrigger>
+                      <Input 
+                        placeholder="your@email.com" 
+                        {...field} 
+                      />
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="all">All priorities</SelectItem>
-                      <SelectItem value="medium-high">Medium and high priorities</SelectItem>
-                      <SelectItem value="high">High priority only</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Only reminders of the selected priority (or higher) will trigger email notifications
-                  </FormDescription>
-                </FormItem>
-              )}
-            />
+                    <FormDescription>
+                      The email address where you'll receive notifications
+                    </FormDescription>
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="email.minPriority"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email notification priority</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select priority level" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value={ReminderPriority.LOW}>Low (All Reminders)</SelectItem>
+                        <SelectItem value={ReminderPriority.MEDIUM}>Medium & High Only</SelectItem>
+                        <SelectItem value={ReminderPriority.HIGH}>High Priority Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Only reminders of the selected priority (or higher) will trigger email notifications
+                    </FormDescription>
+                  </FormItem>
+                )}
+              />
+            </>
           )}
           
           <FormField
             control={form.control}
-            name="pushEnabled"
+            name="push.enabled"
             render={({ field }) => (
               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
@@ -113,33 +207,83 @@ const NotificationSettings = () => {
                   <Switch
                     checked={field.value}
                     onCheckedChange={field.onChange}
+                    disabled={!form.watch('enabled')}
                   />
                 </FormControl>
               </FormItem>
             )}
           />
           
-          {form.watch('pushEnabled') && (
+          {form.watch('enabled') && form.watch('push.enabled') && (
             <FormField
               control={form.control}
-              name="pushPriority"
+              name="push.minPriority"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Push notification priority</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select priority level" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="all">All priorities</SelectItem>
-                      <SelectItem value="medium-high">Medium and high priorities</SelectItem>
-                      <SelectItem value="high">High priority only</SelectItem>
+                      <SelectItem value={ReminderPriority.LOW}>Low (All Reminders)</SelectItem>
+                      <SelectItem value={ReminderPriority.MEDIUM}>Medium & High Only</SelectItem>
+                      <SelectItem value={ReminderPriority.HIGH}>High Priority Only</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription>
                     Only reminders of the selected priority (or higher) will trigger push notifications
+                  </FormDescription>
+                </FormItem>
+              )}
+            />
+          )}
+          
+          <FormField
+            control={form.control}
+            name="inApp.enabled"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-base">In-App Notifications</FormLabel>
+                  <FormDescription>
+                    Show toast notifications within the app
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={!form.watch('enabled')}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          
+          {form.watch('enabled') && form.watch('inApp.enabled') && (
+            <FormField
+              control={form.control}
+              name="inApp.minPriority"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>In-app notification priority</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select priority level" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value={ReminderPriority.LOW}>Low (All Reminders)</SelectItem>
+                      <SelectItem value={ReminderPriority.MEDIUM}>Medium & High Only</SelectItem>
+                      <SelectItem value={ReminderPriority.HIGH}>High Priority Only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Only reminders of the selected priority (or higher) will show in-app notifications
                   </FormDescription>
                 </FormItem>
               )}
