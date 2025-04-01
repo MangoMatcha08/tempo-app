@@ -1,4 +1,3 @@
-
 import { VoiceProcessingResult, CreateReminderInput, ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
 import { detectPriority } from './detectPriority';
 import { detectCategory } from './detectCategory';
@@ -23,12 +22,12 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
   // Detect category
   const category = detectCategory(transcript);
   
-  // Detect period with improved robustness
-  const periodResult = detectPeriod(transcript);
-  
-  // Detect date and time
+  // Detect date and time first (this is important for correct period association)
   const dateTimeResult = detectDateTime(transcript);
   console.log('Date/time detection result:', dateTimeResult);
+  
+  // Detect period with improved robustness
+  const periodResult = detectPeriod(transcript);
   
   // Extract potential checklist items
   const checklistItems = extractChecklistItems(transcript);
@@ -52,9 +51,9 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
     }))
   };
   
-  // Add detected date if available
+  // Add detected date if available - CRITICAL for correct date handling
   if (dateTimeResult.detectedDate) {
-    reminderInput.dueDate = dateTimeResult.detectedDate;
+    reminderInput.dueDate = new Date(dateTimeResult.detectedDate);
     console.log('Setting due date from detected date:', reminderInput.dueDate);
     
     // If we also detected a specific time, combine them
@@ -66,13 +65,21 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
         0
       );
       console.log('Updated due date with time:', reminderInput.dueDate);
-    } else if (beforeSchoolPeriod && beforeSchoolPeriod.startTime) {
-      // If no time detected, use before school time as default
-      const [hours, minutes] = beforeSchoolPeriod.startTime.split(':').map(Number);
-      if (reminderInput.dueDate) {
+    } 
+    // If no specific time but we have a period ID, use that period's start time
+    else if (reminderInput.periodId) {
+      const selectedPeriod = mockPeriods.find(p => p.id === reminderInput.periodId);
+      if (selectedPeriod && selectedPeriod.startTime) {
+        const [hours, minutes] = selectedPeriod.startTime.split(':').map(Number);
         reminderInput.dueDate.setHours(hours, minutes, 0, 0);
-        console.log('Updated due date with before school time:', reminderInput.dueDate);
+        console.log('Updated due date with period start time:', reminderInput.dueDate);
       }
+    }
+    // Otherwise use before school time as default
+    else if (beforeSchoolPeriod && beforeSchoolPeriod.startTime) {
+      const [hours, minutes] = beforeSchoolPeriod.startTime.split(':').map(Number);
+      reminderInput.dueDate.setHours(hours, minutes, 0, 0);
+      console.log('Updated due date with before school time:', reminderInput.dueDate);
     }
   }
   

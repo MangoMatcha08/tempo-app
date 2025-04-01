@@ -39,8 +39,8 @@ export const createReminder = (input: CreateReminderInput): Reminder => {
     id: generateId(),
     title: input.title,
     description: input.description || "",
-    // Use detected date if available, otherwise use today
-    dueDate: input.dueDate || today,
+    // Use exact detected date if available, otherwise use today
+    dueDate: input.dueDate ? new Date(input.dueDate) : today,
     priority: input.priority || ReminderPriority.MEDIUM,
     completed: false,
     category: input.category,
