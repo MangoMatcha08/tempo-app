@@ -42,8 +42,12 @@ export const saveTokenToFirestore = async (userId: string, token: string): Promi
     
     if (userDoc.exists()) {
       // Update existing user document
+      // Use dynamic property syntax to add the new token to the existing tokens
+      const fcmTokens = userDoc.data().fcmTokens || {};
+      fcmTokens[token] = true;
+      
       await updateDoc(userDocRef, {
-        fcmTokens: { [token]: true },
+        fcmTokens,
         updatedAt: new Date()
       });
     } else {

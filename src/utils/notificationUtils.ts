@@ -18,7 +18,7 @@ export const showNotification = (
     toast({
       title: reminder.title,
       description: reminder.description || 'Reminder',
-      duration: 5000,
+      duration: 3000, // Consistently use 3 seconds
     });
   }
 

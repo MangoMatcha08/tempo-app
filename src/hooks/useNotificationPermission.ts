@@ -24,10 +24,19 @@ export const useNotificationPermission = () => {
         throw new Error('Notifications not supported in this browser');
       }
       
-      const token = await requestNotificationPermission();
-      const granted = !!token;
-      setPermissionGranted(granted);
-      return granted;
+      // Reset Notification permission status if it's not granted
+      // This helps with requesting permission on new devices
+      if (Notification.permission !== 'granted') {
+        const token = await requestNotificationPermission();
+        const granted = !!token;
+        setPermissionGranted(granted);
+        return granted;
+      } else {
+        // For devices where permission is already granted, 
+        // we still want to register the FCM token for this device
+        const token = await requestNotificationPermission();
+        return !!token;
+      }
     } catch (error) {
       console.error('Error requesting notification permission:', error);
       return false;

@@ -62,13 +62,15 @@ const NotificationSettings = () => {
       toast({
         title: "Settings saved",
         description: "Your notification preferences have been updated",
+        duration: 3000
       });
     } catch (error) {
       console.error("Error saving notification settings:", error);
       toast({
         title: "Error",
         description: "Failed to save notification settings",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 3000
       });
     }
   };

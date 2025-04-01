@@ -20,7 +20,8 @@ const TestNotifications = () => {
       toast({
         title: "Error",
         description: "Please enter an email address",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 3000
       });
       return;
     }
@@ -34,13 +35,15 @@ const TestNotifications = () => {
       toast({
         title: "Test email sent",
         description: `A test email was sent to ${email}`,
+        duration: 3000
       });
     } catch (error) {
       console.error("Error sending test email:", error);
       toast({
         title: "Error",
         description: "Failed to send test email",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 3000
       });
     } finally {
       setIsEmailSending(false);
@@ -54,7 +57,8 @@ const TestNotifications = () => {
         toast({
           title: "Permission denied",
           description: "You need to allow notifications to test this feature",
-          variant: "destructive"
+          variant: "destructive",
+          duration: 3000
         });
         return;
       }
@@ -69,20 +73,23 @@ const TestNotifications = () => {
         toast({
           title: "Test push notification",
           description: "This is a test push notification",
-          className: "bottom-toast"
+          className: "bottom-toast",
+          duration: 3000
         });
       }, 1500);
       
       toast({
         title: "Test push notification sent",
         description: "Check your device for the notification",
+        duration: 3000
       });
     } catch (error) {
       console.error("Error sending test push notification:", error);
       toast({
         title: "Error",
         description: "Failed to send test push notification",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 3000
       });
     } finally {
       setIsPushSending(false);
