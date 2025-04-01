@@ -76,25 +76,28 @@ const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProp
     <div 
       className={`border-b border-muted p-3 flex items-center transition-all duration-300 ${
         isCompleting ? "bg-green-100 opacity-0" : ""
-      } hover:bg-slate-50`}
+      } hover:bg-slate-50 cursor-pointer`}
+      onClick={() => onEdit(reminder)}
     >
       <div className={`w-2 h-2 rounded-full ${getPriorityColor(reminder.priority)} mr-3`} />
       
       <div
-        className="mr-3 cursor-pointer"
+        className="mr-3"
         onClick={(e) => {
           e.stopPropagation();
           handleComplete();
         }}
       >
-        <Checkbox 
-          className="h-6 w-6 rounded-sm border-2 border-gray-300"
-          checked={false}
-          onCheckedChange={() => handleComplete()}
-        />
+        <div className="h-7 w-7 flex items-center justify-center cursor-pointer">
+          <Checkbox 
+            className="h-6 w-6 rounded-sm border-2 border-gray-300"
+            checked={false}
+            onCheckedChange={() => handleComplete()}
+          />
+        </div>
       </div>
       
-      <div className="flex-1 cursor-pointer" onClick={() => onEdit(reminder)}>
+      <div className="flex-1">
         <div className="font-medium">{reminder.title}</div>
         <div className="text-xs text-muted-foreground">
           {formatDueDate(reminder.dueDate)}
@@ -104,7 +107,7 @@ const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProp
       <Button 
         size="sm" 
         variant="ghost" 
-        className="h-8 w-8 p-0 flex-shrink-0"
+        className="h-8 w-8 p-0 flex-shrink-0 ml-2"
         onClick={(e) => {
           e.stopPropagation();
           onEdit(reminder);
