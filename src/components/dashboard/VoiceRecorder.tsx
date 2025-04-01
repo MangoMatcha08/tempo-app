@@ -52,11 +52,15 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) =
 
   const handleStopRecording = () => {
     stopListening();
-    if (transcript.trim()) {
-      // Add a small delay to ensure we have the complete transcript
+    // Only process non-empty transcripts
+    if (transcript && transcript.trim()) {
+      console.log("Recorded transcript:", transcript.trim());
+      // Ensure we give a small delay to get the final transcript
       setTimeout(() => {
         onTranscriptComplete(transcript.trim());
-      }, 300);
+      }, 500);
+    } else {
+      console.log("Empty transcript detected - not proceeding to confirmation");
     }
   };
 

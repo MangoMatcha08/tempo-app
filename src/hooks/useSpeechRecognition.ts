@@ -38,7 +38,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   const debouncedSetTranscript = useCallback(
     debounce((text: string) => {
       setTranscript(text);
-    }, 300),
+    }, 100), // Reduced debounce time for more responsiveness
     []
   );
 
@@ -60,7 +60,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       // @ts-ignore
       if (typeof recognitionInstance.maxSpeechSegmentDuration === 'number') {
         // @ts-ignore
-        recognitionInstance.maxSpeechSegmentDuration = 60; // Set to 60 seconds (or higher if needed)
+        recognitionInstance.maxSpeechSegmentDuration = 120; // Set to 120 seconds (or higher if needed)
       }
       
       recognitionInstance.onresult = (event: any) => {
@@ -81,15 +81,16 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         }
         
         // Update refs
-        finalTranscriptRef.current = finalTranscript;
+        finalTranscriptRef.current = finalTranscript.trim();
         interimTranscriptRef.current = interimTranscript;
         
-        // Update state with debouncing
-        // Only show interim results if there's no final transcript yet
-        if (finalTranscript.trim()) {
-          debouncedSetTranscript(finalTranscript.trim());
-        } else if (interimTranscript.trim()) {
-          debouncedSetTranscript(interimTranscript.trim());
+        // Always update state with the most complete transcript
+        const fullTranscript = finalTranscriptRef.current
+          ? finalTranscriptRef.current
+          : interimTranscriptRef.current;
+        
+        if (fullTranscript) {
+          debouncedSetTranscript(fullTranscript);
         }
       };
       
@@ -136,6 +137,12 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
             setError('Failed to restart speech recognition. Please try again.');
             setIsListening(false);
           }
+        } else {
+          // If we've stopped listening intentionally, make sure 
+          // the final transcript is reflected in the state
+          if (finalTranscriptRef.current) {
+            setTranscript(finalTranscriptRef.current);
+          }
         }
       };
       
@@ -152,7 +159,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         recognition.stop();
       }
     };
-  }, [debouncedSetTranscript]);
+  }, [debouncedSetTranscript, isListening]);
 
   // Start listening function
   const startListening = useCallback(() => {
@@ -183,8 +190,8 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     recognition.stop();
     
     // Ensure we're showing the final transcript
-    if (finalTranscriptRef.current.trim()) {
-      setTranscript(finalTranscriptRef.current.trim());
+    if (finalTranscriptRef.current) {
+      setTranscript(finalTranscriptRef.current);
     }
   }, [recognition]);
 

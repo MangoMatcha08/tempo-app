@@ -12,7 +12,7 @@ import VoiceReminderConfirmView from "./VoiceReminderConfirmView";
 import { createReminder } from "@/utils/reminderUtils";
 import { useToast } from "@/hooks/use-toast";
 import { Reminder } from "@/types/reminderTypes";
-import { useVoiceRecorderState } from "./voice-recorder/useVoiceRecorderState";
+import { useVoiceRecorderState } from "@/hooks/useVoiceRecorderState";
 import VoiceRecorderView from "./voice-recorder/VoiceRecorderView";
 import ModalFooterActions from "./voice-recorder/ModalFooterActions";
 
@@ -44,6 +44,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
+      console.log("Modal opened, resetting state");
       resetState();
     }
   }, [open, resetState]);
@@ -58,6 +59,11 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
       }, 100);
     }
   }, [view, processingResult]);
+  
+  // Debug logging for view state
+  useEffect(() => {
+    console.log("Current view:", view);
+  }, [view]);
   
   const handleSave = () => {
     if (!transcript || !title) return;
