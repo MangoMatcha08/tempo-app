@@ -1,3 +1,4 @@
+
 import { VoiceProcessingResult, CreateReminderInput, ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
 import { detectPriority } from './detectPriority';
 import { detectCategory } from './detectCategory';
@@ -22,15 +23,20 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
   // Detect category
   const category = detectCategory(transcript);
   
-  // Detect date and time first (this is important for correct period association)
+  // Detect period
+  const periodResult = detectPeriod(transcript);
+  console.log('Period detection result:', periodResult);
+  
+  // Detect date and time
   const dateTimeResult = detectDateTime(transcript);
   console.log('Date/time detection result:', dateTimeResult);
   
-  // Detect period with improved robustness
-  const periodResult = detectPeriod(transcript);
-  
   // Extract potential checklist items
   const checklistItems = extractChecklistItems(transcript);
+  
+  // Determine the correct period for the reminder
+  // Period detected in transcript takes priority over date-based period
+  const finalPeriodId = periodResult.periodId || dateTimeResult.periodId;
   
   // Find "Before School" period for default time
   const beforeSchoolPeriod = mockPeriods.find(p => 
@@ -43,7 +49,7 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
     description: transcript,
     priority,
     category,
-    periodId: dateTimeResult.periodId || periodResult.periodId || (beforeSchoolPeriod ? beforeSchoolPeriod.id : undefined),
+    periodId: finalPeriodId || (beforeSchoolPeriod ? beforeSchoolPeriod.id : undefined),
     voiceTranscript: transcript,
     checklist: checklistItems.map(text => ({
       text,
@@ -53,32 +59,38 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
   
   // Add detected date if available - CRITICAL for correct date handling
   if (dateTimeResult.detectedDate) {
-    reminderInput.dueDate = new Date(dateTimeResult.detectedDate);
+    reminderInput.dueDate = dateTimeResult.detectedDate;
     console.log('Setting due date from detected date:', reminderInput.dueDate);
     
     // If we also detected a specific time, combine them
     if (dateTimeResult.detectedTime) {
-      reminderInput.dueDate.setHours(
+      const dueDate = new Date(dateTimeResult.detectedDate);
+      dueDate.setHours(
         dateTimeResult.detectedTime.getHours(),
         dateTimeResult.detectedTime.getMinutes(),
         0,
         0
       );
+      reminderInput.dueDate = dueDate;
       console.log('Updated due date with time:', reminderInput.dueDate);
     } 
     // If no specific time but we have a period ID, use that period's start time
-    else if (reminderInput.periodId) {
-      const selectedPeriod = mockPeriods.find(p => p.id === reminderInput.periodId);
+    else if (finalPeriodId) {
+      const selectedPeriod = mockPeriods.find(p => p.id === finalPeriodId);
       if (selectedPeriod && selectedPeriod.startTime) {
+        const dueDate = new Date(dateTimeResult.detectedDate);
         const [hours, minutes] = selectedPeriod.startTime.split(':').map(Number);
-        reminderInput.dueDate.setHours(hours, minutes, 0, 0);
+        dueDate.setHours(hours, minutes, 0, 0);
+        reminderInput.dueDate = dueDate;
         console.log('Updated due date with period start time:', reminderInput.dueDate);
       }
     }
     // Otherwise use before school time as default
     else if (beforeSchoolPeriod && beforeSchoolPeriod.startTime) {
+      const dueDate = new Date(dateTimeResult.detectedDate);
       const [hours, minutes] = beforeSchoolPeriod.startTime.split(':').map(Number);
-      reminderInput.dueDate.setHours(hours, minutes, 0, 0);
+      dueDate.setHours(hours, minutes, 0, 0);
+      reminderInput.dueDate = dueDate;
       console.log('Updated due date with before school time:', reminderInput.dueDate);
     }
   }
@@ -98,7 +110,7 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
     detectedEntities: {
       priority,
       category,
-      period: dateTimeResult.periodId || periodResult.periodId || (beforeSchoolPeriod ? beforeSchoolPeriod.id : undefined),
+      period: finalPeriodId || (beforeSchoolPeriod ? beforeSchoolPeriod.id : undefined),
       date: dateTimeResult.detectedDate,
       time: dateTimeResult.detectedTime,
       newPeriod: periodResult.isNewPeriod ? periodResult.periodName : undefined,

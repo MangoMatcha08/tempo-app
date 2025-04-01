@@ -1,13 +1,13 @@
 
 import { createContext, useContext, ReactNode, useEffect, useState } from "react";
 import { isFirebaseInitialized } from "@/lib/firebase";
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import { getFirestore, enableIndexedDbPersistence, Firestore } from "firebase/firestore";
 import { ScheduleProvider } from "./ScheduleContext";
 import { useToast } from "@/hooks/use-toast";
 
 interface FirestoreContextType {
   isReady: boolean;
-  db: any; // Firestore database reference
+  db: Firestore | null;
 }
 
 const FirestoreContext = createContext<FirestoreContextType>({
@@ -17,7 +17,7 @@ const FirestoreContext = createContext<FirestoreContextType>({
 
 export const FirestoreProvider = ({ children }: { children: ReactNode }) => {
   const isReady = isFirebaseInitialized();
-  const [db, setDb] = useState<any>(null);
+  const [db, setDb] = useState<Firestore | null>(null);
   const { toast } = useToast();
   
   // Initialize Firestore with offline persistence

@@ -30,6 +30,9 @@ export const generateMeaningfulTitle = (category: ReminderCategory, transcript: 
     .replace(/\b(before|after)\s+school\b/gi, "")
     .replace(/\b(morning|afternoon|lunch)\s+period\b/gi, "")
     .replace(/\b(planning|prep|preparation)\s+period\b/gi, "")
+    // Remove day references that are part of date detection
+    .replace(/\b(on|for|this|next|coming)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi, "")
+    .replace(/\bin\s+the\s+(morning|afternoon|evening)\b/gi, "")
     .trim();
   
   // Get the most meaningful part from the beginning of the transcript

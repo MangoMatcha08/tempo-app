@@ -85,7 +85,9 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
         category,
         periodId: periodId === "none" ? undefined : periodId,
         voiceTranscript: transcript,
-        checklist: processingResult?.reminder.checklist || []
+        checklist: processingResult?.reminder.checklist || [],
+        // Use the processed date if available
+        dueDate: processingResult?.reminder.dueDate
       };
       
       const newReminder = createReminder(reminderInput);

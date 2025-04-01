@@ -36,6 +36,7 @@ export interface CreateReminderInput {
   checklist?: ChecklistItem[];
   detectedNewPeriod?: DetectedNewPeriod;
   dueDate?: Date;
+  userId?: string;
 }
 
 export interface Reminder {
@@ -43,7 +44,7 @@ export interface Reminder {
   title: string;
   description: string;
   dueDate: Date;
-  priority: "low" | "medium" | "high";
+  priority: ReminderPriority | string;
   location?: string;
   completed?: boolean;
   completedAt?: Date;
@@ -51,6 +52,7 @@ export interface Reminder {
   category?: ReminderCategory;
   periodId?: string;
   checklist?: ChecklistItem[];
+  userId?: string;
 }
 
 export interface VoiceProcessingResult {
