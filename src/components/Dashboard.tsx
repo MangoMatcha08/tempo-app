@@ -4,46 +4,17 @@ import { useReminders } from "@/hooks/useReminders";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardContent from "@/components/dashboard/DashboardContent";
 import DashboardModals from "@/components/dashboard/DashboardModals";
-import { Reminder as ReminderType } from "@/types/reminderTypes";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Reminder as UIReminder } from "@/types/reminder";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  SidebarProvider, 
-  Sidebar, 
-  SidebarContent, 
-  SidebarMenu, 
-  SidebarMenuItem, 
-  SidebarMenuButton,
-  SidebarHeader,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarInset,
-  SidebarTrigger
-} from "@/components/ui/sidebar";
-import { Home, Settings as SettingsIcon, Calendar } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { convertToUIReminder, convertToBackendReminder } from "@/utils/typeUtils";
-import { Button } from "@/components/ui/button";
 
 const Dashboard = () => {
   const [showQuickReminderModal, setShowQuickReminderModal] = useState(false);
   const [showVoiceRecorderModal, setShowVoiceRecorderModal] = useState(false);
-  const [sidebarReady, setSidebarReady] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const { toast } = useToast();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const isMobile = useIsMobile();
   
-  // Initialize sidebar after a short delay to prevent conflicts with notifications
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSidebarReady(true);
-    }, 300);
-    
-    return () => clearTimeout(timer);
-  }, []);
-
   const {
     reminders,
     loading,
@@ -58,6 +29,14 @@ const Dashboard = () => {
     hasMore,
     totalCount
   } = useReminders();
+
+  // Add error handling
+  useEffect(() => {
+    // Reset error state when reminders are loaded successfully
+    if (reminders.length > 0) {
+      setHasError(false);
+    }
+  }, [reminders]);
 
   // Convert reminders to UI-compatible format
   const convertedUrgentReminders = urgentReminders.map(convertToUIReminder);
@@ -79,6 +58,7 @@ const Dashboard = () => {
       })
       .catch(error => {
         console.error("Error saving reminder:", error);
+        setHasError(true);
         toast({
           title: "Error Saving Reminder",
           description: "There was a problem saving your reminder.",
@@ -92,7 +72,16 @@ const Dashboard = () => {
     const backendReminder = convertToBackendReminder(reminder);
     
     // Update the reminder in the list
-    updateReminder(backendReminder);
+    updateReminder(backendReminder)
+      .catch(error => {
+        console.error("Error updating reminder:", error);
+        setHasError(true);
+        toast({
+          title: "Error Updating Reminder",
+          description: "There was a problem updating your reminder.",
+          variant: "destructive"
+        });
+      });
     
     toast({
       title: "Reminder Updated",
@@ -102,133 +91,47 @@ const Dashboard = () => {
 
   const handleLoadMore = () => {
     if (hasMore && !loading) {
-      loadMoreReminders();
+      loadMoreReminders().catch(error => {
+        console.error("Error loading more reminders:", error);
+        setHasError(true);
+        toast({
+          title: "Error Loading Reminders",
+          description: "There was a problem loading more reminders.",
+          variant: "destructive"
+        });
+      });
     }
   };
 
-  const isActive = (path: string) => {
-    return location.pathname === path;
-  };
-
-  if (!sidebarReady) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
   return (
-    <SidebarProvider defaultOpen={!isMobile}>
-      <div className="flex h-screen w-full overflow-hidden">
-        <Sidebar>
-          <SidebarHeader className="flex justify-center items-center py-4 bg-sidebar">
-            <h2 className="text-lg font-bold">Tempo</h2>
-          </SidebarHeader>
-          <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton 
-                      onClick={() => navigate('/dashboard')} 
-                      isActive={isActive('/dashboard')}
-                      tooltip="Dashboard"
-                    >
-                      <Home />
-                      <span>Dashboard</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton 
-                      onClick={() => navigate('/schedule')} 
-                      isActive={isActive('/schedule')}
-                      tooltip="Schedule"
-                    >
-                      <Calendar />
-                      <span>Schedule</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton 
-                      onClick={() => navigate('/settings')} 
-                      isActive={isActive('/settings')}
-                      tooltip="Settings"
-                    >
-                      <SettingsIcon />
-                      <span>Settings</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </SidebarContent>
-        </Sidebar>
-        
-        <SidebarInset className="flex-1 overflow-hidden">
-          <div className="h-full overflow-auto">
-            <div className="container mx-auto px-2 sm:px-4 py-6 max-w-5xl relative">
-              {isMobile && (
-                <div className="absolute top-2 left-2 z-10">
-                  <SidebarTrigger className="bg-background shadow-sm" />
-                </div>
-              )}
-              <div className={isMobile ? "pt-8" : ""}>
-                <DashboardHeader title="Tempo Dashboard" />
-                
-                {loading && reminders.length === 0 ? (
-                  <div className="flex items-center justify-center p-8">
-                    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                    <span className="ml-2">Loading reminders...</span>
-                  </div>
-                ) : (
-                  <>
-                    <DashboardContent 
-                      urgentReminders={convertedUrgentReminders}
-                      upcomingReminders={convertedUpcomingReminders}
-                      completedReminders={convertedCompletedReminders}
-                      onCompleteReminder={handleCompleteReminder}
-                      onUndoComplete={handleUndoComplete}
-                      onNewReminder={() => setShowQuickReminderModal(true)}
-                      onNewVoiceNote={() => setShowVoiceRecorderModal(true)}
-                      onUpdateReminder={handleReminderUpdated}
-                    />
-                    
-                    {hasMore && (
-                      <div className="text-center mt-6 mb-8">
-                        <Button 
-                          variant="outline" 
-                          onClick={handleLoadMore} 
-                          disabled={loading}
-                          className="w-full max-w-xs"
-                        >
-                          {loading ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></div>
-                              Loading more...
-                            </>
-                          ) : (
-                            `Load More (${totalCount - reminders.length} remaining)`
-                          )}
-                        </Button>
-                      </div>
-                    )}
-                  </>
-                )}
-                
-                <DashboardModals 
-                  showQuickReminderModal={showQuickReminderModal}
-                  setShowQuickReminderModal={setShowQuickReminderModal}
-                  showVoiceRecorderModal={showVoiceRecorderModal}
-                  setShowVoiceRecorderModal={setShowVoiceRecorderModal}
-                  onReminderCreated={handleReminderCreated}
-                />
-              </div>
-            </div>
-          </div>
-        </SidebarInset>
-      </div>
-    </SidebarProvider>
+    <DashboardLayout>
+      <DashboardHeader title="Tempo Dashboard" />
+      
+      <DashboardContent 
+        urgentReminders={convertedUrgentReminders}
+        upcomingReminders={convertedUpcomingReminders}
+        completedReminders={convertedCompletedReminders}
+        onCompleteReminder={handleCompleteReminder}
+        onUndoComplete={handleUndoComplete}
+        onNewReminder={() => setShowQuickReminderModal(true)}
+        onNewVoiceNote={() => setShowVoiceRecorderModal(true)}
+        onUpdateReminder={handleReminderUpdated}
+        isLoading={loading}
+        hasError={hasError}
+        hasMoreReminders={hasMore}
+        totalCount={totalCount}
+        loadedCount={reminders.length}
+        onLoadMore={handleLoadMore}
+      />
+      
+      <DashboardModals 
+        showQuickReminderModal={showQuickReminderModal}
+        setShowQuickReminderModal={setShowQuickReminderModal}
+        showVoiceRecorderModal={showVoiceRecorderModal}
+        setShowVoiceRecorderModal={setShowVoiceRecorderModal}
+        onReminderCreated={handleReminderCreated}
+      />
+    </DashboardLayout>
   );
 };
 

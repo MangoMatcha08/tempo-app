@@ -1,7 +1,15 @@
 
 import { createContext, useContext, ReactNode, useEffect, useState } from "react";
 import { isFirebaseInitialized } from "@/lib/firebase";
-import { getFirestore, enableIndexedDbPersistence, Firestore, initializeFirestore, CACHE_SIZE_UNLIMITED, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { 
+  getFirestore, 
+  enableIndexedDbPersistence, 
+  Firestore, 
+  initializeFirestore, 
+  CACHE_SIZE_UNLIMITED, 
+  persistentLocalCache, 
+  persistentMultipleTabManager 
+} from "firebase/firestore";
 import { ScheduleProvider } from "./ScheduleContext";
 import { useToast } from "@/hooks/use-toast";
 import { app } from "@/services/notifications/firebase";
@@ -9,16 +17,19 @@ import { app } from "@/services/notifications/firebase";
 interface FirestoreContextType {
   isReady: boolean;
   db: Firestore | null;
+  error: Error | null;
 }
 
 const FirestoreContext = createContext<FirestoreContextType>({
   isReady: false,
-  db: null
+  db: null,
+  error: null
 });
 
 export const FirestoreProvider = ({ children }: { children: ReactNode }) => {
   const isReady = isFirebaseInitialized();
   const [db, setDb] = useState<Firestore | null>(null);
+  const [error, setError] = useState<Error | null>(null);
   const { toast } = useToast();
   
   // Initialize Firestore with optimized persistent cache
@@ -56,18 +67,23 @@ export const FirestoreProvider = ({ children }: { children: ReactNode }) => {
           } catch (persistErr: any) {
             if (persistErr.code === 'failed-precondition') {
               console.warn("Multiple tabs open, persistence can only be enabled in one tab");
+              // This is not a fatal error, we can continue
             } else if (persistErr.code === 'unimplemented') {
               console.warn("Persistence not available in this browser");
+              // This is not a fatal error, we can continue
             } else {
               console.error("Error enabling persistence:", persistErr);
+              setError(persistErr);
             }
           }
         }
         
+        // Set the database instance even if there were non-fatal errors with persistence
         setDb(firestore);
         console.log("Firestore initialized successfully");
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error initializing Firestore:", error);
+        setError(error);
         toast({
           title: "Database Error",
           description: "Failed to initialize the database. Some features may not work correctly.",
@@ -80,7 +96,7 @@ export const FirestoreProvider = ({ children }: { children: ReactNode }) => {
   }, [isReady, toast]);
   
   return (
-    <FirestoreContext.Provider value={{ isReady, db }}>
+    <FirestoreContext.Provider value={{ isReady, db, error }}>
       <ScheduleProvider>
         {children}
       </ScheduleProvider>
