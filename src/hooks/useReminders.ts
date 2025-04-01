@@ -5,7 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { 
   getFirestore, collection, addDoc, updateDoc, doc, deleteDoc, 
   getDocs, query, where, orderBy, Timestamp, limit, 
-  startAfter, QuerySnapshot, DocumentData, getCountFromServer
+  startAfter, QuerySnapshot, DocumentData, getCountFromServer,
+  enableIndexedDbPersistence, connectFirestoreEmulator
 } from "firebase/firestore";
 import { isFirebaseInitialized } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -31,23 +32,25 @@ export function useReminders() {
     }
   }, [firestoreError]);
   
-  useEffect(() => {
-    const fetchInitialReminders = async () => {
-      if (!user || !isReady || !db) {
-        setReminders([]);
-        setLoading(false);
-        return;
+  const fetchReminders = useCallback(async (isRefresh = false) => {
+    if (!user || !isReady || !db) {
+      setReminders([]);
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      if (!isRefresh) {
+        setLoading(true);
       }
+      setError(null);
+      console.log("Fetching reminders for user:", user.uid);
+      const startTime = performance.now();
+      
+      const remindersRef = collection(db, "reminders");
       
       try {
-        setLoading(true);
-        setError(null);
-        console.log("Fetching reminders for user:", user.uid);
-        const startTime = performance.now();
-        
-        const remindersRef = collection(db, "reminders");
-        
-        try {
+        if (!isRefresh) {
           const countQuery = query(remindersRef, where("userId", "==", user.uid));
           const countSnapshot = await getCountFromServer(countQuery);
           const count = countSnapshot.data().count;
@@ -60,48 +63,57 @@ export function useReminders() {
             setHasMore(false);
             return;
           }
-        } catch (countErr) {
-          console.warn("Error getting count, continuing without count:", countErr);
         }
-        
-        const q = query(
-          remindersRef, 
-          where("userId", "==", user.uid),
-          orderBy("createdAt", "desc"),
-          limit(BATCH_SIZE)
-        );
-        
-        const querySnapshot = await getDocs(q);
-        
-        if (!querySnapshot.empty) {
-          setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
-          setHasMore(querySnapshot.size === BATCH_SIZE);
-        } else {
-          setLastVisible(null);
-          setHasMore(false);
-        }
-        
-        const fetchedReminders = processQuerySnapshot(querySnapshot);
-        
-        const endTime = performance.now();
-        console.log(`Fetched ${fetchedReminders.length} reminders in ${(endTime - startTime).toFixed(2)}ms`);
-        
-        setReminders(fetchedReminders);
-      } catch (err: any) {
-        console.error("Error fetching reminders:", err);
-        setError(err);
+      } catch (countErr) {
+        console.warn("Error getting count, continuing without count:", countErr);
+      }
+      
+      const q = query(
+        remindersRef, 
+        where("userId", "==", user.uid),
+        orderBy("createdAt", "desc"),
+        limit(BATCH_SIZE)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+        setHasMore(querySnapshot.size === BATCH_SIZE);
+      } else {
+        setLastVisible(null);
+        setHasMore(false);
+      }
+      
+      const fetchedReminders = processQuerySnapshot(querySnapshot);
+      
+      const endTime = performance.now();
+      console.log(`Fetched ${fetchedReminders.length} reminders in ${(endTime - startTime).toFixed(2)}ms`);
+      
+      setReminders(fetchedReminders);
+    } catch (err: any) {
+      console.error("Error fetching reminders:", err);
+      setError(err);
+      if (!isRefresh) {
         toast({
           title: "Error fetching reminders",
           description: "Please try again later",
           variant: "destructive",
         });
-      } finally {
-        setLoading(false);
       }
-    };
-    
-    fetchInitialReminders();
+      throw err;
+    } finally {
+      setLoading(false);
+    }
   }, [user, isReady, db, toast]);
+  
+  useEffect(() => {
+    fetchReminders();
+  }, [fetchReminders]);
+  
+  const refreshReminders = useCallback(async () => {
+    return fetchReminders(true);
+  }, [fetchReminders]);
   
   const processQuerySnapshot = (querySnapshot: QuerySnapshot<DocumentData>) => {
     const fetchedReminders: Reminder[] = [];
@@ -182,7 +194,7 @@ export function useReminders() {
       setLoading(false);
     }
   }, [user, isReady, db, lastVisible, hasMore, toast]);
-  
+
   const activeReminders = reminders.filter(r => !r.completed);
   
   const urgentReminders = activeReminders.filter(reminder => {
@@ -381,6 +393,7 @@ export function useReminders() {
     addReminder,
     updateReminder,
     loadMoreReminders,
+    refreshReminders,
     hasMore,
     totalCount
   };

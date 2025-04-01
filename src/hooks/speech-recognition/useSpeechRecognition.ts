@@ -1,132 +1,68 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { UseSpeechRecognitionReturn } from './types';
-import { 
-  debounce, 
-  createSpeechRecognition, 
-  configureSpeechRecognition,
-  isSpeechRecognitionSupported
-} from './utils';
+import { useSpeechRecognitionSetup } from './useSpeechRecognitionSetup';
+import { useTranscriptState } from './useTranscriptState';
 
 /**
  * Custom hook for speech recognition functionality
  * @returns Object containing transcript and speech recognition control methods
  */
 const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
-  const [transcript, setTranscript] = useState<string>('');
-  const [isListening, setIsListening] = useState<boolean>(false);
   const [error, setError] = useState<string | undefined>(undefined);
-  const [recognition, setRecognition] = useState<any | null>(null);
-  const [browserSupportsSpeechRecognition, setBrowserSupportsSpeechRecognition] = useState<boolean>(false);
+  const [isListening, setIsListening] = useState<boolean>(false);
   
-  // Use refs to store the current full transcript and interim results
-  const finalTranscriptRef = useRef<string>('');
-  const interimTranscriptRef = useRef<string>('');
+  // Use separate hooks for managing recognition and transcript
+  const { recognition, browserSupportsSpeechRecognition } = useSpeechRecognitionSetup({
+    onError: setError,
+    isListening,
+    setIsListening
+  });
   
-  // Create a debounced update function
-  const debouncedSetTranscript = useCallback(
-    debounce((text: string) => {
-      setTranscript(text);
-    }, 50), // Reduced debounce time for more responsiveness
-    []
-  );
-
-  // Initialize speech recognition
+  const { 
+    transcript, 
+    setTranscript, 
+    resetTranscriptState, 
+    processSpeechResults 
+  } = useTranscriptState();
+  
+  // Configure recognition event handlers
   useEffect(() => {
-    const recognitionInstance = createSpeechRecognition();
+    if (!recognition) return;
     
-    if (recognitionInstance) {
-      configureSpeechRecognition(recognitionInstance);
+    recognition.onresult = (event: any) => {
+      processSpeechResults(event);
+    };
+    
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
       
-      recognitionInstance.onresult = (event: any) => {
-        // Process results to separate final from interim
-        let finalTranscript = finalTranscriptRef.current;
-        let interimTranscript = '';
-        
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcriptResult = event.results[i][0].transcript;
-          
-          if (event.results[i].isFinal) {
-            // Only add to final transcript if it's a final result
-            finalTranscript += ' ' + transcriptResult;
-          } else {
-            // Store interim results separately
-            interimTranscript += transcriptResult;
-          }
-        }
-        
-        // Update refs
-        finalTranscriptRef.current = finalTranscript.trim();
-        interimTranscriptRef.current = interimTranscript;
-        
-        // Always update state with the most complete transcript
-        const fullTranscript = finalTranscriptRef.current
-          ? finalTranscriptRef.current
-          : interimTranscriptRef.current;
-        
-        if (fullTranscript) {
-          debouncedSetTranscript(fullTranscript);
-        }
-      };
+      // Don't stop listening on "no-speech" errors, just log them
+      if (event.error === 'no-speech') {
+        console.log('No speech detected, continuing to listen...');
+        return;
+      }
       
-      recognitionInstance.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-        
-        // Don't stop listening on "no-speech" errors, just log them
-        if (event.error === 'no-speech') {
-          console.log('No speech detected, continuing to listen...');
-          return;
-        }
-        
-        // For network errors, try to restart recognition
-        if (event.error === 'network') {
-          console.log('Network error, attempting to restart recognition...');
-          setTimeout(() => {
-            if (isListening) {
-              try {
-                recognitionInstance.start();
-              } catch (err) {
-                console.error('Failed to restart after network error:', err);
-                setError(`Speech recognition network error. Please try again.`);
-                setIsListening(false);
-              }
+      // For network errors, try to restart recognition
+      if (event.error === 'network') {
+        console.log('Network error, attempting to restart recognition...');
+        setTimeout(() => {
+          if (isListening) {
+            try {
+              recognition.start();
+            } catch (err) {
+              console.error('Failed to restart after network error:', err);
+              setError(`Speech recognition network error. Please try again.`);
+              setIsListening(false);
             }
-          }, 1000);
-          return;
-        }
-        
-        setError(`Speech recognition error: ${event.error}`);
-        setIsListening(false);
-      };
-      
-      recognitionInstance.onend = () => {
-        console.log('Speech recognition ended, isListening:', isListening);
-        
-        // If still supposed to be listening, restart recognition
-        if (isListening) {
-          console.log('Restarting speech recognition...');
-          try {
-            recognitionInstance.start();
-          } catch (err) {
-            console.error('Error restarting recognition:', err);
-            setError('Failed to restart speech recognition. Please try again.');
-            setIsListening(false);
           }
-        } else {
-          // If we've stopped listening intentionally, make sure 
-          // the final transcript is reflected in the state
-          if (finalTranscriptRef.current) {
-            setTranscript(finalTranscriptRef.current);
-          }
-        }
-      };
+        }, 1000);
+        return;
+      }
       
-      setRecognition(recognitionInstance);
-      setBrowserSupportsSpeechRecognition(true);
-    } else {
-      setError('Your browser does not support speech recognition.');
-      setBrowserSupportsSpeechRecognition(false);
-    }
+      setError(`Speech recognition error: ${event.error}`);
+      setIsListening(false);
+    };
     
     // Cleanup
     return () => {
@@ -138,7 +74,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         }
       }
     };
-  }, [debouncedSetTranscript, isListening]);
+  }, [recognition, isListening, processSpeechResults]);
 
   /**
    * Starts the speech recognition process
@@ -146,10 +82,8 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   const startListening = useCallback(() => {
     if (!recognition) return;
     
-    // Reset transcripts
-    setTranscript('');
-    finalTranscriptRef.current = '';
-    interimTranscriptRef.current = '';
+    // Reset transcript
+    resetTranscriptState();
     setError(undefined);
     
     setIsListening(true);
@@ -160,7 +94,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       // Handle the case where recognition is already started
       console.error('Recognition already started:', err);
     }
-  }, [recognition]);
+  }, [recognition, resetTranscriptState]);
 
   /**
    * Stops the speech recognition process
@@ -173,32 +107,17 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     try {
       recognition.stop();
       console.log('Speech recognition stopped');
-      
-      // Ensure we're showing the final transcript
-      if (finalTranscriptRef.current) {
-        console.log('Setting final transcript:', finalTranscriptRef.current);
-        setTranscript(finalTranscriptRef.current);
-      }
     } catch (err) {
       console.error('Error stopping recognition:', err);
     }
   }, [recognition]);
-
-  /**
-   * Resets the transcript to an empty string
-   */
-  const resetTranscript = useCallback(() => {
-    setTranscript('');
-    finalTranscriptRef.current = '';
-    interimTranscriptRef.current = '';
-  }, []);
 
   return {
     transcript,
     isListening,
     startListening,
     stopListening,
-    resetTranscript,
+    resetTranscript: resetTranscriptState,
     browserSupportsSpeechRecognition,
     error
   };

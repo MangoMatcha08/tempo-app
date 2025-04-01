@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import CurrentPeriodIndicator from "@/components/dashboard/CurrentPeriodIndicator";
 import QuickActionsBar from "@/components/dashboard/QuickActionsBar";
 import RemindersSection from "@/components/dashboard/RemindersSection";
@@ -26,6 +26,7 @@ interface DashboardContentProps {
   totalCount: number;
   loadedCount: number;
   onLoadMore: () => void;
+  isRefreshing?: boolean;
 }
 
 const DashboardContent = ({
@@ -42,7 +43,8 @@ const DashboardContent = ({
   hasMoreReminders,
   totalCount,
   loadedCount,
-  onLoadMore
+  onLoadMore,
+  isRefreshing = false
 }: DashboardContentProps) => {
   const [selectedReminder, setSelectedReminder] = useState<Reminder | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -74,6 +76,26 @@ const DashboardContent = ({
     );
   }
 
+  // Show a full-page loading state only on initial load, not on background refreshes
+  if (isLoading && loadedCount === 0 && !isRefreshing) {
+    return (
+      <div className="space-y-4">
+        <CurrentPeriodIndicator />
+        <QuickActionsBar 
+          onNewReminder={onNewReminder}
+          onNewVoiceNote={onNewVoiceNote}
+        />
+        <ReminderLoadingState 
+          isLoading={true}
+          hasMoreReminders={false}
+          totalCount={0}
+          loadedCount={0}
+          onLoadMore={() => {}}
+        />
+      </div>
+    );
+  }
+
   return (
     <>
       <CurrentPeriodIndicator />
@@ -82,44 +104,41 @@ const DashboardContent = ({
         onNewVoiceNote={onNewVoiceNote}
       />
       
-      {isLoading && loadedCount === 0 ? (
-        <ReminderLoadingState 
-          isLoading={isLoading}
-          hasMoreReminders={hasMoreReminders}
-          totalCount={totalCount}
-          loadedCount={loadedCount}
-          onLoadMore={onLoadMore}
-        />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-          {/* Primary content - 2/3 width on desktop */}
-          <div className="md:col-span-2 space-y-4 md:space-y-6">
-            <RemindersSection 
-              urgentReminders={urgentReminders} 
-              upcomingReminders={upcomingReminders} 
-              onCompleteReminder={onCompleteReminder}
-              onEditReminder={handleEditReminder}
-            />
-            
-            {/* Completed reminders section above the progress visualization */}
-            <CompletedRemindersSection 
-              reminders={completedReminders}
-              onUndoComplete={onUndoComplete}
-            />
-            
-            <ProgressVisualization />
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        {/* Primary content - 2/3 width on desktop */}
+        <div className="md:col-span-2 space-y-4 md:space-y-6">
+          {isRefreshing && (
+            <div className="flex items-center justify-center p-3 bg-slate-50 rounded-lg mb-2">
+              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2"></div>
+              <span className="text-sm text-slate-600">Refreshing your reminders...</span>
+            </div>
+          )}
           
-          {/* Secondary content - 1/3 width on desktop */}
-          <div>
-            {/* CompletedRemindersSection has been moved out of here */}
-          </div>
+          <RemindersSection 
+            urgentReminders={urgentReminders} 
+            upcomingReminders={upcomingReminders} 
+            onCompleteReminder={onCompleteReminder}
+            onEditReminder={handleEditReminder}
+          />
+          
+          {/* Completed reminders section above the progress visualization */}
+          <CompletedRemindersSection 
+            reminders={completedReminders}
+            onUndoComplete={onUndoComplete}
+          />
+          
+          <ProgressVisualization />
         </div>
-      )}
+        
+        {/* Secondary content - 1/3 width on desktop */}
+        <div>
+          {/* CompletedRemindersSection has been moved out of here */}
+        </div>
+      </div>
 
       {hasMoreReminders && (
         <ReminderLoadingState 
-          isLoading={isLoading}
+          isLoading={isLoading && !isRefreshing}
           hasMoreReminders={hasMoreReminders}
           totalCount={totalCount}
           loadedCount={loadedCount}

@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useReminders } from "@/hooks/useReminders";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardContent from "@/components/dashboard/DashboardContent";
@@ -13,6 +13,7 @@ const Dashboard = () => {
   const [showQuickReminderModal, setShowQuickReminderModal] = useState(false);
   const [showVoiceRecorderModal, setShowVoiceRecorderModal] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
   
   const {
@@ -26,6 +27,7 @@ const Dashboard = () => {
     addReminder,
     updateReminder,
     loadMoreReminders,
+    refreshReminders,
     hasMore,
     totalCount
   } = useReminders();
@@ -37,6 +39,34 @@ const Dashboard = () => {
       setHasError(false);
     }
   }, [reminders]);
+
+  // Periodically refresh data in the background
+  const performBackgroundRefresh = useCallback(async () => {
+    if (!loading) {
+      try {
+        setIsRefreshing(true);
+        await refreshReminders();
+      } catch (error) {
+        console.error("Background refresh error:", error);
+        // Don't show an error toast for background refreshes
+      } finally {
+        setIsRefreshing(false);
+      }
+    }
+  }, [refreshReminders, loading]);
+
+  // Set up periodic refresh
+  useEffect(() => {
+    // Initial refresh after component mounts
+    performBackgroundRefresh();
+    
+    // Set up interval for background refresh (every 60 seconds)
+    const refreshInterval = setInterval(() => {
+      performBackgroundRefresh();
+    }, 60000);
+    
+    return () => clearInterval(refreshInterval);
+  }, [performBackgroundRefresh]);
 
   // Convert reminders to UI-compatible format
   const convertedUrgentReminders = urgentReminders.map(convertToUIReminder);
@@ -55,6 +85,9 @@ const Dashboard = () => {
           title: "Reminder Created",
           description: `"${reminder.title}" has been added to your reminders.`
         });
+        
+        // Refresh reminders to ensure UI is up-to-date
+        performBackgroundRefresh();
       })
       .catch(error => {
         console.error("Error saving reminder:", error);
@@ -73,6 +106,15 @@ const Dashboard = () => {
     
     // Update the reminder in the list
     updateReminder(backendReminder)
+      .then(() => {
+        toast({
+          title: "Reminder Updated",
+          description: `"${reminder.title}" has been updated.`
+        });
+        
+        // Refresh to ensure we have the latest data
+        performBackgroundRefresh();
+      })
       .catch(error => {
         console.error("Error updating reminder:", error);
         setHasError(true);
@@ -82,11 +124,6 @@ const Dashboard = () => {
           variant: "destructive"
         });
       });
-    
-    toast({
-      title: "Reminder Updated",
-      description: `"${reminder.title}" has been updated.`
-    });
   };
 
   const handleLoadMore = () => {
@@ -122,6 +159,7 @@ const Dashboard = () => {
         totalCount={totalCount}
         loadedCount={reminders.length}
         onLoadMore={handleLoadMore}
+        isRefreshing={isRefreshing}
       />
       
       <DashboardModals 
