@@ -40,18 +40,21 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   
   const { toast } = useToast();
   const dialogContentRef = useRef<HTMLDivElement>(null);
+  const lastOpenStateRef = useRef(open);
   
-  // Reset state when modal opens
+  // Only reset state when modal changes from closed to open
   useEffect(() => {
-    if (open) {
+    if (open && !lastOpenStateRef.current) {
       console.log("Modal opened, resetting state");
       resetState();
     }
+    lastOpenStateRef.current = open;
   }, [open, resetState]);
   
   // Scroll to the bottom when view changes to confirm
   useEffect(() => {
     if (view === "confirm" && dialogContentRef.current) {
+      console.log("View changed to confirm, scrolling to bottom");
       setTimeout(() => {
         if (dialogContentRef.current) {
           dialogContentRef.current.scrollTop = dialogContentRef.current.scrollHeight;

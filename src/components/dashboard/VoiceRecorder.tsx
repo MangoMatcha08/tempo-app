@@ -20,6 +20,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) =
   } = useSpeechRecognition();
 
   const [recordingTime, setRecordingTime] = useState<number>(0);
+  const [processingComplete, setProcessingComplete] = useState<boolean>(false);
 
   // Handle recording timer
   useEffect(() => {
@@ -47,6 +48,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) =
 
   const handleStartRecording = () => {
     resetTranscript();
+    setProcessingComplete(false);
     startListening();
   };
 
@@ -55,10 +57,13 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) =
     // Only process non-empty transcripts
     if (transcript && transcript.trim()) {
       console.log("Recorded transcript:", transcript.trim());
-      // Ensure we give a small delay to get the final transcript
+      // Ensure we give a delay to get the final transcript
       setTimeout(() => {
-        onTranscriptComplete(transcript.trim());
-      }, 500);
+        if (!processingComplete) {
+          setProcessingComplete(true);
+          onTranscriptComplete(transcript.trim());
+        }
+      }, 800); // Increased delay to ensure full transcript is captured
     } else {
       console.log("Empty transcript detected - not proceeding to confirmation");
     }

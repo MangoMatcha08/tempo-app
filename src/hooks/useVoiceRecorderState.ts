@@ -16,16 +16,20 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   const [periodId, setPeriodId] = useState<string>("none");
   const { toast } = useToast();
   
-  // Reset state when modal opens
+  // Reset state when modal opens - but DO NOT reset if we're already in confirm view
   const resetState = () => {
-    setTitle("");
-    setTranscript("");
-    setIsProcessing(false);
-    setView("record");
-    setProcessingResult(null);
-    setPriority(ReminderPriority.MEDIUM);
-    setCategory(ReminderCategory.TASK);
-    setPeriodId("none");
+    console.log("Reset state called, current view:", view);
+    // Only reset if we're not already in confirm view to prevent resetting during confirmation
+    if (view !== "confirm") {
+      setTitle("");
+      setTranscript("");
+      setIsProcessing(false);
+      setView("record");
+      setProcessingResult(null);
+      setPriority(ReminderPriority.MEDIUM);
+      setCategory(ReminderCategory.TASK);
+      setPeriodId("none");
+    }
   };
   
   const handleTranscriptComplete = (text: string) => {
