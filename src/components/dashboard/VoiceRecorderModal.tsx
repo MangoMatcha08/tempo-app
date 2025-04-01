@@ -32,7 +32,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   const [processingResult, setProcessingResult] = useState<VoiceProcessingResult | null>(null);
   const [priority, setPriority] = useState<ReminderPriority>(ReminderPriority.MEDIUM);
   const [category, setCategory] = useState<ReminderCategory>(ReminderCategory.TASK);
-  const [periodId, setPeriodId] = useState<string>("");
+  const [periodId, setPeriodId] = useState<string>("none");
   const { toast } = useToast();
   const dialogContentRef = useRef<HTMLDivElement>(null);
   
@@ -46,7 +46,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
       setProcessingResult(null);
       setPriority(ReminderPriority.MEDIUM);
       setCategory(ReminderCategory.TASK);
-      setPeriodId("");
+      setPeriodId("none");
     }
   }, [open]);
   
@@ -79,7 +79,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
       setTitle(generatedTitle);
       setPriority(result.reminder.priority || ReminderPriority.MEDIUM);
       setCategory(result.reminder.category || ReminderCategory.TASK);
-      setPeriodId(result.reminder.periodId || "");
+      setPeriodId(result.reminder.periodId || "none");
       setProcessingResult(result);
       
       // Switch to confirmation view
@@ -107,7 +107,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
         description: transcript,
         priority,
         category,
-        periodId: periodId || undefined,
+        periodId: periodId === "none" ? undefined : periodId,
         voiceTranscript: transcript,
         checklist: processingResult?.reminder.checklist || []
       };
@@ -145,7 +145,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
     setProcessingResult(null);
     setPriority(ReminderPriority.MEDIUM);
     setCategory(ReminderCategory.TASK);
-    setPeriodId("");
+    setPeriodId("none");
     onOpenChange(false);
   };
 

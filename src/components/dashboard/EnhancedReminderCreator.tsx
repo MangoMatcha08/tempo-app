@@ -205,14 +205,14 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
             <div className="space-y-2">
               <Label htmlFor="period">Period</Label>
               <Select 
-                value={periodId || ''} 
-                onValueChange={(value) => setPeriodId(value || undefined)}
+                value={periodId || 'none'} 
+                onValueChange={(value) => setPeriodId(value === 'none' ? undefined : value)}
               >
                 <SelectTrigger id="period">
                   <SelectValue placeholder="Select period" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No specific period</SelectItem>
+                  <SelectItem value="none">No specific period</SelectItem>
                   {mockPeriods.map(period => (
                     <SelectItem key={period.id} value={period.id}>
                       {period.name} ({period.startTime} - {period.endTime})
