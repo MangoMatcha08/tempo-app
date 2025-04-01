@@ -62,16 +62,42 @@ const NotificationSettings = () => {
   };
 
   const handleRequestPermission = async () => {
-    const granted = await requestPermission();
-    if (granted) {
+    try {
+      // Check if notification is supported
+      if (typeof window === 'undefined' || !('Notification' in window)) {
+        throw new Error('Notifications not supported in this browser');
+      }
+      
+      // Try to request permission
+      const granted = await requestPermission();
+      
+      if (granted) {
+        toast({
+          title: "Notifications enabled",
+          description: "You will now receive push notifications",
+        });
+      } else {
+        // If permission is denied, show a more helpful message
+        if (Notification.permission === 'denied') {
+          toast({
+            title: "Permission denied",
+            description: "You need to enable notifications in your browser settings. Look for the lock/info icon in your address bar.",
+            variant: "destructive",
+            duration: 8000,
+          });
+        } else {
+          toast({
+            title: "Permission not granted",
+            description: "Please try again or check your browser settings",
+            variant: "destructive"
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error requesting permission:", error);
       toast({
-        title: "Notifications enabled",
-        description: "You will now receive push notifications",
-      });
-    } else {
-      toast({
-        title: "Permission denied",
-        description: "Please enable notifications in your browser settings",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to request notification permission",
         variant: "destructive"
       });
     }
