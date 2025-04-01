@@ -1,7 +1,7 @@
 
 import { createContext, useContext, ReactNode, useEffect, useState } from "react";
 import { isFirebaseInitialized } from "@/lib/firebase";
-import { getFirestore, enableIndexedDbPersistence, Firestore } from "firebase/firestore";
+import { getFirestore, enableIndexedDbPersistence, Firestore, initializeFirestore, CACHE_SIZE_UNLIMITED } from "firebase/firestore";
 import { ScheduleProvider } from "./ScheduleContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,7 +26,21 @@ export const FirestoreProvider = ({ children }: { children: ReactNode }) => {
     
     const initFirestore = async () => {
       try {
-        const firestore = getFirestore();
+        console.log("Initializing Firestore...");
+        
+        // Initialize Firestore with optimized settings
+        let firestore: Firestore;
+        
+        try {
+          // First try to initialize with enhanced cache
+          firestore = initializeFirestore(window.firebase, {
+            cacheSizeBytes: CACHE_SIZE_UNLIMITED
+          });
+          console.log("Initialized Firestore with unlimited cache size");
+        } catch (err) {
+          console.warn("Could not initialize with enhanced settings, using default:", err);
+          firestore = getFirestore();
+        }
         
         // Enable offline persistence
         try {
@@ -45,6 +59,7 @@ export const FirestoreProvider = ({ children }: { children: ReactNode }) => {
         }
         
         setDb(firestore);
+        console.log("Firestore initialized successfully");
       } catch (error) {
         console.error("Error initializing Firestore:", error);
         toast({

@@ -44,6 +44,8 @@ const Dashboard = () => {
   }, []);
 
   const {
+    reminders,
+    loading,
     urgentReminders,
     upcomingReminders,
     completedReminders,
@@ -52,6 +54,13 @@ const Dashboard = () => {
     addReminder,
     updateReminder
   } = useReminders();
+
+  // Debug log to check if reminders are being fetched
+  useEffect(() => {
+    console.log("Dashboard reminders:", reminders);
+    console.log("Urgent reminders:", urgentReminders);
+    console.log("Upcoming reminders:", upcomingReminders);
+  }, [reminders, urgentReminders, upcomingReminders]);
 
   // Convert reminders to UI-compatible format
   const convertedUrgentReminders = urgentReminders.map(convertToUIReminder);
@@ -63,12 +72,22 @@ const Dashboard = () => {
     const backendReminder = convertToBackendReminder(reminder);
     
     // Add the new reminder to the list
-    addReminder(backendReminder);
-    
-    toast({
-      title: "Reminder Created",
-      description: `"${reminder.title}" has been added to your reminders.`
-    });
+    addReminder(backendReminder)
+      .then((savedReminder) => {
+        console.log("Reminder saved successfully:", savedReminder);
+        toast({
+          title: "Reminder Created",
+          description: `"${reminder.title}" has been added to your reminders.`
+        });
+      })
+      .catch(error => {
+        console.error("Error saving reminder:", error);
+        toast({
+          title: "Error Saving Reminder",
+          description: "There was a problem saving your reminder.",
+          variant: "destructive"
+        });
+      });
   };
 
   const handleReminderUpdated = (reminder: UIReminder) => {
@@ -154,16 +173,23 @@ const Dashboard = () => {
               <div className={isMobile ? "pt-8" : ""}>
                 <DashboardHeader title="Tempo Dashboard" />
                 
-                <DashboardContent 
-                  urgentReminders={convertedUrgentReminders}
-                  upcomingReminders={convertedUpcomingReminders}
-                  completedReminders={convertedCompletedReminders}
-                  onCompleteReminder={handleCompleteReminder}
-                  onUndoComplete={handleUndoComplete}
-                  onNewReminder={() => setShowQuickReminderModal(true)}
-                  onNewVoiceNote={() => setShowVoiceRecorderModal(true)}
-                  onUpdateReminder={handleReminderUpdated}
-                />
+                {loading ? (
+                  <div className="flex items-center justify-center p-8">
+                    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    <span className="ml-2">Loading reminders...</span>
+                  </div>
+                ) : (
+                  <DashboardContent 
+                    urgentReminders={convertedUrgentReminders}
+                    upcomingReminders={convertedUpcomingReminders}
+                    completedReminders={convertedCompletedReminders}
+                    onCompleteReminder={handleCompleteReminder}
+                    onUndoComplete={handleUndoComplete}
+                    onNewReminder={() => setShowQuickReminderModal(true)}
+                    onNewVoiceNote={() => setShowVoiceRecorderModal(true)}
+                    onUpdateReminder={handleReminderUpdated}
+                  />
+                )}
                 
                 <DashboardModals 
                   showQuickReminderModal={showQuickReminderModal}
