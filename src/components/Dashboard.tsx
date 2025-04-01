@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useReminders } from "@/hooks/useReminders";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardContent from "@/components/dashboard/DashboardContent";
@@ -26,11 +26,21 @@ import { useIsMobile } from "@/hooks/use-mobile";
 const Dashboard = () => {
   const [showQuickReminderModal, setShowQuickReminderModal] = useState(false);
   const [showVoiceRecorderModal, setShowVoiceRecorderModal] = useState(false);
+  const [sidebarReady, setSidebarReady] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
   
+  // Initialize sidebar after a short delay to prevent conflicts with notifications
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSidebarReady(true);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   const {
     urgentReminders,
     upcomingReminders,
@@ -64,6 +74,14 @@ const Dashboard = () => {
   const isActive = (path: string) => {
     return location.pathname === path;
   };
+
+  if (!sidebarReady) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider defaultOpen={!isMobile}>

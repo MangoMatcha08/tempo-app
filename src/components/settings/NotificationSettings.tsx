@@ -26,22 +26,76 @@ import { useNotifications } from "@/contexts/NotificationContext";
 import { ReminderPriority } from "@/types/reminderTypes";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Bell, AlertTriangle } from "lucide-react";
+import { Bell, AlertTriangle, Clock } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
+// Extended notification settings to include daily summary options
+interface ExtendedNotificationSettings extends NotificationSettingsType {
+  email: {
+    enabled: boolean;
+    address: string;
+    minPriority: ReminderPriority;
+    dailySummary: {
+      enabled: boolean;
+      timing: 'before' | 'after';
+    };
+  };
+}
 
 const NotificationSettings = () => {
   const { toast } = useToast();
   const { notificationSettings, permissionGranted, requestPermission } = useNotifications();
+  const [isNativeNotificationsSupported, setIsNativeNotificationsSupported] = useState(true);
   
-  const form = useForm<NotificationSettingsType>({
-    defaultValues: notificationSettings
+  // Check if notifications are supported in this browser
+  useEffect(() => {
+    const checkNotificationSupport = () => {
+      // Check in a safe way for all environments
+      const isSupported = typeof window !== 'undefined' && 
+                          'Notification' in window &&
+                          typeof navigator !== 'undefined' &&
+                          'serviceWorker' in navigator;
+      
+      setIsNativeNotificationsSupported(isSupported);
+    };
+    
+    checkNotificationSupport();
+  }, []);
+  
+  // Extend the default notification settings with daily summary options
+  const extendedSettings: ExtendedNotificationSettings = {
+    ...notificationSettings,
+    email: {
+      ...notificationSettings.email,
+      dailySummary: {
+        enabled: notificationSettings.email?.dailySummary?.enabled || false,
+        timing: notificationSettings.email?.dailySummary?.timing || 'after'
+      }
+    }
+  };
+  
+  const form = useForm<ExtendedNotificationSettings>({
+    defaultValues: extendedSettings
   });
 
   // Update form values when context settings change
   useEffect(() => {
-    form.reset(notificationSettings);
+    // Merge the existing settings with the default daily summary settings
+    const updatedSettings: ExtendedNotificationSettings = {
+      ...notificationSettings,
+      email: {
+        ...notificationSettings.email,
+        dailySummary: {
+          enabled: notificationSettings.email?.dailySummary?.enabled || false,
+          timing: notificationSettings.email?.dailySummary?.timing || 'after'
+        }
+      }
+    };
+    
+    form.reset(updatedSettings);
   }, [notificationSettings, form]);
 
-  const onSubmit = async (data: NotificationSettingsType) => {
+  const onSubmit = async (data: ExtendedNotificationSettings) => {
     try {
       const userId = localStorage.getItem('userId') || 'anonymous';
       await updateUserNotificationSettings(userId, data);
@@ -64,8 +118,8 @@ const NotificationSettings = () => {
   const handleRequestPermission = async () => {
     try {
       // Check if notification is supported
-      if (typeof window === 'undefined' || !('Notification' in window)) {
-        throw new Error('Notifications not supported in this browser');
+      if (!isNativeNotificationsSupported) {
+        throw new Error('Notifications not supported in this browser or environment');
       }
       
       // Try to request permission
@@ -127,7 +181,18 @@ const NotificationSettings = () => {
           )}
         />
         
-        {!permissionGranted && form.watch('enabled') && form.watch('push.enabled') && (
+        {!isNativeNotificationsSupported && (
+          <Alert className="bg-yellow-50 border-yellow-200">
+            <AlertTriangle className="h-4 w-4 text-yellow-800" />
+            <AlertTitle className="text-yellow-800">Browser limitation</AlertTitle>
+            <AlertDescription className="text-yellow-700">
+              Push notifications aren't supported in this browser or environment. 
+              For full notification support, please use a modern browser like Chrome, Firefox, or Edge.
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {!permissionGranted && isNativeNotificationsSupported && form.watch('enabled') && form.watch('push.enabled') && (
           <Alert className="bg-yellow-50 border-yellow-200">
             <AlertTriangle className="h-4 w-4 text-yellow-800" />
             <AlertTitle className="text-yellow-800">Push notifications require permission</AlertTitle>
@@ -193,10 +258,71 @@ const NotificationSettings = () => {
               
               <FormField
                 control={form.control}
+                name="email.dailySummary.enabled"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Daily Summary Email</FormLabel>
+                      <FormDescription>
+                        Receive a daily summary of all reminders
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              
+              {form.watch('email.dailySummary.enabled') && (
+                <FormField
+                  control={form.control}
+                  name="email.dailySummary.timing"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>Daily Summary Timing</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex flex-col space-y-1"
+                        >
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="before" />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              Before School (7:00 AM)
+                            </FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="after" />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              After School (3:30 PM)
+                            </FormLabel>
+                          </FormItem>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormDescription>
+                        <Clock className="h-4 w-4 inline-block mr-1" />
+                        Choose when to receive your daily summary email
+                      </FormDescription>
+                    </FormItem>
+                  )}
+                />
+              )}
+              
+              <FormField
+                control={form.control}
                 name="email.minPriority"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email notification priority</FormLabel>
+                    <FormLabel>Individual Email Priority Level</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -210,11 +336,20 @@ const NotificationSettings = () => {
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Only reminders of the selected priority (or higher) will trigger email notifications
+                      Only reminders of the selected priority (or higher) will trigger individual email notifications
                     </FormDescription>
                   </FormItem>
                 )}
               />
+              
+              <Alert className="bg-blue-50 border-blue-200">
+                <AlertTriangle className="h-4 w-4 text-blue-800" />
+                <AlertTitle className="text-blue-800">Note on Individual Email Notifications</AlertTitle>
+                <AlertDescription className="text-blue-700">
+                  Individual email notifications are limited to conserve resources. 
+                  Consider using the daily summary option for a complete overview of your reminders.
+                </AlertDescription>
+              </Alert>
             </>
           )}
           

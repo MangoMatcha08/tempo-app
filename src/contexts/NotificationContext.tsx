@@ -41,14 +41,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     const initializeNotifications = async () => {
       try {
         // Check if notifications are supported
-        if (typeof window !== 'undefined' && !('Notification' in window)) {
-          console.log('This browser does not support notifications');
-          return;
-        }
-
-        // Check permission status
-        if (Notification.permission === 'granted') {
-          setPermissionGranted(true);
+        if (typeof window !== 'undefined' && 'Notification' in window) {
+          // Check permission status
+          if (Notification.permission === 'granted') {
+            setPermissionGranted(true);
+          }
         }
 
         // Get user notification settings
@@ -56,21 +53,23 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         const settings = await getUserNotificationSettings(userId);
         setNotificationSettings(settings);
 
-        // Setup foreground message listener
-        const unsubscribe = setupForegroundMessageListener((payload) => {
-          console.log('Received foreground message:', payload);
-          
-          // Show toast notification for foreground messages
-          toast({
-            title: payload.notification?.title || 'New Reminder',
-            description: payload.notification?.body || 'You have a new reminder',
-            duration: 5000,
+        // Setup foreground message listener if notifications are supported
+        if (typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator) {
+          const unsubscribe = setupForegroundMessageListener((payload) => {
+            console.log('Received foreground message:', payload);
+            
+            // Show toast notification for foreground messages
+            toast({
+              title: payload.notification?.title || 'New Reminder',
+              description: payload.notification?.body || 'You have a new reminder',
+              duration: 5000,
+            });
           });
-        });
-
-        return () => {
-          unsubscribe();
-        };
+  
+          return () => {
+            unsubscribe();
+          };
+        }
       } catch (error) {
         console.error('Error initializing notifications:', error);
       }
@@ -82,6 +81,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   // Request notification permission
   const requestPermission = async (): Promise<boolean> => {
     try {
+      // Check if Notification API is supported
+      if (typeof window === 'undefined' || !('Notification' in window)) {
+        throw new Error('Notifications not supported in this browser');
+      }
+      
       const token = await requestNotificationPermission();
       const granted = !!token;
       setPermissionGranted(granted);
@@ -96,8 +100,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const showNotification = (reminder: Reminder) => {
     if (!notificationSettings.enabled) return;
     
-    // Convert the string priority to ReminderPriority enum value
-    const reminderPriority = reminder.priority as unknown as ReminderPriority;
+    // Handle the priority type conversion properly
+    const reminderPriority = reminder.priority as ReminderPriority;
 
     // Check if in-app notification should be shown
     if (shouldSendNotification(reminderPriority, notificationSettings, 'inApp')) {

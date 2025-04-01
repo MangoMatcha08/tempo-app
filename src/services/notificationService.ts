@@ -23,27 +23,40 @@ const vapidKey = 'BJ9HWzAxfk1jKtkGfoKYMauaVfMatIkqw0cCEwQ1WBH7cn5evFO_saWfpvXAVy
 // Initialize Firebase
 let messaging = null;
 let firestore = null;
+let firebaseInitialized = false;
 
 // Safely initialize Firebase only in browser environment
-if (typeof window !== 'undefined') {
-  try {
-    const app = initializeApp(firebaseConfig);
-    isSupported().then(supported => {
+const initializeFirebase = async () => {
+  if (firebaseInitialized) return { messaging, firestore };
+  
+  if (typeof window !== 'undefined') {
+    try {
+      const app = initializeApp(firebaseConfig);
+      
+      // Check if messaging is supported
+      const supported = await isSupported();
       if (supported) {
         messaging = getMessaging(app);
         console.log('Firebase messaging initialized');
       } else {
         console.log('Firebase messaging not supported in this browser');
       }
-    }).catch(err => {
-      console.error('Error checking messaging support:', err);
-    });
-    
-    firestore = getFirestore(app);
-  } catch (error) {
-    console.error('Error initializing Firebase messaging:', error);
+      
+      firestore = getFirestore(app);
+      firebaseInitialized = true;
+      
+      return { messaging, firestore };
+    } catch (error) {
+      console.error('Error initializing Firebase:', error);
+      return { messaging: null, firestore: null };
+    }
   }
-}
+  
+  return { messaging: null, firestore: null };
+};
+
+// Initialize Firebase when this module is loaded
+initializeFirebase().catch(err => console.error('Failed to initialize Firebase:', err));
 
 // User notification settings interface
 export interface NotificationSettings {
@@ -52,6 +65,10 @@ export interface NotificationSettings {
     enabled: boolean;
     address: string;
     minPriority: ReminderPriority;
+    dailySummary?: {
+      enabled: boolean;
+      timing: 'before' | 'after';
+    };
   };
   push: {
     enabled: boolean;
@@ -69,7 +86,11 @@ export const defaultNotificationSettings: NotificationSettings = {
   email: {
     enabled: true,
     address: '',
-    minPriority: ReminderPriority.HIGH
+    minPriority: ReminderPriority.HIGH,
+    dailySummary: {
+      enabled: false,
+      timing: 'after'
+    }
   },
   push: {
     enabled: true,
@@ -83,6 +104,7 @@ export const defaultNotificationSettings: NotificationSettings = {
 
 // Request permission and get FCM token
 export const requestNotificationPermission = async (): Promise<string | null> => {
+  await initializeFirebase();
   if (!messaging) return null;
   
   try {
@@ -109,6 +131,7 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
 
 // Save FCM token to Firestore
 export const saveTokenToFirestore = async (userId: string, token: string): Promise<void> => {
+  await initializeFirebase();
   if (!firestore) return;
   
   try {
@@ -137,6 +160,7 @@ export const saveTokenToFirestore = async (userId: string, token: string): Promi
 
 // Get user's notification settings
 export const getUserNotificationSettings = async (userId: string): Promise<NotificationSettings> => {
+  await initializeFirebase();
   if (!firestore) return defaultNotificationSettings;
   
   try {
@@ -144,7 +168,14 @@ export const getUserNotificationSettings = async (userId: string): Promise<Notif
     const userDoc = await getDoc(userDocRef);
     
     if (userDoc.exists() && userDoc.data().notificationSettings) {
-      return userDoc.data().notificationSettings as NotificationSettings;
+      const settings = userDoc.data().notificationSettings as NotificationSettings;
+      
+      // Ensure dailySummary settings exist
+      if (!settings.email.dailySummary) {
+        settings.email.dailySummary = defaultNotificationSettings.email.dailySummary;
+      }
+      
+      return settings;
     }
     
     return defaultNotificationSettings;
@@ -159,6 +190,7 @@ export const updateUserNotificationSettings = async (
   userId: string, 
   settings: Partial<NotificationSettings>
 ): Promise<void> => {
+  await initializeFirebase();
   if (!firestore) return;
   
   try {
@@ -204,6 +236,7 @@ export const sendTestNotification = async (email: string): Promise<boolean> => {
 
 // Listen for foreground messages
 export const setupForegroundMessageListener = (callback: (payload: any) => void): (() => void) => {
+  initializeFirebase();
   if (!messaging) return () => {};
   
   const unsubscribe = onMessage(messaging, (payload) => {
