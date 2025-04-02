@@ -15,6 +15,36 @@ interface CacheState {
 // Cache expiration time (5 minutes)
 const CACHE_EXPIRATION = 5 * 60 * 1000;
 
+export function getDetailedReminder(id: string): Reminder | null {
+  try {
+    const cacheData = localStorage.getItem(`reminder-detail-${id}`);
+    if (!cacheData) return null;
+    
+    const parsed = JSON.parse(cacheData);
+    
+    // Convert date strings back to Date objects
+    if (parsed.dueDate) parsed.dueDate = new Date(parsed.dueDate);
+    if (parsed.createdAt) parsed.createdAt = new Date(parsed.createdAt);
+    if (parsed.completedAt) parsed.completedAt = new Date(parsed.completedAt);
+    
+    return parsed as Reminder;
+  } catch (err) {
+    console.error(`Error retrieving detailed reminder ${id} from cache:`, err);
+    return null;
+  }
+}
+
+export function cacheReminderDetail(reminder: Reminder): void {
+  try {
+    localStorage.setItem(
+      `reminder-detail-${reminder.id}`, 
+      JSON.stringify(reminder)
+    );
+  } catch (err) {
+    console.error(`Error caching detailed reminder ${reminder.id}:`, err);
+  }
+}
+
 export function useReminderCache() {
   // Use ref to ensure persistence between renders without causing re-renders
   const cacheRef = useRef<CacheState>({
@@ -98,6 +128,9 @@ export function useReminderCache() {
       data: reminder,
       timestamp: Date.now(),
     });
+    
+    // Also cache as detailed reminder
+    cacheReminderDetail(reminder);
   }, []);
 
   // Get a cached reminder
@@ -150,11 +183,12 @@ export function useReminderCache() {
   }, []);
 
   return {
-    cacheReminder,
-    getCachedReminder,
-    cacheReminderList,
     getCachedReminderList,
+    cacheReminderList,
+    cacheReminder,
     invalidateReminder,
-    invalidateUserCache
+    invalidateUserCache,
+    getDetailedReminder,
+    cacheReminderDetail
   };
 }

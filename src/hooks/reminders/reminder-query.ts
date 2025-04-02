@@ -4,7 +4,8 @@ import { Reminder } from "@/types/reminderTypes";
 import { 
   collection, getDocs, query, where, orderBy, 
   limit, startAfter, QuerySnapshot, DocumentData, 
-  getCountFromServer, Timestamp
+  getCountFromServer, Timestamp, 
+  getDocsFromServer, getDoc, doc
 } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useReminderCache } from "./use-reminder-cache";
@@ -12,6 +13,17 @@ import { useReminderCache } from "./use-reminder-cache";
 // Constants for performance tuning
 const BATCH_SIZE = 10;
 const REFRESH_DEBOUNCE_MS = 300; // More aggressive debouncing for refreshes
+
+// Fields to select for list views (index-only query)
+const LIST_VIEW_FIELDS = [
+  'id', 
+  'title', 
+  'dueDate', 
+  'priority', 
+  'completed', 
+  'completedAt', 
+  'createdAt'
+];
 
 export function useReminderQuery(user: any, db: any, isReady: boolean) {
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -26,11 +38,13 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
   const { 
     cacheReminderList, 
     getCachedReminderList,
-    invalidateUserCache
+    invalidateUserCache,
+    getDetailedReminder,
+    cacheReminderDetail
   } = useReminderCache();
   
   // Process query snapshot into typed reminders
-  const processQuerySnapshot = (querySnapshot: QuerySnapshot<DocumentData>) => {
+  const processQuerySnapshot = (querySnapshot: QuerySnapshot<DocumentData>, selectFields = false) => {
     const fetchedReminders: Reminder[] = [];
     
     querySnapshot.forEach((doc) => {
@@ -49,13 +63,30 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
           ? data.completedAt.toDate() 
           : data.completedAt ? new Date(data.completedAt) : undefined;
         
-        const reminder: Reminder = {
-          ...data,
-          id: doc.id,
-          dueDate,
-          createdAt,
-          completedAt
-        } as Reminder;
+        let reminder: Reminder;
+        
+        if (selectFields) {
+          // For list views, only select the necessary fields
+          reminder = {
+            id: doc.id,
+            title: data.title,
+            description: data.description || "",  // Include minimal description for preview
+            dueDate,
+            priority: data.priority,
+            completed: data.completed || false,
+            completedAt,
+            createdAt
+          } as Reminder;
+        } else {
+          // For detailed views, select all fields
+          reminder = {
+            ...data,
+            id: doc.id,
+            dueDate,
+            createdAt,
+            completedAt
+          } as Reminder;
+        }
         
         fetchedReminders.push(reminder);
       } catch (err) {
@@ -66,6 +97,58 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
     
     return fetchedReminders;
   };
+  
+  // Load a specific reminder with all fields
+  const loadReminderDetail = useCallback(async (reminderId: string) => {
+    if (!user || !isReady || !db) return null;
+    
+    // Check cache first
+    const cachedReminder = getDetailedReminder(reminderId);
+    if (cachedReminder) {
+      console.log(`Using cached detail for reminder ${reminderId}`);
+      return cachedReminder;
+    }
+    
+    try {
+      const reminderRef = doc(db, "reminders", reminderId);
+      const reminderSnap = await getDoc(reminderRef);
+      
+      if (reminderSnap.exists()) {
+        const data = reminderSnap.data();
+        
+        // Process fields
+        const dueDate = data.dueDate instanceof Timestamp 
+          ? data.dueDate.toDate() 
+          : new Date(data.dueDate);
+          
+        const createdAt = data.createdAt instanceof Timestamp 
+          ? data.createdAt.toDate() 
+          : data.createdAt ? new Date(data.createdAt) : new Date();
+          
+        const completedAt = data.completedAt instanceof Timestamp 
+          ? data.completedAt.toDate() 
+          : data.completedAt ? new Date(data.completedAt) : undefined;
+        
+        const reminder: Reminder = {
+          ...data,
+          id: reminderSnap.id,
+          dueDate,
+          createdAt,
+          completedAt
+        } as Reminder;
+        
+        // Cache the detailed reminder
+        cacheReminderDetail(reminder);
+        
+        return reminder;
+      }
+      
+      return null;
+    } catch (err) {
+      console.error(`Error loading detail for reminder ${reminderId}:`, err);
+      return null;
+    }
+  }, [user, isReady, db, getDetailedReminder, cacheReminderDetail]);
   
   // Fetch reminders with cache support
   const fetchReminders = useCallback(async (isRefresh = false) => {
@@ -179,7 +262,11 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
       );
       
       try {
-        const querySnapshot = await getDocs(q);
+        // For better performance, use getDocsFromServer for refreshes (bypass cache)
+        // and regular getDocs for initial loads (leverage Firestore cache)
+        const querySnapshot = isRefresh 
+          ? await getDocsFromServer(q)
+          : await getDocs(q);
         
         if (!querySnapshot.empty) {
           setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
@@ -189,7 +276,8 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
           setHasMore(false);
         }
         
-        const fetchedReminders = processQuerySnapshot(querySnapshot);
+        // Use index-only queries for list views
+        const fetchedReminders = processQuerySnapshot(querySnapshot, true);
         
         const endTime = performance.now();
         console.log(`Fetched ${fetchedReminders.length} reminders in ${(endTime - startTime).toFixed(2)}ms`);
@@ -279,7 +367,8 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
         setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
         setHasMore(querySnapshot.size === BATCH_SIZE);
         
-        const newReminders = processQuerySnapshot(querySnapshot);
+        // Use index-only queries for list views
+        const newReminders = processQuerySnapshot(querySnapshot, true);
         // Use functional update to avoid race conditions
         setReminders(prev => [...prev, ...newReminders]);
       } else {
@@ -318,6 +407,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
     isRefreshing,
     fetchReminders,
     loadMoreReminders,
-    refreshReminders
+    refreshReminders,
+    loadReminderDetail
   };
 }

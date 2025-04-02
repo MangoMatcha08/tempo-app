@@ -5,6 +5,7 @@ import { useFirestore } from "@/contexts/FirestoreContext";
 import { useReminderQuery } from "./reminder-query";
 import { useReminderFilters } from "./reminder-filters";
 import { useReminderOperations } from "./reminder-operations";
+import { Reminder } from "@/types/reminderTypes";
 
 export function useReminders() {
   const [error, setError] = useState<Error | null>(null);
@@ -31,7 +32,8 @@ export function useReminders() {
     isRefreshing,
     fetchReminders,
     loadMoreReminders,
-    refreshReminders
+    refreshReminders,
+    loadReminderDetail
   } = useReminderQuery(user, db, isReady);
   
   // Handle query errors
@@ -94,6 +96,11 @@ export function useReminders() {
   const updateReminder = useCallback((reminder: any) => {
     return updateReminderBase(reminder, setReminders);
   }, [updateReminderBase]);
+  
+  // Function to load detailed reminder data when needed
+  const getDetailedReminder = useCallback((id: string) => {
+    return loadReminderDetail(id);
+  }, [loadReminderDetail]);
 
   return {
     reminders,
@@ -110,6 +117,7 @@ export function useReminders() {
     loadMoreReminders,
     refreshReminders,
     hasMore,
-    totalCount
+    totalCount,
+    getDetailedReminder
   };
 }

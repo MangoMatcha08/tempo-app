@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Reminder } from "@/types/reminderTypes";
 import { 
@@ -208,9 +209,11 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
   };
 
   const updateReminder = async (updatedReminder: Reminder, setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>) => {
+    // Fix: Declare originalReminder outside the try block
+    let originalReminder: Reminder | undefined;
+    
     try {
-      let originalReminder: Reminder | undefined;
-      
+      // First find the original reminder before updating state
       setReminders(prev => {
         originalReminder = prev.find(r => r.id === updatedReminder.id);
         
@@ -251,6 +254,7 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
       console.error("Error updating reminder:", error);
       setError(error);
       
+      // Now originalReminder is accessible here
       if (originalReminder) {
         setReminders(prev => {
           const newReminders = prev.map(reminder => 
