@@ -26,6 +26,7 @@ import { ReminderPriority, ReminderCategory } from "@/types/reminderTypes";
 import { mockPeriods } from "@/utils/reminderUtils";
 import { Reminder as UIReminder } from "@/types/reminder";
 import { convertToUIReminder } from "@/utils/typeUtils";
+import { useToast } from "@/hooks/use-toast";
 
 interface QuickReminderModalProps {
   open: boolean;
@@ -40,6 +41,7 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
   const [priority, setPriority] = useState<ReminderPriority>(ReminderPriority.MEDIUM);
   const [category, setCategory] = useState<ReminderCategory>(ReminderCategory.TASK);
   const [periodId, setPeriodId] = useState<string>("none");
+  const { toast } = useToast();
   
   // Reset form when modal opens
   useEffect(() => {
@@ -54,7 +56,14 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
   }, [open]);
   
   const handleSubmit = () => {
-    if (!title.trim()) return;
+    if (!title.trim()) {
+      toast({
+        title: "Title Required",
+        description: "Please enter a title for your reminder",
+        variant: "destructive"
+      });
+      return;
+    }
     
     try {
       // Get current time for comparison
@@ -95,6 +104,12 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
       
       console.log("Created new quick reminder:", newReminder);
       
+      // Show success toast
+      toast({
+        title: "Reminder Created",
+        description: `"${title}" has been added to your reminders.`
+      });
+      
       // Convert backend reminder to UI reminder type before passing to callback
       if (onReminderCreated) {
         const uiReminder = convertToUIReminder(newReminder);
@@ -105,6 +120,11 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
       onOpenChange(false);
     } catch (error) {
       console.error("Error creating reminder:", error);
+      toast({
+        title: "Error Creating Reminder",
+        description: "There was a problem creating your reminder.",
+        variant: "destructive"
+      });
     }
   };
 

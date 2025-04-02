@@ -4,6 +4,7 @@ import { Firestore } from 'firebase/firestore';
 import { firebaseApp, getFirestoreInstance } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { isMissingIndexError, getFirestoreIndexCreationUrl } from '@/lib/firebase/indexing';
 
 interface FirestoreContextType {
   db: Firestore | null;
@@ -12,6 +13,7 @@ interface FirestoreContextType {
   isOnline: boolean;
   hasFirestorePermissions: boolean;
   useMockData: boolean;
+  indexesNeeded: Record<string, boolean>;
 }
 
 const FirestoreContext = createContext<FirestoreContextType>({
@@ -20,7 +22,8 @@ const FirestoreContext = createContext<FirestoreContextType>({
   error: null,
   isOnline: true,
   hasFirestorePermissions: true,
-  useMockData: false
+  useMockData: false,
+  indexesNeeded: {}
 });
 
 export const useFirestore = () => useContext(FirestoreContext);
@@ -32,6 +35,7 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [hasFirestorePermissions, setHasFirestorePermissions] = useState(true);
   const [useMockData, setUseMockData] = useState(false);
+  const [indexesNeeded, setIndexesNeeded] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -111,6 +115,17 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             variant: "destructive"
           });
         }
+      } else if (isMissingIndexError(err)) {
+        // Check if this is an index error
+        console.warn('Firestore index issue detected');
+        toast({
+          title: "Firestore Index Required",
+          description: "Create the necessary indexes in the Firebase Console.",
+          duration: 8000,
+        });
+        
+        // Still set the database reference
+        setDb(firestoreInstance);
       }
       
       // Still set db to avoid null checks throughout the app
@@ -124,6 +139,22 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [toast, isTestAccount]);
 
+  // Method to register a needed index
+  const registerNeededIndex = (collectionId: string, fields: string[]) => {
+    setIndexesNeeded(prev => ({ ...prev, [collectionId]: true }));
+    
+    // Generate the URL for creating the index
+    const indexUrl = getFirestoreIndexCreationUrl(collectionId, fields);
+    if (indexUrl) {
+      console.info(`Create index at: ${indexUrl}`);
+      toast({
+        title: "Firestore Index Required",
+        description: `Create the necessary index for ${collectionId} collection to improve performance.`,
+        duration: 8000,
+      });
+    }
+  };
+
   // Memoize the context value to prevent unnecessary renders
   const contextValue = useMemo(() => ({
     db,
@@ -131,8 +162,9 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     error,
     isOnline,
     hasFirestorePermissions,
-    useMockData
-  }), [db, isReady, error, isOnline, hasFirestorePermissions, useMockData]);
+    useMockData,
+    indexesNeeded
+  }), [db, isReady, error, isOnline, hasFirestorePermissions, useMockData, indexesNeeded]);
 
   return (
     <FirestoreContext.Provider value={contextValue}>
@@ -140,3 +172,4 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     </FirestoreContext.Provider>
   );
 };
+
