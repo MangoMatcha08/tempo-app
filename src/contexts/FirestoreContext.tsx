@@ -74,6 +74,9 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       // Initialize Firestore with optimized settings
       const firestoreInstance = getFirestoreInstance();
       
+      // Log the project ID to verify configuration
+      console.log('Firestore project ID:', firebaseApp?.options?.projectId || 'unknown');
+      
       // If no error was thrown, Firestore is ready
       setDb(firestoreInstance);
       setIsReady(true);

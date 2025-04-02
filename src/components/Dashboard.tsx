@@ -65,7 +65,9 @@ const Dashboard = () => {
   } = useBatchOperations(
     user,
     setReminders,
-    setTotalCount
+    setTotalCount,
+    batchCompleteReminders,
+    batchUpdateReminders
   );
 
   // Clean up batch operations on unmount
