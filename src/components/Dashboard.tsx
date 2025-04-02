@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useReminders } from "@/hooks/reminders/use-reminders";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardContent from "@/components/dashboard/DashboardContent";
@@ -18,6 +18,20 @@ const Dashboard = () => {
   const [hasError, setHasError] = useState(false);
   const { toast } = useToast();
   
+  // Reference to store reminders pending batch operations
+  const pendingBatchRef = useRef<{
+    complete: string[];
+    delete: string[];
+    update: UIReminder[];
+  }>({
+    complete: [],
+    delete: [],
+    update: []
+  });
+  
+  // Batch operation timeout reference
+  const batchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   const {
     reminders,
     loading,
@@ -25,6 +39,7 @@ const Dashboard = () => {
     urgentReminders,
     upcomingReminders,
     completedReminders,
+    reminderStats,
     handleCompleteReminder,
     handleUndoComplete,
     addReminder,
@@ -33,7 +48,12 @@ const Dashboard = () => {
     refreshReminders,
     hasMore,
     totalCount,
-    error: reminderError
+    error: reminderError,
+    // Batch operations
+    batchCompleteReminders,
+    batchAddReminders,
+    batchUpdateReminders,
+    batchDeleteReminders
   } = useReminders();
 
   // Update error state based on reminders hook error
@@ -92,13 +112,88 @@ const Dashboard = () => {
       clearInterval(refreshInterval);
     };
   }, [performBackgroundRefresh]);
-
-  // Convert reminders to UI-compatible format with memoization
-  const convertedUrgentReminders = urgentReminders.map(convertToUIReminder);
-  const convertedUpcomingReminders = upcomingReminders.map(convertToUIReminder);
-  const convertedCompletedReminders = completedReminders.map(convertToUIReminder);
-
-  const handleReminderCreated = (reminder: UIReminder) => {
+  
+  // Process batch operations
+  const processBatchOperations = useCallback(() => {
+    const { complete, delete: deleteBatch, update } = pendingBatchRef.current;
+    
+    // Process completing reminders
+    if (complete.length > 0) {
+      console.log(`Processing batch complete for ${complete.length} reminders`);
+      batchCompleteReminders(complete, true)
+        .then(() => {
+          console.log("Batch complete operation successful");
+        })
+        .catch(error => {
+          console.error("Batch complete operation failed:", error);
+        });
+      
+      // Clear the batch
+      pendingBatchRef.current.complete = [];
+    }
+    
+    // Process deleting reminders
+    if (deleteBatch.length > 0) {
+      console.log(`Processing batch delete for ${deleteBatch.length} reminders`);
+      batchDeleteReminders(deleteBatch)
+        .then(success => {
+          if (success) {
+            console.log("Batch delete operation successful");
+          }
+        })
+        .catch(error => {
+          console.error("Batch delete operation failed:", error);
+        });
+      
+      // Clear the batch
+      pendingBatchRef.current.delete = [];
+    }
+    
+    // Process updating reminders
+    if (update.length > 0) {
+      console.log(`Processing batch update for ${update.length} reminders`);
+      
+      // Convert UI reminders to backend reminders
+      const backendReminders = update.map(convertToBackendReminder);
+      
+      batchUpdateReminders(backendReminders)
+        .then(() => {
+          console.log("Batch update operation successful");
+        })
+        .catch(error => {
+          console.error("Batch update operation failed:", error);
+        });
+      
+      // Clear the batch
+      pendingBatchRef.current.update = [];
+    }
+    
+    // Clear the timeout reference
+    batchTimeoutRef.current = null;
+  }, [batchCompleteReminders, batchDeleteReminders, batchUpdateReminders]);
+  
+  // Function to schedule a batch operation
+  const scheduleBatchOperation = useCallback(() => {
+    // If there's already a timeout, don't schedule another one
+    if (batchTimeoutRef.current !== null) return;
+    
+    // Schedule batch processing in 500ms to allow for multiple operations to be batched
+    batchTimeoutRef.current = setTimeout(() => {
+      processBatchOperations();
+    }, 500);
+  }, [processBatchOperations]);
+  
+  // Enhanced reminder operations with batching support
+  const handleBatchedCompleteReminder = useCallback((id: string) => {
+    // For immediate visual feedback, still call the individual operation
+    handleCompleteReminder(id);
+    
+    // Add to batch for efficient processing
+    pendingBatchRef.current.complete.push(id);
+    scheduleBatchOperation();
+  }, [handleCompleteReminder, scheduleBatchOperation]);
+  
+  const handleReminderCreated = useCallback((reminder: UIReminder) => {
     // Convert UI reminder to backend reminder type
     const backendReminder = convertToBackendReminder(reminder);
     
@@ -108,7 +203,7 @@ const Dashboard = () => {
         console.log("Reminder saved successfully:", savedReminder);
         toast({
           title: "Reminder Created",
-          description: `"${reminder.title}" has been added to your reminders.`
+          description: `"${reminder.title}" has been added to your reminders."
         });
         
         // Use refreshReminders instead of background refresh for immediate update
@@ -123,35 +218,23 @@ const Dashboard = () => {
           variant: "destructive"
         });
       });
-  };
-
-  const handleReminderUpdated = (reminder: UIReminder) => {
-    // Convert UI reminder to backend reminder type
-    const backendReminder = convertToBackendReminder(reminder);
+  }, [addReminder, refreshReminders, toast]);
+  
+  const handleBatchedReminderUpdated = useCallback((reminder: UIReminder) => {
+    // For immediate visual feedback, still call the individual operation
+    updateReminder(convertToBackendReminder(reminder));
     
-    // Update the reminder in the list
-    updateReminder(backendReminder)
-      .then(() => {
-        toast({
-          title: "Reminder Updated",
-          description: `"${reminder.title}" has been updated.`
-        });
-        
-        // Use refreshReminders for immediate update
-        refreshReminders();
-      })
-      .catch(error => {
-        console.error("Error updating reminder:", error);
-        setHasError(true);
-        toast({
-          title: "Error Updating Reminder",
-          description: "There was a problem updating your reminder.",
-          variant: "destructive"
-        });
-      });
-  };
+    // Add to batch for efficient processing
+    pendingBatchRef.current.update.push(reminder);
+    scheduleBatchOperation();
+    
+    toast({
+      title: "Reminder Updated",
+      description: `"${reminder.title}" has been updated.`
+    });
+  }, [updateReminder, scheduleBatchOperation, toast]);
 
-  const handleLoadMore = () => {
+  const handleLoadMore = useCallback(() => {
     if (hasMore && !loading) {
       loadMoreReminders().catch(error => {
         console.error("Error loading more reminders:", error);
@@ -163,10 +246,18 @@ const Dashboard = () => {
         });
       });
     }
-  };
+  }, [hasMore, loading, loadMoreReminders, toast]);
+
+  // Clean up batch timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (batchTimeoutRef.current) {
+        clearTimeout(batchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // We're keeping the debugging/testing function call here but not exposing it in the UI
-  // You can call clearCacheAndRefresh() in the console for testing
   useEffect(() => {
     // Expose the function to window for testing in development
     if (process.env.NODE_ENV === 'development') {
@@ -183,17 +274,17 @@ const Dashboard = () => {
 
   return (
     <DashboardLayout>
-      <DashboardHeader title="Tempo Dashboard" />
+      <DashboardHeader title="Tempo Dashboard" stats={reminderStats} />
       
       <DashboardContent 
-        urgentReminders={convertedUrgentReminders}
-        upcomingReminders={convertedUpcomingReminders}
-        completedReminders={convertedCompletedReminders}
-        onCompleteReminder={handleCompleteReminder}
+        urgentReminders={urgentReminders}
+        upcomingReminders={upcomingReminders}
+        completedReminders={completedReminders}
+        onCompleteReminder={handleBatchedCompleteReminder}
         onUndoComplete={handleUndoComplete}
         onNewReminder={() => setShowQuickReminderModal(true)}
         onNewVoiceNote={() => setShowVoiceRecorderModal(true)}
-        onUpdateReminder={handleReminderUpdated}
+        onUpdateReminder={handleBatchedReminderUpdated}
         isLoading={loading}
         hasError={hasError}
         hasMoreReminders={hasMore}
