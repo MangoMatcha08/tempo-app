@@ -11,3 +11,4 @@ export * from './reminder-filters';
 export * from './reminder-formatting';
 export * from './reminder-transformations';
 export * from './reminder-stats';
+export * from './use-batch-operations';

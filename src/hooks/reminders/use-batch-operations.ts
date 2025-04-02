@@ -1,21 +1,30 @@
 
 import { useCallback, useRef } from "react";
-import { Reminder as UIReminder } from "@/types/reminder";
-import { convertToBackendReminder } from "@/utils/typeUtils";
+import { Reminder } from "@/types/reminderTypes"; 
+import { useBatchReminderOperations } from "./operations-batch";
 
 /**
  * Hook for efficiently handling batched reminder operations
  */
 export function useBatchOperations(
-  batchCompleteReminders: (ids: string[], completed: boolean) => Promise<boolean>,
-  batchDeleteReminders: (ids: string[]) => Promise<boolean>,
-  batchUpdateReminders: (reminders: any[]) => Promise<boolean>
+  user: any, 
+  db: any, 
+  isReady: boolean,
+  setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>,
+  setTotalCount: React.Dispatch<React.SetStateAction<number>>
 ) {
+  // Get batch operations from our new specialized hook
+  const {
+    batchCompleteReminders,
+    batchDeleteReminders,
+    batchUpdateReminders
+  } = useBatchReminderOperations(user, db, isReady);
+  
   // Reference to store reminders pending batch operations
   const pendingBatchRef = useRef<{
     complete: string[];
     delete: string[];
-    update: UIReminder[];
+    update: Reminder[];
   }>({
     complete: [],
     delete: [],
@@ -34,7 +43,7 @@ export function useBatchOperations(
     if (complete.length > 0) {
       console.log(`Processing batch complete for ${complete.length} reminders`);
       try {
-        const success = await batchCompleteReminders(complete, true);
+        const success = await batchCompleteReminders(complete, true, setReminders);
         if (success) {
           console.log("Batch complete operation successful");
         } else {
@@ -54,7 +63,7 @@ export function useBatchOperations(
     if (deleteBatch.length > 0) {
       console.log(`Processing batch delete for ${deleteBatch.length} reminders`);
       try {
-        const success = await batchDeleteReminders(deleteBatch);
+        const success = await batchDeleteReminders(deleteBatch, setReminders, setTotalCount);
         if (success) {
           console.log("Batch delete operation successful");
         } else {
@@ -74,11 +83,8 @@ export function useBatchOperations(
     if (update.length > 0) {
       console.log(`Processing batch update for ${update.length} reminders`);
       
-      // Convert UI reminders to backend reminders
-      const backendReminders = update.map(convertToBackendReminder);
-      
       try {
-        const success = await batchUpdateReminders(backendReminders);
+        const success = await batchUpdateReminders(update, setReminders);
         if (success) {
           console.log("Batch update operation successful");
         } else {
@@ -98,7 +104,7 @@ export function useBatchOperations(
     batchTimeoutRef.current = null;
     
     return allSuccessful;
-  }, [batchCompleteReminders, batchDeleteReminders, batchUpdateReminders]);
+  }, [batchCompleteReminders, batchDeleteReminders, batchUpdateReminders, setReminders, setTotalCount]);
   
   // Function to schedule a batch operation
   const scheduleBatchOperation = useCallback(() => {
@@ -124,7 +130,7 @@ export function useBatchOperations(
   }, [scheduleBatchOperation]);
 
   // Function to add a reminder to the update batch
-  const addToBatchUpdate = useCallback((reminder: UIReminder) => {
+  const addToBatchUpdate = useCallback((reminder: Reminder) => {
     pendingBatchRef.current.update.push(reminder);
     scheduleBatchOperation();
   }, [scheduleBatchOperation]);
