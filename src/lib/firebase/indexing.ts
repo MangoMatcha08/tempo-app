@@ -13,7 +13,7 @@ export const getFirestoreIndexCreationUrl = (collectionId: string, fields: strin
   return `https://console.firebase.google.com/project/${projectId}/firestore/indexes?create_composite=${encodedFields}&collection=${collectionId}`;
 };
 
-// Helper to detect if there's a missing index error
+// Helper to detect if there's a missing index
 export const isMissingIndexError = (error: any): boolean => {
   if (!error) return false;
   
@@ -22,39 +22,33 @@ export const isMissingIndexError = (error: any): boolean => {
     : error.message || String(error);
     
   return (
-    (errorMessage.includes('index') && errorMessage.includes('required')) || 
-    errorMessage.includes('9 FAILED_PRECONDITION') ||
-    errorMessage.includes('missing index') ||
-    (errorMessage.includes('FAILED_PRECONDITION') && errorMessage.includes('index'))
+    errorMessage.includes('index') && 
+    (errorMessage.includes('required') || errorMessage.includes('needs')) || 
+    errorMessage.includes('9 FAILED_PRECONDITION')
   );
 };
 
-// Parse Firestore error to extract required index fields
-export const parseIndexRequiredError = (error: any): string[] | null => {
-  if (!error) return null;
+// Extract index URL from error message if available
+export const extractIndexUrlFromError = (errorMessage: string): string | null => {
+  if (!errorMessage) return null;
   
-  const errorMessage = typeof error === 'string' 
-    ? error 
-    : error.message || String(error);
-  
-  // Try to extract the field paths from the error message
-  try {
-    // This pattern looks for text between "for collection group" and the end
-    const matchCollection = errorMessage.match(/for collection group \[([^\]]+)\]/);
-    if (!matchCollection) return null;
-    
-    // Try to find the fields pattern which usually comes after "with composite index"
-    const fieldsPattern = /composite index \[(.*?)\]/;
-    const fieldsMatch = errorMessage.match(fieldsPattern);
-    
-    if (fieldsMatch && fieldsMatch[1]) {
-      // Parse the field paths from the error message
-      return fieldsMatch[1].split(',').map(field => field.trim());
+  if (errorMessage.includes('https://console.firebase.google.com')) {
+    try {
+      const url = errorMessage.substring(
+        errorMessage.indexOf('https://console.firebase.google.com'),
+        errorMessage.length
+      );
+      
+      // Clean up any trailing characters
+      if (url.includes('\n')) {
+        return url.substring(0, url.indexOf('\n'));
+      }
+      
+      return url;
+    } catch (e) {
+      console.error('Error extracting index URL:', e);
     }
-  } catch (e) {
-    console.error("Error parsing index fields from error:", e);
   }
   
   return null;
 };
-

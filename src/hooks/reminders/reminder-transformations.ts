@@ -1,92 +1,88 @@
 
 import { Reminder } from "@/types/reminderTypes";
-import { formatDistanceToNow, isSameDay, isToday, isYesterday, isTomorrow } from "date-fns";
-
-// Type for UI enhanced reminder (with formatted strings)
-export interface UIEnhancedReminder extends Reminder {
-  timeRemaining?: string;
-  formattedDate?: string; 
-  completedTimeAgo?: string;
-}
+import { formatDistanceToNow, isBefore, isToday, isTomorrow, isYesterday, format } from 'date-fns';
 
 /**
- * Transform reminders by adding UI-specific properties
+ * Transforms reminders for display, sorting by due date
  */
-export const transformReminders = (reminders: Reminder[]): UIEnhancedReminder[] => {
-  return reminders.map(reminder => {
-    const uiReminder: UIEnhancedReminder = { ...reminder };
-    
-    // Add timeRemaining property
-    if (reminder.dueDate) {
-      uiReminder.timeRemaining = formatDistanceToNow(reminder.dueDate, { addSuffix: true });
-    }
-    
-    // Add formattedDate property
-    if (reminder.dueDate) {
-      if (isToday(reminder.dueDate)) {
-        uiReminder.formattedDate = "Today";
-      } else if (isTomorrow(reminder.dueDate)) {
-        uiReminder.formattedDate = "Tomorrow";
-      } else if (isYesterday(reminder.dueDate)) {
-        uiReminder.formattedDate = "Yesterday";
-      } else {
-        const options: Intl.DateTimeFormatOptions = { 
-          month: 'short', 
-          day: 'numeric',
-          year: new Date().getFullYear() !== reminder.dueDate.getFullYear() ? 'numeric' : undefined
-        };
-        uiReminder.formattedDate = reminder.dueDate.toLocaleDateString(undefined, options);
-      }
-    }
-    
-    // Add completedTimeAgo property
-    if (reminder.completed && reminder.completedAt) {
-      uiReminder.completedTimeAgo = formatDistanceToNow(reminder.completedAt, { addSuffix: true });
-    }
-    
-    return uiReminder;
-  });
+export const transformReminders = (reminders: Reminder[]): Reminder[] => {
+  return [...reminders].sort((a, b) => 
+    new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+  );
 };
 
 /**
- * Filter for urgent reminders (due today or overdue)
+ * Filters reminders that are due soon (within 3 days)
  */
-export const filterUrgentReminders = (reminders: UIEnhancedReminder[]): UIEnhancedReminder[] => {
+export const filterUrgentReminders = (reminders: Reminder[]): Reminder[] => {
   const now = new Date();
-  return reminders
-    .filter(reminder => 
-      !reminder.completed && 
-      (isToday(reminder.dueDate) || reminder.dueDate < now)
-    )
-    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-};
-
-/**
- * Filter for upcoming reminders (not due today and not overdue)
- */
-export const filterUpcomingReminders = (reminders: UIEnhancedReminder[]): UIEnhancedReminder[] => {
-  const now = new Date();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(now.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0);
+  const threeDaysFromNow = new Date(now);
+  threeDaysFromNow.setDate(now.getDate() + 3);
   
-  return reminders
-    .filter(reminder => 
-      !reminder.completed && 
-      !isToday(reminder.dueDate) && 
-      reminder.dueDate >= tomorrow
-    )
-    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+  return reminders.filter(reminder => 
+    !reminder.completed && 
+    new Date(reminder.dueDate) <= threeDaysFromNow
+  );
 };
 
 /**
- * Filter for completed reminders
+ * Filters reminders that are due later (more than 3 days from now)
  */
-export const filterCompletedReminders = (reminders: UIEnhancedReminder[]): UIEnhancedReminder[] => {
-  return reminders
-    .filter(reminder => reminder.completed)
-    .sort((a, b) => {
-      if (!a.completedAt || !b.completedAt) return 0;
-      return b.completedAt.getTime() - a.completedAt.getTime();
-    });
+export const filterUpcomingReminders = (reminders: Reminder[]): Reminder[] => {
+  const now = new Date();
+  const threeDaysFromNow = new Date(now);
+  threeDaysFromNow.setDate(now.getDate() + 3);
+  
+  return reminders.filter(reminder => 
+    !reminder.completed && 
+    new Date(reminder.dueDate) > threeDaysFromNow
+  );
+};
+
+/**
+ * Filters completed reminders
+ */
+export const filterCompletedReminders = (reminders: Reminder[]): Reminder[] => {
+  return reminders.filter(reminder => reminder.completed);
+};
+
+/**
+ * Add formatted time information to reminders
+ */
+export const enhanceRemindersWithTimeInfo = (reminders: Reminder[]) => {
+  return reminders.map(reminder => {
+    const dueDate = new Date(reminder.dueDate);
+    const now = new Date();
+    
+    let timeRemaining = '';
+    let formattedDate = '';
+    
+    if (isToday(dueDate)) {
+      formattedDate = 'Today';
+    } else if (isTomorrow(dueDate)) {
+      formattedDate = 'Tomorrow';
+    } else if (isYesterday(dueDate)) {
+      formattedDate = 'Yesterday';
+    } else {
+      formattedDate = format(dueDate, 'EEE, MMM d');
+    }
+    
+    if (isBefore(dueDate, now) && !reminder.completed) {
+      timeRemaining = `Overdue by ${formatDistanceToNow(dueDate)}`;
+    } else if (!reminder.completed) {
+      timeRemaining = `Due in ${formatDistanceToNow(dueDate)}`;
+    }
+    
+    let completedTimeAgo = '';
+    if (reminder.completed && reminder.completedAt) {
+      completedTimeAgo = `Completed ${formatDistanceToNow(new Date(reminder.completedAt))} ago`;
+    }
+    
+    return {
+      ...reminder,
+      timeRemaining,
+      formattedDate,
+      completedTimeAgo
+    };
+  });
 };

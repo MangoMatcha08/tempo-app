@@ -1,39 +1,56 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { collection, Firestore, query, where, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocs, Timestamp, Firestore } from 'firebase/firestore';
 import { Reminder } from '@/types/reminderTypes';
 import { useFirestore } from '@/contexts/FirestoreContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useReminderOperations } from './reminder-operations';
-import { useReminderQueryCore } from './use-reminder-query-core';
 import { useReminderCache } from './use-reminder-cache';
 import { useFirestoreIndexes } from './use-firestore-indexes';
-import { 
-  transformReminders, 
-  filterUrgentReminders, 
-  filterUpcomingReminders, 
-  filterCompletedReminders 
-} from './reminder-transformations';
 import { calculateReminderStats } from './reminder-stats';
+
+// Helper functions for filtering reminders
+const transformReminders = (reminders: Reminder[]): Reminder[] => {
+  return [...reminders].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+};
+
+const filterUrgentReminders = (reminders: Reminder[]): Reminder[] => {
+  const now = new Date();
+  const threeDaysFromNow = new Date(now);
+  threeDaysFromNow.setDate(now.getDate() + 3);
+  
+  return reminders.filter(reminder => 
+    !reminder.completed && 
+    new Date(reminder.dueDate) <= threeDaysFromNow
+  );
+};
+
+const filterUpcomingReminders = (reminders: Reminder[]): Reminder[] => {
+  const now = new Date();
+  const threeDaysFromNow = new Date(now);
+  threeDaysFromNow.setDate(now.getDate() + 3);
+  
+  return reminders.filter(reminder => 
+    !reminder.completed && 
+    new Date(reminder.dueDate) > threeDaysFromNow
+  );
+};
+
+const filterCompletedReminders = (reminders: Reminder[]): Reminder[] => {
+  return reminders.filter(reminder => reminder.completed);
+};
 
 export const useReminders = () => {
   const { user } = useAuth();
-  const { db, isReady } = useFirestore();
+  const { db, isReady, registerNeededIndex } = useFirestore();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [hasMore, setHasMore] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [useSimpleQuery, setUseSimpleQuery] = useState<boolean>(false);
   
-  // Get cached reminders
-  const { 
-    getCachedReminders, 
-    setCachedReminders, 
-    clearReminderCache,
-    isCacheStale 
-  } = useReminderCache();
-
   // Get reminder operations
   const {
     handleCompleteReminder,
@@ -51,6 +68,14 @@ export const useReminders = () => {
   // Use useFirestoreIndexes hook
   const firestoreIndexes = useFirestoreIndexes();
   
+  // Cache related functions
+  const {
+    getCachedReminderList: getCachedReminders,
+    cacheReminderList: setCachedReminders,
+    invalidateUserCache: clearReminderCache,
+    isUserCacheStale: isCacheStale
+  } = useReminderCache();
+
   // Create fetchReminders function
   const fetchReminders = useCallback(async (lastItem?: Reminder) => {
     if (!isReady || !user || !db) {
@@ -61,12 +86,24 @@ export const useReminders = () => {
       const remindersRef = collection(db, 'reminders');
       
       // Create query
-      let remindersQuery = query(
-        remindersRef,
-        where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc'),
-        limit(20)
-      );
+      let remindersQuery;
+      
+      if (useSimpleQuery) {
+        // Use a simpler query without complex sorting if we've had index errors
+        remindersQuery = query(
+          remindersRef,
+          where('userId', '==', user.uid)
+        );
+        console.log("Using simple query without ordering due to previous index errors");
+      } else {
+        // Use the full query with ordering
+        remindersQuery = query(
+          remindersRef,
+          where('userId', '==', user.uid),
+          orderBy('createdAt', 'desc'),
+          limit(20)
+        );
+      }
       
       // Get documents
       const snapshot = await getDocs(remindersQuery);
@@ -90,12 +127,62 @@ export const useReminders = () => {
         });
       });
       
+      // For simple query, sort client-side
+      if (useSimpleQuery) {
+        fetchedReminders.sort((a, b) => 
+          b.createdAt.getTime() - a.createdAt.getTime()
+        );
+      }
+      
       return fetchedReminders;
     } catch (error) {
       console.error('Error fetching reminders:', error);
+      
+      // Check if it's an index error
+      const errorMessage = String(error);
+      if (errorMessage.includes('index') && errorMessage.includes('required')) {
+        console.log("Index error detected, switching to simple query");
+        setUseSimpleQuery(true);
+        registerNeededIndex('reminders', ['userId', 'createdAt']);
+        
+        // Try again with simple query
+        const remindersRef = collection(db, 'reminders');
+        const simpleQuery = query(
+          remindersRef,
+          where('userId', '==', user.uid)
+        );
+        
+        const snapshot = await getDocs(simpleQuery);
+        const recoveredReminders: Reminder[] = [];
+        
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          recoveredReminders.push({
+            id: doc.id,
+            title: data.title,
+            description: data.description || '',
+            dueDate: data.dueDate instanceof Timestamp ? data.dueDate.toDate() : new Date(data.dueDate),
+            priority: data.priority,
+            completed: data.completed || false,
+            completedAt: data.completedAt ? 
+              (data.completedAt instanceof Timestamp ? data.completedAt.toDate() : new Date(data.completedAt)) 
+              : undefined,
+            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
+            userId: data.userId
+          });
+        });
+        
+        // Sort client-side
+        recoveredReminders.sort((a, b) => 
+          b.createdAt.getTime() - a.createdAt.getTime()
+        );
+        
+        return recoveredReminders;
+      }
+      
       throw error;
     }
-  }, [db, isReady, user]);
+  }, [db, isReady, user, useSimpleQuery, registerNeededIndex]);
 
   // Create fetchReminderCount function
   const fetchReminderCount = useCallback(async () => {
@@ -118,7 +205,7 @@ export const useReminders = () => {
 
   // Create getReminderById function
   const getReminderById = useCallback(async (id: string) => {
-    // Implementation left as an exercise as it's not used in the errors
+    // Not implemented yet as it's not being used
     return null;
   }, []);
 
@@ -154,15 +241,15 @@ export const useReminders = () => {
     console.log('Initiating initial fetch of reminders');
     
     // First check cache
-    const cachedData = getCachedReminders();
-    if (cachedData.reminders.length > 0) {
-      console.log(`Using cached reminders: ${cachedData.reminders.length}`);
-      setReminders(cachedData.reminders);
-      setTotalCount(cachedData.totalCount || cachedData.reminders.length);
+    const cachedData = getCachedReminders(`${user.uid}-reminders`);
+    if (cachedData && cachedData.length > 0) {
+      console.log(`Using cached reminders: ${cachedData.length}`);
+      setReminders(cachedData);
+      setTotalCount(cachedData.length);
       setLoading(false);
       
       // If cache is stale, refresh in background
-      if (isCacheStale()) {
+      if (isCacheStale(user.uid)) {
         console.log('Background fetching latest data...');
         setIsRefreshing(true);
         refreshReminders().finally(() => {
@@ -198,14 +285,14 @@ export const useReminders = () => {
         setReminders(fetchedReminders);
         
         // Save to cache
-        setCachedReminders(fetchedReminders, totalCount || fetchedReminders.length);
+        setCachedReminders(`${user.uid}-reminders`, fetchedReminders);
       } else {
         // If loading more, append reminders
         setReminders(prev => {
           const newList = [...prev, ...fetchedReminders];
           
           // Save to cache
-          setCachedReminders(newList, totalCount || newList.length);
+          setCachedReminders(`${user.uid}-reminders`, newList);
           
           return newList;
         });
@@ -235,7 +322,7 @@ export const useReminders = () => {
     } finally {
       setLoading(false);
     }
-  }, [isReady, user, db, fetchReminders, fetchReminderCount, setCachedReminders, totalCount]);
+  }, [isReady, user, db, fetchReminders, fetchReminderCount, setCachedReminders]);
 
   // Load more reminders
   const loadMoreReminders = useCallback(async () => {
@@ -288,8 +375,8 @@ export const useReminders = () => {
         
         // Update cache
         setCachedReminders(
-          reminders.map(r => r.id === optimisticId ? result : r),
-          totalCount + 1
+          `${user.uid}-reminders`,
+          reminders.map(r => r.id === optimisticId ? result : r)
         );
         
         return result;
@@ -303,7 +390,7 @@ export const useReminders = () => {
       setError(err instanceof Error ? err : new Error(String(err)));
       return null;
     }
-  }, [user, addReminder, setCachedReminders, reminders, totalCount]);
+  }, [user, addReminder, setCachedReminders, reminders]);
 
   return {
     reminders,
@@ -321,7 +408,7 @@ export const useReminders = () => {
     deleteReminder,
     loadMoreReminders,
     refreshReminders,
-    clearReminderCache,
+    clearReminderCache: () => user ? clearReminderCache(user.uid) : null,
     hasMore,
     totalCount,
     // Expose state setters for batch operations
