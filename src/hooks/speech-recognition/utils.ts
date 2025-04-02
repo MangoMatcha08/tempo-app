@@ -1,4 +1,3 @@
-
 // Speech recognition utility functions
 // Browser compatibility helpers for Web Speech API
 
@@ -82,5 +81,32 @@ export const createMockSpeechEvent = (transcript: string): any => {
     results: [
       [{ transcript, isFinal: true }]
     ]
+  };
+};
+
+/**
+ * Creates a debounced function that delays invoking func until after wait milliseconds
+ * @param func The function to debounce
+ * @param wait The number of milliseconds to delay
+ * @returns Debounced function
+ */
+export const debounce = <T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): ((...args: Parameters<T>) => void) => {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  
+  return function(this: any, ...args: Parameters<T>) {
+    const context = this;
+    
+    const later = () => {
+      timeout = null;
+      func.apply(context, args);
+    };
+    
+    if (timeout !== null) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(later, wait);
   };
 };
