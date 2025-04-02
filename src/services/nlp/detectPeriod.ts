@@ -6,44 +6,78 @@ export const detectPeriod = (text: string): { periodId?: string, isNewPeriod: bo
   const lowercaseText = text.toLowerCase();
   const result = { periodId: undefined as string | undefined, isNewPeriod: false, periodName: undefined as string | undefined };
   
-  // Check for 'before school' or 'after school' periods
-  if (lowercaseText.includes('before school') || 
-      lowercaseText.includes('morning') || 
-      lowercaseText.includes('early morning')) {
-    // Look for existing 'Before School' period
-    const beforeSchoolPeriod = mockPeriods.find(p => 
-      p.name.toLowerCase().includes('before school') || 
-      p.name.toLowerCase().includes('morning')
-    );
-    
-    if (beforeSchoolPeriod) {
-      result.periodId = beforeSchoolPeriod.id;
-      return result;
-    } else {
-      // This is a new period
-      result.isNewPeriod = true;
-      result.periodName = 'Before School';
-      return result;
+  console.log("Detecting period from text:", lowercaseText);
+  
+  // Check for 'before school' or 'after school' periods with more variations
+  const afterSchoolPatterns = [
+    'after school', 
+    'afterschool', 
+    'end of day', 
+    'end of the day',
+    'afternoon',
+    'after class',
+    'after classes',
+    'post school',
+    'when school ends',
+    'when school is over'
+  ];
+  
+  // Check for after school patterns
+  for (const pattern of afterSchoolPatterns) {
+    if (lowercaseText.includes(pattern)) {
+      console.log(`Detected after school pattern: ${pattern}`);
+      // Look for existing 'After School' period
+      const afterSchoolPeriod = mockPeriods.find(p => 
+        p.name.toLowerCase().includes('after school') ||
+        p.name.toLowerCase() === 'after school'
+      );
+      
+      if (afterSchoolPeriod) {
+        console.log("Found existing After School period:", afterSchoolPeriod);
+        result.periodId = afterSchoolPeriod.id;
+        return result;
+      } else {
+        // This is a new period
+        console.log("Creating new After School period");
+        result.isNewPeriod = true;
+        result.periodName = 'After School';
+        return result;
+      }
     }
   }
   
-  if (lowercaseText.includes('after school') || 
-      lowercaseText.includes('afterschool') || 
-      lowercaseText.includes('end of day') ||
-      lowercaseText.includes('afternoon')) {
-    // Look for existing 'After School' period
-    const afterSchoolPeriod = mockPeriods.find(p => 
-      p.name.toLowerCase().includes('after school')
-    );
-    
-    if (afterSchoolPeriod) {
-      result.periodId = afterSchoolPeriod.id;
-      return result;
-    } else {
-      // This is a new period
-      result.isNewPeriod = true;
-      result.periodName = 'After School';
-      return result;
+  const beforeSchoolPatterns = [
+    'before school',
+    'beforeschool',
+    'morning',
+    'early morning',
+    'start of day',
+    'start of the day',
+    'before class',
+    'before classes'
+  ];
+  
+  // Check for before school patterns
+  for (const pattern of beforeSchoolPatterns) {
+    if (lowercaseText.includes(pattern)) {
+      console.log(`Detected before school pattern: ${pattern}`);
+      // Look for existing 'Before School' period
+      const beforeSchoolPeriod = mockPeriods.find(p => 
+        p.name.toLowerCase().includes('before school') || 
+        p.name.toLowerCase().includes('morning')
+      );
+      
+      if (beforeSchoolPeriod) {
+        console.log("Found existing Before School period:", beforeSchoolPeriod);
+        result.periodId = beforeSchoolPeriod.id;
+        return result;
+      } else {
+        // This is a new period
+        console.log("Creating new Before School period");
+        result.isNewPeriod = true;
+        result.periodName = 'Before School';
+        return result;
+      }
     }
   }
   
@@ -165,6 +199,7 @@ export const detectPeriod = (text: string): { periodId?: string, isNewPeriod: bo
     }
   }
   
+  console.log("No period detected in text");
   // No period detected
   return result;
 };

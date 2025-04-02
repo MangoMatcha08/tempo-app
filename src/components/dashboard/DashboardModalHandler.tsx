@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import DashboardModals from "@/components/dashboard/DashboardModals";
 import { Reminder as UIReminder } from "@/types/reminder";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +19,7 @@ const DashboardModalHandler = ({
   const [showQuickReminderModal, setShowQuickReminderModal] = useState(false);
   const [showVoiceRecorderModal, setShowVoiceRecorderModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submissionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
   const handleReminderCreated = useCallback(async (reminder: UIReminder) => {
@@ -29,7 +30,16 @@ const DashboardModalHandler = ({
       return null;
     }
     
+    // Set submitting state and create a timeout to reset it after 5 seconds as a failsafe
     setIsSubmitting(true);
+    if (submissionTimeoutRef.current) {
+      clearTimeout(submissionTimeoutRef.current);
+    }
+    
+    submissionTimeoutRef.current = setTimeout(() => {
+      setIsSubmitting(false);
+      submissionTimeoutRef.current = null;
+    }, 5000);
     
     try {
       // Convert UI reminder to backend reminder type
@@ -61,9 +71,23 @@ const DashboardModalHandler = ({
       });
       throw error;
     } finally {
+      // Clean up timeout and reset state
+      if (submissionTimeoutRef.current) {
+        clearTimeout(submissionTimeoutRef.current);
+        submissionTimeoutRef.current = null;
+      }
       setIsSubmitting(false);
     }
   }, [addReminder, refreshReminders, toast, isSubmitting]);
+
+  // Clean up on unmount
+  useCallback(() => {
+    return () => {
+      if (submissionTimeoutRef.current) {
+        clearTimeout(submissionTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const openQuickReminderModal = useCallback(() => {
     console.log("Opening quick reminder modal");

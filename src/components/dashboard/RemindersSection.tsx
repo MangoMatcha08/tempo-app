@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle } from "lucide-react";
 import ReminderCard from "./ReminderCard";
 import ReminderListItem from "./ReminderListItem";
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState, useEffect } from "react";
 import { FixedSizeList as List } from 'react-window';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -62,24 +62,36 @@ const RemindersSection = memo(({
   onEditReminder
 }: RemindersSectionProps) => {
   const isMobile = useIsMobile();
+  const [stableUrgent, setStableUrgent] = useState(urgentReminders);
+  const [stableUpcoming, setStableUpcoming] = useState(upcomingReminders);
+  
+  // Use effect to stabilize the lists and prevent flickering
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setStableUrgent(urgentReminders);
+      setStableUpcoming(upcomingReminders);
+    }, 300); // Short delay to avoid flickering
+    
+    return () => clearTimeout(timer);
+  }, [urgentReminders, upcomingReminders]);
   
   // Determine if there are no reminders to show
-  const noReminders = urgentReminders.length === 0 && upcomingReminders.length === 0;
+  const noReminders = stableUrgent.length === 0 && stableUpcoming.length === 0;
   
   // Memoize list data to prevent unnecessary rerenders
   const listData = useMemo(() => ({
-    items: upcomingReminders,
+    items: stableUpcoming,
     onComplete: onCompleteReminder,
     onEdit: onEditReminder
-  }), [upcomingReminders, onCompleteReminder, onEditReminder]);
+  }), [stableUpcoming, onCompleteReminder, onEditReminder]);
   
   // Calculate list height based on number of items, with a maximum
   const listHeight = useMemo(() => {
     const itemHeight = 64; // Height of each reminder item in pixels
     const maxItems = 5; // Maximum number of items to show before scrolling
-    const count = upcomingReminders.length;
+    const count = stableUpcoming.length;
     return Math.min(count, maxItems) * itemHeight;
-  }, [upcomingReminders.length]);
+  }, [stableUpcoming.length]);
   
   // Adjust row height based on device
   const rowHeight = useMemo(() => isMobile ? 72 : 64, [isMobile]);
@@ -88,9 +100,9 @@ const RemindersSection = memo(({
     <div className="space-y-4">
       <h2 className="text-xl font-bold">Today's Reminders</h2>
       
-      {urgentReminders.length > 0 ? (
+      {stableUrgent.length > 0 ? (
         <div className="space-y-3">
-          {urgentReminders.map((reminder) => (
+          {stableUrgent.map((reminder) => (
             <ReminderCard 
               key={reminder.id} 
               reminder={reminder} 
@@ -107,16 +119,16 @@ const RemindersSection = memo(({
         </div>
       )}
       
-      {upcomingReminders.length > 0 && (
+      {stableUpcoming.length > 0 && (
         <div className="mt-6">
           <h3 className="text-lg font-semibold mb-2">Coming Up Later</h3>
           <Card>
             <CardContent className="p-0 overflow-hidden">
-              {upcomingReminders.length > 10 ? (
+              {stableUpcoming.length > 10 ? (
                 <List
                   height={listHeight}
                   width="100%"
-                  itemCount={upcomingReminders.length}
+                  itemCount={stableUpcoming.length}
                   itemSize={rowHeight}
                   itemData={listData}
                 >
@@ -124,7 +136,7 @@ const RemindersSection = memo(({
                 </List>
               ) : (
                 // For small lists, don't use virtualization to avoid jumping issues
-                upcomingReminders.map((reminder) => (
+                stableUpcoming.map((reminder) => (
                   <ReminderListItem 
                     key={reminder.id} 
                     reminder={reminder} 
