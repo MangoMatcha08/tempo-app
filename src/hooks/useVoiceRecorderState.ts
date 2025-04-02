@@ -64,14 +64,27 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       setPriority(result.reminder.priority || ReminderPriority.MEDIUM);
       setCategory(result.reminder.category || ReminderCategory.TASK);
       setPeriodId(result.reminder.periodId || "none");
+      
+      // Ensure we have a due date (default to tomorrow if not detected)
+      if (!result.reminder.dueDate) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(9, 0, 0, 0);
+        result.reminder.dueDate = tomorrow;
+      }
+      
       setProcessingResult(result);
       
       console.log("Switching to confirmation view with result:", result);
+      
       // First finish processing, then switch to confirmation view
       setIsProcessing(false);
+      
+      // Use setTimeout to ensure state updates properly between transitions
       setTimeout(() => {
+        console.log("Setting view to confirm");
         setView("confirm");
-      }, 300);
+      }, 100);
     } catch (error) {
       console.error('Error processing voice input:', error);
       setIsProcessing(false);
@@ -95,6 +108,16 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     setView("record");
     isConfirmingRef.current = false;
   };
+  
+  // For debugging
+  useEffect(() => {
+    console.log("Voice recorder state changed:", {
+      view, 
+      isProcessing, 
+      hasTranscript: !!transcript,
+      hasResult: !!processingResult
+    });
+  }, [view, transcript, isProcessing, processingResult]);
   
   return {
     title,

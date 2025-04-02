@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import DashboardModals from "@/components/dashboard/DashboardModals";
 import { Reminder as UIReminder } from "@/types/reminder";
 import { useToast } from "@/hooks/use-toast";
@@ -20,42 +20,42 @@ const DashboardModalHandler = ({
   const [showVoiceRecorderModal, setShowVoiceRecorderModal] = useState(false);
   const { toast } = useToast();
 
-  const handleReminderCreated = useCallback((reminder: UIReminder) => {
+  const handleReminderCreated = useCallback(async (reminder: UIReminder) => {
     console.log("Reminder created from modal:", reminder);
     
-    // Convert UI reminder to backend reminder type
-    const backendReminder = convertToBackendReminder(reminder);
-    console.log("Converted to backend reminder:", backendReminder);
-    
-    // Add the new reminder to the list
-    addReminder(backendReminder)
-      .then((savedReminder) => {
-        console.log("Reminder saved successfully:", savedReminder);
-        toast({
-          title: "Reminder Created",
-          description: `"${reminder.title}" has been added to your reminders.`
-        });
-        
-        // Force refresh after adding a reminder
-        setTimeout(() => {
-          console.log("Triggering delayed refresh after adding reminder");
-          refreshReminders()
-            .then((success) => {
-              console.log("Delayed refresh after adding result:", success);
-            })
-            .catch(err => {
-              console.error("Error in delayed refresh:", err);
-            });
-        }, 500);
-      })
-      .catch(error => {
-        console.error("Error saving reminder:", error);
-        toast({
-          title: "Error Saving Reminder",
-          description: "There was a problem saving your reminder.",
-          variant: "destructive"
-        });
+    try {
+      // Convert UI reminder to backend reminder type
+      const backendReminder = convertToBackendReminder(reminder);
+      console.log("Converted to backend reminder:", backendReminder);
+      
+      // Add the new reminder to the list
+      const savedReminder = await addReminder(backendReminder);
+      console.log("Reminder saved successfully:", savedReminder);
+      
+      toast({
+        title: "Reminder Created",
+        description: `"${reminder.title}" has been added to your reminders.`
       });
+      
+      // Force refresh after adding a reminder
+      console.log("Triggering refresh after adding reminder");
+      try {
+        const refreshSuccess = await refreshReminders();
+        console.log("Refresh after adding result:", refreshSuccess);
+      } catch (err) {
+        console.error("Error in refresh after adding:", err);
+      }
+      
+      return savedReminder;
+    } catch (error) {
+      console.error("Error saving reminder:", error);
+      toast({
+        title: "Error Saving Reminder",
+        description: "There was a problem saving your reminder.",
+        variant: "destructive"
+      });
+      throw error;
+    }
   }, [addReminder, refreshReminders, toast]);
 
   const openQuickReminderModal = useCallback(() => {
