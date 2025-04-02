@@ -27,6 +27,8 @@ interface DashboardMainProps {
   hasError: boolean;
   addToBatchComplete: (id: string) => void;
   addToBatchUpdate: (reminder: any) => void;
+  deleteReminder?: (id: string) => Promise<boolean>;
+  batchDeleteReminders?: (ids: string[]) => Promise<boolean>;
 }
 
 const DashboardMain = ({
@@ -47,7 +49,9 @@ const DashboardMain = ({
   totalCount,
   hasError,
   addToBatchComplete,
-  addToBatchUpdate
+  addToBatchUpdate,
+  deleteReminder,
+  batchDeleteReminders
 }: DashboardMainProps) => {
   const { toast } = useToast();
   const { hasFirestorePermissions, useMockData } = useFirestore();
@@ -87,6 +91,38 @@ const DashboardMain = ({
       });
     }
   }, [hasMore, loading, loadMoreReminders, toast]);
+
+  // Handle clearing a single completed reminder
+  const handleClearCompleted = useCallback((id: string) => {
+    if (deleteReminder) {
+      console.log("Clearing completed reminder:", id);
+      deleteReminder(id).catch(error => {
+        console.error("Error clearing completed reminder:", error);
+        toast({
+          title: "Error Removing Reminder",
+          description: "There was a problem removing the completed reminder.",
+          variant: "destructive"
+        });
+      });
+    }
+  }, [deleteReminder, toast]);
+
+  // Handle clearing all completed reminders
+  const handleClearAllCompleted = useCallback(() => {
+    if (completedReminders.length > 0 && batchDeleteReminders) {
+      const completedIds = completedReminders.map(reminder => reminder.id);
+      console.log("Clearing all completed reminders:", completedIds);
+      
+      batchDeleteReminders(completedIds).catch(error => {
+        console.error("Error clearing all completed reminders:", error);
+        toast({
+          title: "Error Clearing Reminders",
+          description: "There was a problem removing the completed reminders.",
+          variant: "destructive"
+        });
+      });
+    }
+  }, [completedReminders, batchDeleteReminders, toast]);
 
   // Handle dashboard modals with enhanced logging
   const { 
@@ -148,6 +184,8 @@ const DashboardMain = ({
         onNewReminder={openQuickReminderModal}
         onNewVoiceNote={openVoiceRecorderModal}
         onUpdateReminder={handleBatchedReminderUpdated}
+        onClearAllCompleted={handleClearAllCompleted}
+        onClearCompleted={handleClearCompleted}
         isLoading={loading}
         hasError={hasError}
         hasMoreReminders={hasMore}

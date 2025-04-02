@@ -1,10 +1,9 @@
-
-import { doc, updateDoc, collection, addDoc, Timestamp } from "firebase/firestore";
+import { doc, updateDoc, collection, addDoc, deleteDoc, Timestamp } from "firebase/firestore";
 import { Reminder } from "@/types/reminderTypes";
 import { useReminderOperationsCore } from "./operations-core";
 
 /**
- * Provides operations for individual reminders (complete, undo, add, update)
+ * Provides operations for individual reminders (complete, undo, add, update, delete)
  */
 export function useSingleReminderOperations(user: any, db: any, isReady: boolean) {
   const {
@@ -269,10 +268,69 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
     }
   };
 
+  const deleteReminder = async (
+    id: string,
+    setReminders?: React.Dispatch<React.SetStateAction<Reminder[]>>,
+    setTotalCount?: React.Dispatch<React.SetStateAction<number>>
+  ): Promise<boolean> => {
+    let deletedReminder: Reminder | undefined;
+    
+    try {
+      if (setReminders) {
+        setReminders(prev => {
+          deletedReminder = prev.find(r => r.id === id);
+          
+          return prev.filter(r => r.id !== id);
+        });
+        
+        if (setTotalCount) {
+          setTotalCount(prev => prev - 1);
+        }
+      }
+      
+      if (isOfflineMode()) {
+        console.log("Deleting reminder (local only, optimistic):", id);
+        invalidateReminder(id);
+        return true;
+      }
+      
+      console.log("Deleting reminder in Firestore:", id);
+      
+      const reminderRef = doc(db, "reminders", id);
+      await deleteDoc(reminderRef);
+      
+      invalidateReminder(id);
+      
+      setError(null);
+      return true;
+    } catch (error: any) {
+      console.error("Error deleting reminder:", error);
+      setError(error);
+      
+      if (setReminders && deletedReminder) {
+        setReminders(prev => {
+          return [...prev, deletedReminder!];
+        });
+        
+        if (setTotalCount) {
+          setTotalCount(prev => prev + 1);
+        }
+        
+        if (deletedReminder) {
+          cacheReminder(deletedReminder);
+        }
+      }
+      
+      showErrorToast("The reminder could not be removed. Please try again later.");
+      return false;
+    }
+  };
+
   return {
     handleCompleteReminder,
     handleUndoComplete,
     addReminder,
-    updateReminder
+    updateReminder,
+    deleteReminder
   };
 }

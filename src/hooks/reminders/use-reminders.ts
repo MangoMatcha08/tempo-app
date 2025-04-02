@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFirestore } from "@/contexts/FirestoreContext";
@@ -18,7 +17,6 @@ export function useReminders() {
   const { user } = useAuth();
   const { db, isReady, error: firestoreError, useMockData: contextUseMockData } = useFirestore();
   
-  // Handle Firestore errors
   useEffect(() => {
     if (firestoreError) {
       console.error("Firestore error detected:", firestoreError);
@@ -42,7 +40,6 @@ export function useReminders() {
     useMockData
   } = useReminderQuery(user, db, isReady, contextUseMockData);
   
-  // Handle query errors
   useEffect(() => {
     if (queryError) {
       console.error("Query error detected:", queryError);
@@ -61,6 +58,7 @@ export function useReminders() {
     handleUndoComplete: undoCompleteBase,
     addReminder: addReminderBase,
     updateReminder: updateReminderBase,
+    deleteReminder: deleteReminderBase,
     error: operationsError,
     batchCompleteReminders: batchCompleteRemindersBase,
     batchAddReminders: batchAddRemindersBase,
@@ -68,7 +66,6 @@ export function useReminders() {
     batchDeleteReminders: batchDeleteRemindersBase
   } = useReminderOperations(user, db, isReady);
   
-  // Handle operations errors
   useEffect(() => {
     if (operationsError) {
       console.error("Operations error detected:", operationsError);
@@ -76,7 +73,6 @@ export function useReminders() {
     }
   }, [operationsError]);
   
-  // Initial fetch with error handling
   useEffect(() => {
     const timer = setTimeout(() => {
       console.log("Initiating initial fetch of reminders");
@@ -110,6 +106,11 @@ export function useReminders() {
     console.log("Updating reminder:", reminder);
     return updateReminderBase(reminder, setReminders);
   }, [updateReminderBase]);
+  
+  const deleteReminder = useCallback((id: string) => {
+    console.log("Deleting reminder:", id);
+    return deleteReminderBase(id, setReminders, setTotalCount);
+  }, [deleteReminderBase, setTotalCount]);
   
   const getDetailedReminder = useCallback((id: string) => {
     console.log("Getting detailed reminder:", id);
@@ -182,6 +183,7 @@ export function useReminders() {
     handleUndoComplete,
     addReminder,
     updateReminder,
+    deleteReminder,
     loadMoreReminders,
     refreshReminders,
     hasMore,

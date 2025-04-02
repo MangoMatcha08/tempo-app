@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useReminders } from "@/hooks/reminders/use-reminders";
 import { useToast } from "@/hooks/use-toast";
@@ -32,16 +31,16 @@ const Dashboard = () => {
     setTotalCount,
     error: reminderError,
     batchCompleteReminders,
-    batchUpdateReminders
+    batchUpdateReminders,
+    batchDeleteReminders,
+    deleteReminder
   } = useReminders();
 
-  // Update error state based on reminders hook error
   useEffect(() => {
     if (reminderError) {
       console.error("Reminder error detected:", reminderError);
       setHasError(true);
       
-      // Show toast only for significant errors
       if (!loading && reminders.length === 0) {
         toast({
           title: "Error Loading Reminders",
@@ -50,12 +49,10 @@ const Dashboard = () => {
         });
       }
     } else if (reminders.length > 0) {
-      // Reset error state when reminders are loaded successfully
       setHasError(false);
     }
   }, [reminders, reminderError, loading, toast]);
 
-  // Set up batch operations
   const {
     addToBatchComplete,
     addToBatchUpdate,
@@ -68,14 +65,12 @@ const Dashboard = () => {
     batchUpdateReminders
   });
 
-  // Clean up batch operations on unmount
   useEffect(() => {
     return () => {
       cleanupBatchOperations();
     };
   }, [cleanupBatchOperations]);
 
-  // Set up dashboard refresh system
   const { forceRefresh } = useDashboardRefresh(
     async () => {
       try {
@@ -90,20 +85,17 @@ const Dashboard = () => {
     hasError
   );
 
-  // Enhanced reminder operations
   const handleAddReminder = useCallback(async (reminder: any) => {
     try {
       console.log("Adding reminder in Dashboard:", reminder);
       const result = await addReminder(reminder);
       
-      // If we successfully added the reminder, show success toast
       if (result) {
         toast({
           title: "Reminder Added",
           description: `"${reminder.title}" has been added to your reminders.`
         });
         
-        // Force refresh to ensure the UI is updated
         console.log("Forcing refresh after add");
         await refreshReminders();
       }
@@ -120,7 +112,54 @@ const Dashboard = () => {
     }
   }, [addReminder, refreshReminders, toast]);
 
-  // Function to clear the cache and refresh (for testing)
+  const handleDeleteReminder = useCallback(async (id: string) => {
+    try {
+      console.log("Deleting reminder in Dashboard:", id);
+      const result = await deleteReminder(id);
+      
+      if (result) {
+        toast({
+          title: "Reminder Removed",
+          description: "The reminder has been successfully removed."
+        });
+      }
+      
+      return result;
+    } catch (err) {
+      console.error("Error deleting reminder in Dashboard:", err);
+      toast({
+        title: "Error Removing Reminder",
+        description: "There was a problem removing the reminder.",
+        variant: "destructive"
+      });
+      return false;
+    }
+  }, [deleteReminder, toast]);
+
+  const handleBatchDeleteReminders = useCallback(async (ids: string[]) => {
+    try {
+      console.log("Batch deleting reminders in Dashboard:", ids);
+      const result = await batchDeleteReminders(ids);
+      
+      if (result) {
+        toast({
+          title: "Reminders Cleared",
+          description: `${ids.length} ${ids.length === 1 ? 'reminder' : 'reminders'} successfully removed.`
+        });
+      }
+      
+      return result;
+    } catch (err) {
+      console.error("Error batch deleting reminders in Dashboard:", err);
+      toast({
+        title: "Error Clearing Reminders",
+        description: "There was a problem removing the reminders.",
+        variant: "destructive"
+      });
+      return false;
+    }
+  }, [batchDeleteReminders, toast]);
+
   const clearCacheAndRefresh = useCallback(() => {
     try {
       localStorage.removeItem('reminderCache');
@@ -129,7 +168,6 @@ const Dashboard = () => {
         title: "Cache Cleared",
         description: "Reminder cache has been cleared"
       });
-      // Enhanced logging for debugging
       console.log("Initiating refresh after cache clear");
       return refreshReminders()
         .then(success => {
@@ -146,7 +184,6 @@ const Dashboard = () => {
     }
   }, [refreshReminders, toast]);
 
-  // Expose cache clearing function to window object for testing in development
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
       (window as any).clearReminderCache = clearCacheAndRefresh;
@@ -180,6 +217,8 @@ const Dashboard = () => {
       hasError={hasError}
       addToBatchComplete={addToBatchComplete}
       addToBatchUpdate={addToBatchUpdate}
+      deleteReminder={handleDeleteReminder}
+      batchDeleteReminders={handleBatchDeleteReminders}
     />
   );
 };

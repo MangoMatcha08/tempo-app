@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import CurrentPeriodIndicator from "@/components/dashboard/CurrentPeriodIndicator";
 import QuickActionsBar from "@/components/dashboard/QuickActionsBar";
@@ -27,6 +28,8 @@ interface DashboardContentProps {
   onNewReminder: () => void;
   onNewVoiceNote: () => void;
   onUpdateReminder: (reminder: Reminder) => void;
+  onClearAllCompleted?: () => void;
+  onClearCompleted?: (id: string) => void;
   isLoading: boolean;
   hasError: boolean;
   hasMoreReminders: boolean;
@@ -45,6 +48,8 @@ const DashboardContent = ({
   onNewReminder,
   onNewVoiceNote,
   onUpdateReminder,
+  onClearAllCompleted,
+  onClearCompleted,
   isLoading,
   hasError,
   hasMoreReminders,
@@ -149,6 +154,8 @@ const DashboardContent = ({
           <CompletedRemindersSection 
             reminders={completedReminders}
             onUndoComplete={onUndoComplete}
+            onClearAllCompleted={onClearAllCompleted}
+            onClearCompleted={onClearCompleted}
           />
           
           <ProgressVisualization />

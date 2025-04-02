@@ -16,7 +16,8 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
     handleCompleteReminder,
     handleUndoComplete,
     addReminder,
-    updateReminder
+    updateReminder,
+    deleteReminder
   } = useSingleReminderOperations(user, db, isReady);
   
   // Batch reminder operations
@@ -33,6 +34,7 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
     handleUndoComplete,
     addReminder,
     updateReminder,
+    deleteReminder,
     
     // Batch operations
     batchCompleteReminders,
