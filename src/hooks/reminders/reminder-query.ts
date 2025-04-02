@@ -7,6 +7,7 @@ import {
   getCountFromServer, Timestamp
 } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { useReminderCache } from "./use-reminder-cache";
 
 // Constants for performance tuning
 const BATCH_SIZE = 10;
@@ -22,6 +23,11 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
   const [lastRefreshTime, setLastRefreshTime] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
+  const { 
+    cacheReminderList, 
+    getCachedReminderList,
+    invalidateUserCache
+  } = useReminderCache();
   
   // Process query snapshot into typed reminders
   const processQuerySnapshot = (querySnapshot: QuerySnapshot<DocumentData>) => {
@@ -61,7 +67,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
     return fetchedReminders;
   };
   
-  // Fetch reminders with optimized refresh algorithm and better error handling
+  // Fetch reminders with cache support
   const fetchReminders = useCallback(async (isRefresh = false) => {
     if (!user || !isReady) {
       setReminders([]);
@@ -110,12 +116,26 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
         return;
       }
       
-      // Set refreshing state for refresh operations
-      if (isRefresh) {
-        setIsRefreshing(true);
+      // Get cache key for this user's reminders
+      const cacheKey = `${user.uid}-reminders`;
+      
+      // Check cache first for non-refresh operations
+      if (!isRefresh) {
+        const cachedReminders = getCachedReminderList(cacheKey);
+        if (cachedReminders) {
+          console.log("Using cached reminders:", cachedReminders.length);
+          setReminders(cachedReminders);
+          setLoading(false);
+          
+          // Still fetch in the background to update the cache, but don't show loading state
+          console.log("Background fetching latest data...");
+        } else {
+          // Only show loading indicator if we don't have cached data
+          setLoading(true);
+        }
       } else {
-        // Only show loading indicator for initial fetch, not for refreshes
-        setLoading(true);
+        // For refresh operations, set the refreshing state
+        setIsRefreshing(true);
       }
       
       setError(null);
@@ -139,6 +159,9 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
             setLoading(false);
             setIsRefreshing(false);
             setHasMore(false);
+            
+            // Cache empty result
+            cacheReminderList(cacheKey, []);
             return;
           }
         } catch (countErr) {
@@ -171,19 +194,30 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
         const endTime = performance.now();
         console.log(`Fetched ${fetchedReminders.length} reminders in ${(endTime - startTime).toFixed(2)}ms`);
         
+        // Cache the results
+        cacheReminderList(cacheKey, fetchedReminders);
+        
         // Use functional update to avoid race conditions
         setReminders(fetchedReminders);
       } catch (queryErr) {
         console.error("Error executing query:", queryErr);
         
-        // Fall back to empty array but don't treat as fatal error
-        setReminders([]);
+        // Fall back to cached data if available
+        const cachedReminders = getCachedReminderList(cacheKey);
+        if (cachedReminders && cachedReminders.length > 0) {
+          console.log("Using cached data due to query error");
+          setReminders(cachedReminders);
+        } else {
+          // If no cached data, fall back to empty array
+          setReminders([]);
+        }
+        
         setHasMore(false);
         
         if (!isRefresh) {
           toast({
             title: "Error fetching reminders",
-            description: "Using local data only. Please check your connection.",
+            description: "Using locally cached data. Please check your connection.",
             variant: "destructive",
           });
         }
@@ -192,8 +226,19 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
       console.error("Error fetching reminders:", err);
       setError(err);
       
-      // Fall back to empty array
-      setReminders([]);
+      // Try to use cached data if available
+      if (user) {
+        const cacheKey = `${user.uid}-reminders`;
+        const cachedReminders = getCachedReminderList(cacheKey);
+        if (cachedReminders) {
+          console.log("Using cached reminders after error");
+          setReminders(cachedReminders);
+        } else {
+          setReminders([]);
+        }
+      } else {
+        setReminders([]);
+      }
       
       // Only show error toast for initial load, not background refreshes
       if (!isRefresh) {
@@ -207,9 +252,9 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [user, isReady, db, lastRefreshTime, toast]);
+  }, [user, isReady, db, lastRefreshTime, toast, getCachedReminderList, cacheReminderList]);
   
-  // Load more reminders (pagination)
+  // Load more reminders (pagination) - we don't cache pagination results separately
   const loadMoreReminders = useCallback(async () => {
     if (!user || !isReady || !db || !lastVisible || !hasMore) {
       return;
@@ -253,10 +298,14 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
     }
   }, [user, isReady, db, lastVisible, hasMore, toast]);
 
-  // Optimized refresh function with debouncing
+  // Optimized refresh function that also invalidates cache
   const refreshReminders = useCallback(async () => {
+    if (user) {
+      // Invalidate cache before refreshing
+      invalidateUserCache(user.uid);
+    }
     return fetchReminders(true);
-  }, [fetchReminders]);
+  }, [fetchReminders, invalidateUserCache, user]);
 
   return {
     reminders,

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useReminders } from "@/hooks/reminders/use-reminders";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
@@ -47,6 +46,21 @@ const Dashboard = () => {
       setHasError(false);
     }
   }, [reminders, reminderError]);
+
+  // Function to clear the cache and refresh (for testing)
+  const clearCacheAndRefresh = useCallback(() => {
+    try {
+      localStorage.removeItem('reminderCache');
+      console.log("Reminder cache cleared");
+      toast({
+        title: "Cache Cleared",
+        description: "Reminder cache has been cleared"
+      });
+      refreshReminders();
+    } catch (err) {
+      console.error("Error clearing cache:", err);
+    }
+  }, [refreshReminders, toast]);
 
   // Optimized background refresh with improved performance
   const performBackgroundRefresh = useCallback(async () => {
@@ -150,6 +164,22 @@ const Dashboard = () => {
       });
     }
   };
+
+  // We're keeping the debugging/testing function call here but not exposing it in the UI
+  // You can call clearCacheAndRefresh() in the console for testing
+  useEffect(() => {
+    // Expose the function to window for testing in development
+    if (process.env.NODE_ENV === 'development') {
+      (window as any).clearReminderCache = clearCacheAndRefresh;
+      console.log("TIP: You can use window.clearReminderCache() to test the cache system");
+    }
+    
+    return () => {
+      if (process.env.NODE_ENV === 'development') {
+        delete (window as any).clearReminderCache;
+      }
+    };
+  }, [clearCacheAndRefresh]);
 
   return (
     <DashboardLayout>

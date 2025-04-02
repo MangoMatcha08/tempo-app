@@ -65,6 +65,7 @@ export function useReminders() {
   }, [operationsError]);
   
   // Initialize data fetch - now with a small delay to improve perceived performance
+  // and leverage cached data when available
   useEffect(() => {
     // Use a slight delay for initial load to let UI render first
     const timer = setTimeout(() => {
