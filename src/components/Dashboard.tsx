@@ -75,8 +75,8 @@ const Dashboard = () => {
   const { forceRefresh } = useDashboardRefresh(
     async () => {
       try {
-        const success = await refreshReminders();
-        return success;
+        await refreshReminders();
+        return true;
       } catch (error) {
         console.error("Error refreshing reminders:", error);
         return false;
@@ -161,6 +161,7 @@ const Dashboard = () => {
     }
   }, [batchDeleteReminders, toast]);
 
+  // Fix return type to be Promise<void> instead of Promise<boolean>
   const clearCacheAndRefresh = useCallback(async (): Promise<void> => {
     try {
       localStorage.removeItem('reminderCache');
@@ -170,14 +171,10 @@ const Dashboard = () => {
         description: "Reminder cache has been cleared"
       });
       console.log("Initiating refresh after cache clear");
-      await refreshReminders()
-        .then(success => {
-          console.log("Refresh result after cache clear:", success);
-          return;
-        })
-        .catch(err => {
-          console.error("Error during refresh after cache clear:", err);
-        });
+      
+      // Call refreshReminders and ignore its return value
+      await refreshReminders();
+      
     } catch (err) {
       console.error("Error clearing cache:", err);
     }

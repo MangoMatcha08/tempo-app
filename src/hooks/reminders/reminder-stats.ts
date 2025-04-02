@@ -1,97 +1,91 @@
 
 import { Reminder } from "@/types/reminderTypes";
-import { isSameDay, isToday, isTomorrow, isAfter, startOfDay, endOfDay, addDays } from "date-fns";
 
-interface ReminderStats {
+export interface ReminderStats {
   total: number;
   completed: number;
-  pendingToday: number;
-  pendingTomorrow: number;
+  pending: number;
   overdue: number;
   upcoming: number;
+  todayCount: number;
+  highPriority: number;
   completionRate: number;
 }
 
 /**
- * Calculate statistics about reminders collection
+ * Calculate statistics for reminders
  */
 export const calculateReminderStats = (reminders: Reminder[]): ReminderStats => {
   const now = new Date();
-  const today = startOfDay(now);
-  const tomorrow = startOfDay(addDays(now, 1));
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
   
-  let total = reminders.length;
-  let completed = 0;
-  let pendingToday = 0;
-  let pendingTomorrow = 0;
-  let overdue = 0;
-  let upcoming = 0;
+  const total = reminders.length;
+  const completed = reminders.filter(r => r.completed).length;
+  const pending = total - completed;
   
-  reminders.forEach(reminder => {
-    if (reminder.completed) {
-      completed++;
-      return;
-    }
-    
-    // Not completed reminders
-    if (isToday(reminder.dueDate)) {
-      pendingToday++;
-    } else if (isTomorrow(reminder.dueDate)) {
-      pendingTomorrow++;
-    } else if (reminder.dueDate < today) {
-      overdue++;
-    } else {
-      upcoming++;
-    }
-  });
+  const overdue = reminders.filter(r => 
+    !r.completed && 
+    new Date(r.dueDate) < today
+  ).length;
   
-  // Calculate completion rate
-  const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const upcoming = reminders.filter(r => 
+    !r.completed && 
+    new Date(r.dueDate) >= tomorrow
+  ).length;
+  
+  const todayCount = reminders.filter(r => 
+    !r.completed && 
+    new Date(r.dueDate) >= today && 
+    new Date(r.dueDate) < tomorrow
+  ).length;
+  
+  const highPriority = reminders.filter(r => 
+    !r.completed && 
+    r.priority === 'high'
+  ).length;
+  
+  // Calculate completion rate (prevent division by zero)
+  const completionRate = total > 0 
+    ? (completed / total) * 100 
+    : 0;
   
   return {
     total,
     completed,
-    pendingToday,
-    pendingTomorrow,
+    pending,
     overdue,
     upcoming,
+    todayCount,
+    highPriority,
     completionRate
   };
 };
 
-/**
- * Group reminders by date (today, tomorrow, future, etc.)
- */
-export const groupRemindersByDate = (reminders: Reminder[]) => {
+// Helper function to calculate today's completion status
+export const getTodayCompletionStatus = (reminders: Reminder[]): {
+  completed: number;
+  total: number;
+  percentage: number;
+} => {
   const now = new Date();
-  const today = startOfDay(now);
-  const tomorrow = startOfDay(addDays(now, 1));
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
   
-  const todayReminders: Reminder[] = [];
-  const tomorrowReminders: Reminder[] = [];
-  const futureReminders: Reminder[] = [];
-  const overdueReminders: Reminder[] = [];
+  const todayReminders = reminders.filter(r => 
+    new Date(r.dueDate) >= today && 
+    new Date(r.dueDate) < tomorrow
+  );
   
-  reminders.forEach(reminder => {
-    if (reminder.completed) return;
-    
-    const reminderDate = startOfDay(reminder.dueDate);
-    
-    if (isSameDay(reminderDate, today)) {
-      todayReminders.push(reminder);
-    } else if (isSameDay(reminderDate, tomorrow)) {
-      tomorrowReminders.push(reminder);
-    } else if (isAfter(reminderDate, tomorrow)) {
-      futureReminders.push(reminder);
-    } else {
-      overdueReminders.push(reminder);
-    }
-  });
+  const total = todayReminders.length;
+  const completed = todayReminders.filter(r => r.completed).length;
+  const percentage = total > 0 ? (completed / total) * 100 : 0;
   
   return {
-    today: todayReminders,
-    tomorrow: tomorrowReminders,
-    future: futureReminders,
-    overdue: overdueReminders
+    completed,
+    total,
+    percentage
   };
 };

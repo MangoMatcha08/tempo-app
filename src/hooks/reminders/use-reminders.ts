@@ -8,6 +8,7 @@ import { useReminderOperations } from './reminder-operations';
 import { useReminderCache } from './use-reminder-cache';
 import { useFirestoreIndexes } from './use-firestore-indexes';
 import { calculateReminderStats } from './reminder-stats';
+import { isMissingIndexError, extractIndexUrlFromError } from '@/lib/firebase/indexing';
 
 // Helper functions for filtering reminders
 const transformReminders = (reminders: Reminder[]): Reminder[] => {
@@ -66,14 +67,14 @@ export const useReminders = () => {
   } = useReminderOperations(user, db, isReady);
   
   // Use useFirestoreIndexes hook
-  const firestoreIndexes = useFirestoreIndexes();
+  const { handleQueryError } = useFirestoreIndexes();
   
   // Cache related functions
   const {
-    getCachedReminderList: getCachedReminders,
-    cacheReminderList: setCachedReminders,
-    invalidateUserCache: clearReminderCache,
-    isUserCacheStale: isCacheStale
+    getCachedReminderList,
+    cacheReminderList,
+    invalidateUserCache,
+    isUserCacheStale
   } = useReminderCache();
 
   // Create fetchReminders function
@@ -111,7 +112,7 @@ export const useReminders = () => {
       // Process results
       const fetchedReminders: Reminder[] = [];
       snapshot.forEach(doc => {
-        const data = doc.data();
+        const data = doc.data() as any; // Type cast to 'any' for safe property access
         fetchedReminders.push({
           id: doc.id,
           title: data.title,
@@ -139,11 +140,21 @@ export const useReminders = () => {
       console.error('Error fetching reminders:', error);
       
       // Check if it's an index error
-      const errorMessage = String(error);
-      if (errorMessage.includes('index') && errorMessage.includes('required')) {
+      if (isMissingIndexError(error)) {
         console.log("Index error detected, switching to simple query");
         setUseSimpleQuery(true);
-        registerNeededIndex('reminders', ['userId', 'createdAt']);
+        
+        // Try to extract and register the needed index
+        const indexUrl = extractIndexUrlFromError(String(error));
+        if (indexUrl) {
+          console.log("Index URL detected:", indexUrl);
+        }
+        
+        // Default fallback fields
+        const defaultFields = ['userId', 'createdAt'];
+        if (typeof registerNeededIndex === 'function') {
+          registerNeededIndex('reminders', defaultFields);
+        }
         
         // Try again with simple query
         const remindersRef = collection(db, 'reminders');
@@ -156,7 +167,7 @@ export const useReminders = () => {
         const recoveredReminders: Reminder[] = [];
         
         snapshot.forEach(doc => {
-          const data = doc.data();
+          const data = doc.data() as any; // Type cast to 'any'
           recoveredReminders.push({
             id: doc.id,
             title: data.title,
@@ -241,7 +252,7 @@ export const useReminders = () => {
     console.log('Initiating initial fetch of reminders');
     
     // First check cache
-    const cachedData = getCachedReminders(`${user.uid}-reminders`);
+    const cachedData = getCachedReminderList(`${user.uid}-reminders`);
     if (cachedData && cachedData.length > 0) {
       console.log(`Using cached reminders: ${cachedData.length}`);
       setReminders(cachedData);
@@ -249,7 +260,7 @@ export const useReminders = () => {
       setLoading(false);
       
       // If cache is stale, refresh in background
-      if (isCacheStale(user.uid)) {
+      if (isUserCacheStale(user.uid)) {
         console.log('Background fetching latest data...');
         setIsRefreshing(true);
         refreshReminders().finally(() => {
@@ -285,14 +296,14 @@ export const useReminders = () => {
         setReminders(fetchedReminders);
         
         // Save to cache
-        setCachedReminders(`${user.uid}-reminders`, fetchedReminders);
+        cacheReminderList(`${user.uid}-reminders`, fetchedReminders);
       } else {
         // If loading more, append reminders
         setReminders(prev => {
           const newList = [...prev, ...fetchedReminders];
           
           // Save to cache
-          setCachedReminders(`${user.uid}-reminders`, newList);
+          cacheReminderList(`${user.uid}-reminders`, newList);
           
           return newList;
         });
@@ -317,12 +328,60 @@ export const useReminders = () => {
       return true;
     } catch (err) {
       console.error('Error loading reminders:', err);
+      
+      // Try to handle the error with the index helper
+      if (handleQueryError(err, 'reminders', ['userId', 'createdAt'])) {
+        // If it's an index error, set the flag to use simple query next time
+        setUseSimpleQuery(true);
+        console.log("Will use simplified query on next attempt due to index error");
+        
+        // Try to load some data with a simpler query
+        try {
+          const remindersRef = collection(db, 'reminders');
+          const simpleQuery = query(remindersRef, where('userId', '==', user.uid));
+          const snapshot = await getDocs(simpleQuery);
+          
+          const recoveredData: Reminder[] = [];
+          snapshot.forEach(doc => {
+            const data = doc.data() as any; // Type cast to 'any'
+            recoveredData.push({
+              id: doc.id,
+              title: data.title,
+              description: data.description || '',
+              dueDate: data.dueDate instanceof Timestamp ? data.dueDate.toDate() : new Date(data.dueDate),
+              priority: data.priority,
+              completed: data.completed || false,
+              completedAt: data.completedAt ? 
+                (data.completedAt instanceof Timestamp ? data.completedAt.toDate() : new Date(data.completedAt)) 
+                : undefined,
+              createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
+              userId: data.userId
+            });
+          });
+          
+          // Sort client-side
+          recoveredData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+          
+          // Update UI
+          setReminders(recoveredData);
+          setHasMore(false); // Can't do pagination with simple query
+          
+          // Cache the results
+          cacheReminderList(`${user.uid}-reminders`, recoveredData);
+          
+          console.log("Successfully recovered with simplified query");
+          return true;
+        } catch (fallbackErr) {
+          console.error("Fallback query also failed:", fallbackErr);
+        }
+      }
+      
       setError(err instanceof Error ? err : new Error(String(err)));
       return false;
     } finally {
       setLoading(false);
     }
-  }, [isReady, user, db, fetchReminders, fetchReminderCount, setCachedReminders]);
+  }, [isReady, user, db, fetchReminders, fetchReminderCount, cacheReminderList, handleQueryError]);
 
   // Load more reminders
   const loadMoreReminders = useCallback(async () => {
@@ -374,7 +433,7 @@ export const useReminders = () => {
         );
         
         // Update cache
-        setCachedReminders(
+        cacheReminderList(
           `${user.uid}-reminders`,
           reminders.map(r => r.id === optimisticId ? result : r)
         );
@@ -390,7 +449,7 @@ export const useReminders = () => {
       setError(err instanceof Error ? err : new Error(String(err)));
       return null;
     }
-  }, [user, addReminder, setCachedReminders, reminders]);
+  }, [user, addReminder, cacheReminderList, reminders]);
 
   return {
     reminders,
@@ -408,7 +467,7 @@ export const useReminders = () => {
     deleteReminder,
     loadMoreReminders,
     refreshReminders,
-    clearReminderCache: () => user ? clearReminderCache(user.uid) : null,
+    clearReminderCache: () => user ? invalidateUserCache(user.uid) : null,
     hasMore,
     totalCount,
     // Expose state setters for batch operations

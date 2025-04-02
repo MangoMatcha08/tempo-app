@@ -4,7 +4,7 @@ import { Firestore } from 'firebase/firestore';
 import { firebaseApp, getFirestoreInstance } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { isMissingIndexError, getFirestoreIndexCreationUrl } from '@/lib/firebase/indexing';
+import { isMissingIndexError, getFirestoreIndexCreationUrl, extractIndexUrlFromError } from '@/lib/firebase/indexing';
 
 interface FirestoreContextType {
   db: Firestore | null;
@@ -86,7 +86,7 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       console.log('Firestore initialized successfully in context');
     } catch (err) {
       console.error('Error initializing Firestore in context:', err);
-      setError(err instanceof Error ? err : new Error('Unknown Firestore error'));
+      setError(err instanceof Error ? err : new Error(String(err)));
       
       const errorMessage = err instanceof Error ? err.message : String(err);
       if (errorMessage.includes('permission-denied') || 
@@ -118,12 +118,20 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           duration: 8000,
         });
         
-        setDb(getFirestoreInstance());
+        // Still try to initialize Firestore, as we can use simplified queries
+        try {
+          const backupDb = getFirestoreInstance();
+          setDb(backupDb);
+          setIsReady(true);
+        } catch (e) {
+          console.error('Failed to initialize Firestore after index error:', e);
+        }
       }
       
       try {
         const backupDb = getFirestoreInstance();
         setDb(backupDb);
+        setIsReady(true);
       } catch (e) {
         console.error('Critical error getting Firestore instance:', e);
       }
@@ -138,7 +146,7 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       console.info(`Create index at: ${indexUrl}`);
       toast({
         title: "Firestore Index Required",
-        description: `Create the necessary index for ${collectionId} collection to improve performance. Click here: ${indexUrl}`,
+        description: `Create the necessary index for ${collectionId} collection to improve performance.`,
         duration: 8000,
       });
     }

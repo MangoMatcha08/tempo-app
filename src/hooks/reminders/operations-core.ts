@@ -11,8 +11,10 @@ export function useReminderOperationsCore(user: any, db: any, isReady: boolean) 
   const { toast } = useToast();
   const [error, setError] = useState<Error | null>(null);
   const { 
-    cacheReminder, 
-    invalidateReminder 
+    getCachedReminderList, 
+    cacheReminderList,
+    cacheReminder,
+    invalidateUserCache
   } = useReminderCache();
 
   // Helper to check if we're in offline mode
@@ -38,7 +40,7 @@ export function useReminderOperationsCore(user: any, db: any, isReady: boolean) 
     error,
     setError,
     cacheReminder,
-    invalidateReminder,
+    invalidateUserCache,
     isOfflineMode,
     showErrorToast
   };

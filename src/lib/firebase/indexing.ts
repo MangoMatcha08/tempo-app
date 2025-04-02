@@ -22,9 +22,10 @@ export const isMissingIndexError = (error: any): boolean => {
     : error.message || String(error);
     
   return (
-    errorMessage.includes('index') && 
-    (errorMessage.includes('required') || errorMessage.includes('needs')) || 
-    errorMessage.includes('9 FAILED_PRECONDITION')
+    (errorMessage.includes('index') && 
+    (errorMessage.includes('required') || errorMessage.includes('needs'))) || 
+    errorMessage.includes('9 FAILED_PRECONDITION') ||
+    errorMessage.includes('FAILED_PRECONDITION: The query requires an index')
   );
 };
 
@@ -51,4 +52,27 @@ export const extractIndexUrlFromError = (errorMessage: string): string | null =>
   }
   
   return null;
+};
+
+// Parse fields from an error message
+export const parseFieldsFromError = (errorMessage: string): string[] | null => {
+  if (!errorMessage) return null;
+  
+  // Try to find the field list in the error message
+  try {
+    // Look for common patterns in Firestore index error messages
+    const fieldPattern = /for collection group \[(.*?)\] with indexes: \[(.*?)\]/;
+    const matches = errorMessage.match(fieldPattern);
+    
+    if (matches && matches.length >= 3) {
+      // The second capture group should have the field paths
+      const fieldString = matches[2];
+      return fieldString.split(',').map(f => f.trim());
+    }
+    
+    return null;
+  } catch (e) {
+    console.error('Error parsing fields from error message:', e);
+    return null;
+  }
 };
