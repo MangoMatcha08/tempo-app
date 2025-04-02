@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Reminder } from "@/types/reminderTypes";
 import { 
@@ -17,19 +16,8 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
 
   const handleCompleteReminder = async (id: string, setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>) => {
     try {
-      if (!user || !isReady || !db) {
-        return;
-      }
-      
       const completedAt = new Date();
       
-      const reminderRef = doc(db, "reminders", id);
-      await updateDoc(reminderRef, { 
-        completed: true, 
-        completedAt: Timestamp.fromDate(completedAt)
-      });
-      
-      // Update local state
       setReminders(prev => {
         const newReminders = prev.map(reminder => 
           reminder.id === id 
@@ -37,7 +25,6 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
             : reminder
         );
         
-        // Update cache with the modified reminder
         const updatedReminder = newReminders.find(r => r.id === id);
         if (updatedReminder) {
           cacheReminder(updatedReminder);
@@ -46,13 +33,40 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
         return newReminders;
       });
       
+      if (!user || !isReady || !db) {
+        console.log("No Firestore connection, only updated UI optimistically");
+        return;
+      }
+      
+      const reminderRef = doc(db, "reminders", id);
+      await updateDoc(reminderRef, { 
+        completed: true, 
+        completedAt: Timestamp.fromDate(completedAt)
+      });
+      
       setError(null);
     } catch (error: any) {
       console.error("Error completing reminder:", error);
       setError(error);
+      
+      setReminders(prev => {
+        const newReminders = prev.map(reminder => 
+          reminder.id === id 
+            ? { ...reminder, completed: false, completedAt: undefined } 
+            : reminder
+        );
+        
+        const revertedReminder = newReminders.find(r => r.id === id);
+        if (revertedReminder) {
+          cacheReminder(revertedReminder);
+        }
+        
+        return newReminders;
+      });
+      
       toast({
         title: "Error updating reminder",
-        description: "Please try again later",
+        description: "Changes were not saved. Please try again later.",
         variant: "destructive",
       });
     }
@@ -60,7 +74,23 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
   
   const handleUndoComplete = async (id: string, setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>) => {
     try {
+      setReminders(prev => {
+        const newReminders = prev.map(reminder => 
+          reminder.id === id 
+            ? { ...reminder, completed: false, completedAt: undefined } 
+            : reminder
+        );
+        
+        const updatedReminder = newReminders.find(r => r.id === id);
+        if (updatedReminder) {
+          cacheReminder(updatedReminder);
+        }
+        
+        return newReminders;
+      });
+      
       if (!user || !isReady || !db) {
+        console.log("No Firestore connection, only updated UI optimistically");
         return;
       }
       
@@ -70,52 +100,61 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
         completedAt: null 
       });
       
-      // Update local state
+      setError(null);
+    } catch (error: any) {
+      console.error("Error undoing reminder completion:", error);
+      setError(error);
+      
       setReminders(prev => {
         const newReminders = prev.map(reminder => 
           reminder.id === id 
-            ? { ...reminder, completed: false, completedAt: undefined } 
+            ? { ...reminder, completed: true, completedAt: new Date() } 
             : reminder
         );
         
-        // Update cache with the modified reminder
-        const updatedReminder = newReminders.find(r => r.id === id);
-        if (updatedReminder) {
-          cacheReminder(updatedReminder);
+        const revertedReminder = newReminders.find(r => r.id === id);
+        if (revertedReminder) {
+          cacheReminder(revertedReminder);
         }
         
         return newReminders;
       });
       
-      setError(null);
-    } catch (error: any) {
-      console.error("Error undoing reminder completion:", error);
-      setError(error);
       toast({
         title: "Error updating reminder",
-        description: "Please try again later",
+        description: "Changes were not saved. Please try again later.",
         variant: "destructive",
       });
     }
   };
   
   const addReminder = async (reminder: Reminder, setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>, setTotalCount: React.Dispatch<React.SetStateAction<number>>) => {
+    const tempId = reminder.id || `temp-${Date.now()}`;
+    const newReminder = {
+      ...reminder,
+      id: tempId,
+      createdAt: reminder.createdAt || new Date()
+    };
+    
     try {
+      setReminders(prev => {
+        const updatedReminders = [newReminder, ...prev];
+        return updatedReminders;
+      });
+      
+      setTotalCount(prev => prev + 1);
+      
       if (!user || !isReady || !db) {
-        const newReminder = {
-          ...reminder,
-          id: reminder.id,
-          createdAt: reminder.createdAt || new Date()
-        };
+        console.log("Adding reminder (local only, optimistic):", newReminder);
         
-        console.log("Adding reminder (local only):", newReminder);
-        setReminders(prev => [newReminder, ...prev]);
+        cacheReminder(newReminder);
+        
         return newReminder;
       }
       
       console.log("Adding reminder to Firestore:", reminder);
       
-      const newReminder = {
+      const firestoreReminder = {
         ...reminder,
         userId: user.uid,
         createdAt: Timestamp.fromDate(reminder.createdAt || new Date()),
@@ -124,7 +163,7 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
         completedAt: reminder.completedAt ? Timestamp.fromDate(reminder.completedAt) : null
       };
       
-      const { id, ...reminderData } = newReminder;
+      const { id, ...reminderData } = firestoreReminder;
       
       const remindersRef = collection(db, "reminders");
       const docRef = await addDoc(remindersRef, reminderData);
@@ -138,26 +177,29 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
       
       console.log("Successfully added reminder:", savedReminder);
       
-      // Add the new reminder at the top of the list and update count
       setReminders(prev => {
-        const newReminders = [savedReminder, ...prev];
+        const updatedReminders = prev.map(item => 
+          item.id === tempId ? savedReminder : item
+        );
         
-        // Update cache with the new reminder
         cacheReminder(savedReminder);
         
-        return newReminders;
+        return updatedReminders;
       });
       
-      setTotalCount(prev => prev + 1);
       setError(null);
       
       return savedReminder;
     } catch (error: any) {
       console.error("Error adding reminder:", error);
       setError(error);
+      
+      setReminders(prev => prev.filter(item => item.id !== tempId));
+      setTotalCount(prev => prev - 1);
+      
       toast({
         title: "Error saving reminder",
-        description: "Please try again later",
+        description: "Your reminder was not saved. Please try again later.",
         variant: "destructive",
       });
       
@@ -167,20 +209,24 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
 
   const updateReminder = async (updatedReminder: Reminder, setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>) => {
     try {
+      let originalReminder: Reminder | undefined;
+      
+      setReminders(prev => {
+        originalReminder = prev.find(r => r.id === updatedReminder.id);
+        
+        const newReminders = prev.map(reminder => 
+          reminder.id === updatedReminder.id 
+            ? { ...updatedReminder } 
+            : reminder
+        );
+        
+        cacheReminder(updatedReminder);
+        
+        return newReminders;
+      });
+      
       if (!user || !isReady || !db) {
-        console.log("Updating reminder (local only):", updatedReminder);
-        setReminders(prev => {
-          const newReminders = prev.map(reminder => 
-            reminder.id === updatedReminder.id 
-              ? { ...updatedReminder } 
-              : reminder
-          );
-          
-          // Update cache even with offline changes
-          cacheReminder(updatedReminder);
-          
-          return newReminders;
-        });
+        console.log("Updating reminder (local only, optimistic):", updatedReminder);
         return updatedReminder;
       }
       
@@ -198,19 +244,6 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
       const reminderRef = doc(db, "reminders", updatedReminder.id);
       await updateDoc(reminderRef, firestoreData);
       
-      setReminders(prev => {
-        const newReminders = prev.map(reminder => 
-          reminder.id === updatedReminder.id 
-            ? { ...updatedReminder } 
-            : reminder
-        );
-        
-        // Update cache with the modified reminder
-        cacheReminder(updatedReminder);
-        
-        return newReminders;
-      });
-      
       setError(null);
       
       return updatedReminder;
@@ -218,12 +251,27 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
       console.error("Error updating reminder:", error);
       setError(error);
       
-      // Invalidate cache for this reminder due to error
+      setReminders(prev => {
+        if (!originalReminder) return prev;
+        
+        const newReminders = prev.map(reminder => 
+          reminder.id === updatedReminder.id 
+            ? originalReminder! 
+            : reminder
+        );
+        
+        if (originalReminder) {
+          cacheReminder(originalReminder);
+        }
+        
+        return newReminders;
+      });
+      
       invalidateReminder(updatedReminder.id);
       
       toast({
         title: "Error updating reminder",
-        description: "Please try again later",
+        description: "Your changes were not saved. Please try again later.",
         variant: "destructive",
       });
       
