@@ -9,7 +9,7 @@ const BACKGROUND_REFRESH_INTERVAL = 60000; // 60 seconds between background refr
  * Hook for managing dashboard refresh logic
  */
 export function useDashboardRefresh(
-  refreshFunction: () => Promise<void>,
+  refreshFunction: () => Promise<boolean>,
   loading: boolean,
   hasError: boolean
 ) {
@@ -20,8 +20,7 @@ export function useDashboardRefresh(
   const performBackgroundRefresh = useCallback(async () => {
     if (!loading && !hasError) {
       try {
-        await refreshFunction();
-        return true; // Return true to indicate successful refresh
+        return await refreshFunction();
       } catch (error) {
         console.error("Background refresh error:", error);
         // Don't show an error toast for background refreshes

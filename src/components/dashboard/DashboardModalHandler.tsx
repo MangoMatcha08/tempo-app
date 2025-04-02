@@ -7,7 +7,7 @@ import { convertToBackendReminder } from "@/utils/typeUtils";
 
 interface DashboardModalHandlerProps {
   addReminder: (reminder: any) => Promise<any>;
-  refreshReminders: () => Promise<void>;
+  refreshReminders: () => Promise<boolean>;
 }
 
 const DashboardModalHandler = ({ 
@@ -31,13 +31,13 @@ const DashboardModalHandler = ({
           description: `"${reminder.title}" has been added to your reminders.`
         });
         
-        // Use refreshReminders instead of background refresh for immediate update
-        refreshReminders().then(() => {
-          // We're not using the return value, so we can just resolve a Promise
-          return true;
+        // Use refreshReminders which now returns Promise<boolean>
+        refreshReminders().then((success) => {
+          if (!success) {
+            console.warn("Refresh after adding was not successful");
+          }
         }).catch((error) => {
           console.error("Error refreshing after adding reminder:", error);
-          return false;
         });
       })
       .catch(error => {

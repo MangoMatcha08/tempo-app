@@ -72,7 +72,16 @@ const Dashboard = () => {
 
   // Set up dashboard refresh system
   const { forceRefresh } = useDashboardRefresh(
-    refreshReminders,
+    // We need to ensure this returns a Promise<boolean>
+    async () => {
+      try {
+        await refreshReminders();
+        return true;
+      } catch (error) {
+        console.error("Error refreshing reminders:", error);
+        return false;
+      }
+    },
     loading,
     hasError
   );
@@ -86,10 +95,11 @@ const Dashboard = () => {
         title: "Cache Cleared",
         description: "Reminder cache has been cleared"
       });
-      // Wrap the refreshReminders with a Promise that returns true
-      refreshReminders().then(() => true).catch(() => false);
+      // Return a Promise<boolean> to match expected types
+      return refreshReminders().then(() => true).catch(() => false);
     } catch (err) {
       console.error("Error clearing cache:", err);
+      return Promise.resolve(false);
     }
   }, [refreshReminders, toast]);
 
@@ -150,7 +160,16 @@ const Dashboard = () => {
     openVoiceRecorderModal 
   } = DashboardModalHandler({
     addReminder,
-    refreshReminders
+    // We need to ensure this returns a Promise<boolean>
+    refreshReminders: async () => {
+      try {
+        await refreshReminders();
+        return true;
+      } catch (error) {
+        console.error("Error refreshing reminders in modal handler:", error);
+        return false;
+      }
+    }
   });
 
   return (
