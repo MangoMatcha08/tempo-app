@@ -203,7 +203,7 @@ const Dashboard = () => {
         console.log("Reminder saved successfully:", savedReminder);
         toast({
           title: "Reminder Created",
-          description: `"${reminder.title}" has been added to your reminders."
+          description: `"${reminder.title}" has been added to your reminders.`
         });
         
         // Use refreshReminders instead of background refresh for immediate update
