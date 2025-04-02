@@ -1,119 +1,193 @@
 
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Reminder } from '@/types/reminderTypes';
 
-// Cache constants
-const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
-const REMINDER_CACHE_PREFIX = 'reminderCache_';
+// Constants
+const REMINDER_CACHE_PREFIX = 'reminderCache-';
+const REMINDER_CACHE_EXPIRATION = 15 * 60 * 1000; // 15 minutes
+const REMINDER_DETAIL_CACHE_PREFIX = 'reminderDetail-';
+const REMINDER_DETAIL_CACHE_EXPIRATION = 5 * 60 * 1000; // 5 minutes
 
-interface CacheEntry<T> {
-  data: T;
+interface CacheMetadata {
   timestamp: number;
+  userId: string;
 }
 
-export const useReminderCache = () => {
-  // Get cached reminders for a user
-  const getCachedReminderList = useCallback((key: string): Reminder[] => {
+export function useReminderCache() {
+  // Helper to store reminders by key
+  const cacheReminderList = useCallback((key: string, reminders: Reminder[]) => {
     try {
-      const cacheKey = `${REMINDER_CACHE_PREFIX}${key}`;
-      const cached = localStorage.getItem(cacheKey);
+      const cacheData = {
+        reminders,
+        metadata: {
+          timestamp: Date.now(),
+          userId: key.split('-')[0] // Extract userId from the key
+        }
+      };
       
-      if (!cached) return [];
-      
-      const cacheEntry: CacheEntry<Reminder[]> = JSON.parse(cached);
-      return cacheEntry.data;
+      localStorage.setItem(REMINDER_CACHE_PREFIX + key, JSON.stringify(cacheData));
+      console.log(`Cached ${reminders.length} reminders with key ${key}`);
     } catch (error) {
-      console.error('Error reading from reminder cache:', error);
-      return [];
+      console.error('Error caching reminders:', error);
     }
   }, []);
 
-  // Store reminders in cache
-  const cacheReminderList = useCallback((key: string, reminders: Reminder[]): void => {
+  // Helper to retrieve reminders by key
+  const getCachedReminderList = useCallback((key: string): Reminder[] | null => {
     try {
-      const cacheKey = `${REMINDER_CACHE_PREFIX}${key}`;
-      const cacheEntry: CacheEntry<Reminder[]> = {
-        data: reminders,
-        timestamp: Date.now()
-      };
+      const cacheJson = localStorage.getItem(REMINDER_CACHE_PREFIX + key);
       
-      localStorage.setItem(cacheKey, JSON.stringify(cacheEntry));
+      if (!cacheJson) {
+        return null;
+      }
+      
+      const cacheData = JSON.parse(cacheJson);
+      const metadata = cacheData.metadata as CacheMetadata;
+      
+      // Check if cache is stale
+      if (Date.now() - metadata.timestamp > REMINDER_CACHE_EXPIRATION) {
+        console.log('Cache is stale for key:', key);
+        return null;
+      }
+      
+      return cacheData.reminders as Reminder[];
     } catch (error) {
-      console.error('Error writing to reminder cache:', error);
-    }
-  }, []);
-
-  // Cache a single reminder
-  const cacheReminder = useCallback((reminder: Reminder): void => {
-    try {
-      const cacheKey = `${REMINDER_CACHE_PREFIX}detail_${reminder.id}`;
-      const cacheEntry: CacheEntry<Reminder> = {
-        data: reminder,
-        timestamp: Date.now()
-      };
-      
-      localStorage.setItem(cacheKey, JSON.stringify(cacheEntry));
-    } catch (error) {
-      console.error('Error caching reminder:', error);
-    }
-  }, []);
-  
-  // Get a single cached reminder
-  const getDetailedReminder = useCallback((id: string): Reminder | null => {
-    try {
-      const cacheKey = `${REMINDER_CACHE_PREFIX}detail_${id}`;
-      const cached = localStorage.getItem(cacheKey);
-      
-      if (!cached) return null;
-      
-      const cacheEntry: CacheEntry<Reminder> = JSON.parse(cached);
-      return cacheEntry.data;
-    } catch (error) {
-      console.error('Error getting cached reminder:', error);
+      console.error('Error retrieving cached reminders:', error);
       return null;
     }
   }, []);
-  
-  // Cache detailed reminder
-  const cacheReminderDetail = useCallback((reminder: Reminder): void => {
-    cacheReminder(reminder);
-  }, [cacheReminder]);
-  
-  // Check if cache is stale
-  const isUserCacheStale = useCallback((userId: string): boolean => {
+
+  // Helper to store a single reminder (for detail view)
+  const cacheReminder = useCallback((reminder: Reminder) => {
+    if (!reminder?.id) return;
+    
     try {
-      const cacheKey = `${REMINDER_CACHE_PREFIX}${userId}-reminders`;
-      const cached = localStorage.getItem(cacheKey);
+      const cacheData = {
+        reminder,
+        metadata: {
+          timestamp: Date.now(),
+          userId: reminder.userId
+        }
+      };
       
-      if (!cached) return true;
-      
-      const cacheEntry: CacheEntry<any> = JSON.parse(cached);
-      const now = Date.now();
-      
-      return (now - cacheEntry.timestamp) > CACHE_EXPIRY_MS;
+      localStorage.setItem(REMINDER_DETAIL_CACHE_PREFIX + reminder.id, JSON.stringify(cacheData));
     } catch (error) {
-      console.error('Error checking cache staleness:', error);
-      return true;
+      console.error('Error caching reminder detail:', error);
     }
   }, []);
-  
-  // Invalidate cache for a user
-  const invalidateUserCache = useCallback((userId: string): void => {
+
+  // Helper to retrieve a single reminder
+  const getDetailedReminder = useCallback((id: string): Reminder | null => {
     try {
-      const cacheKey = `${REMINDER_CACHE_PREFIX}${userId}-reminders`;
-      localStorage.removeItem(cacheKey);
+      const cacheJson = localStorage.getItem(REMINDER_DETAIL_CACHE_PREFIX + id);
+      
+      if (!cacheJson) {
+        return null;
+      }
+      
+      const cacheData = JSON.parse(cacheJson);
+      const metadata = cacheData.metadata as CacheMetadata;
+      
+      // Check if cache is stale
+      if (Date.now() - metadata.timestamp > REMINDER_DETAIL_CACHE_EXPIRATION) {
+        console.log('Reminder detail cache is stale for id:', id);
+        return null;
+      }
+      
+      return cacheData.reminder as Reminder;
+    } catch (error) {
+      console.error('Error retrieving cached reminder detail:', error);
+      return null;
+    }
+  }, []);
+
+  // Clear all caches for a user
+  const invalidateUserCache = useCallback((userId: string) => {
+    try {
+      const keysToRemove: string[] = [];
+      
+      // Find all cache keys related to this user
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (
+          (key.startsWith(REMINDER_CACHE_PREFIX) && key.includes(userId)) ||
+          (key.startsWith(REMINDER_DETAIL_CACHE_PREFIX))
+        )) {
+          // For detail caches, check if they belong to this user
+          if (key.startsWith(REMINDER_DETAIL_CACHE_PREFIX)) {
+            try {
+              const data = JSON.parse(localStorage.getItem(key) || '{}');
+              if (data.metadata?.userId === userId) {
+                keysToRemove.push(key);
+              }
+            } catch (e) {
+              // If we can't parse it, remove it to be safe
+              keysToRemove.push(key);
+            }
+          } else {
+            keysToRemove.push(key);
+          }
+        }
+      }
+      
+      // Remove all found keys
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      console.log(`Invalidated ${keysToRemove.length} cache entries for user ${userId}`);
+      
+      return true;
     } catch (error) {
       console.error('Error invalidating user cache:', error);
+      return false;
+    }
+  }, []);
+
+  // Invalidate a specific reminder
+  const invalidateReminder = useCallback((id: string) => {
+    try {
+      localStorage.removeItem(REMINDER_DETAIL_CACHE_PREFIX + id);
+      return true;
+    } catch (error) {
+      console.error('Error invalidating reminder cache:', error);
+      return false;
+    }
+  }, []);
+
+  // Check if a user's cache is stale
+  const isUserCacheStale = useCallback((userId: string): boolean => {
+    try {
+      // Look for any cache key for this user
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(REMINDER_CACHE_PREFIX) && key.includes(userId)) {
+          try {
+            const data = JSON.parse(localStorage.getItem(key) || '{}');
+            if (data.metadata && data.metadata.timestamp) {
+              // If cache is not too old, it's not stale
+              if (Date.now() - data.metadata.timestamp < REMINDER_CACHE_EXPIRATION) {
+                return false;
+              }
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+      }
+      
+      // If we didn't find a fresh cache, it's stale
+      return true;
+    } catch (error) {
+      console.error('Error checking if user cache is stale:', error);
+      return true; // Assume stale if there's an error
     }
   }, []);
 
   return {
-    getCachedReminderList,
     cacheReminderList,
+    getCachedReminderList,
     cacheReminder,
     getDetailedReminder,
-    cacheReminderDetail,
-    isUserCacheStale,
-    invalidateUserCache
+    invalidateUserCache,
+    invalidateReminder,
+    isUserCacheStale
   };
-};
+}

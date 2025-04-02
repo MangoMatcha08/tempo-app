@@ -76,3 +76,19 @@ export const parseFieldsFromError = (errorMessage: string): string[] | null => {
     return null;
   }
 };
+
+// Helper to create a recovery query that won't require an index
+export const getRecoveryQuery = (collectionPath: string, userId: string) => {
+  return {
+    path: collectionPath,
+    filters: [
+      {
+        fieldPath: 'userId',
+        opStr: '==',
+        value: userId
+      }
+    ],
+    // No orderBy - client will sort results
+    orderByFields: []
+  };
+};

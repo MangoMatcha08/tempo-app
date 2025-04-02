@@ -74,8 +74,10 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [toast]);
 
   useEffect(() => {
+    let firestoreDb = null;
+    
     try {
-      const firestoreDb = getFirestoreInstance();
+      firestoreDb = getFirestoreInstance();
       
       console.log('Firestore project ID:', firebaseApp?.options?.projectId || 'unknown');
       
@@ -112,28 +114,16 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       } else if (isMissingIndexError(err)) {
         console.warn('Firestore index issue detected');
+        
+        // Even with index error, we can still use Firestore with simple queries
+        setIsReady(true);
+        setDb(firestoreDb);
+        
         toast({
           title: "Firestore Index Required",
-          description: "Create the necessary indexes in the Firebase Console.",
+          description: "Using simplified queries until index is created. This may affect performance.",
           duration: 8000,
         });
-        
-        // Still try to initialize Firestore, as we can use simplified queries
-        try {
-          const backupDb = getFirestoreInstance();
-          setDb(backupDb);
-          setIsReady(true);
-        } catch (e) {
-          console.error('Failed to initialize Firestore after index error:', e);
-        }
-      }
-      
-      try {
-        const backupDb = getFirestoreInstance();
-        setDb(backupDb);
-        setIsReady(true);
-      } catch (e) {
-        console.error('Critical error getting Firestore instance:', e);
       }
     }
   }, [toast, isTestAccount]);

@@ -161,7 +161,7 @@ const Dashboard = () => {
     }
   }, [batchDeleteReminders, toast]);
 
-  // Fix return type to be Promise<void> instead of Promise<boolean>
+  // Fixed return type to be Promise<void> instead of Promise<boolean>
   const clearCacheAndRefresh = useCallback(async (): Promise<void> => {
     try {
       localStorage.removeItem('reminderCache');
@@ -174,7 +174,6 @@ const Dashboard = () => {
       
       // Call refreshReminders and ignore its return value
       await refreshReminders();
-      
     } catch (err) {
       console.error("Error clearing cache:", err);
     }

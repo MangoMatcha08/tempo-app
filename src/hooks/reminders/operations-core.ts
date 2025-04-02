@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useReminderCache } from "./use-reminder-cache";
 import { doc, Timestamp, writeBatch } from "firebase/firestore";
+import { Reminder } from "@/types/reminderTypes";
 
 /**
  * Core hook for reminder operations, providing shared state and utilities
@@ -14,7 +15,8 @@ export function useReminderOperationsCore(user: any, db: any, isReady: boolean) 
     getCachedReminderList, 
     cacheReminderList,
     cacheReminder,
-    invalidateUserCache
+    invalidateUserCache,
+    invalidateReminder
   } = useReminderCache();
 
   // Helper to check if we're in offline mode
@@ -41,6 +43,7 @@ export function useReminderOperationsCore(user: any, db: any, isReady: boolean) 
     setError,
     cacheReminder,
     invalidateUserCache,
+    invalidateReminder,
     isOfflineMode,
     showErrorToast
   };
