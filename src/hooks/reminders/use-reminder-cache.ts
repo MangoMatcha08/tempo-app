@@ -186,9 +186,80 @@ export function useReminderCache() {
         cacheRef.current.reminderLists.delete(key);
       }
     });
+  }, []);
+
+  // Check if the cache is stale (older than a threshold)
+  const isCacheStale = useCallback(() => {
+    // Consider cache stale if it's older than 2 minutes
+    const staleThreshold = 2 * 60 * 1000;
+    const oldestAllowed = Date.now() - staleThreshold;
     
-    // We could also clear individual reminders, but that's more complex
-    // For simplicity, we'll keep them since they'll expire anyway
+    // Check if any reminder list is stale
+    let isStale = false;
+    cacheRef.current.reminderLists.forEach((item) => {
+      if (item.timestamp < oldestAllowed) {
+        isStale = true;
+      }
+    });
+    
+    return isStale;
+  }, []);
+
+  // Get all cached reminders
+  const getCachedReminders = useCallback(() => {
+    // Convert the map to an array
+    const reminders: Reminder[] = [];
+    cacheRef.current.reminders.forEach((item) => {
+      if (isValidCache(item)) {
+        reminders.push(item.data);
+      }
+    });
+    
+    return {
+      reminders,
+      totalCount: reminders.length,
+      timestamp: Date.now()
+    };
+  }, [isValidCache]);
+
+  // Set cached reminders
+  const setCachedReminders = useCallback((reminders: Reminder[], totalCount: number) => {
+    // Add or update each reminder in the cache
+    reminders.forEach(reminder => {
+      cacheReminder(reminder);
+    });
+    
+    // Also store as a list
+    const userId = reminders.length > 0 ? reminders[0].userId : 'unknown';
+    cacheReminderList(`${userId}-all`, reminders);
+    
+    // Store metadata
+    try {
+      localStorage.setItem('reminderCacheMetadata', JSON.stringify({
+        totalCount,
+        timestamp: Date.now()
+      }));
+    } catch (err) {
+      console.error('Error storing reminder cache metadata:', err);
+    }
+  }, [cacheReminder, cacheReminderList]);
+
+  // Clear the entire reminder cache
+  const clearReminderCache = useCallback(() => {
+    cacheRef.current.reminders.clear();
+    cacheRef.current.reminderLists.clear();
+    
+    try {
+      // Clear from localStorage
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('reminder-') || key === 'reminderCache' || key === 'reminderCacheMetadata') {
+          localStorage.removeItem(key);
+        }
+      });
+      console.log("Reminder cache cleared");
+    } catch (err) {
+      console.error("Error clearing reminder cache:", err);
+    }
   }, []);
 
   return {
@@ -199,6 +270,10 @@ export function useReminderCache() {
     invalidateReminder,
     invalidateUserCache,
     getDetailedReminder,
-    cacheReminderDetail
+    cacheReminderDetail,
+    isCacheStale,
+    getCachedReminders,
+    setCachedReminders,
+    clearReminderCache
   };
 }

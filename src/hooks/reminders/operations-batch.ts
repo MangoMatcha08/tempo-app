@@ -17,33 +17,12 @@ export function useBatchReminderOperations(user: any, db: any, isReady: boolean)
 
   const batchCompleteReminders = async (
     ids: string[], 
-    completed: boolean, 
-    setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>
+    completed: boolean
   ): Promise<boolean> => {
     let originalReminders: Reminder[] = [];
     const completedAt = completed ? new Date() : undefined;
     
     try {
-      setReminders(prev => {
-        const newReminders = prev.map(reminder => {
-          if (ids.includes(reminder.id)) {
-            originalReminders.push({ ...reminder });
-            return { 
-              ...reminder, 
-              completed, 
-              completedAt: completed ? completedAt : undefined 
-            };
-          }
-          return reminder;
-        });
-        
-        newReminders
-          .filter(r => ids.includes(r.id))
-          .forEach(updatedReminder => cacheReminder(updatedReminder));
-        
-        return newReminders;
-      });
-      
       if (isOfflineMode()) {
         return true;
       }
@@ -67,28 +46,14 @@ export function useBatchReminderOperations(user: any, db: any, isReady: boolean)
       console.error(`Error batch ${completed ? 'completing' : 'uncompleting'} reminders:`, error);
       setError(error);
       
-      if (originalReminders.length > 0) {
-        setReminders(prev => {
-          const newReminders = prev.map(reminder => {
-            const original = originalReminders.find(r => r.id === reminder.id);
-            return original || reminder;
-          });
-          
-          originalReminders.forEach(reminder => cacheReminder(reminder));
-          
-          return newReminders;
-        });
-      }
-      
       showErrorToast("Changes were not saved. Please try again later.");
+      
       return false;
     }
   };
   
   const batchAddReminders = async (
-    reminders: Omit<Reminder, 'id'>[],
-    setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>,
-    setTotalCount: React.Dispatch<React.SetStateAction<number>>
+    reminders: Omit<Reminder, 'id'>[]
   ): Promise<Reminder[]> => {
     const tempIds: string[] = [];
     const tempReminders: Reminder[] = [];
@@ -103,13 +68,6 @@ export function useBatchReminderOperations(user: any, db: any, isReady: boolean)
           createdAt: reminder.createdAt || new Date()
         } as Reminder);
       });
-      
-      setReminders(prev => {
-        const updatedReminders = [...tempReminders, ...prev];
-        return updatedReminders;
-      });
-      
-      setTotalCount(prev => prev + reminders.length);
       
       if (isOfflineMode()) {
         console.log("Adding reminders (local only, optimistic):", tempReminders);
@@ -151,22 +109,12 @@ export function useBatchReminderOperations(user: any, db: any, isReady: boolean)
         return savedReminder;
       });
       
-      setReminders(prev => {
-        const withoutTempReminders = prev.filter(
-          reminder => !tempIds.includes(reminder.id)
-        );
-        return [...savedReminders, ...withoutTempReminders];
-      });
-      
       setError(null);
       
       return savedReminders;
     } catch (error: any) {
       console.error("Error batch adding reminders:", error);
       setError(error);
-      
-      setReminders(prev => prev.filter(item => !tempIds.includes(item.id)));
-      setTotalCount(prev => prev - reminders.length);
       
       showErrorToast("Your reminders were not saved. Please try again later.");
       
@@ -175,28 +123,12 @@ export function useBatchReminderOperations(user: any, db: any, isReady: boolean)
   };
 
   const batchUpdateReminders = async (
-    updatedReminders: Reminder[],
-    setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>
+    updatedReminders: Reminder[]
   ): Promise<boolean> => {
     let originalReminders: Reminder[] = [];
     const reminderIds = updatedReminders.map(r => r.id);
     
     try {
-      setReminders(prev => {
-        originalReminders = prev
-          .filter(r => reminderIds.includes(r.id))
-          .map(r => ({ ...r }));
-        
-        const newReminders = prev.map(reminder => {
-          const updatedVersion = updatedReminders.find(r => r.id === reminder.id);
-          return updatedVersion || reminder;
-        });
-        
-        updatedReminders.forEach(reminder => cacheReminder(reminder));
-        
-        return newReminders;
-      });
-      
       if (isOfflineMode()) {
         console.log("Updating reminders (local only, optimistic):", updatedReminders);
         return true;
@@ -228,19 +160,6 @@ export function useBatchReminderOperations(user: any, db: any, isReady: boolean)
       console.error("Error batch updating reminders:", error);
       setError(error);
       
-      if (originalReminders.length > 0) {
-        setReminders(prev => {
-          const newReminders = prev.map(reminder => {
-            const original = originalReminders.find(r => r.id === reminder.id);
-            return original || reminder;
-          });
-          
-          originalReminders.forEach(reminder => cacheReminder(reminder));
-          
-          return newReminders;
-        });
-      }
-      
       reminderIds.forEach(id => invalidateReminder(id));
       
       showErrorToast("Your changes were not saved. Please try again later.");
@@ -250,23 +169,9 @@ export function useBatchReminderOperations(user: any, db: any, isReady: boolean)
   };
 
   const batchDeleteReminders = async (
-    ids: string[],
-    setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>,
-    setTotalCount: React.Dispatch<React.SetStateAction<number>>
+    ids: string[]
   ): Promise<boolean> => {
-    let originalReminders: Reminder[] = [];
-    
     try {
-      setReminders(prev => {
-        originalReminders = prev
-          .filter(r => ids.includes(r.id))
-          .map(r => ({ ...r }));
-        
-        return prev.filter(r => !ids.includes(r.id));
-      });
-      
-      setTotalCount(prev => prev - ids.length);
-      
       if (isOfflineMode()) {
         console.log("Deleting reminders (local only, optimistic):", ids);
         return true;
@@ -291,16 +196,6 @@ export function useBatchReminderOperations(user: any, db: any, isReady: boolean)
     } catch (error: any) {
       console.error("Error batch deleting reminders:", error);
       setError(error);
-      
-      if (originalReminders.length > 0) {
-        setReminders(prev => {
-          return [...prev, ...originalReminders];
-        });
-        
-        setTotalCount(prev => prev + ids.length);
-        
-        originalReminders.forEach(reminder => cacheReminder(reminder));
-      }
       
       showErrorToast("Your reminders were not deleted. Please try again later.");
       

@@ -1,3 +1,4 @@
+
 import { doc, updateDoc, collection, addDoc, deleteDoc, Timestamp } from "firebase/firestore";
 import { Reminder } from "@/types/reminderTypes";
 import { useReminderOperationsCore } from "./operations-core";
@@ -14,24 +15,9 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
     showErrorToast
   } = useReminderOperationsCore(user, db, isReady);
 
-  const handleCompleteReminder = async (id: string, setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>): Promise<boolean> => {
+  const handleCompleteReminder = async (id: string): Promise<boolean> => {
     try {
       const completedAt = new Date();
-      
-      setReminders(prev => {
-        const newReminders = prev.map(reminder => 
-          reminder.id === id 
-            ? { ...reminder, completed: true, completedAt } 
-            : reminder
-        );
-        
-        const updatedReminder = newReminders.find(r => r.id === id);
-        if (updatedReminder) {
-          cacheReminder(updatedReminder);
-        }
-        
-        return newReminders;
-      });
       
       if (isOfflineMode()) {
         return true;
@@ -49,43 +35,13 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
       console.error("Error completing reminder:", error);
       setError(error);
       
-      setReminders(prev => {
-        const newReminders = prev.map(reminder => 
-          reminder.id === id 
-            ? { ...reminder, completed: false, completedAt: undefined } 
-            : reminder
-        );
-        
-        const revertedReminder = newReminders.find(r => r.id === id);
-        if (revertedReminder) {
-          cacheReminder(revertedReminder);
-        }
-        
-        return newReminders;
-      });
-      
       showErrorToast("Changes were not saved. Please try again later.");
       return false;
     }
   };
   
-  const handleUndoComplete = async (id: string, setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>): Promise<boolean> => {
+  const handleUndoComplete = async (id: string): Promise<boolean> => {
     try {
-      setReminders(prev => {
-        const newReminders = prev.map(reminder => 
-          reminder.id === id 
-            ? { ...reminder, completed: false, completedAt: undefined } 
-            : reminder
-        );
-        
-        const updatedReminder = newReminders.find(r => r.id === id);
-        if (updatedReminder) {
-          cacheReminder(updatedReminder);
-        }
-        
-        return newReminders;
-      });
-      
       if (isOfflineMode()) {
         return true;
       }
@@ -102,31 +58,12 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
       console.error("Error undoing reminder completion:", error);
       setError(error);
       
-      setReminders(prev => {
-        const newReminders = prev.map(reminder => 
-          reminder.id === id 
-            ? { ...reminder, completed: true, completedAt: new Date() } 
-            : reminder
-        );
-        
-        const revertedReminder = newReminders.find(r => r.id === id);
-        if (revertedReminder) {
-          cacheReminder(revertedReminder);
-        }
-        
-        return newReminders;
-      });
-      
       showErrorToast("Changes were not saved. Please try again later.");
       return false;
     }
   };
 
-  const addReminder = async (
-    reminder: Reminder, 
-    setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>,
-    setTotalCount: React.Dispatch<React.SetStateAction<number>>
-  ): Promise<Reminder> => {
+  const addReminder = async (reminder: Reminder): Promise<Reminder> => {
     const tempId = reminder.id || `temp-${Date.now()}`;
     const newReminder = {
       ...reminder,
@@ -135,13 +72,6 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
     };
     
     try {
-      setReminders(prev => {
-        const updatedReminders = [newReminder, ...prev];
-        return updatedReminders;
-      });
-      
-      setTotalCount(prev => prev + 1);
-      
       if (isOfflineMode()) {
         console.log("Adding reminder (local only, optimistic):", newReminder);
         cacheReminder(newReminder);
@@ -173,15 +103,7 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
       
       console.log("Successfully added reminder:", savedReminder);
       
-      setReminders(prev => {
-        const updatedReminders = prev.map(item => 
-          item.id === tempId ? savedReminder : item
-        );
-        
-        cacheReminder(savedReminder);
-        
-        return updatedReminders;
-      });
+      cacheReminder(savedReminder);
       
       setError(null);
       
@@ -190,35 +112,15 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
       console.error("Error adding reminder:", error);
       setError(error);
       
-      setReminders(prev => prev.filter(item => item.id !== tempId));
-      setTotalCount(prev => prev - 1);
-      
       showErrorToast("Your reminder was not saved. Please try again later.");
       
       return reminder;
     }
   };
 
-  const updateReminder = async (
-    updatedReminder: Reminder, 
-    setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>
-  ): Promise<Reminder> => {
-    let originalReminder: Reminder | undefined;
-    
+  const updateReminder = async (updatedReminder: Reminder): Promise<Reminder> => {
     try {
-      setReminders(prev => {
-        originalReminder = prev.find(r => r.id === updatedReminder.id);
-        
-        const newReminders = prev.map(reminder => 
-          reminder.id === updatedReminder.id 
-            ? { ...updatedReminder } 
-            : reminder
-        );
-        
-        cacheReminder(updatedReminder);
-        
-        return newReminders;
-      });
+      cacheReminder(updatedReminder);
       
       if (isOfflineMode()) {
         console.log("Updating reminder (local only, optimistic):", updatedReminder);
@@ -246,20 +148,6 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
       console.error("Error updating reminder:", error);
       setError(error);
       
-      if (originalReminder) {
-        setReminders(prev => {
-          const newReminders = prev.map(reminder => 
-            reminder.id === updatedReminder.id 
-              ? originalReminder! 
-              : reminder
-          );
-          
-          cacheReminder(originalReminder);
-          
-          return newReminders;
-        });
-      }
-      
       invalidateReminder(updatedReminder.id);
       
       showErrorToast("Your changes were not saved. Please try again later.");
@@ -268,26 +156,8 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
     }
   };
 
-  const deleteReminder = async (
-    id: string,
-    setReminders?: React.Dispatch<React.SetStateAction<Reminder[]>>,
-    setTotalCount?: React.Dispatch<React.SetStateAction<number>>
-  ): Promise<boolean> => {
-    let deletedReminder: Reminder | undefined;
-    
+  const deleteReminder = async (id: string): Promise<boolean> => {
     try {
-      if (setReminders) {
-        setReminders(prev => {
-          deletedReminder = prev.find(r => r.id === id);
-          
-          return prev.filter(r => r.id !== id);
-        });
-        
-        if (setTotalCount) {
-          setTotalCount(prev => prev - 1);
-        }
-      }
-      
       if (isOfflineMode()) {
         console.log("Deleting reminder (local only, optimistic):", id);
         invalidateReminder(id);
@@ -306,20 +176,6 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
     } catch (error: any) {
       console.error("Error deleting reminder:", error);
       setError(error);
-      
-      if (setReminders && deletedReminder) {
-        setReminders(prev => {
-          return [...prev, deletedReminder!];
-        });
-        
-        if (setTotalCount) {
-          setTotalCount(prev => prev + 1);
-        }
-        
-        if (deletedReminder) {
-          cacheReminder(deletedReminder);
-        }
-      }
       
       showErrorToast("The reminder could not be removed. Please try again later.");
       return false;

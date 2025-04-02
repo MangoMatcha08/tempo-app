@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from "react";
 import { Bell, Menu, Plus, RefreshCw } from "lucide-react";
-import { MobileNavToggle } from "../ui/sidebar";
 import { Button } from "../ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import NotificationEnableButton from "../settings/NotificationEnableButton";
@@ -45,7 +44,9 @@ const DashboardHeader = ({
   return (
     <header className="flex justify-between items-center p-4 border-b">
       <div className="flex items-center">
-        <MobileNavToggle className="md:hidden mr-2" />
+        <div className="md:hidden mr-2">
+          <Menu className="h-5 w-5" />
+        </div>
         <h1 className="text-xl font-semibold">Hello, {displayName}</h1>
       </div>
       
