@@ -26,19 +26,25 @@ export function useBatchOperations(
   const batchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Process batch operations
-  const processBatchOperations = useCallback(() => {
+  const processBatchOperations = useCallback(async () => {
     const { complete, delete: deleteBatch, update } = pendingBatchRef.current;
+    let allSuccessful = true;
     
     // Process completing reminders
     if (complete.length > 0) {
       console.log(`Processing batch complete for ${complete.length} reminders`);
-      batchCompleteReminders(complete, true)
-        .then(() => {
+      try {
+        const success = await batchCompleteReminders(complete, true);
+        if (success) {
           console.log("Batch complete operation successful");
-        })
-        .catch(error => {
-          console.error("Batch complete operation failed:", error);
-        });
+        } else {
+          console.error("Batch complete operation returned false");
+          allSuccessful = false;
+        }
+      } catch (error) {
+        console.error("Batch complete operation failed:", error);
+        allSuccessful = false;
+      }
       
       // Clear the batch
       pendingBatchRef.current.complete = [];
@@ -47,15 +53,18 @@ export function useBatchOperations(
     // Process deleting reminders
     if (deleteBatch.length > 0) {
       console.log(`Processing batch delete for ${deleteBatch.length} reminders`);
-      batchDeleteReminders(deleteBatch)
-        .then(success => {
-          if (success) {
-            console.log("Batch delete operation successful");
-          }
-        })
-        .catch(error => {
-          console.error("Batch delete operation failed:", error);
-        });
+      try {
+        const success = await batchDeleteReminders(deleteBatch);
+        if (success) {
+          console.log("Batch delete operation successful");
+        } else {
+          console.error("Batch delete operation returned false");
+          allSuccessful = false;
+        }
+      } catch (error) {
+        console.error("Batch delete operation failed:", error);
+        allSuccessful = false;
+      }
       
       // Clear the batch
       pendingBatchRef.current.delete = [];
@@ -68,13 +77,18 @@ export function useBatchOperations(
       // Convert UI reminders to backend reminders
       const backendReminders = update.map(convertToBackendReminder);
       
-      batchUpdateReminders(backendReminders)
-        .then(() => {
+      try {
+        const success = await batchUpdateReminders(backendReminders);
+        if (success) {
           console.log("Batch update operation successful");
-        })
-        .catch(error => {
-          console.error("Batch update operation failed:", error);
-        });
+        } else {
+          console.error("Batch update operation returned false");
+          allSuccessful = false;
+        }
+      } catch (error) {
+        console.error("Batch update operation failed:", error);
+        allSuccessful = false;
+      }
       
       // Clear the batch
       pendingBatchRef.current.update = [];
@@ -82,6 +96,8 @@ export function useBatchOperations(
     
     // Clear the timeout reference
     batchTimeoutRef.current = null;
+    
+    return allSuccessful;
   }, [batchCompleteReminders, batchDeleteReminders, batchUpdateReminders]);
   
   // Function to schedule a batch operation

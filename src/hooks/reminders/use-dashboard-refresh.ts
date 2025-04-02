@@ -21,11 +21,14 @@ export function useDashboardRefresh(
     if (!loading && !hasError) {
       try {
         await refreshFunction();
+        return true; // Return true to indicate successful refresh
       } catch (error) {
         console.error("Background refresh error:", error);
         // Don't show an error toast for background refreshes
+        return false; // Return false to indicate failed refresh
       }
     }
+    return false; // Return false if conditions aren't met for refresh
   }, [refreshFunction, loading, hasError]);
 
   // Set up refresh timers
@@ -53,8 +56,8 @@ export function useDashboardRefresh(
   }, [performBackgroundRefresh]);
 
   // Function to force an immediate refresh
-  const forceRefresh = useCallback(() => {
-    performBackgroundRefresh();
+  const forceRefresh = useCallback(async () => {
+    return performBackgroundRefresh();
   }, [performBackgroundRefresh]);
 
   return {
