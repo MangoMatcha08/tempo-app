@@ -251,21 +251,19 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
       console.error("Error updating reminder:", error);
       setError(error);
       
-      setReminders(prev => {
-        if (!originalReminder) return prev;
-        
-        const newReminders = prev.map(reminder => 
-          reminder.id === updatedReminder.id 
-            ? originalReminder! 
-            : reminder
-        );
-        
-        if (originalReminder) {
+      if (originalReminder) {
+        setReminders(prev => {
+          const newReminders = prev.map(reminder => 
+            reminder.id === updatedReminder.id 
+              ? originalReminder! 
+              : reminder
+          );
+          
           cacheReminder(originalReminder);
-        }
-        
-        return newReminders;
-      });
+          
+          return newReminders;
+        });
+      }
       
       invalidateReminder(updatedReminder.id);
       
