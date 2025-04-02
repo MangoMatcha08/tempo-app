@@ -13,7 +13,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   const [isListening, setIsListening] = useState<boolean>(false);
   
   // Use separate hooks for managing recognition and transcript
-  const { recognition, browserSupportsSpeechRecognition } = useSpeechRecognitionSetup({
+  const { recognition, browserSupportsSpeechRecognition, isPWA } = useSpeechRecognitionSetup({
     onError: setError,
     isListening,
     setIsListening
@@ -31,7 +31,10 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   useEffect(() => {
     if (!recognition) return;
     
+    console.log("Setting up recognition event handlers");
+    
     recognition.onresult = (event: any) => {
+      console.log("Recognition result received");
       processSpeechResults(event);
     };
     
@@ -70,6 +73,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
           if (isListening) {
             try {
               recognition.start();
+              console.log("Recognition restarted after network error");
             } catch (err) {
               console.error('Failed to restart after network error:', err);
               setError(`Speech recognition network error. Please try again.`);
@@ -94,6 +98,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       if (recognition) {
         try {
           recognition.stop();
+          console.log("Recognition stopped during cleanup");
         } catch (err) {
           console.error('Error stopping recognition during cleanup:', err);
         }
@@ -105,7 +110,10 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
    * Starts the speech recognition process
    */
   const startListening = useCallback(() => {
-    if (!recognition) return;
+    if (!recognition) {
+      console.error("Cannot start listening: recognition not initialized");
+      return;
+    }
     
     // Reset transcript
     resetTranscriptState();
@@ -122,22 +130,35 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       // Try to stop and restart if already started
       try {
         recognition.stop();
+        console.log("Recognition stopped after error, will attempt restart");
+        
+        // Use a longer timeout in PWA mode
         setTimeout(() => {
-          recognition.start();
-        }, 100);
+          try {
+            recognition.start();
+            console.log("Recognition successfully restarted");
+          } catch (startErr) {
+            console.error("Second start attempt failed:", startErr);
+            setError('Failed to start speech recognition. Please try reloading the page.');
+            setIsListening(false);
+          }
+        }, isPWA ? 500 : 100);
       } catch (stopErr) {
         console.error('Failed to restart recognition:', stopErr);
         setError('Failed to start speech recognition. Please try reloading the page.');
         setIsListening(false);
       }
     }
-  }, [recognition, resetTranscriptState]);
+  }, [recognition, resetTranscriptState, isPWA]);
 
   /**
    * Stops the speech recognition process
    */
   const stopListening = useCallback(() => {
-    if (!recognition) return;
+    if (!recognition) {
+      console.error("Cannot stop listening: recognition not initialized");
+      return;
+    }
     
     console.log('Stopping speech recognition');
     setIsListening(false);

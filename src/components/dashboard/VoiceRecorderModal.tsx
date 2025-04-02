@@ -1,5 +1,5 @@
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { 
   Dialog,
@@ -41,19 +41,41 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   const { toast } = useToast();
   const dialogContentRef = useRef<HTMLDivElement>(null);
   const lastOpenStateRef = useRef(open);
+  const [isPWA, setIsPWA] = useState(false);
   
-  // When modal opens, try to request microphone permission proactively on mobile
+  // Check if running as PWA
+  useEffect(() => {
+    // Check if app is running in standalone mode (PWA)
+    const isStandalone = 
+      window.matchMedia('(display-mode: standalone)').matches || 
+      // @ts-ignore - Property 'standalone' exists on iOS Safari but not in TS types
+      window.navigator.standalone === true;
+    
+    setIsPWA(isStandalone);
+    console.log("VoiceRecorderModal running as PWA:", isStandalone);
+  }, []);
+  
+  // When modal opens, try to request microphone permission proactively
   useEffect(() => {
     if (open && !lastOpenStateRef.current) {
-      // Check if we're on a mobile device
-      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      console.log("Voice modal opened, checking microphone access");
       
-      // If on mobile, we'll try to pre-request permission when the modal opens
-      if (isMobileDevice && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        console.log("Voice modal opened on mobile, pre-checking microphone permission");
+      // Always pre-request permission in PWA mode
+      const shouldPreRequest = isPWA || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      if (shouldPreRequest && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        console.log("Pre-checking microphone permission");
         navigator.mediaDevices.getUserMedia({ audio: true })
-          .then(() => {
+          .then((stream) => {
             console.log("Microphone permission pre-granted");
+            // Store the stream to prevent it from being garbage collected in PWA
+            if (isPWA) {
+              (window as any).microphoneStream = stream;
+              console.log("Stored microphone stream for PWA");
+            } else {
+              // Release the stream if not in PWA mode
+              stream.getTracks().forEach(track => track.stop());
+            }
           })
           .catch(err => {
             console.log("Microphone permission not pre-granted:", err.name);
@@ -65,7 +87,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
       resetState();
     }
     lastOpenStateRef.current = open;
-  }, [open, resetState]);
+  }, [open, resetState, isPWA]);
   
   // Scroll to the bottom when view changes to confirm
   useEffect(() => {
@@ -83,6 +105,19 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   useEffect(() => {
     console.log("Current view:", view, "transcript length:", transcript ? transcript.length : 0);
   }, [view, transcript]);
+  
+  // Cleanup microphone stream when modal closes
+  useEffect(() => {
+    return () => {
+      // Release microphone stream on modal close if we stored one
+      if ((window as any).microphoneStream) {
+        const tracks = (window as any).microphoneStream.getTracks();
+        tracks.forEach((track: MediaStreamTrack) => track.stop());
+        (window as any).microphoneStream = null;
+        console.log("Microphone stream released on modal close");
+      }
+    };
+  }, []);
   
   const handleSave = () => {
     if (!transcript || !title) {
