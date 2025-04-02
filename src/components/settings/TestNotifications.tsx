@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { sendTestNotification } from "@/services/notificationService";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import NotificationEnableButton from "./NotificationEnableButton";
 
 const TestNotifications = () => {
   const [email, setEmail] = useState("zhom08@gmail.com");
@@ -98,6 +99,22 @@ const TestNotifications = () => {
 
   return (
     <div className="space-y-6">
+      <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
+        <h3 className="text-lg font-medium mb-3">Enable Push Notifications</h3>
+        <p className="mb-3 text-sm text-blue-700">
+          To receive notifications on your device, you need to grant permission first.
+          This is required for each device and browser you use.
+        </p>
+        <NotificationEnableButton size="lg" />
+        
+        {permissionGranted && (
+          <div className="mt-3 text-sm text-green-600 flex items-center">
+            <BellRing className="h-4 w-4 mr-1" />
+            Notifications are enabled on this device
+          </div>
+        )}
+      </div>
+      
       <div className="space-y-2">
         <h3 className="text-sm font-medium">Test Email Notification</h3>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
@@ -140,9 +157,13 @@ const TestNotifications = () => {
         <AlertTitle className="text-yellow-800">Note about notifications</AlertTitle>
         <AlertDescription className="text-yellow-700">
           <p>
-            In this demo version, notifications are simulated and won't actually be sent. 
-            In a production version, these would connect to actual notification services.
+            For notifications to work on your mobile device, you need to:
           </p>
+          <ol className="list-decimal ml-5 mt-2 space-y-1">
+            <li>Grant permission in the browser (using the button above)</li>
+            <li>Enable notifications in your phone's system settings</li>
+            <li>Keep the browser running in the background (some restrictions may apply based on device)</li>
+          </ol>
         </AlertDescription>
       </Alert>
     </div>

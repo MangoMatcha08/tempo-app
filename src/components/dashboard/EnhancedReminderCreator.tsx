@@ -1,372 +1,344 @@
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { DatePicker } from "@/components/ui/date-picker";
-import { TimePicker } from "@/components/ui/time-picker";
-import { ReminderPriority, ReminderCategory, CreateReminderInput } from '@/types/reminderTypes';
-import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
-import { mockPeriods, createReminder } from '@/utils/reminderUtils';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { v4 as uuidv4 } from 'uuid';
-import { Reminder as UIReminder } from '@/types/reminder';
-import { convertToUIReminder } from '@/utils/typeUtils';
+import { CalendarIcon, XCircle } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { useForm, Controller } from "react-hook-form";
+import { ReminderCategory, ReminderPriority } from "@/types/reminderTypes";
+import { createReminder } from "@/utils/reminderUtils";
+import { useToast } from "@/hooks/use-toast";
 
 interface EnhancedReminderCreatorProps {
-  onReminderCreated?: (reminder: UIReminder) => void;
-  onCancel?: () => void;
+  onReminderCreated: (reminder: any) => void;
+  onCancel: () => void;
 }
 
-const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({ 
-  onReminderCreated,
-  onCancel 
-}) => {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState<ReminderPriority>(ReminderPriority.MEDIUM);
-  const [category, setCategory] = useState<ReminderCategory>(ReminderCategory.TASK);
-  const [periodId, setPeriodId] = useState<string | undefined>(undefined);
-  const [dueDate, setDueDate] = useState<Date | undefined>(new Date()); // Default to today
-  const [dueTime, setDueTime] = useState<string | undefined>(undefined);
-  const [checklist, setChecklist] = useState<{ id: string, text: string, isCompleted: boolean }[]>([]);
+const EnhancedReminderCreator = ({ onReminderCreated, onCancel }: EnhancedReminderCreatorProps) => {
+  const [activeTab, setActiveTab] = useState("simple");
+  const { toast } = useToast();
   
-  const [viewMode, setViewMode] = useState<'simple' | 'detailed'>('simple');
-  const [showChecklist, setShowChecklist] = useState(false);
-  const [newChecklistItem, setNewChecklistItem] = useState('');
-  
-  // Initialize with default date of today when component mounts
-  useEffect(() => {
-    setDueDate(new Date());
-  }, []);
-  
-  const toggleViewMode = () => {
-    setViewMode(viewMode === 'simple' ? 'detailed' : 'simple');
-  };
-  
-  const addChecklistItem = () => {
-    if (newChecklistItem.trim()) {
-      setChecklist([
-        ...checklist,
-        { id: uuidv4(), text: newChecklistItem, isCompleted: false }
-      ]);
-      setNewChecklistItem('');
+  const { handleSubmit, control, register, formState: { errors, isDirty }, reset, watch } = useForm({
+    defaultValues: {
+      title: "",
+      description: "",
+      category: ReminderCategory.TASK,
+      priority: ReminderPriority.MEDIUM,
+      dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
+      periodId: ""
     }
-  };
+  });
   
-  const removeChecklistItem = (id: string) => {
-    setChecklist(checklist.filter(item => item.id !== id));
-  };
-  
-  const toggleChecklistItem = (id: string) => {
-    setChecklist(checklist.map(item => 
-      item.id === id ? { ...item, isCompleted: !item.isCompleted } : item
-    ));
-  };
-  
-  const handleCreateReminder = () => {
-    if (!title.trim()) return;
-    
-    const reminderInput: CreateReminderInput = {
-      title,
-      description,
-      priority,
-      category,
-      periodId,
-      checklist: checklist.length > 0 ? checklist : undefined,
-    };
-    
-    // Use today as default if no date was selected
-    let finalDueDate = dueDate || new Date();
-    
-    // If a period is selected, check if we need to move to tomorrow based on timing
-    if (periodId) {
-      const now = new Date();
-      const selectedPeriod = mockPeriods.find(p => p.id === periodId);
+  const onSubmit = (data: any) => {
+    try {
+      // Create the reminder with the form data
+      const reminder = createReminder({
+        title: data.title,
+        description: data.description || "",
+        category: data.category,
+        priority: data.priority,
+        dueDate: data.dueDate,
+        periodId: data.periodId || undefined
+      });
       
-      if (selectedPeriod && selectedPeriod.startTime) {
-        const [hours, minutes] = selectedPeriod.startTime.split(':').map(Number);
-        
-        // Create a date object for the period time today
-        const periodTime = new Date(finalDueDate);
-        periodTime.setHours(hours, minutes, 0, 0);
-        
-        // If period time is earlier than current time and the date is today, move to tomorrow
-        if (periodTime < now && 
-            finalDueDate.getDate() === now.getDate() && 
-            finalDueDate.getMonth() === now.getMonth() && 
-            finalDueDate.getFullYear() === now.getFullYear()) {
-          const tomorrow = new Date(finalDueDate);
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          finalDueDate = tomorrow;
-        }
-      }
+      // Call the callback with the new reminder
+      onReminderCreated(reminder);
+      
+      // Reset the form
+      reset();
+      
+      // Show success toast
+      toast({
+        title: "Reminder created",
+        description: "Your reminder has been created successfully.",
+      });
+    } catch (error) {
+      console.error("Error creating reminder:", error);
+      
+      // Show error toast
+      toast({
+        title: "Error",
+        description: "There was an error creating your reminder.",
+        variant: "destructive"
+      });
     }
-    // If a specific time was selected, apply similar logic
-    else if (dueTime) {
-      const now = new Date();
-      const [hoursStr, minutesStr, period] = dueTime.split(/[:\s]/);
-      let hours = parseInt(hoursStr);
-      const minutes = parseInt(minutesStr);
-      
-      if (period === 'PM' && hours < 12) {
-        hours += 12;
-      } else if (period === 'AM' && hours === 12) {
-        hours = 0;
-      }
-      
-      // Create a date object for the selected time today
-      const selectedTime = new Date(finalDueDate);
-      selectedTime.setHours(hours, minutes, 0, 0);
-      
-      // If selected time is earlier than current time and the date is today, move to tomorrow
-      if (selectedTime < now && 
-          finalDueDate.getDate() === now.getDate() && 
-          finalDueDate.getMonth() === now.getMonth() && 
-          finalDueDate.getFullYear() === now.getFullYear()) {
-        const tomorrow = new Date(finalDueDate);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        finalDueDate = tomorrow;
-      } else {
-        finalDueDate.setHours(hours, minutes);
-      }
-    }
-    
-    const newReminder = createReminder({
-      ...reminderInput,
-      dueDate: finalDueDate
-    });
-    
-    const uiReminder = convertToUIReminder(newReminder);
-    
-    if (onReminderCreated) {
-      onReminderCreated(uiReminder);
-    }
-    
-    resetForm();
-  };
-  
-  const resetForm = () => {
-    setTitle('');
-    setDescription('');
-    setPriority(ReminderPriority.MEDIUM);
-    setCategory(ReminderCategory.TASK);
-    setPeriodId(undefined);
-    setDueDate(new Date()); // Reset to today
-    setDueTime(undefined);
-    setChecklist([]);
-    setNewChecklistItem('');
-    setShowChecklist(false);
-    setViewMode('simple');
   };
   
   return (
-    <Card className="enhanced-reminder-creator w-full">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-xl">Create Reminder</CardTitle>
-        <div className="flex items-center space-x-2">
-          <Label htmlFor="view-mode" className="text-sm">
-            {viewMode === 'simple' ? 'Simple' : 'Detailed'}
-          </Label>
-          <Switch
-            id="view-mode"
-            checked={viewMode === 'detailed'}
-            onCheckedChange={toggleViewMode}
-          />
-        </div>
-      </CardHeader>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-semibold">Create Reminder</h2>
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={onCancel}
+        >
+          <XCircle className="h-5 w-5" />
+        </Button>
+      </div>
       
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="title">Title</Label>
-          <Input
-            id="title"
-            placeholder="What do you need to remember?"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </div>
+      <Tabs defaultValue="simple" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid grid-cols-2">
+          <TabsTrigger value="simple">Simple</TabsTrigger>
+          <TabsTrigger value="detailed">Detailed</TabsTrigger>
+        </TabsList>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="priority">Priority</Label>
-            <Select value={priority} onValueChange={(value) => setPriority(value as ReminderPriority)}>
-              <SelectTrigger id="priority">
-                <SelectValue placeholder="Select priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ReminderPriority.HIGH}>High</SelectItem>
-                <SelectItem value={ReminderPriority.MEDIUM}>Medium</SelectItem>
-                <SelectItem value={ReminderPriority.LOW}>Low</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
-            <Select value={category} onValueChange={(value) => setCategory(value as ReminderCategory)}>
-              <SelectTrigger id="category">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ReminderCategory.TASK}>Task</SelectItem>
-                <SelectItem value={ReminderCategory.MEETING}>Meeting</SelectItem>
-                <SelectItem value={ReminderCategory.DEADLINE}>Deadline</SelectItem>
-                <SelectItem value={ReminderCategory.PREPARATION}>Preparation</SelectItem>
-                <SelectItem value={ReminderCategory.GRADING}>Grading</SelectItem>
-                <SelectItem value={ReminderCategory.COMMUNICATION}>Communication</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Period selection in simple view as well */}
-        <div className="space-y-2">
-          <Label htmlFor="period">Period</Label>
-          <Select 
-            value={periodId || 'none'} 
-            onValueChange={(value) => setPeriodId(value === 'none' ? undefined : value)}
-          >
-            <SelectTrigger id="period">
-              <SelectValue placeholder="Select period" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">No specific period</SelectItem>
-              {mockPeriods.map(period => (
-                <SelectItem key={period.id} value={period.id}>
-                  {period.name} ({period.startTime} - {period.endTime})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        {viewMode === 'detailed' && (
-          <>
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Add more details about this reminder"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="min-h-[100px]"
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <TabsContent value="simple" className="space-y-4 pt-2">
+            <div>
+              <Controller
+                name="title"
+                control={control}
+                rules={{ required: "Title is required" }}
+                render={({ field }) => (
+                  <Input
+                    placeholder="What do you need to do?"
+                    {...field}
+                    className={cn(errors.title && "border-red-500")}
+                  />
+                )}
               />
+              {errors.title && (
+                <p className="text-red-500 text-sm mt-1">{errors.title.message?.toString()}</p>
+              )}
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Due Date</Label>
-                <DatePicker 
-                  date={dueDate} 
-                  setDate={setDueDate} 
-                  className="w-full"
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Controller
+                  name="priority"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      value={field.value}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={ReminderPriority.LOW}>Low</SelectItem>
+                        <SelectItem value={ReminderPriority.MEDIUM}>Medium</SelectItem>
+                        <SelectItem value={ReminderPriority.HIGH}>High</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                 />
               </div>
               
-              <div className="space-y-2">
-                <Label>Due Time</Label>
-                <TimePicker 
-                  value={dueTime} 
-                  onChange={setDueTime} 
-                  className="w-full"
+              <div>
+                <Controller
+                  name="periodId"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Period (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">No Period</SelectItem>
+                        <SelectItem value="1">Period 1</SelectItem>
+                        <SelectItem value="2">Period 2</SelectItem>
+                        <SelectItem value="3">Period 3</SelectItem>
+                        <SelectItem value="4">Period 4</SelectItem>
+                        <SelectItem value="5">Period 5</SelectItem>
+                        <SelectItem value="6">Period 6</SelectItem>
+                        <SelectItem value="7">Period 7</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                 />
               </div>
             </div>
             
-            <div className="space-y-2">
-              <Collapsible>
-                <div className="flex items-center justify-between">
-                  <Label>Checklist</Label>
-                  <CollapsibleTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => setShowChecklist(!showChecklist)}
-                    >
-                      {showChecklist ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </Button>
-                  </CollapsibleTrigger>
-                </div>
-                
-                <CollapsibleContent>
-                  <div className="space-y-2 pl-2 mt-2 border-l-2 border-muted">
-                    {checklist.map(item => (
-                      <div key={item.id} className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`checklist-${item.id}`}
-                          checked={item.isCompleted}
-                          onCheckedChange={() => toggleChecklistItem(item.id)}
-                        />
-                        <Label htmlFor={`checklist-${item.id}`} className="flex-1 font-normal">
-                          {item.text}
-                        </Label>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => removeChecklistItem(item.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      </div>
-                    ))}
-                    
-                    <div className="flex items-center space-x-2">
-                      <Input
-                        placeholder="Add checklist item"
-                        value={newChecklistItem}
-                        onChange={(e) => setNewChecklistItem(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            addChecklistItem();
-                          }
-                        }}
-                      />
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={addChecklistItem}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
+            <div className="flex justify-end space-x-2 pt-2">
+              <Button type="button" variant="outline" onClick={onCancel}>
+                Cancel
+              </Button>
+              <Button type="submit">Create Reminder</Button>
             </div>
-          </>
-        )}
-      </CardContent>
-      
-      <CardFooter className="flex justify-end space-x-2">
-        {onCancel && (
-          <Button 
-            variant="outline" 
-            onClick={onCancel}
-          >
-            Cancel
-          </Button>
-        )}
-        <Button 
-          variant="outline" 
-          onClick={resetForm}
-        >
-          Clear
-        </Button>
-        <Button 
-          onClick={handleCreateReminder}
-          disabled={!title.trim()}
-        >
-          Create Reminder
-        </Button>
-      </CardFooter>
-    </Card>
+          </TabsContent>
+          
+          <TabsContent value="detailed" className="space-y-4 pt-2">
+            <div>
+              <Label htmlFor="title">Title</Label>
+              <Controller
+                name="title"
+                control={control}
+                rules={{ required: "Title is required" }}
+                render={({ field }) => (
+                  <Input
+                    id="title"
+                    placeholder="What do you need to do?"
+                    {...field}
+                    className={cn(errors.title && "border-red-500")}
+                  />
+                )}
+              />
+              {errors.title && (
+                <p className="text-red-500 text-sm mt-1">{errors.title.message?.toString()}</p>
+              )}
+            </div>
+            
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Controller
+                name="description"
+                control={control}
+                render={({ field }) => (
+                  <Textarea
+                    id="description"
+                    placeholder="Add details about this reminder..."
+                    className="min-h-[80px]"
+                    {...field}
+                  />
+                )}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="category">Category</Label>
+                <Controller
+                  name="category"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      value={field.value}
+                    >
+                      <SelectTrigger id="category">
+                        <SelectValue placeholder="Category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={ReminderCategory.TASK}>Task</SelectItem>
+                        <SelectItem value={ReminderCategory.MEETING}>Meeting</SelectItem>
+                        <SelectItem value={ReminderCategory.DEADLINE}>Deadline</SelectItem>
+                        <SelectItem value={ReminderCategory.PREPARATION}>Preparation</SelectItem>
+                        <SelectItem value={ReminderCategory.GRADING}>Grading</SelectItem>
+                        <SelectItem value={ReminderCategory.COMMUNICATION}>Communication</SelectItem>
+                        <SelectItem value={ReminderCategory.OTHER}>Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="priority">Priority</Label>
+                <Controller
+                  name="priority"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      value={field.value}
+                    >
+                      <SelectTrigger id="priority">
+                        <SelectValue placeholder="Priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={ReminderPriority.LOW}>Low</SelectItem>
+                        <SelectItem value={ReminderPriority.MEDIUM}>Medium</SelectItem>
+                        <SelectItem value={ReminderPriority.HIGH}>High</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="dueDate">Due Date</Label>
+                <Controller
+                  name="dueDate"
+                  control={control}
+                  render={({ field }) => (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="periodId">Period (Optional)</Label>
+                <Controller
+                  name="periodId"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
+                      <SelectTrigger id="periodId">
+                        <SelectValue placeholder="Select Period" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">No Period</SelectItem>
+                        <SelectItem value="1">Period 1</SelectItem>
+                        <SelectItem value="2">Period 2</SelectItem>
+                        <SelectItem value="3">Period 3</SelectItem>
+                        <SelectItem value="4">Period 4</SelectItem>
+                        <SelectItem value="5">Period 5</SelectItem>
+                        <SelectItem value="6">Period 6</SelectItem>
+                        <SelectItem value="7">Period 7</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-2 pt-2">
+              <Button type="button" variant="outline" onClick={onCancel}>
+                Cancel
+              </Button>
+              <Button type="submit">Create Reminder</Button>
+            </div>
+          </TabsContent>
+        </form>
+      </Tabs>
+    </div>
   );
 };
 

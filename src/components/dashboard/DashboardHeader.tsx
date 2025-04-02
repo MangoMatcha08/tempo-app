@@ -1,79 +1,94 @@
 
+import { useState, useEffect } from "react";
+import { Bell, Menu, Plus, RefreshCw } from "lucide-react";
+import { MobileNavToggle } from "../ui/sidebar";
+import { Button } from "../ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { signOutUser } from "@/lib/firebase";
-import { useNavigate } from "react-router-dom";
-import { Calendar } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { memo, useCallback } from "react";
+import NotificationEnableButton from "../settings/NotificationEnableButton";
+import { useNotifications } from "@/contexts/NotificationContext";
 
 interface DashboardHeaderProps {
-  title: string;
-  stats?: {
-    totalActive: number;
-    totalCompleted: number;
-    totalReminders: number;
-    completionRate: number;
-    urgentCount: number;
-    upcomingCount: number;
-  };
+  openAddReminderModal: () => void;
+  openVoiceRecorderModal: () => void;
+  refreshData: () => Promise<boolean>;
+  isRefreshing: boolean;
 }
 
-// Use React.memo to prevent re-renders when props haven't changed
-const DashboardHeader = memo(({ title, stats }: DashboardHeaderProps) => {
+const DashboardHeader = ({ 
+  openAddReminderModal, 
+  openVoiceRecorderModal,
+  refreshData,
+  isRefreshing
+}: DashboardHeaderProps) => {
   const { user } = useAuth();
-  const navigate = useNavigate();
-
-  // Memoize event handlers to prevent recreating functions on each render
-  const handleSignOut = useCallback(async () => {
-    const { success, error } = await signOutUser();
-    
-    if (success) {
-      navigate("/");
-    } else {
-      console.error("Sign out failed:", error?.message);
+  const [displayName, setDisplayName] = useState("");
+  const [isRefreshingData, setIsRefreshingData] = useState(false);
+  const { permissionGranted, isSupported } = useNotifications();
+  
+  useEffect(() => {
+    if (user) {
+      setDisplayName(user.displayName || user.email?.split("@")[0] || "User");
     }
-  }, [navigate]);
+  }, [user]);
 
-  const navigateToSchedule = useCallback(() => {
-    navigate("/schedule");
-  }, [navigate]);
-
-  // User display name with fallback
-  const userDisplayName = user?.displayName || user?.email || "User";
+  const handleRefresh = async () => {
+    if (isRefreshingData) return;
+    
+    setIsRefreshingData(true);
+    try {
+      await refreshData();
+    } finally {
+      setIsRefreshingData(false);
+    }
+  };
 
   return (
-    <div className="flex justify-between items-center mb-8">
-      <div>
-        <h1 className="text-2xl font-bold">{title}</h1>
-        {stats && (
-          <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
-            <span>{stats.totalActive} active</span>
-            <span>{stats.totalCompleted} completed</span>
-            <span>{stats.completionRate}% completion rate</span>
-          </div>
+    <header className="flex justify-between items-center p-4 border-b">
+      <div className="flex items-center">
+        <MobileNavToggle className="md:hidden mr-2" />
+        <h1 className="text-xl font-semibold">Hello, {displayName}</h1>
+      </div>
+      
+      <div className="flex items-center space-x-2">
+        {/* Show notification button only if supported and not granted */}
+        {isSupported && !permissionGranted && (
+          <NotificationEnableButton size="sm" variant="outline" />
         )}
-      </div>
-      <div className="flex items-center gap-4">
-        <Button 
-          variant="outline" 
-          onClick={navigateToSchedule}
-          className="flex items-center gap-2"
+        
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-9 w-9"
+          onClick={handleRefresh}
+          disabled={isRefreshingData || isRefreshing}
         >
-          <Calendar className="h-4 w-4" />
-          Schedule
+          <RefreshCw 
+            className={`h-5 w-5 ${isRefreshingData || isRefreshing ? 'animate-spin' : ''}`} 
+          />
+          <span className="sr-only">Refresh</span>
         </Button>
-        <span className="text-sm text-muted-foreground">
-          {userDisplayName}
-        </span>
-        <Button variant="outline" onClick={handleSignOut}>
-          Sign Out
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={openVoiceRecorderModal}
+          className="hidden sm:flex"
+        >
+          <span>Voice</span>
+        </Button>
+        
+        <Button
+          variant="default"
+          size="sm"
+          onClick={openAddReminderModal}
+        >
+          <Plus className="h-4 w-4 mr-1" />
+          <span className="hidden sm:inline">Add Reminder</span>
+          <span className="sm:hidden">Add</span>
         </Button>
       </div>
-    </div>
+    </header>
   );
-});
-
-// Set display name for better debugging in React DevTools
-DashboardHeader.displayName = "DashboardHeader";
+};
 
 export default DashboardHeader;
