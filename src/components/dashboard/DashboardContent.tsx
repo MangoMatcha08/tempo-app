@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import CurrentPeriodIndicator from "@/components/dashboard/CurrentPeriodIndicator";
 import QuickActionsBar from "@/components/dashboard/QuickActionsBar";
 import RemindersSection from "@/components/dashboard/RemindersSection";
@@ -11,10 +11,17 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import ReminderLoadingState from "./ReminderLoadingState";
 
+// Define extended reminder type with UI-specific properties
+export interface UIEnhancedReminder extends Reminder {
+  timeRemaining?: string;
+  formattedDate?: string;
+  completedTimeAgo?: string;
+}
+
 interface DashboardContentProps {
-  urgentReminders: Reminder[];
-  upcomingReminders: Reminder[];
-  completedReminders: Reminder[];
+  urgentReminders: UIEnhancedReminder[];
+  upcomingReminders: UIEnhancedReminder[];
+  completedReminders: UIEnhancedReminder[];
   onCompleteReminder: (id: string) => void;
   onUndoComplete: (id: string) => void;
   onNewReminder: () => void;
@@ -70,6 +77,7 @@ const DashboardContent = ({
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>
             There was an error loading your reminders. Please try refreshing the page.
+            The error may be related to Firestore connectivity - please check console logs.
           </AlertDescription>
         </Alert>
       </div>

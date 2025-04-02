@@ -6,7 +6,7 @@ import DashboardModals from "@/components/dashboard/DashboardModals";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Reminder as UIReminder } from "@/types/reminder";
 import { useToast } from "@/hooks/use-toast";
-import { convertToUIReminder, convertToBackendReminder } from "@/utils/typeUtils";
+import { convertToBackendReminder } from "@/utils/typeUtils";
 
 // Constants for optimizing refresh
 const INITIAL_REFRESH_DELAY = 800; // Slight delay for initial render

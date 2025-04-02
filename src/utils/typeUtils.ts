@@ -1,51 +1,55 @@
 
-import { Reminder as ReminderType, ReminderPriority } from '@/types/reminderTypes';
-import { Reminder as UIReminder } from '@/types/reminder';
+import { Reminder as UIReminder } from "@/types/reminder";
+import { Reminder as BackendReminder, ReminderPriority } from "@/types/reminderTypes";
 
 /**
- * Converts a backend Reminder to a UI-compatible Reminder
+ * Converts a backend reminder to a UI reminder
  */
-export const convertToUIReminder = (reminder: ReminderType): UIReminder => {
-  let uiPriority: "high" | "medium" | "low";
-  
-  // Handle both string and enum cases
-  if (typeof reminder.priority === 'string') {
-    const priority = reminder.priority.toLowerCase();
-    uiPriority = (priority === 'high' || priority === ReminderPriority.HIGH) ? 'high' :
-                 (priority === 'medium' || priority === ReminderPriority.MEDIUM) ? 'medium' : 'low';
-  } else {
-    uiPriority = reminder.priority === ReminderPriority.HIGH ? 'high' :
-                 reminder.priority === ReminderPriority.MEDIUM ? 'medium' : 'low';
-  }
-  
+export const convertToUIReminder = (reminder: BackendReminder): UIReminder => {
   return {
-    ...reminder,
-    priority: uiPriority
-  } as UIReminder;
+    id: reminder.id,
+    title: reminder.title,
+    description: reminder.description,
+    dueDate: reminder.dueDate,
+    priority: reminder.priority as "low" | "medium" | "high",
+    location: reminder.location,
+    completed: reminder.completed,
+    completedAt: reminder.completedAt,
+    createdAt: reminder.createdAt
+  };
 };
 
 /**
- * Converts a UI Reminder to a backend-compatible Reminder
+ * Converts a UI reminder to a backend reminder
  */
-export const convertToBackendReminder = (reminder: UIReminder): ReminderType => {
-  let backendPriority: ReminderPriority;
-  
-  switch (reminder.priority) {
-    case 'high':
-      backendPriority = ReminderPriority.HIGH;
-      break;
-    case 'medium':
-      backendPriority = ReminderPriority.MEDIUM;
-      break;
-    case 'low':
-      backendPriority = ReminderPriority.LOW;
-      break;
-    default:
-      backendPriority = ReminderPriority.MEDIUM;
+export const convertToBackendReminder = (reminder: UIReminder): BackendReminder => {
+  // Ensure priority is a valid ReminderPriority enum value
+  let priority = reminder.priority;
+  if (!Object.values(ReminderPriority).includes(priority as ReminderPriority)) {
+    console.warn(`Invalid priority value: ${priority}, defaulting to medium`);
+    priority = ReminderPriority.MEDIUM;
   }
-  
+
   return {
-    ...reminder,
-    priority: backendPriority
-  } as ReminderType;
+    id: reminder.id,
+    title: reminder.title,
+    description: reminder.description,
+    dueDate: reminder.dueDate,
+    priority: priority as ReminderPriority,
+    location: reminder.location,
+    completed: reminder.completed,
+    completedAt: reminder.completedAt,
+    createdAt: reminder.createdAt
+  };
+};
+
+/**
+ * Function to ensure a reminder has a valid priority
+ */
+export const ensureValidPriority = (priority: any): "low" | "medium" | "high" => {
+  const validPriorities = ["low", "medium", "high"];
+  if (validPriorities.includes(priority)) {
+    return priority as "low" | "medium" | "high";
+  }
+  return "medium";
 };

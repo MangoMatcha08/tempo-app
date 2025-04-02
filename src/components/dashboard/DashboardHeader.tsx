@@ -7,9 +7,17 @@ import { Button } from "@/components/ui/button";
 
 interface DashboardHeaderProps {
   title: string;
+  stats?: {
+    totalActive: number;
+    totalCompleted: number;
+    totalReminders: number;
+    completionRate: number;
+    urgentCount: number;
+    upcomingCount: number;
+  };
 }
 
-const DashboardHeader = ({ title }: DashboardHeaderProps) => {
+const DashboardHeader = ({ title, stats }: DashboardHeaderProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -29,7 +37,16 @@ const DashboardHeader = ({ title }: DashboardHeaderProps) => {
 
   return (
     <div className="flex justify-between items-center mb-8">
-      <h1 className="text-2xl font-bold">{title}</h1>
+      <div>
+        <h1 className="text-2xl font-bold">{title}</h1>
+        {stats && (
+          <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+            <span>{stats.totalActive} active</span>
+            <span>{stats.totalCompleted} completed</span>
+            <span>{stats.completionRate}% completion rate</span>
+          </div>
+        )}
+      </div>
       <div className="flex items-center gap-4">
         <Button 
           variant="outline" 

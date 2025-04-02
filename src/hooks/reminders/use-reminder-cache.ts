@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useRef } from "react";
 import { Reminder } from "@/types/reminderTypes";
 
@@ -15,6 +16,7 @@ interface CacheState {
 // Cache expiration time (5 minutes)
 const CACHE_EXPIRATION = 5 * 60 * 1000;
 
+// Exported standalone functions for use outside of hook context
 export function getDetailedReminder(id: string): Reminder | null {
   try {
     const cacheData = localStorage.getItem(`reminder-detail-${id}`);
@@ -167,6 +169,13 @@ export function useReminderCache() {
   // Invalidate a specific reminder in the cache
   const invalidateReminder = useCallback((id: string) => {
     cacheRef.current.reminders.delete(id);
+    
+    // Also remove from localStorage
+    try {
+      localStorage.removeItem(`reminder-detail-${id}`);
+    } catch (err) {
+      console.error(`Error removing reminder ${id} from localStorage:`, err);
+    }
   }, []);
 
   // Invalidate all cache for a specific user
@@ -186,6 +195,7 @@ export function useReminderCache() {
     getCachedReminderList,
     cacheReminderList,
     cacheReminder,
+    getCachedReminder,
     invalidateReminder,
     invalidateUserCache,
     getDetailedReminder,

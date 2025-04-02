@@ -81,12 +81,18 @@ export const FirestoreProvider = ({ children }: { children: ReactNode }) => {
         // Set the database instance even if there were non-fatal errors with persistence
         setDb(firestore);
         console.log("Firestore initialized successfully");
+        
+        // Show additional information about Firestore API activation for better user guidance
+        toast({
+          title: "Firebase Connection Info",
+          description: "For this demo, you're seeing demo data. For full Firestore functionality, activate the Firestore API in the Firebase console.",
+        });
       } catch (error: any) {
         console.error("Error initializing Firestore:", error);
         setError(error);
         toast({
           title: "Database Error",
-          description: "Failed to initialize the database. Some features may not work correctly.",
+          description: "Failed to initialize the database. Using mock data instead.",
           variant: "destructive",
         });
       }
