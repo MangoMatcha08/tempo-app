@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFirestore } from "@/contexts/FirestoreContext";
@@ -129,7 +128,6 @@ export function useReminders() {
     }
   }, [refreshRemindersBase]);
   
-  // Calculate reminder statistics
   const reminderStats = useMemo(() => {
     return calculateReminderStats(
       urgentBackendReminders,
@@ -138,7 +136,6 @@ export function useReminders() {
     );
   }, [urgentBackendReminders.length, upcomingBackendReminders.length, completedBackendReminders.length]);
   
-  // Transform reminders for UI
   const urgentReminders = useMemo(() => {
     return transformToUrgentReminders(urgentBackendReminders);
   }, [urgentBackendReminders]);
@@ -153,6 +150,7 @@ export function useReminders() {
 
   return {
     reminders,
+    setReminders,
     loading,
     error,
     isRefreshing,
@@ -168,6 +166,7 @@ export function useReminders() {
     refreshReminders,
     hasMore,
     totalCount,
+    setTotalCount,
     getDetailedReminder,
     batchCompleteReminders,
     batchAddReminders,

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useReminders } from "@/hooks/reminders/use-reminders";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
@@ -9,6 +8,8 @@ import { convertToBackendReminder } from "@/utils/typeUtils";
 import { useBatchOperations } from "@/hooks/reminders/use-batch-operations";
 import { useDashboardRefresh } from "@/hooks/reminders/use-dashboard-refresh";
 import DashboardModalHandler from "@/components/dashboard/DashboardModalHandler";
+import { useAuth } from "@/contexts/AuthContext";
+import { useFirestore } from "@/contexts/FirestoreContext";
 
 // Constants for optimizing performance
 const RETRY_DELAY = 1500; // Delay before retrying failed operations
@@ -16,6 +17,8 @@ const RETRY_DELAY = 1500; // Delay before retrying failed operations
 const Dashboard = () => {
   const [hasError, setHasError] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { db, isReady } = useFirestore();
   
   const {
     reminders,
@@ -33,6 +36,8 @@ const Dashboard = () => {
     refreshReminders,
     hasMore,
     totalCount,
+    setReminders,
+    setTotalCount,
     error: reminderError,
     // Batch operations
     batchCompleteReminders,
@@ -58,9 +63,11 @@ const Dashboard = () => {
     addToBatchUpdate,
     cleanupBatchOperations
   } = useBatchOperations(
-    batchCompleteReminders,
-    batchDeleteReminders,
-    batchUpdateReminders
+    user,
+    db,
+    isReady,
+    setReminders,
+    setTotalCount
   );
 
   // Clean up batch operations on unmount
