@@ -32,7 +32,13 @@ const DashboardModalHandler = ({
         });
         
         // Use refreshReminders instead of background refresh for immediate update
-        refreshReminders();
+        refreshReminders().then(() => {
+          // We're not using the return value, so we can just resolve a Promise
+          return true;
+        }).catch((error) => {
+          console.error("Error refreshing after adding reminder:", error);
+          return false;
+        });
       })
       .catch(error => {
         console.error("Error saving reminder:", error);

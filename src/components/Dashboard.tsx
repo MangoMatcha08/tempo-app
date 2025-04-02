@@ -86,7 +86,8 @@ const Dashboard = () => {
         title: "Cache Cleared",
         description: "Reminder cache has been cleared"
       });
-      refreshReminders();
+      // Wrap the refreshReminders with a Promise that returns true
+      refreshReminders().then(() => true).catch(() => false);
     } catch (err) {
       console.error("Error clearing cache:", err);
     }

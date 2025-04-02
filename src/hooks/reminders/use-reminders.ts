@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFirestore } from "@/contexts/FirestoreContext";
@@ -54,7 +53,6 @@ export function useReminders() {
   const { user } = useAuth();
   const { db, isReady, error: firestoreError } = useFirestore();
   
-  // Handle Firestore errors
   useEffect(() => {
     if (firestoreError) {
       console.error("Firestore error detected:", firestoreError);
@@ -62,7 +60,6 @@ export function useReminders() {
     }
   }, [firestoreError]);
   
-  // Use our modular hooks
   const {
     reminders,
     setReminders,
@@ -74,11 +71,10 @@ export function useReminders() {
     isRefreshing,
     fetchReminders,
     loadMoreReminders,
-    refreshReminders,
+    refreshReminders: refreshRemindersBase,
     loadReminderDetail
   } = useReminderQuery(user, db, isReady);
   
-  // Handle query errors
   useEffect(() => {
     if (queryError) {
       console.error("Query error detected:", queryError);
@@ -86,7 +82,6 @@ export function useReminders() {
     }
   }, [queryError]);
   
-  // Apply memoized filters for better performance
   const {
     urgentReminders: urgentBackendReminders,
     upcomingReminders: upcomingBackendReminders,
@@ -99,14 +94,12 @@ export function useReminders() {
     addReminder: addReminderBase,
     updateReminder: updateReminderBase,
     error: operationsError,
-    // Batch operations
     batchCompleteReminders: batchCompleteRemindersBase,
     batchAddReminders: batchAddRemindersBase,
     batchUpdateReminders: batchUpdateRemindersBase,
     batchDeleteReminders: batchDeleteRemindersBase
   } = useReminderOperations(user, db, isReady);
   
-  // Handle operations errors
   useEffect(() => {
     if (operationsError) {
       console.error("Operations error detected:", operationsError);
@@ -114,9 +107,7 @@ export function useReminders() {
     }
   }, [operationsError]);
   
-  // Initialize data fetch with a small delay to improve perceived performance
   useEffect(() => {
-    // Use a slight delay for initial load to let UI render first
     const timer = setTimeout(() => {
       fetchReminders().catch(err => {
         console.error("Error in initial fetch:", err);
@@ -127,7 +118,6 @@ export function useReminders() {
     return () => clearTimeout(timer);
   }, [fetchReminders]);
   
-  // Create wrapped versions of functions that already have setReminders bound
   const handleCompleteReminder = useCallback((id: string) => {
     return completeReminderBase(id, setReminders);
   }, [completeReminderBase]);
@@ -144,12 +134,10 @@ export function useReminders() {
     return updateReminderBase(reminder, setReminders);
   }, [updateReminderBase]);
   
-  // Function to load detailed reminder data when needed
   const getDetailedReminder = useCallback((id: string) => {
     return loadReminderDetail(id);
   }, [loadReminderDetail]);
-
-  // Expose batch operations
+  
   const batchCompleteReminders = useCallback((ids: string[], completed: boolean) => {
     return batchCompleteRemindersBase(ids, completed, setReminders);
   }, [batchCompleteRemindersBase]);
@@ -166,7 +154,16 @@ export function useReminders() {
     return batchDeleteRemindersBase(ids, setReminders, setTotalCount);
   }, [batchDeleteRemindersBase, setTotalCount]);
   
-  // Memoized data transformations to reduce rendering overhead
+  const refreshReminders = useCallback(async (): Promise<boolean> => {
+    try {
+      await refreshRemindersBase();
+      return true;
+    } catch (err) {
+      console.error("Error refreshing reminders:", err);
+      return false;
+    }
+  }, [refreshRemindersBase]);
+  
   const reminderStats = useMemo(() => {
     const totalActive = urgentBackendReminders.length + upcomingBackendReminders.length;
     const totalCompleted = completedBackendReminders.length;
@@ -183,11 +180,9 @@ export function useReminders() {
     };
   }, [urgentBackendReminders.length, upcomingBackendReminders.length, completedBackendReminders.length]);
   
-  // Use memoization to prevent unnecessary transformations of reminders
   const urgentReminders = useMemo(() => {
     console.log("Transforming urgent reminders");
     return urgentBackendReminders.map(reminder => {
-      // Ensure priority is a valid UI priority
       const priority = ensureValidPriority(reminder.priority);
       
       return {
@@ -202,7 +197,6 @@ export function useReminders() {
   const upcomingReminders = useMemo(() => {
     console.log("Transforming upcoming reminders");
     return upcomingBackendReminders.map(reminder => {
-      // Ensure priority is a valid UI priority
       const priority = ensureValidPriority(reminder.priority);
       
       return {
@@ -217,7 +211,6 @@ export function useReminders() {
   const completedReminders = useMemo(() => {
     console.log("Transforming completed reminders");
     return completedBackendReminders.map(reminder => {
-      // Ensure priority is a valid UI priority
       const priority = ensureValidPriority(reminder.priority);
       
       return {
@@ -247,7 +240,6 @@ export function useReminders() {
     hasMore,
     totalCount,
     getDetailedReminder,
-    // Batch operations
     batchCompleteReminders,
     batchAddReminders,
     batchUpdateReminders,
