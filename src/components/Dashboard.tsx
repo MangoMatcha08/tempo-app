@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useReminders } from "@/hooks/reminders/use-reminders";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
@@ -79,11 +80,10 @@ const Dashboard = () => {
 
   // Set up dashboard refresh system
   const { forceRefresh } = useDashboardRefresh(
-    // We need to ensure this returns a Promise<boolean>
     async () => {
       try {
-        await refreshReminders();
-        return true;
+        const success = await refreshReminders();
+        return success;
       } catch (error) {
         console.error("Error refreshing reminders:", error);
         return false;
@@ -102,8 +102,17 @@ const Dashboard = () => {
         title: "Cache Cleared",
         description: "Reminder cache has been cleared"
       });
-      // Return a Promise<boolean> to match expected types
-      return refreshReminders().then(() => true).catch(() => false);
+      // Enhanced logging for debugging
+      console.log("Initiating refresh after cache clear");
+      return refreshReminders()
+        .then(success => {
+          console.log("Refresh result after cache clear:", success);
+          return success;
+        })
+        .catch(err => {
+          console.error("Error during refresh after cache clear:", err);
+          return false;
+        });
     } catch (err) {
       console.error("Error clearing cache:", err);
       return Promise.resolve(false);
@@ -134,6 +143,7 @@ const Dashboard = () => {
 
   const handleLoadMore = useCallback(() => {
     if (hasMore && !loading) {
+      console.log("Loading more reminders");
       loadMoreReminders().catch(error => {
         console.error("Error loading more reminders:", error);
         setHasError(true);
@@ -160,18 +170,22 @@ const Dashboard = () => {
     };
   }, [clearCacheAndRefresh]);
 
-  // Handle dashboard modals
+  // Handle dashboard modals with enhanced logging
   const { 
     modalComponents, 
     openQuickReminderModal, 
     openVoiceRecorderModal 
   } = DashboardModalHandler({
-    addReminder,
-    // We need to ensure this returns a Promise<boolean>
+    addReminder: (reminder) => {
+      console.log("Adding new reminder from modal:", reminder);
+      return addReminder(reminder);
+    },
     refreshReminders: async () => {
+      console.log("Refreshing reminders after modal action");
       try {
-        await refreshReminders();
-        return true;
+        const success = await refreshReminders();
+        console.log("Refresh result:", success);
+        return success;
       } catch (error) {
         console.error("Error refreshing reminders in modal handler:", error);
         return false;

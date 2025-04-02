@@ -19,8 +19,11 @@ const DashboardModalHandler = ({
   const { toast } = useToast();
 
   const handleReminderCreated = useCallback((reminder: UIReminder) => {
+    console.log("Reminder created from modal:", reminder);
+    
     // Convert UI reminder to backend reminder type
     const backendReminder = convertToBackendReminder(reminder);
+    console.log("Converted to backend reminder:", backendReminder);
     
     // Add the new reminder to the list
     addReminder(backendReminder)
@@ -32,13 +35,15 @@ const DashboardModalHandler = ({
         });
         
         // Use refreshReminders which now returns Promise<boolean>
-        refreshReminders().then((success) => {
-          if (!success) {
-            console.warn("Refresh after adding was not successful");
-          }
-        }).catch((error) => {
-          console.error("Error refreshing after adding reminder:", error);
-        });
+        console.log("Triggering refresh after adding reminder");
+        return refreshReminders()
+          .then((success) => {
+            console.log("Refresh after adding result:", success);
+            if (!success) {
+              console.warn("Refresh after adding was not successful");
+            }
+            return success;
+          });
       })
       .catch(error => {
         console.error("Error saving reminder:", error);
@@ -51,10 +56,12 @@ const DashboardModalHandler = ({
   }, [addReminder, refreshReminders, toast]);
 
   const openQuickReminderModal = useCallback(() => {
+    console.log("Opening quick reminder modal");
     setShowQuickReminderModal(true);
   }, []);
 
   const openVoiceRecorderModal = useCallback(() => {
+    console.log("Opening voice recorder modal");
     setShowVoiceRecorderModal(true);
   }, []);
 

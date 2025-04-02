@@ -19,11 +19,10 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   // Ref to track if we're currently in the process of confirming a transcript
   const isConfirmingRef = useRef(false);
   
-  // Reset state when modal opens - but DO NOT reset if we're already in confirm view
+  // Reset state when modal opens
   const resetState = () => {
     console.log("Reset state called, current view:", view);
-    // Only reset if we're not already in confirm view to prevent resetting during confirmation
-    if (view !== "confirm" && !isConfirmingRef.current) {
+    if (!isConfirmingRef.current) {
       setTitle("");
       setTranscript("");
       setIsProcessing(false);

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFirestore } from "@/contexts/FirestoreContext";
@@ -17,6 +18,7 @@ export function useReminders() {
   const { user } = useAuth();
   const { db, isReady, error: firestoreError } = useFirestore();
   
+  // Handle Firestore errors
   useEffect(() => {
     if (firestoreError) {
       console.error("Firestore error detected:", firestoreError);
@@ -39,6 +41,7 @@ export function useReminders() {
     loadReminderDetail
   } = useReminderQuery(user, db, isReady);
   
+  // Handle query errors
   useEffect(() => {
     if (queryError) {
       console.error("Query error detected:", queryError);
@@ -64,6 +67,7 @@ export function useReminders() {
     batchDeleteReminders: batchDeleteRemindersBase
   } = useReminderOperations(user, db, isReady);
   
+  // Handle operations errors
   useEffect(() => {
     if (operationsError) {
       console.error("Operations error detected:", operationsError);
@@ -71,56 +75,71 @@ export function useReminders() {
     }
   }, [operationsError]);
   
+  // Initial fetch with error handling
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchReminders().catch(err => {
-        console.error("Error in initial fetch:", err);
-        setError(err);
-      });
+      console.log("Initiating initial fetch of reminders");
+      fetchReminders()
+        .then(() => console.log("Initial fetch completed successfully"))
+        .catch(err => {
+          console.error("Error in initial fetch:", err);
+          setError(err);
+        });
     }, 100);
     
     return () => clearTimeout(timer);
   }, [fetchReminders]);
   
   const handleCompleteReminder = useCallback((id: string) => {
+    console.log("Completing reminder:", id);
     return completeReminderBase(id, setReminders);
   }, [completeReminderBase]);
   
   const handleUndoComplete = useCallback((id: string) => {
+    console.log("Undoing completion for reminder:", id);
     return undoCompleteBase(id, setReminders);
   }, [undoCompleteBase]);
   
   const addReminder = useCallback((reminder: any) => {
+    console.log("Adding new reminder:", reminder);
     return addReminderBase(reminder, setReminders, setTotalCount);
   }, [addReminderBase, setTotalCount]);
   
   const updateReminder = useCallback((reminder: any) => {
+    console.log("Updating reminder:", reminder);
     return updateReminderBase(reminder, setReminders);
   }, [updateReminderBase]);
   
   const getDetailedReminder = useCallback((id: string) => {
+    console.log("Getting detailed reminder:", id);
     return loadReminderDetail(id);
   }, [loadReminderDetail]);
   
   const batchCompleteReminders = useCallback((ids: string[], completed: boolean) => {
+    console.log("Batch completing reminders:", ids, "completed:", completed);
     return batchCompleteRemindersBase(ids, completed, setReminders);
   }, [batchCompleteRemindersBase]);
   
   const batchAddReminders = useCallback((reminders: Omit<BackendReminder, 'id'>[]) => {
+    console.log("Batch adding reminders:", reminders);
     return batchAddRemindersBase(reminders, setReminders, setTotalCount);
   }, [batchAddRemindersBase, setTotalCount]);
   
   const batchUpdateReminders = useCallback((reminders: BackendReminder[]) => {
+    console.log("Batch updating reminders:", reminders);
     return batchUpdateRemindersBase(reminders, setReminders);
   }, [batchUpdateRemindersBase]);
   
   const batchDeleteReminders = useCallback((ids: string[]) => {
+    console.log("Batch deleting reminders:", ids);
     return batchDeleteRemindersBase(ids, setReminders, setTotalCount);
   }, [batchDeleteRemindersBase, setTotalCount]);
   
   const refreshReminders = useCallback(async (): Promise<boolean> => {
+    console.log("Refreshing reminders");
     try {
       await refreshRemindersBase();
+      console.log("Reminders refreshed successfully");
       return true;
     } catch (err) {
       console.error("Error refreshing reminders:", err);

@@ -130,15 +130,15 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
     }
   };
 
-  // Use a forced view state to prevent issues
-  const actualView = transcript ? view : "record";
+  // Fixed: Always use the transcript to determine view, not an arbitrary check
+  const shouldShowConfirmView = transcript && view === "confirm";
 
   return (
     <Dialog 
       open={open} 
       onOpenChange={(newOpenState) => {
         // When closing the modal
-        if (!newOpenState && view === "confirm") {
+        if (!newOpenState && shouldShowConfirmView) {
           // Show confirmation before closing if we're in confirm view
           console.log("Attempt to close dialog while in confirm view");
           const shouldClose = window.confirm("Are you sure you want to discard this reminder?");
@@ -153,17 +153,12 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
       <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto" ref={dialogContentRef}>
         <DialogHeader>
           <DialogTitle>
-            {actualView === "record" ? "Record Voice Reminder" : "Confirm Your Reminder"}
+            {shouldShowConfirmView ? "Confirm Your Reminder" : "Record Voice Reminder"}
           </DialogTitle>
         </DialogHeader>
         
         <ScrollArea className="max-h-[calc(85vh-10rem)]">
-          {actualView === "record" ? (
-            <VoiceRecorderView 
-              onTranscriptComplete={handleTranscriptComplete}
-              isProcessing={isProcessing}
-            />
-          ) : (
+          {shouldShowConfirmView ? (
             <VoiceReminderConfirmView
               title={title}
               setTitle={setTitle}
@@ -179,11 +174,16 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
               onCancel={handleCancel}
               onGoBack={handleGoBack}
             />
+          ) : (
+            <VoiceRecorderView 
+              onTranscriptComplete={handleTranscriptComplete}
+              isProcessing={isProcessing}
+            />
           )}
         </ScrollArea>
         
         <ModalFooterActions
-          view={actualView}
+          view={shouldShowConfirmView ? "confirm" : "record"}
           onCancel={handleCancel}
           onGoBack={handleGoBack}
           onSave={handleSave}
