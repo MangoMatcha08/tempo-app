@@ -4,6 +4,7 @@ import { debounce } from './utils';
 
 export const useTranscriptState = () => {
   const [transcript, setTranscript] = useState<string>('');
+  const [interimTranscript, setInterimTranscript] = useState<string>('');
   
   // Use refs to store the current full transcript and interim results
   const finalTranscriptRef = useRef<string>('');
@@ -38,6 +39,9 @@ export const useTranscriptState = () => {
     finalTranscriptRef.current = finalTranscript.trim();
     interimTranscriptRef.current = interimTranscript;
     
+    // Update state with interim transcript
+    setInterimTranscript(interimTranscript);
+    
     // Always update state with the most complete transcript
     const fullTranscript = finalTranscriptRef.current
       ? finalTranscriptRef.current
@@ -50,12 +54,14 @@ export const useTranscriptState = () => {
 
   const resetTranscriptState = useCallback(() => {
     setTranscript('');
+    setInterimTranscript('');
     finalTranscriptRef.current = '';
     interimTranscriptRef.current = '';
   }, []);
 
   return {
     transcript,
+    interimTranscript,
     setTranscript,
     resetTranscriptState,
     processSpeechResults

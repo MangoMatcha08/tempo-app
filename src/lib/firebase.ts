@@ -1,4 +1,3 @@
-
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
 import { 
   getAuth, 
@@ -87,6 +86,46 @@ const initializeFirestoreWithSettings = async () => {
   } catch (error) {
     console.error('Error setting up Firestore:', error);
   }
+};
+
+// Function to help generate the correct index creation URL
+export const getFirestoreIndexCreationUrl = (collectionId: string, fields: string[]) => {
+  if (!firebaseApp?.options?.projectId) {
+    return null;
+  }
+  
+  const projectId = firebaseApp.options.projectId;
+  const encodedFields = encodeURIComponent(JSON.stringify(fields));
+  
+  return `https://console.firebase.google.com/project/${projectId}/firestore/indexes?create_composite=${encodedFields}&collection=${collectionId}`;
+};
+
+// Helper to detect if there's a missing index
+export const isMissingIndexError = (error: any): boolean => {
+  if (!error) return false;
+  
+  const errorMessage = typeof error === 'string' 
+    ? error 
+    : error.message || String(error);
+    
+  return errorMessage.includes('index') && 
+    errorMessage.includes('required') || 
+    errorMessage.includes('9 FAILED_PRECONDITION');
+};
+
+// Utility to help with Firestore document conversion
+export const convertTimestampFields = (data: any, timestampFields: string[] = ['createdAt', 'updatedAt', 'dueDate', 'completedAt']) => {
+  if (!data) return data;
+  
+  const result = { ...data };
+  
+  for (const field of timestampFields) {
+    if (result[field] && typeof result[field].toDate === 'function') {
+      result[field] = result[field].toDate();
+    }
+  }
+  
+  return result;
 };
 
 // Auth functions
@@ -233,6 +272,11 @@ export const setupNetworkMonitoring = (
     window.removeEventListener('offline', onOffline);
   };
 };
+
+// Export constants for use in other modules
+export const REMINDERS_COLLECTION = 'reminders';
+export const USERS_COLLECTION = 'users';
+export const PERIODS_COLLECTION = 'periods';
 
 // Export firebaseApp for use in other modules
 export { firebaseApp };

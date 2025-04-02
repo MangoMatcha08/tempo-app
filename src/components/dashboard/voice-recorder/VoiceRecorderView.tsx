@@ -21,7 +21,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     transcript,
     interimTranscript,
     isListening,
-    browserSupportsSpeechRecognition: hasRecognitionSupport,
+    browserSupportsSpeechRecognition,
     startListening,
     stopListening,
     resetTranscript,
@@ -95,10 +95,10 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
         addDebugInfo("Cleanup: stopped listening");
       }
     };
-  }, []);
+  }, [isRecording, stopListening]);
 
   // If browser doesn't support speech recognition
-  if (!hasRecognitionSupport) {
+  if (!browserSupportsSpeechRecognition) {
     return (
       <div className="text-center p-6">
         <p className="text-red-500 mb-3">

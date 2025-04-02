@@ -1,108 +1,55 @@
 
-import { Reminder as BackendReminder, ReminderPriority } from "@/types/reminderTypes";
+import { Reminder as BackendReminder } from "@/types/reminderTypes";
 import { Reminder as UIReminder } from "@/types/reminder";
 
-// Cache for formatted times
-const timeFormatCache: Record<string, string> = {};
-
-// Cache for priority conversions
-const priorityCache: Record<string, ReminderPriority> = {
-  "low": ReminderPriority.LOW,
-  "medium": ReminderPriority.MEDIUM,
-  "high": ReminderPriority.HIGH
-};
-
 /**
- * Format a date into a displayable time with caching for performance
+ * Converts a backend reminder to UI reminder format
  */
-export function formatTime(date: Date, format: 'date' | 'time' | 'datetime' = 'datetime'): string {
-  // Generate cache key
-  const timestamp = date.getTime();
-  const cacheKey = `${timestamp}_${format}`;
+export const convertToUIReminder = (reminder: BackendReminder): UIReminder => {
+  // Ensure priority is one of the allowed string literal types
+  let normalizedPriority: "high" | "medium" | "low" = "medium";
   
-  // Check cache first
-  if (timeFormatCache[cacheKey]) {
-    return timeFormatCache[cacheKey];
-  }
-  
-  // Format the time based on requested format
-  let formattedTime: string;
-  
-  if (format === 'time') {
-    formattedTime = date.toLocaleTimeString(undefined, { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  } else if (format === 'date') {
-    formattedTime = date.toLocaleDateString(undefined, { 
-      month: 'short', 
-      day: 'numeric' 
-    });
-  } else {
-    formattedTime = date.toLocaleString(undefined, { 
-      month: 'short', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }
-  
-  // Store in cache
-  timeFormatCache[cacheKey] = formattedTime;
-  
-  return formattedTime;
-}
-
-/**
- * Ensure a priority value is valid
- */
-export function ensureValidPriority(priority: ReminderPriority | string): ReminderPriority {
-  if (priority in ReminderPriority) {
-    return priority as ReminderPriority;
-  }
-  
-  // Handle string values
-  if (typeof priority === 'string') {
-    const lowerPriority = priority.toLowerCase();
-    if (lowerPriority in priorityCache) {
-      return priorityCache[lowerPriority];
+  if (reminder.priority === "high" || reminder.priority === "medium" || reminder.priority === "low") {
+    normalizedPriority = reminder.priority;
+  } else if (typeof reminder.priority === "string") {
+    // Convert any other string to the closest matching priority
+    const priorityStr = reminder.priority.toLowerCase();
+    if (priorityStr.includes("high") || priorityStr.includes("urgent")) {
+      normalizedPriority = "high";
+    } else if (priorityStr.includes("low")) {
+      normalizedPriority = "low";
     }
   }
   
-  // Default fallback
-  return ReminderPriority.MEDIUM;
-}
+  return {
+    id: reminder.id,
+    title: reminder.title,
+    description: reminder.description || "",
+    dueDate: reminder.dueDate,
+    priority: normalizedPriority,
+    completed: reminder.completed || false,
+    completedAt: reminder.completedAt,
+    category: reminder.category,
+    periodId: reminder.periodId,
+    checklist: reminder.checklist
+  };
+};
 
 /**
- * Convert a backend reminder to a UI reminder
+ * Converts a UI reminder to backend reminder format
  */
-export function convertToUIReminder(backendReminder: BackendReminder): UIReminder {
+export const convertToBackendReminder = (reminder: UIReminder): Omit<BackendReminder, "id"> => {
   return {
-    id: backendReminder.id,
-    title: backendReminder.title,
-    description: backendReminder.description,
-    dueDate: backendReminder.dueDate,
-    priority: ensureValidPriority(backendReminder.priority) as "low" | "medium" | "high",
-    location: backendReminder.location,
-    completed: backendReminder.completed,
-    completedAt: backendReminder.completedAt,
-    createdAt: backendReminder.createdAt
+    title: reminder.title,
+    description: reminder.description || "",
+    dueDate: reminder.dueDate,
+    priority: reminder.priority,
+    completed: reminder.completed || false,
+    completedAt: reminder.completedAt,
+    createdAt: new Date(),
+    category: reminder.category,
+    periodId: reminder.periodId,
+    checklist: reminder.checklist,
+    userId: "" // This will be filled in by the reminder operations
   };
-}
-
-/**
- * Convert a UI reminder to a backend reminder
- */
-export function convertToBackendReminder(uiReminder: UIReminder): BackendReminder {
-  return {
-    id: uiReminder.id,
-    title: uiReminder.title,
-    description: uiReminder.description,
-    dueDate: uiReminder.dueDate,
-    priority: ensureValidPriority(uiReminder.priority),
-    location: uiReminder.location,
-    completed: uiReminder.completed,
-    completedAt: uiReminder.completedAt,
-    createdAt: uiReminder.createdAt
-  };
-}
+};

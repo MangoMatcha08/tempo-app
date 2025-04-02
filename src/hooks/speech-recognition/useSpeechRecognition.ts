@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { UseSpeechRecognitionReturn } from './types';
 import { useSpeechRecognitionSetup } from './useSpeechRecognitionSetup';
 import { useTranscriptState } from './useTranscriptState';
@@ -21,6 +21,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   
   const { 
     transcript, 
+    interimTranscript,
     setTranscript, 
     resetTranscriptState, 
     processSpeechResults 
@@ -114,6 +115,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
 
   return {
     transcript,
+    interimTranscript,
     isListening,
     startListening,
     stopListening,
