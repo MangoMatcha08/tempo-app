@@ -1,88 +1,76 @@
 
-import { Reminder } from "@/types/reminderTypes";
-import { formatDistanceToNow, isBefore, isToday, isTomorrow, isYesterday, format } from 'date-fns';
+import { Reminder as BackendReminder } from "@/types/reminderTypes";
+import { Reminder as UIReminder } from "@/types/reminder";
+import { 
+  getRemainingTimeDisplay, 
+  getTimeAgoDisplay, 
+  formatDate 
+} from "./reminder-formatting";
 
 /**
- * Transforms reminders for display, sorting by due date
+ * Ensures a priority value is one of the allowed string literal types
  */
-export const transformReminders = (reminders: Reminder[]): Reminder[] => {
-  return [...reminders].sort((a, b) => 
-    new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-  );
+const ensureValidPriority = (priority: string | any): "high" | "medium" | "low" => {
+  if (priority === "high" || priority === "medium" || priority === "low") {
+    return priority;
+  } else if (typeof priority === "string") {
+    const priorityStr = priority.toLowerCase();
+    if (priorityStr.includes("high") || priorityStr.includes("urgent")) {
+      return "high";
+    } else if (priorityStr.includes("low")) {
+      return "low";
+    }
+  }
+  return "medium"; // Default priority
 };
 
 /**
- * Filters reminders that are due soon (within 3 days)
+ * Transforms backend reminders to UI reminders with formatted time info
  */
-export const filterUrgentReminders = (reminders: Reminder[]): Reminder[] => {
-  const now = new Date();
-  const threeDaysFromNow = new Date(now);
-  threeDaysFromNow.setDate(now.getDate() + 3);
-  
-  return reminders.filter(reminder => 
-    !reminder.completed && 
-    new Date(reminder.dueDate) <= threeDaysFromNow
-  );
-};
-
-/**
- * Filters reminders that are due later (more than 3 days from now)
- */
-export const filterUpcomingReminders = (reminders: Reminder[]): Reminder[] => {
-  const now = new Date();
-  const threeDaysFromNow = new Date(now);
-  threeDaysFromNow.setDate(now.getDate() + 3);
-  
-  return reminders.filter(reminder => 
-    !reminder.completed && 
-    new Date(reminder.dueDate) > threeDaysFromNow
-  );
-};
-
-/**
- * Filters completed reminders
- */
-export const filterCompletedReminders = (reminders: Reminder[]): Reminder[] => {
-  return reminders.filter(reminder => reminder.completed);
-};
-
-/**
- * Add formatted time information to reminders
- */
-export const enhanceRemindersWithTimeInfo = (reminders: Reminder[]) => {
+export function transformToUrgentReminders(reminders: BackendReminder[]): UIReminder[] {
+  console.log("Transforming urgent reminders");
   return reminders.map(reminder => {
-    const dueDate = new Date(reminder.dueDate);
-    const now = new Date();
-    
-    let timeRemaining = '';
-    let formattedDate = '';
-    
-    if (isToday(dueDate)) {
-      formattedDate = 'Today';
-    } else if (isTomorrow(dueDate)) {
-      formattedDate = 'Tomorrow';
-    } else if (isYesterday(dueDate)) {
-      formattedDate = 'Yesterday';
-    } else {
-      formattedDate = format(dueDate, 'EEE, MMM d');
-    }
-    
-    if (isBefore(dueDate, now) && !reminder.completed) {
-      timeRemaining = `Overdue by ${formatDistanceToNow(dueDate)}`;
-    } else if (!reminder.completed) {
-      timeRemaining = `Due in ${formatDistanceToNow(dueDate)}`;
-    }
-    
-    let completedTimeAgo = '';
-    if (reminder.completed && reminder.completedAt) {
-      completedTimeAgo = `Completed ${formatDistanceToNow(new Date(reminder.completedAt))} ago`;
-    }
+    const priority = ensureValidPriority(reminder.priority);
     
     return {
       ...reminder,
-      timeRemaining,
-      formattedDate,
-      completedTimeAgo
-    };
+      priority,
+      timeRemaining: getRemainingTimeDisplay(reminder.dueDate),
+      formattedDate: formatDate(reminder.dueDate)
+    } as UIReminder & { timeRemaining: string, formattedDate: string };
   });
-};
+}
+
+/**
+ * Transforms backend reminders to UI reminders with formatted time info
+ */
+export function transformToUpcomingReminders(reminders: BackendReminder[]): UIReminder[] {
+  console.log("Transforming upcoming reminders");
+  return reminders.map(reminder => {
+    const priority = ensureValidPriority(reminder.priority);
+    
+    return {
+      ...reminder,
+      priority,
+      timeRemaining: getRemainingTimeDisplay(reminder.dueDate),
+      formattedDate: formatDate(reminder.dueDate)
+    } as UIReminder & { timeRemaining: string, formattedDate: string };
+  });
+}
+
+/**
+ * Transforms backend reminders to UI reminders with completed time info
+ */
+export function transformToCompletedReminders(reminders: BackendReminder[]): UIReminder[] {
+  console.log("Transforming completed reminders");
+  return reminders.map(reminder => {
+    const priority = ensureValidPriority(reminder.priority);
+    
+    return {
+      ...reminder,
+      priority,
+      completedTimeAgo: reminder.completedAt ? getTimeAgoDisplay(reminder.completedAt) : '',
+      formattedDate: formatDate(reminder.dueDate)
+    } as UIReminder & { completedTimeAgo: string, formattedDate: string };
+  });
+}

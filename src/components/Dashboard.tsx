@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useReminders } from "@/hooks/reminders/use-reminders";
 import { useToast } from "@/hooks/use-toast";
@@ -75,8 +74,8 @@ const Dashboard = () => {
   const { forceRefresh } = useDashboardRefresh(
     async () => {
       try {
-        await refreshReminders();
-        return true;
+        const success = await refreshReminders();
+        return success;
       } catch (error) {
         console.error("Error refreshing reminders:", error);
         return false;
@@ -161,8 +160,7 @@ const Dashboard = () => {
     }
   }, [batchDeleteReminders, toast]);
 
-  // Fixed return type to be Promise<void> instead of Promise<boolean>
-  const clearCacheAndRefresh = useCallback(async (): Promise<void> => {
+  const clearCacheAndRefresh = useCallback(() => {
     try {
       localStorage.removeItem('reminderCache');
       console.log("Reminder cache cleared");
@@ -171,11 +169,18 @@ const Dashboard = () => {
         description: "Reminder cache has been cleared"
       });
       console.log("Initiating refresh after cache clear");
-      
-      // Call refreshReminders and ignore its return value
-      await refreshReminders();
+      return refreshReminders()
+        .then(success => {
+          console.log("Refresh result after cache clear:", success);
+          return success;
+        })
+        .catch(err => {
+          console.error("Error during refresh after cache clear:", err);
+          return false;
+        });
     } catch (err) {
       console.error("Error clearing cache:", err);
+      return Promise.resolve(false);
     }
   }, [refreshReminders, toast]);
 

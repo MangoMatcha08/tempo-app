@@ -157,12 +157,7 @@ const DashboardMain = ({
 
   return (
     <DashboardLayout>
-      <DashboardHeader 
-        openAddReminderModal={openQuickReminderModal}
-        openVoiceRecorderModal={openVoiceRecorderModal}
-        refreshData={refreshReminders}
-        isRefreshing={isRefreshing}
-      />
+      <DashboardHeader title="Tempo Dashboard" stats={reminderStats} />
       
       {!hasFirestorePermissions && (
         <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-4">

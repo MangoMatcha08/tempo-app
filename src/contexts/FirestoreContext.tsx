@@ -4,7 +4,7 @@ import { Firestore } from 'firebase/firestore';
 import { firebaseApp, getFirestoreInstance } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { isMissingIndexError, getFirestoreIndexCreationUrl, extractIndexUrlFromError } from '@/lib/firebase/indexing';
+import { isMissingIndexError, getFirestoreIndexCreationUrl } from '@/lib/firebase/indexing';
 
 interface FirestoreContextType {
   db: Firestore | null;
@@ -14,7 +14,6 @@ interface FirestoreContextType {
   hasFirestorePermissions: boolean;
   useMockData: boolean;
   indexesNeeded: Record<string, boolean>;
-  registerNeededIndex: (collectionId: string, fields: string[]) => void;
 }
 
 const FirestoreContext = createContext<FirestoreContextType>({
@@ -24,8 +23,7 @@ const FirestoreContext = createContext<FirestoreContextType>({
   isOnline: true,
   hasFirestorePermissions: true,
   useMockData: false,
-  indexesNeeded: {},
-  registerNeededIndex: () => {}
+  indexesNeeded: {}
 });
 
 export const useFirestore = () => useContext(FirestoreContext);
@@ -74,10 +72,8 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [toast]);
 
   useEffect(() => {
-    let firestoreDb = null;
-    
     try {
-      firestoreDb = getFirestoreInstance();
+      const firestoreDb = getFirestoreInstance();
       
       console.log('Firestore project ID:', firebaseApp?.options?.projectId || 'unknown');
       
@@ -88,7 +84,7 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       console.log('Firestore initialized successfully in context');
     } catch (err) {
       console.error('Error initializing Firestore in context:', err);
-      setError(err instanceof Error ? err : new Error(String(err)));
+      setError(err instanceof Error ? err : new Error('Unknown Firestore error'));
       
       const errorMessage = err instanceof Error ? err.message : String(err);
       if (errorMessage.includes('permission-denied') || 
@@ -114,16 +110,20 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       } else if (isMissingIndexError(err)) {
         console.warn('Firestore index issue detected');
-        
-        // Even with index error, we can still use Firestore with simple queries
-        setIsReady(true);
-        setDb(firestoreDb);
-        
         toast({
           title: "Firestore Index Required",
-          description: "Using simplified queries until index is created. This may affect performance.",
+          description: "Create the necessary indexes in the Firebase Console.",
           duration: 8000,
         });
+        
+        setDb(getFirestoreInstance());
+      }
+      
+      try {
+        const backupDb = getFirestoreInstance();
+        setDb(backupDb);
+      } catch (e) {
+        console.error('Critical error getting Firestore instance:', e);
       }
     }
   }, [toast, isTestAccount]);
@@ -149,8 +149,7 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     isOnline,
     hasFirestorePermissions,
     useMockData,
-    indexesNeeded,
-    registerNeededIndex
+    indexesNeeded
   }), [db, isReady, error, isOnline, hasFirestorePermissions, useMockData, indexesNeeded]);
 
   return (
