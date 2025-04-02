@@ -166,7 +166,7 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
   };
   
   return (
-    <Card className="enhanced-reminder-creator">
+    <Card className="enhanced-reminder-creator w-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-xl">Create Reminder</CardTitle>
         <div className="flex items-center space-x-2">
@@ -224,6 +224,27 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
             </Select>
           </div>
         </div>
+
+        {/* Period selection in simple view as well */}
+        <div className="space-y-2">
+          <Label htmlFor="period">Period</Label>
+          <Select 
+            value={periodId || 'none'} 
+            onValueChange={(value) => setPeriodId(value === 'none' ? undefined : value)}
+          >
+            <SelectTrigger id="period">
+              <SelectValue placeholder="Select period" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No specific period</SelectItem>
+              {mockPeriods.map(period => (
+                <SelectItem key={period.id} value={period.id}>
+                  {period.name} ({period.startTime} - {period.endTime})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         
         {viewMode === 'detailed' && (
           <>
@@ -236,26 +257,6 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
                 onChange={(e) => setDescription(e.target.value)}
                 className="min-h-[100px]"
               />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="period">Period</Label>
-              <Select 
-                value={periodId || 'none'} 
-                onValueChange={(value) => setPeriodId(value === 'none' ? undefined : value)}
-              >
-                <SelectTrigger id="period">
-                  <SelectValue placeholder="Select period" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No specific period</SelectItem>
-                  {mockPeriods.map(period => (
-                    <SelectItem key={period.id} value={period.id}>
-                      {period.name} ({period.startTime} - {period.endTime})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

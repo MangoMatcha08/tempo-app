@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Firestore } from 'firebase/firestore';
 import { firebaseApp, getFirestoreInstance } from '@/lib/firebase';
@@ -39,13 +38,11 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Determine if the current user is a test account
   const isTestAccount = useMemo(() => {
     if (!user) return false;
     return user.email === 'test@example.com';
   }, [user]);
 
-  // Set up network status monitoring
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
@@ -75,14 +72,11 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   useEffect(() => {
     try {
-      // Initialize Firestore with optimized settings
-      const firestoreInstance = getFirestoreInstance();
+      const firestoreDb = getFirestoreInstance();
       
-      // Log the project ID to verify configuration
       console.log('Firestore project ID:', firebaseApp?.options?.projectId || 'unknown');
       
-      // If no error was thrown, Firestore is ready
-      setDb(firestoreInstance);
+      setDb(firestoreDb);
       setIsReady(true);
       setError(null);
       
@@ -91,7 +85,6 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       console.error('Error initializing Firestore in context:', err);
       setError(err instanceof Error ? err : new Error('Unknown Firestore error'));
       
-      // Check if this is a permissions error
       const errorMessage = err instanceof Error ? err.message : String(err);
       if (errorMessage.includes('permission-denied') || 
           errorMessage.includes('not been used') || 
@@ -99,7 +92,6 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         console.warn('Firestore permissions issue detected');
         setHasFirestorePermissions(false);
         
-        // Only use mock data for test accounts when there's a permissions issue
         if (isTestAccount) {
           setUseMockData(true);
           toast({
@@ -116,7 +108,6 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           });
         }
       } else if (isMissingIndexError(err)) {
-        // Check if this is an index error
         console.warn('Firestore index issue detected');
         toast({
           title: "Firestore Index Required",
@@ -124,26 +115,21 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           duration: 8000,
         });
         
-        // Still set the database reference
-        setDb(firestoreInstance);
+        setDb(getFirestoreInstance());
       }
       
-      // Still set db to avoid null checks throughout the app
-      // This will allow the app to gracefully handle Firestore errors
       try {
-        const firestoreInstance = getFirestoreInstance();
-        setDb(firestoreInstance);
+        const backupDb = getFirestoreInstance();
+        setDb(backupDb);
       } catch (e) {
         console.error('Critical error getting Firestore instance:', e);
       }
     }
   }, [toast, isTestAccount]);
 
-  // Method to register a needed index
   const registerNeededIndex = (collectionId: string, fields: string[]) => {
     setIndexesNeeded(prev => ({ ...prev, [collectionId]: true }));
     
-    // Generate the URL for creating the index
     const indexUrl = getFirestoreIndexCreationUrl(collectionId, fields);
     if (indexUrl) {
       console.info(`Create index at: ${indexUrl}`);
@@ -155,7 +141,6 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  // Memoize the context value to prevent unnecessary renders
   const contextValue = useMemo(() => ({
     db,
     isReady,
@@ -172,4 +157,3 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     </FirestoreContext.Provider>
   );
 };
-
