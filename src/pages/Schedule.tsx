@@ -19,7 +19,8 @@ const Schedule = memo(() => {
   const styles = useMemo(() => ({
     title: `${isMobile ? 'text-xl' : 'text-3xl'} font-bold`,
     button: `flex items-center gap-2`,
-    buttonSize: isMobile ? "sm" : "default" as const, // Type assertion to fix the error
+    // Fix: Explicitly type as a ButtonSize union type instead of string
+    buttonSize: (isMobile ? "sm" : "default") as "sm" | "default" | "icon" | "lg",
     icon: `${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`
   }), [isMobile]);
 
