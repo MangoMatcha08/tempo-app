@@ -33,20 +33,24 @@ const Dashboard = () => {
     loadMoreReminders,
     refreshReminders,
     hasMore,
-    totalCount
+    totalCount,
+    error: reminderError
   } = useReminders();
 
-  // Add error handling
+  // Update error state based on reminders hook error
   useEffect(() => {
-    // Reset error state when reminders are loaded successfully
-    if (reminders.length > 0) {
+    if (reminderError) {
+      console.error("Reminder error detected:", reminderError);
+      setHasError(true);
+    } else if (reminders.length > 0) {
+      // Reset error state when reminders are loaded successfully
       setHasError(false);
     }
-  }, [reminders]);
+  }, [reminders, reminderError]);
 
   // Optimized background refresh with improved performance
   const performBackgroundRefresh = useCallback(async () => {
-    if (!loading) {
+    if (!loading && !hasError) {
       try {
         await refreshReminders();
       } catch (error) {
@@ -54,7 +58,7 @@ const Dashboard = () => {
         // Don't show an error toast for background refreshes
       }
     }
-  }, [refreshReminders, loading]);
+  }, [refreshReminders, loading, hasError]);
 
   // Set up periodic refresh with improved performance
   useEffect(() => {

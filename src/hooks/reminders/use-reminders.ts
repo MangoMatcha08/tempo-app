@@ -14,6 +14,7 @@ export function useReminders() {
   // Handle Firestore errors
   useEffect(() => {
     if (firestoreError) {
+      console.error("Firestore error detected:", firestoreError);
       setError(firestoreError);
     }
   }, [firestoreError]);
@@ -23,6 +24,7 @@ export function useReminders() {
     reminders,
     setReminders,
     loading,
+    error: queryError,
     totalCount,
     setTotalCount,
     hasMore,
@@ -31,6 +33,14 @@ export function useReminders() {
     loadMoreReminders,
     refreshReminders
   } = useReminderQuery(user, db, isReady);
+  
+  // Handle query errors
+  useEffect(() => {
+    if (queryError) {
+      console.error("Query error detected:", queryError);
+      setError(queryError);
+    }
+  }, [queryError]);
   
   const {
     urgentReminders,
@@ -42,14 +52,26 @@ export function useReminders() {
     handleCompleteReminder: completeReminderBase,
     handleUndoComplete: undoCompleteBase,
     addReminder: addReminderBase,
-    updateReminder: updateReminderBase
+    updateReminder: updateReminderBase,
+    error: operationsError
   } = useReminderOperations(user, db, isReady);
+  
+  // Handle operations errors
+  useEffect(() => {
+    if (operationsError) {
+      console.error("Operations error detected:", operationsError);
+      setError(operationsError);
+    }
+  }, [operationsError]);
   
   // Initialize data fetch - now with a small delay to improve perceived performance
   useEffect(() => {
     // Use a slight delay for initial load to let UI render first
     const timer = setTimeout(() => {
-      fetchReminders();
+      fetchReminders().catch(err => {
+        console.error("Error in initial fetch:", err);
+        setError(err);
+      });
     }, 100);
     
     return () => clearTimeout(timer);

@@ -61,11 +61,44 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
     return fetchedReminders;
   };
   
-  // Fetch reminders with optimized refresh algorithm
+  // Fetch reminders with optimized refresh algorithm and better error handling
   const fetchReminders = useCallback(async (isRefresh = false) => {
-    if (!user || !isReady || !db) {
+    if (!user || !isReady) {
       setReminders([]);
       setLoading(false);
+      return;
+    }
+    
+    // Check for Firestore initialization issues
+    if (!db) {
+      console.warn("Firestore DB not initialized, using mock data");
+      // Return mock data when Firestore is unavailable
+      const mockReminders: Reminder[] = [
+        {
+          id: "mock-1",
+          title: "Example Reminder",
+          description: "This is a mock reminder because Firestore is not available",
+          dueDate: new Date(),
+          priority: "medium",
+          createdAt: new Date(),
+          completed: false
+        }
+      ];
+      
+      setReminders(mockReminders);
+      setLoading(false);
+      setTotalCount(1);
+      setHasMore(false);
+      
+      // Show a toast to inform the user about the issue
+      if (!isRefresh) {
+        toast({
+          title: "Firestore Connection Issue",
+          description: "Using mock data. Please check your Firestore setup.",
+          variant: "destructive",
+        });
+      }
+      
       return;
     }
     
@@ -110,6 +143,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
           }
         } catch (countErr) {
           console.warn("Error getting count, continuing without count:", countErr);
+          // Proceed without the count
         }
       }
       
@@ -121,26 +155,45 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
         limit(BATCH_SIZE)
       );
       
-      const querySnapshot = await getDocs(q);
-      
-      if (!querySnapshot.empty) {
-        setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
-        setHasMore(querySnapshot.size === BATCH_SIZE);
-      } else {
-        setLastVisible(null);
+      try {
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+          setHasMore(querySnapshot.size === BATCH_SIZE);
+        } else {
+          setLastVisible(null);
+          setHasMore(false);
+        }
+        
+        const fetchedReminders = processQuerySnapshot(querySnapshot);
+        
+        const endTime = performance.now();
+        console.log(`Fetched ${fetchedReminders.length} reminders in ${(endTime - startTime).toFixed(2)}ms`);
+        
+        // Use functional update to avoid race conditions
+        setReminders(fetchedReminders);
+      } catch (queryErr) {
+        console.error("Error executing query:", queryErr);
+        
+        // Fall back to empty array but don't treat as fatal error
+        setReminders([]);
         setHasMore(false);
+        
+        if (!isRefresh) {
+          toast({
+            title: "Error fetching reminders",
+            description: "Using local data only. Please check your connection.",
+            variant: "destructive",
+          });
+        }
       }
-      
-      const fetchedReminders = processQuerySnapshot(querySnapshot);
-      
-      const endTime = performance.now();
-      console.log(`Fetched ${fetchedReminders.length} reminders in ${(endTime - startTime).toFixed(2)}ms`);
-      
-      // Use functional update to avoid race conditions
-      setReminders(fetchedReminders);
     } catch (err: any) {
       console.error("Error fetching reminders:", err);
       setError(err);
+      
+      // Fall back to empty array
+      setReminders([]);
       
       // Only show error toast for initial load, not background refreshes
       if (!isRefresh) {
@@ -150,7 +203,6 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
           variant: "destructive",
         });
       }
-      throw err;
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -196,7 +248,6 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
         description: "Please try again later",
         variant: "destructive",
       });
-      throw err;
     } finally {
       setLoading(false);
     }
