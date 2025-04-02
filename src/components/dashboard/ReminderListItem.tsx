@@ -3,6 +3,7 @@ import { Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { formatTimeWithPeriod, getPriorityBorderClass, getPriorityColorClass } from "@/utils/timeUtils";
 
 interface Reminder {
   id: string;
@@ -24,18 +25,8 @@ interface ReminderListItemProps {
 const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProps) => {
   const [isCompleting, setIsCompleting] = useState(false);
   
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "border-l-red-500";
-      case "medium":
-        return "border-l-amber-500";
-      case "low":
-        return "border-l-blue-500";
-      default:
-        return "border-l-blue-500";
-    }
-  };
+  // Get the correct border color for this priority
+  const priorityBorderClass = getPriorityBorderClass(reminder.priority);
   
   // Check if reminder was created in the last 2 hours
   const isRecentlyCreated = () => {
@@ -67,8 +58,8 @@ const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProp
     // Extract location/period as class period
     const periodText = reminder.location ? `${reminder.location} • ` : "";
     
-    // Time
-    const timeText = dueDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    // Format time with period context
+    const timeText = formatTimeWithPeriod(dueDate);
     
     return `${dateText} • ${periodText}${timeText}`;
   };
@@ -83,7 +74,7 @@ const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProp
 
   return (
     <div 
-      className={`border-b border-l-4 ${getPriorityColor(reminder.priority)} p-3 flex items-center transition-all duration-300 ${
+      className={`border-b border-l-4 ${priorityBorderClass} p-3 flex items-center transition-all duration-300 ${
         isCompleting ? "bg-green-100 opacity-0" : ""
       } hover:bg-slate-50 cursor-pointer`}
       onClick={handleComplete}
@@ -133,7 +124,7 @@ const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProp
 
 // Helper function to get dot color based on priority
 function getPriorityDotColor(priority: string): string {
-  switch (priority) {
+  switch (priority.toLowerCase()) {
     case "high":
       return "bg-red-500";
     case "medium":

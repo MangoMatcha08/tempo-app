@@ -40,3 +40,66 @@ export const isToday = (date: Date): boolean => {
     date.getMonth() === today.getMonth() &&
     date.getFullYear() === today.getFullYear();
 };
+
+/**
+ * Formats time with school period context
+ * Returns period name with time in parentheses
+ */
+export const formatTimeWithPeriod = (date: Date): string => {
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const timeStr = formatTime(date);
+  
+  // Determine school period based on time
+  if (hours < 8) {
+    return `Before School (${timeStr})`;
+  } else if (hours < 9) {
+    return `1st Period (${timeStr})`;
+  } else if (hours < 10) {
+    return `2nd Period (${timeStr})`;
+  } else if (hours < 11) {
+    return `3rd Period (${timeStr})`;
+  } else if (hours < 12) {
+    return `4th Period (${timeStr})`;
+  } else if (hours < 13) {
+    return `Lunch (${timeStr})`;
+  } else if (hours < 14) {
+    return `5th Period (${timeStr})`;
+  } else if (hours < 15) {
+    return `6th Period (${timeStr})`;
+  } else {
+    return `After School (${timeStr})`;
+  }
+};
+
+/**
+ * Gets priority color class based on priority level
+ */
+export const getPriorityColorClass = (priority: string): string => {
+  switch (priority.toLowerCase()) {
+    case 'high':
+      return 'text-red-500 bg-red-50';
+    case 'medium':
+      return 'text-amber-500 bg-amber-50';
+    case 'low':
+      return 'text-blue-500 bg-blue-50';
+    default:
+      return 'text-slate-500 bg-slate-50';
+  }
+};
+
+/**
+ * Gets border color class based on priority level
+ */
+export const getPriorityBorderClass = (priority: string): string => {
+  switch (priority.toLowerCase()) {
+    case 'high':
+      return 'border-red-500';
+    case 'medium':
+      return 'border-amber-500';
+    case 'low':
+      return 'border-blue-500';
+    default:
+      return 'border-slate-500';
+  }
+};

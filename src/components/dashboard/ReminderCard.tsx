@@ -1,10 +1,11 @@
+
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Reminder } from '@/types/reminder';
 import { Button } from '@/components/ui/button';
 import { Check, Clock, CalendarIcon } from 'lucide-react';
-import { formatTime } from '@/utils/timeUtils';
+import { formatTimeWithPeriod, getPriorityColorClass } from '@/utils/timeUtils';
 
 interface ReminderCardProps {
   reminder: Reminder;
@@ -25,15 +26,22 @@ const ReminderCard: React.FC<ReminderCardProps> = ({ reminder, onComplete, onEdi
     }
   };
 
+  // Get color class based on priority
+  const priorityColorClass = getPriorityColorClass(reminder.priority);
+
   return (
     <Card className="w-full">
       <CardContent className="flex flex-col p-4">
         <div className="flex items-center justify-between mb-2">
-          <Badge variant="secondary">{reminder.priority}</Badge>
+          <Badge className={`${priorityColorClass} border`} variant="outline">
+            {reminder.priority}
+          </Badge>
           <div className="flex items-center space-x-2">
             <CalendarIcon className="h-4 w-4 text-gray-500" />
             <Clock className="h-4 w-4 text-gray-500" />
-            <span className="text-sm text-gray-500">{formatTime(reminder.dueDate)}</span>
+            <span className="text-sm text-gray-500">
+              {formatTimeWithPeriod(reminder.dueDate)}
+            </span>
           </div>
         </div>
         <h3 className="text-lg font-semibold">{reminder.title}</h3>
