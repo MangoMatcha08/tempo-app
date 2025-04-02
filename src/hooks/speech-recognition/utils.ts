@@ -1,50 +1,29 @@
 
-/**
- * Utility functions for speech recognition
- */
+// Speech recognition utility functions
+// Browser compatibility helpers for Web Speech API
 
-// Debounce function to prevent rapid updates
-export const debounce = (func: Function, wait: number) => {
-  let timeout: ReturnType<typeof setTimeout> | null = null;
+/**
+ * Creates a speech recognition instance with browser compatibility
+ * @returns Speech recognition instance or null if not supported
+ */
+export const createSpeechRecognition = (): any => {
+  // Try to find the appropriate Speech Recognition constructor
+  const SpeechRecognition = (window as any).SpeechRecognition || 
+                           (window as any).webkitSpeechRecognition ||
+                           (window as any).mozSpeechRecognition ||
+                           (window as any).msSpeechRecognition;
   
-  return (...args: any[]) => {
-    if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-};
-
-/**
- * Creates a browser-compatible SpeechRecognition instance
- * @returns SpeechRecognition instance or null if not supported
- */
-export const createSpeechRecognition = (): any | null => {
-  // Check if browser supports speech recognition
-  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-    // @ts-ignore - TypeScript doesn't recognize these browser-specific APIs
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    return new SpeechRecognition();
+  if (!SpeechRecognition) {
+    console.error('Speech recognition not supported in this browser');
+    return null;
   }
-  return null;
-};
-
-/**
- * Configures the speech recognition instance with default settings
- * @param recognition - The speech recognition instance to configure
- */
-export const configureSpeechRecognition = (recognition: any): void => {
-  if (!recognition) return;
   
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.lang = 'en-US';
-  recognition.maxAlternatives = 1;
-  
-  // Fix: Increase the maximum allowed speech segment to prevent early stopping
-  // This property is non-standard but works in Chrome
-  // @ts-ignore
-  if (typeof recognition.maxSpeechSegmentDuration === 'number') {
-    // @ts-ignore
-    recognition.maxSpeechSegmentDuration = 120; // Set to 120 seconds (or higher if needed)
+  try {
+    const recognition = new SpeechRecognition();
+    return recognition;
+  } catch (error) {
+    console.error('Error creating speech recognition instance:', error);
+    return null;
   }
 };
 
@@ -53,5 +32,55 @@ export const configureSpeechRecognition = (recognition: any): void => {
  * @returns boolean indicating if speech recognition is supported
  */
 export const isSpeechRecognitionSupported = (): boolean => {
-  return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+  return !!(
+    (window as any).SpeechRecognition || 
+    (window as any).webkitSpeechRecognition ||
+    (window as any).mozSpeechRecognition ||
+    (window as any).msSpeechRecognition
+  );
+};
+
+/**
+ * Configure the speech recognition instance with appropriate settings
+ * @param recognition Speech recognition instance
+ * @param isMobile Whether the user is on a mobile device
+ */
+export const configureSpeechRecognition = (recognition: any, isMobile = false): void => {
+  if (!recognition) return;
+
+  // Set recognition properties
+  recognition.continuous = true;      // Keep listening even if the user pauses
+  recognition.interimResults = true;  // Get results while the user is still speaking
+  recognition.maxAlternatives = 1;    // Only return the most likely match
+  
+  // Use shorter timeouts on mobile to save battery
+  if (isMobile) {
+    // Safari on iOS seems to have issues with long continuous sessions
+    // so we set a shorter timeout and rely on restarting the session
+    recognition.continuous = false;
+  }
+  
+  // Try to set the language based on browser language
+  try {
+    const preferredLanguage = navigator.language || 'en-US';
+    recognition.lang = preferredLanguage;
+    console.log(`Speech recognition language set to: ${preferredLanguage}`);
+  } catch (err) {
+    console.warn('Failed to set speech recognition language, using default');
+    recognition.lang = 'en-US';
+  }
+};
+
+/**
+ * Helper to create a mock SpeechRecognitionEvent for testing
+ * @param transcript Text to include in the mock event
+ * @returns Mock SpeechRecognitionEvent
+ */
+export const createMockSpeechEvent = (transcript: string): any => {
+  return {
+    resultIndex: 0,
+    results: [
+      [{ transcript, isFinal: true }]
+    ]
+  };
 };

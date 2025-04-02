@@ -38,15 +38,34 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
       
+      // Map error types to user-friendly messages
+      const errorMessages = {
+        'not-allowed': 'Microphone access was denied. Please enable microphone access in your browser settings.',
+        'audio-capture': 'No microphone was found or microphone is already in use.',
+        'network': 'Network error occurred. Please check your internet connection.',
+        'aborted': 'Speech recognition was aborted.',
+        'no-speech': 'No speech was detected. Please try speaking louder or check your microphone.',
+        'service-not-allowed': 'Speech recognition service not allowed. Try reloading the page.',
+      };
+      
       // Don't stop listening on "no-speech" errors, just log them
       if (event.error === 'no-speech') {
         console.log('No speech detected, continuing to listen...');
         return;
       }
       
+      // Handle permission errors specially
+      if (event.error === 'not-allowed') {
+        setError(errorMessages[event.error] || `Speech recognition error: ${event.error}`);
+        setIsListening(false);
+        return;
+      }
+      
       // For network errors, try to restart recognition
       if (event.error === 'network') {
         console.log('Network error, attempting to restart recognition...');
+        setError(errorMessages[event.error] || `Speech recognition error: ${event.error}`);
+        
         setTimeout(() => {
           if (isListening) {
             try {
@@ -61,8 +80,13 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         return;
       }
       
-      setError(`Speech recognition error: ${event.error}`);
-      setIsListening(false);
+      // Set user-friendly error message
+      setError(errorMessages[event.error as keyof typeof errorMessages] || `Speech recognition error: ${event.error}`);
+      
+      // Stop listening for critical errors
+      if (['not-allowed', 'audio-capture', 'service-not-allowed'].includes(event.error)) {
+        setIsListening(false);
+      }
     };
     
     // Cleanup
@@ -93,7 +117,19 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       console.log('Speech recognition started');
     } catch (err) {
       // Handle the case where recognition is already started
-      console.error('Recognition already started:', err);
+      console.error('Recognition error on start:', err);
+      
+      // Try to stop and restart if already started
+      try {
+        recognition.stop();
+        setTimeout(() => {
+          recognition.start();
+        }, 100);
+      } catch (stopErr) {
+        console.error('Failed to restart recognition:', stopErr);
+        setError('Failed to start speech recognition. Please try reloading the page.');
+        setIsListening(false);
+      }
     }
   }, [recognition, resetTranscriptState]);
 

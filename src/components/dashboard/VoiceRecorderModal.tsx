@@ -42,9 +42,25 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   const dialogContentRef = useRef<HTMLDivElement>(null);
   const lastOpenStateRef = useRef(open);
   
-  // Only reset state when modal changes from closed to open
+  // When modal opens, try to request microphone permission proactively on mobile
   useEffect(() => {
     if (open && !lastOpenStateRef.current) {
+      // Check if we're on a mobile device
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      // If on mobile, we'll try to pre-request permission when the modal opens
+      if (isMobileDevice && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        console.log("Voice modal opened on mobile, pre-checking microphone permission");
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then(() => {
+            console.log("Microphone permission pre-granted");
+          })
+          .catch(err => {
+            console.log("Microphone permission not pre-granted:", err.name);
+            // We don't need to handle the error here, the VoiceRecorderView component will handle it
+          });
+      }
+      
       console.log("Modal opened, resetting state");
       resetState();
     }

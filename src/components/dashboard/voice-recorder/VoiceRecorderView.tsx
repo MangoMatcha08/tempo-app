@@ -1,10 +1,12 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Mic } from "lucide-react";
+import { Mic, Square, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useSpeechRecognition from "@/hooks/speech-recognition";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface VoiceRecorderViewProps {
   onTranscriptComplete: (transcript: string) => void;
@@ -16,6 +18,8 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
   const [countdown, setCountdown] = useState(0);
   const [transcriptSent, setTranscriptSent] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string[]>([]);
+  const [permissionState, setPermissionState] = useState<PermissionState | "unknown">("unknown");
+  const isMobile = useIsMobile();
   
   const {
     transcript,
@@ -25,6 +29,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     startListening,
     stopListening,
     resetTranscript,
+    error,
   } = useSpeechRecognition();
   
   // Log debug info
@@ -32,8 +37,58 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${info}`]);
   };
 
-  // Handle recording start/stop
-  const toggleRecording = () => {
+  // Check microphone permission on component mount
+  useEffect(() => {
+    const checkMicPermission = async () => {
+      try {
+        if (navigator.permissions && navigator.permissions.query) {
+          const permissionResult = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+          setPermissionState(permissionResult.state);
+          
+          // Listen for permission changes
+          permissionResult.onchange = () => {
+            setPermissionState(permissionResult.state);
+            addDebugInfo(`Microphone permission changed to: ${permissionResult.state}`);
+            
+            // If permission was just granted and we're recording, restart recording
+            if (permissionResult.state === 'granted' && isRecording) {
+              resetTranscript();
+              startListening();
+              addDebugInfo("Restarting recording after permission granted");
+            }
+          };
+        } else {
+          // For browsers that don't support the permissions API
+          setPermissionState("unknown");
+        }
+      } catch (err) {
+        console.error("Error checking microphone permission:", err);
+        setPermissionState("unknown");
+      }
+    };
+    
+    checkMicPermission();
+  }, []);
+
+  // Request microphone access explicitly
+  const requestMicrophoneAccess = async () => {
+    addDebugInfo("Requesting microphone access explicitly");
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      setPermissionState("granted");
+      addDebugInfo("Microphone access granted");
+      return true;
+    } catch (err) {
+      console.error("Error requesting microphone access:", err);
+      setPermissionState("denied");
+      addDebugInfo("Microphone access denied");
+      return false;
+    }
+  };
+
+  // Handle recording start/stop with permission handling
+  const toggleRecording = async () => {
+    // If already recording, stop recording
     if (isRecording) {
       setIsRecording(false);
       stopListening();
@@ -46,13 +101,24 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
       } else {
         addDebugInfo("No transcript to send");
       }
-    } else {
-      setIsRecording(true);
-      setTranscriptSent(false);
-      resetTranscript();
-      startListening();
-      addDebugInfo("Started recording");
+      return;
     }
+    
+    // Starting a new recording - handle permissions first
+    if (permissionState !== "granted") {
+      const permissionGranted = await requestMicrophoneAccess();
+      if (!permissionGranted) {
+        addDebugInfo("Cannot start recording - microphone access not granted");
+        return;
+      }
+    }
+    
+    // Permission is granted, start recording
+    setIsRecording(true);
+    setTranscriptSent(false);
+    resetTranscript();
+    startListening();
+    addDebugInfo("Started recording with permission granted");
   };
 
   // Auto-stop recording after 30 seconds if still active
@@ -101,12 +167,44 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
   if (!browserSupportsSpeechRecognition) {
     return (
       <div className="text-center p-6">
-        <p className="text-red-500 mb-3">
-          Your browser does not support speech recognition.
-        </p>
-        <p>
-          Please try Chrome, Edge, or Safari on desktop for the best experience.
-        </p>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Browser Not Supported</AlertTitle>
+          <AlertDescription>
+            Your browser does not support speech recognition.
+            Please try Chrome, Edge, or Safari on desktop for the best experience.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Special UI for when permission is denied or prompt is needed (especially on mobile)
+  if (permissionState === "denied" || (permissionState === "prompt" && isMobile)) {
+    return (
+      <div className="space-y-4">
+        <Alert variant={permissionState === "denied" ? "destructive" : "default"}>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Microphone Access Required</AlertTitle>
+          <AlertDescription>
+            {permissionState === "denied" 
+              ? "Microphone access was denied. Please enable microphone access in your browser settings and try again."
+              : "To record voice reminders, you need to grant microphone access."}
+          </AlertDescription>
+        </Alert>
+        
+        <div className="text-center">
+          <Button 
+            onClick={requestMicrophoneAccess}
+            className="bg-blue-500 hover:bg-blue-600 text-white"
+          >
+            Enable Microphone Access
+          </Button>
+        </div>
+        
+        {error && (
+          <p className="text-sm text-red-500 mt-2">{error}</p>
+        )}
       </div>
     );
   }
@@ -126,7 +224,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
                 : "bg-blue-500 hover:bg-blue-600"
             )}
           >
-            <Mic className="h-6 w-6" />
+            {isRecording ? <Square className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
           </Button>
         </div>
         <div className="text-sm">
@@ -140,7 +238,9 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
             </div>
           ) : (
             <div>
-              Press to start recording
+              {permissionState === "granted" 
+                ? "Press to start recording" 
+                : "Press to request microphone access and start recording"}
             </div>
           )}
         </div>
@@ -170,6 +270,8 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
               <div>Recording state: {isRecording ? "Recording" : "Stopped"}</div>
               <div>Is processing: {isProcessing ? "Yes" : "No"}</div>
               <div>Transcript sent: {transcriptSent ? "Yes" : "No"}</div>
+              <div>Permission state: {permissionState}</div>
+              <div>Is mobile device: {isMobile ? "Yes" : "No"}</div>
               <div>Log:</div>
               <ul className="ml-4 space-y-1">
                 {debugInfo.map((info, i) => (

@@ -1,10 +1,11 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   createSpeechRecognition, 
   configureSpeechRecognition,
   isSpeechRecognitionSupported
 } from './utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface UseSpeechRecognitionSetupProps {
   onError: (error: string | undefined) => void;
@@ -19,6 +20,7 @@ export const useSpeechRecognitionSetup = ({
 }: UseSpeechRecognitionSetupProps) => {
   const [recognition, setRecognition] = useState<any | null>(null);
   const [browserSupportsSpeechRecognition, setBrowserSupportsSpeechRecognition] = useState<boolean>(false);
+  const isMobile = useIsMobile();
   
   // Initialize speech recognition
   useEffect(() => {
@@ -36,7 +38,8 @@ export const useSpeechRecognitionSetup = ({
       const recognitionInstance = createSpeechRecognition();
       
       if (recognitionInstance) {
-        configureSpeechRecognition(recognitionInstance);
+        // Configure with better settings for mobile
+        configureSpeechRecognition(recognitionInstance, isMobile);
         
         // Handle recognition end event with better restart logic
         recognitionInstance.onend = () => {
@@ -46,41 +49,17 @@ export const useSpeechRecognitionSetup = ({
           if (isListening) {
             console.log('Restarting speech recognition...');
             try {
-              // Small timeout to prevent rapid restart cycles
+              // Longer timeout on mobile to reduce battery usage
               setTimeout(() => {
-                recognitionInstance.start();
-              }, 100);
+                if (isListening) {
+                  recognitionInstance.start();
+                }
+              }, isMobile ? 300 : 100);
             } catch (err) {
               console.error('Error restarting recognition:', err);
               onError('Failed to restart speech recognition. Please try again.');
               setIsListening(false);
             }
-          }
-        };
-        
-        // Handle recognition errors more gracefully
-        recognitionInstance.onerror = (event: any) => {
-          console.error('Speech recognition error:', event.error);
-          
-          // Handle specific error types
-          switch (event.error) {
-            case 'network':
-              onError('Network error occurred. Please check your internet connection.');
-              break;
-            case 'not-allowed':
-              onError('Microphone access was denied. Please allow microphone access.');
-              break;
-            case 'aborted':
-              // This is often triggered by the user, so don't show an error
-              console.log('Speech recognition aborted');
-              break;
-            default:
-              onError(`Speech recognition error: ${event.error}`);
-          }
-          
-          // Stop listening on critical errors
-          if (['not-allowed', 'network'].includes(event.error)) {
-            setIsListening(false);
           }
         };
         
@@ -92,7 +71,7 @@ export const useSpeechRecognitionSetup = ({
       console.error('Error setting up speech recognition:', error);
       onError('Failed to initialize speech recognition.');
     }
-  }, [onError, setIsListening]);
+  }, [onError, setIsListening, isMobile]);
 
   return {
     recognition,
