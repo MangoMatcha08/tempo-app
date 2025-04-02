@@ -19,7 +19,7 @@ const Schedule = memo(() => {
   const styles = useMemo(() => ({
     title: `${isMobile ? 'text-xl' : 'text-3xl'} font-bold`,
     button: `flex items-center gap-2`,
-    buttonSize: isMobile ? "sm" : "default",
+    buttonSize: isMobile ? "sm" : "default" as const, // Type assertion to fix the error
     icon: `${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`
   }), [isMobile]);
 

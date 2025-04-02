@@ -155,3 +155,6 @@ export const signOutUser = async () => {
     };
   }
 };
+
+// Export firebaseApp for use in other modules
+export { firebaseApp };
