@@ -1,52 +1,17 @@
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFirestore } from "@/contexts/FirestoreContext";
 import { useReminderQuery } from "./reminder-query";
 import { useReminderFilters } from "./reminder-filters";
 import { useReminderOperations } from "./reminder-operations";
-import { Reminder as BackendReminder, ReminderPriority } from "@/types/reminderTypes";
-import { Reminder as UIReminder } from "@/types/reminder";
-import { ensureValidPriority } from "@/utils/typeUtils";
-
-// Helper functions for data transformations
-function getRemainingTimeDisplay(date: Date): string {
-  const now = new Date();
-  const diffMs = date.getTime() - now.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  
-  if (diffMins < 0) return "Overdue";
-  if (diffMins < 60) return `${diffMins} min${diffMins !== 1 ? 's' : ''}`;
-  
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours} hr${diffHours !== 1 ? 's' : ''}`;
-  
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays} day${diffDays !== 1 ? 's' : ''}`;
-}
-
-function getTimeAgoDisplay(date: Date): string {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  
-  if (diffMins < 1) return "just now";
-  if (diffMins < 60) return `${diffMins} min${diffMins !== 1 ? 's' : ''} ago`;
-  
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours} hr${diffHours !== 1 ? 's' : ''} ago`;
-  
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-}
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString(undefined, { 
-    month: 'short', 
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-}
+import { Reminder as BackendReminder } from "@/types/reminderTypes";
+import { calculateReminderStats } from "./reminder-stats";
+import { 
+  transformToUrgentReminders,
+  transformToUpcomingReminders,
+  transformToCompletedReminders
+} from "./reminder-transformations";
 
 export function useReminders() {
   const [error, setError] = useState<Error | null>(null);
@@ -164,62 +129,26 @@ export function useReminders() {
     }
   }, [refreshRemindersBase]);
   
+  // Calculate reminder statistics
   const reminderStats = useMemo(() => {
-    const totalActive = urgentBackendReminders.length + upcomingBackendReminders.length;
-    const totalCompleted = completedBackendReminders.length;
-    const completionRate = (totalReminders: number) => 
-      totalReminders > 0 ? Math.round((totalCompleted / totalReminders) * 100) : 0;
-    
-    return {
-      totalActive,
-      totalCompleted,
-      totalReminders: totalActive + totalCompleted,
-      completionRate: completionRate(totalActive + totalCompleted),
-      urgentCount: urgentBackendReminders.length,
-      upcomingCount: upcomingBackendReminders.length
-    };
+    return calculateReminderStats(
+      urgentBackendReminders,
+      upcomingBackendReminders,
+      completedBackendReminders
+    );
   }, [urgentBackendReminders.length, upcomingBackendReminders.length, completedBackendReminders.length]);
   
+  // Transform reminders for UI
   const urgentReminders = useMemo(() => {
-    console.log("Transforming urgent reminders");
-    return urgentBackendReminders.map(reminder => {
-      const priority = ensureValidPriority(reminder.priority);
-      
-      return {
-        ...reminder,
-        priority,
-        timeRemaining: getRemainingTimeDisplay(reminder.dueDate),
-        formattedDate: formatDate(reminder.dueDate)
-      } as UIReminder & { timeRemaining: string, formattedDate: string };
-    });
+    return transformToUrgentReminders(urgentBackendReminders);
   }, [urgentBackendReminders]);
   
   const upcomingReminders = useMemo(() => {
-    console.log("Transforming upcoming reminders");
-    return upcomingBackendReminders.map(reminder => {
-      const priority = ensureValidPriority(reminder.priority);
-      
-      return {
-        ...reminder,
-        priority,
-        timeRemaining: getRemainingTimeDisplay(reminder.dueDate),
-        formattedDate: formatDate(reminder.dueDate)
-      } as UIReminder & { timeRemaining: string, formattedDate: string };
-    });
+    return transformToUpcomingReminders(upcomingBackendReminders);
   }, [upcomingBackendReminders]);
   
   const completedReminders = useMemo(() => {
-    console.log("Transforming completed reminders");
-    return completedBackendReminders.map(reminder => {
-      const priority = ensureValidPriority(reminder.priority);
-      
-      return {
-        ...reminder,
-        priority,
-        completedTimeAgo: reminder.completedAt ? getTimeAgoDisplay(reminder.completedAt) : '',
-        formattedDate: formatDate(reminder.dueDate)
-      } as UIReminder & { completedTimeAgo: string, formattedDate: string };
-    });
+    return transformToCompletedReminders(completedBackendReminders);
   }, [completedBackendReminders]);
 
   return {
