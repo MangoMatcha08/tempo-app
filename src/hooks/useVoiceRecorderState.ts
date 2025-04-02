@@ -18,6 +18,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   
   // Ref to track if we're currently in the process of confirming a transcript
   const isConfirmingRef = useRef(false);
+  const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Reset state when modal opens
   const resetState = () => {
@@ -31,6 +32,12 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       setPriority(ReminderPriority.MEDIUM);
       setCategory(ReminderCategory.TASK);
       setPeriodId("none");
+      
+      // Clear any pending timers
+      if (transitionTimerRef.current) {
+        clearTimeout(transitionTimerRef.current);
+        transitionTimerRef.current = null;
+      }
     }
   };
   
@@ -73,7 +80,14 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         result.reminder.dueDate = tomorrow;
       }
       
-      setProcessingResult(result);
+      // Update the result with the default due date
+      setProcessingResult({
+        ...result,
+        reminder: {
+          ...result.reminder,
+          dueDate: result.reminder.dueDate
+        }
+      });
       
       console.log("Switching to confirmation view with result:", result);
       
@@ -81,10 +95,16 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       setIsProcessing(false);
       
       // Use setTimeout to ensure state updates properly between transitions
-      setTimeout(() => {
+      // Clear any existing timer first
+      if (transitionTimerRef.current) {
+        clearTimeout(transitionTimerRef.current);
+      }
+      
+      transitionTimerRef.current = setTimeout(() => {
         console.log("Setting view to confirm");
         setView("confirm");
-      }, 100);
+        transitionTimerRef.current = null;
+      }, 200);  // Increased timeout for more reliable state transitions
     } catch (error) {
       console.error('Error processing voice input:', error);
       setIsProcessing(false);
@@ -109,15 +129,26 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     isConfirmingRef.current = false;
   };
   
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current) {
+        clearTimeout(transitionTimerRef.current);
+        transitionTimerRef.current = null;
+      }
+    };
+  }, []);
+  
   // For debugging
   useEffect(() => {
     console.log("Voice recorder state changed:", {
       view, 
       isProcessing, 
       hasTranscript: !!transcript,
-      hasResult: !!processingResult
+      hasResult: !!processingResult,
+      title
     });
-  }, [view, transcript, isProcessing, processingResult]);
+  }, [view, transcript, isProcessing, processingResult, title]);
   
   return {
     title,

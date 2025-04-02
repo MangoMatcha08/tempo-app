@@ -18,10 +18,18 @@ const DashboardModalHandler = ({
 }: DashboardModalHandlerProps) => {
   const [showQuickReminderModal, setShowQuickReminderModal] = useState(false);
   const [showVoiceRecorderModal, setShowVoiceRecorderModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   const handleReminderCreated = useCallback(async (reminder: UIReminder) => {
     console.log("Reminder created from modal:", reminder);
+    
+    if (isSubmitting) {
+      console.log("Already submitting a reminder, skipping duplicate submission");
+      return null;
+    }
+    
+    setIsSubmitting(true);
     
     try {
       // Convert UI reminder to backend reminder type
@@ -32,10 +40,7 @@ const DashboardModalHandler = ({
       const savedReminder = await addReminder(backendReminder);
       console.log("Reminder saved successfully:", savedReminder);
       
-      toast({
-        title: "Reminder Created",
-        description: `"${reminder.title}" has been added to your reminders.`
-      });
+      // No need for toast here since Dashboard will handle it
       
       // Force refresh after adding a reminder
       console.log("Triggering refresh after adding reminder");
@@ -55,8 +60,10 @@ const DashboardModalHandler = ({
         variant: "destructive"
       });
       throw error;
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [addReminder, refreshReminders, toast]);
+  }, [addReminder, refreshReminders, toast, isSubmitting]);
 
   const openQuickReminderModal = useCallback(() => {
     console.log("Opening quick reminder modal");

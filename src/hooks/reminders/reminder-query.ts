@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from "react";
 import { Reminder } from "@/types/reminderTypes";
 import { 
@@ -69,6 +70,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, contextUs
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [retryAttempts, setRetryAttempts] = useState(0);
   const [useMockData, setUseMockData] = useState(contextUseMockData);
+  const [indexNeeded, setIndexNeeded] = useState(false);
   const { toast } = useToast();
   const { 
     cacheReminderList, 
@@ -207,6 +209,16 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, contextUs
     );
   };
   
+  // Helper to check for index errors
+  const isIndexError = (err: any): boolean => {
+    const errorMessage = String(err);
+    return (
+      errorMessage.includes('index') && 
+      errorMessage.includes('requires') &&
+      errorMessage.includes('create')
+    );
+  };
+  
   // Fetch reminders with cache support
   const fetchReminders = useCallback(async (isRefresh = false) => {
     if (!user || !isReady) {
@@ -324,45 +336,115 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, contextUs
         }
       }
       
-      // Build optimized query - sorting by createdAt still makes sense for newest items first
-      const q = query(
-        remindersRef, 
-        where("userId", "==", user.uid),
-        orderBy("createdAt", "desc"),
-        limit(BATCH_SIZE)
-      );
-      
       try {
-        // For better performance, use getDocsFromServer for refreshes (bypass cache)
-        // and regular getDocs for initial loads (leverage Firestore cache)
-        const querySnapshot = isRefresh 
-          ? await getDocsFromServer(q)
-          : await getDocs(q);
+        // Check if we previously detected an index issue
+        let queryReminders: Reminder[] = [];
         
-        if (!querySnapshot.empty) {
-          setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
-          setHasMore(querySnapshot.size === BATCH_SIZE);
+        if (indexNeeded) {
+          // Use a simpler query without sorting if we know we need an index
+          console.log("Using simplified query because index is needed");
+          const simpleQ = query(
+            remindersRef, 
+            where("userId", "==", user.uid)
+          );
+          
+          const querySnapshot = await getDocs(simpleQ);
+          
+          if (!querySnapshot.empty) {
+            queryReminders = processQuerySnapshot(querySnapshot, true);
+            // Sort client-side since we can't use Firestore for this
+            queryReminders.sort((a, b) => 
+              b.createdAt.getTime() - a.createdAt.getTime()
+            );
+            
+            setHasMore(false); // Can't do pagination with client-side sorting
+          }
         } else {
-          setLastVisible(null);
-          setHasMore(false);
+          // Try the normal query with sorting
+          // Build optimized query - sorting by createdAt still makes sense for newest items first
+          const q = query(
+            remindersRef, 
+            where("userId", "==", user.uid),
+            orderBy("createdAt", "desc"),
+            limit(BATCH_SIZE)
+          );
+          
+          // For better performance, use getDocsFromServer for refreshes (bypass cache)
+          // and regular getDocs for initial loads (leverage Firestore cache)
+          const querySnapshot = isRefresh 
+            ? await getDocsFromServer(q)
+            : await getDocs(q);
+          
+          if (!querySnapshot.empty) {
+            setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+            setHasMore(querySnapshot.size === BATCH_SIZE);
+            queryReminders = processQuerySnapshot(querySnapshot, true);
+          } else {
+            setLastVisible(null);
+            setHasMore(false);
+          }
         }
         
-        // Use index-only queries for list views
-        const fetchedReminders = processQuerySnapshot(querySnapshot, true);
-        
         const endTime = performance.now();
-        console.log(`Fetched ${fetchedReminders.length} reminders in ${(endTime - startTime).toFixed(2)}ms`);
+        console.log(`Fetched ${queryReminders.length} reminders in ${(endTime - startTime).toFixed(2)}ms`);
         
         // Cache the results
-        cacheReminderList(cacheKey, fetchedReminders);
+        cacheReminderList(cacheKey, queryReminders);
         
         // Reset retry attempts on success
         setRetryAttempts(0);
+        // Reset index needed flag if query succeeded
+        if (!indexNeeded) {
+          setIndexNeeded(false);
+        }
         
         // Use functional update to avoid race conditions
-        setReminders(fetchedReminders);
+        setReminders(queryReminders);
       } catch (queryErr) {
         console.error("Error executing query:", queryErr);
+        
+        // Check if this is an index error
+        if (isIndexError(queryErr)) {
+          console.log("Index error detected, will use simplified query next time");
+          setIndexNeeded(true);
+          
+          // Show toast about the index issue
+          if (!isRefresh) {
+            toast({
+              title: "Firestore Index Required",
+              description: "Using simplified query. For better performance, create the suggested index in Firebase Console.",
+              duration: 8000,
+            });
+          }
+          
+          // Try again with simplified query
+          try {
+            const simpleQ = query(
+              remindersRef, 
+              where("userId", "==", user.uid)
+            );
+            
+            const querySnapshot = await getDocs(simpleQ);
+            
+            if (!querySnapshot.empty) {
+              let fallbackReminders = processQuerySnapshot(querySnapshot, true);
+              // Sort client-side
+              fallbackReminders.sort((a, b) => 
+                b.createdAt.getTime() - a.createdAt.getTime()
+              );
+              
+              setReminders(fallbackReminders);
+              cacheReminderList(cacheKey, fallbackReminders);
+              setHasMore(false); // Can't do pagination with client-side sorting
+              console.log("Successfully fetched with simplified query");
+              
+              // Don't show error toast since we recovered
+              return;
+            }
+          } catch (fallbackErr) {
+            console.error("Fallback query also failed:", fallbackErr);
+          }
+        }
         
         // If this is a permissions error but we're not using mock data
         if (isPermissionError(queryErr)) {
@@ -452,7 +534,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, contextUs
     }
   }, [
     user, isReady, db, lastRefreshTime, toast, getCachedReminderList, 
-    cacheReminderList, useMockData, retryAttempts
+    cacheReminderList, useMockData, retryAttempts, indexNeeded
   ]);
   
   // Load more reminders (pagination) - we don't cache pagination results separately
@@ -465,6 +547,17 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, contextUs
     if (useMockData) {
       const moreReminders = generateMockReminders(3);
       setReminders(prev => [...prev, ...moreReminders]);
+      return;
+    }
+    
+    // If we know we need an index, don't try to load more since we're using client-side sorting
+    if (indexNeeded) {
+      setHasMore(false);
+      toast({
+        title: "Cannot load more reminders",
+        description: "Pagination requires Firestore index. Please create the suggested index in Firebase Console.",
+        duration: 5000,
+      });
       return;
     }
     
@@ -498,15 +591,27 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, contextUs
       console.error("Error loading more reminders:", err);
       setError(err);
       
-      toast({
-        title: "Error loading more reminders",
-        description: "Please try again later",
-        variant: "destructive",
-      });
+      // Check if this is an index error
+      if (isIndexError(err)) {
+        console.log("Index error detected during load more");
+        setIndexNeeded(true);
+        
+        toast({
+          title: "Firestore Index Required",
+          description: "Cannot load more reminders. Please create the suggested index in Firebase Console.",
+          duration: 5000,
+        });
+      } else {
+        toast({
+          title: "Error loading more reminders",
+          description: "Please try again later",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
-  }, [user, isReady, db, lastVisible, hasMore, toast, useMockData]);
+  }, [user, isReady, db, lastVisible, hasMore, toast, useMockData, indexNeeded]);
 
   // Optimized refresh function that also invalidates cache
   const refreshReminders = useCallback(async () => {
@@ -530,6 +635,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, contextUs
     loadMoreReminders,
     refreshReminders,
     loadReminderDetail,
-    useMockData
+    useMockData,
+    indexNeeded
   };
 }

@@ -40,11 +40,20 @@ const Dashboard = () => {
     if (reminderError) {
       console.error("Reminder error detected:", reminderError);
       setHasError(true);
+      
+      // Show toast only for significant errors
+      if (!loading && reminders.length === 0) {
+        toast({
+          title: "Error Loading Reminders",
+          description: "There was an issue retrieving your reminders. Please try refreshing.",
+          variant: "destructive",
+        });
+      }
     } else if (reminders.length > 0) {
       // Reset error state when reminders are loaded successfully
       setHasError(false);
     }
-  }, [reminders, reminderError]);
+  }, [reminders, reminderError, loading, toast]);
 
   // Set up batch operations
   const {
@@ -80,6 +89,36 @@ const Dashboard = () => {
     loading,
     hasError
   );
+
+  // Enhanced reminder operations
+  const handleAddReminder = useCallback(async (reminder: any) => {
+    try {
+      console.log("Adding reminder in Dashboard:", reminder);
+      const result = await addReminder(reminder);
+      
+      // If we successfully added the reminder, show success toast
+      if (result) {
+        toast({
+          title: "Reminder Added",
+          description: `"${reminder.title}" has been added to your reminders.`
+        });
+        
+        // Force refresh to ensure the UI is updated
+        console.log("Forcing refresh after add");
+        await refreshReminders();
+      }
+      
+      return result;
+    } catch (err) {
+      console.error("Error adding reminder in Dashboard:", err);
+      toast({
+        title: "Error Adding Reminder",
+        description: "There was a problem adding your reminder.",
+        variant: "destructive"
+      });
+      throw err;
+    }
+  }, [addReminder, refreshReminders, toast]);
 
   // Function to clear the cache and refresh (for testing)
   const clearCacheAndRefresh = useCallback(() => {
@@ -132,7 +171,7 @@ const Dashboard = () => {
       reminderStats={reminderStats}
       handleCompleteReminder={handleCompleteReminder}
       handleUndoComplete={handleUndoComplete}
-      addReminder={addReminder}
+      addReminder={handleAddReminder}
       updateReminder={updateReminder}
       loadMoreReminders={loadMoreReminders}
       refreshReminders={refreshReminders}
