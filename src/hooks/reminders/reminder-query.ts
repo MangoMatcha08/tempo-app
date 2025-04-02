@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { Reminder } from "@/types/reminderTypes";
 import { 
@@ -9,10 +8,12 @@ import {
 } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useReminderCache } from "./use-reminder-cache";
+import { createReminder } from "@/utils/reminderUtils";
 
 // Constants for performance tuning
 const BATCH_SIZE = 10;
 const REFRESH_DEBOUNCE_MS = 300; // More aggressive debouncing for refreshes
+const MAX_RETRY_ATTEMPTS = 1; // Only retry once to avoid excessive waiting
 
 // Fields to select for list views (index-only query)
 const LIST_VIEW_FIELDS = [
@@ -25,6 +26,38 @@ const LIST_VIEW_FIELDS = [
   'createdAt'
 ];
 
+// Generate mock reminders for demo purposes
+const generateMockReminders = (count = 5): Reminder[] => {
+  const mockTitles = [
+    "Grade student essays", 
+    "Prepare for tomorrow's lesson",
+    "Submit quarterly report",
+    "Schedule parent-teacher meetings",
+    "Order new classroom supplies",
+    "Update curriculum documents",
+    "Check in with struggling students",
+    "Organize field trip logistics"
+  ];
+  
+  const mockPriorities = ["high", "medium", "low"];
+  
+  return Array.from({ length: count }, (_, i) => {
+    const now = new Date();
+    const dueDate = new Date();
+    dueDate.setDate(now.getDate() + Math.floor(Math.random() * 7)); // Random due date within a week
+    
+    return {
+      id: `mock-${i + 1}`,
+      title: mockTitles[i % mockTitles.length],
+      description: `This is a mock reminder #${i + 1} for demonstration purposes.`,
+      dueDate,
+      priority: mockPriorities[i % mockPriorities.length],
+      createdAt: now,
+      completed: i % 4 === 0 // Make some completed
+    } as Reminder;
+  });
+};
+
 export function useReminderQuery(user: any, db: any, isReady: boolean) {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +67,8 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
   const [lastVisible, setLastVisible] = useState<DocumentData | null>(null);
   const [lastRefreshTime, setLastRefreshTime] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [retryAttempts, setRetryAttempts] = useState(0);
+  const [useMockData, setUseMockData] = useState(false);
   const { toast } = useToast();
   const { 
     cacheReminderList, 
@@ -102,6 +137,13 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
   const loadReminderDetail = useCallback(async (reminderId: string) => {
     if (!user || !isReady || !db) return null;
     
+    // If we're using mock data, generate a mock detail
+    if (useMockData) {
+      const mockReminder = generateMockReminders(1)[0];
+      mockReminder.id = reminderId;
+      return mockReminder;
+    }
+    
     // Check cache first
     const cachedReminder = getDetailedReminder(reminderId);
     if (cachedReminder) {
@@ -146,9 +188,28 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
       return null;
     } catch (err) {
       console.error(`Error loading detail for reminder ${reminderId}:`, err);
+      
+      // If we encounter Firestore errors, use a mock reminder
+      if (String(err).includes('permission-denied') || String(err).includes('not been used')) {
+        setUseMockData(true);
+        const mockReminder = generateMockReminders(1)[0];
+        mockReminder.id = reminderId;
+        return mockReminder;
+      }
+      
       return null;
     }
-  }, [user, isReady, db, getDetailedReminder, cacheReminderDetail]);
+  }, [user, isReady, db, getDetailedReminder, cacheReminderDetail, useMockData]);
+  
+  // Helper to check for permission errors
+  const isPermissionError = (err: any): boolean => {
+    const errorMessage = String(err);
+    return (
+      errorMessage.includes('permission-denied') || 
+      errorMessage.includes('not been used') || 
+      errorMessage.includes('disabled')
+    );
+  };
   
   // Fetch reminders with cache support
   const fetchReminders = useCallback(async (isRefresh = false) => {
@@ -158,32 +219,35 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
       return;
     }
     
+    // Check if we're already using mock data
+    if (useMockData) {
+      console.log("Using mock data for reminders");
+      const mockReminders = generateMockReminders(7);
+      setReminders(mockReminders);
+      setLoading(false);
+      setTotalCount(mockReminders.length);
+      setHasMore(false);
+      setIsRefreshing(false);
+      return;
+    }
+    
     // Check for Firestore initialization issues
     if (!db) {
       console.warn("Firestore DB not initialized, using mock data");
       // Return mock data when Firestore is unavailable
-      const mockReminders: Reminder[] = [
-        {
-          id: "mock-1",
-          title: "Example Reminder",
-          description: "This is a mock reminder because Firestore is not available",
-          dueDate: new Date(),
-          priority: "medium",
-          createdAt: new Date(),
-          completed: false
-        }
-      ];
+      const mockReminders = generateMockReminders(7);
       
       setReminders(mockReminders);
       setLoading(false);
-      setTotalCount(1);
+      setTotalCount(mockReminders.length);
       setHasMore(false);
+      setUseMockData(true);
       
       // Show a toast to inform the user about the issue
       if (!isRefresh) {
         toast({
           title: "Firestore Connection Issue",
-          description: "Using mock data. Please check your Firestore setup.",
+          description: "Using demo data. Please check your Firestore setup.",
           variant: "destructive",
         });
       }
@@ -249,7 +313,28 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
           }
         } catch (countErr) {
           console.warn("Error getting count, continuing without count:", countErr);
-          // Proceed without the count
+          
+          // If this is a permissions error, switch to mock data immediately
+          if (isPermissionError(countErr)) {
+            console.log("Permissions error detected, switching to mock data");
+            setUseMockData(true);
+            const mockReminders = generateMockReminders(7);
+            setReminders(mockReminders);
+            setLoading(false);
+            setTotalCount(mockReminders.length);
+            setHasMore(false);
+            setIsRefreshing(false);
+            
+            if (!isRefresh) {
+              toast({
+                title: "Firestore Permissions Issue",
+                description: "Using demo data. Firebase configuration needs to be updated.",
+                variant: "destructive",
+                duration: 6000,
+              });
+            }
+            return;
+          }
         }
       }
       
@@ -285,66 +370,139 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
         // Cache the results
         cacheReminderList(cacheKey, fetchedReminders);
         
+        // Reset retry attempts on success
+        setRetryAttempts(0);
+        
         // Use functional update to avoid race conditions
         setReminders(fetchedReminders);
       } catch (queryErr) {
         console.error("Error executing query:", queryErr);
         
-        // Fall back to cached data if available
-        const cachedReminders = getCachedReminderList(cacheKey);
-        if (cachedReminders && cachedReminders.length > 0) {
-          console.log("Using cached data due to query error");
-          setReminders(cachedReminders);
+        // Check if this is a permissions error
+        if (isPermissionError(queryErr)) {
+          console.log("Permissions error detected, switching to mock data");
+          setUseMockData(true);
+          const mockReminders = generateMockReminders(7);
+          setReminders(mockReminders);
+          setTotalCount(mockReminders.length);
+          setHasMore(false);
+          
+          if (!isRefresh) {
+            toast({
+              title: "Firestore Permissions Issue",
+              description: "Using demo data. Firebase configuration needs to be updated.",
+              variant: "destructive",
+              duration: 6000,
+            });
+          }
         } else {
-          // If no cached data, fall back to empty array
-          setReminders([]);
-        }
-        
-        setHasMore(false);
-        
-        if (!isRefresh) {
-          toast({
-            title: "Error fetching reminders",
-            description: "Using locally cached data. Please check your connection.",
-            variant: "destructive",
-          });
+          // Fall back to cached data if available
+          const cachedReminders = getCachedReminderList(cacheKey);
+          if (cachedReminders && cachedReminders.length > 0) {
+            console.log("Using cached data due to query error");
+            setReminders(cachedReminders);
+          } else {
+            // If no cached data and we've already retried, fall back to mock data
+            if (retryAttempts >= MAX_RETRY_ATTEMPTS) {
+              console.log("Max retry attempts reached, using mock data");
+              setUseMockData(true);
+              const mockReminders = generateMockReminders(7);
+              setReminders(mockReminders);
+              setTotalCount(mockReminders.length);
+              setHasMore(false);
+            } else {
+              // Otherwise, increment retry attempts
+              setRetryAttempts(prev => prev + 1);
+              // Fall back to empty array temporarily
+              setReminders([]);
+            }
+          }
+          
+          setHasMore(false);
+          
+          if (!isRefresh) {
+            toast({
+              title: "Error fetching reminders",
+              description: "Using locally cached or demo data. Please check your connection.",
+              variant: "destructive",
+            });
+          }
         }
       }
     } catch (err: any) {
       console.error("Error fetching reminders:", err);
       setError(err);
       
-      // Try to use cached data if available
-      if (user) {
-        const cacheKey = `${user.uid}-reminders`;
-        const cachedReminders = getCachedReminderList(cacheKey);
-        if (cachedReminders) {
-          console.log("Using cached reminders after error");
-          setReminders(cachedReminders);
+      // Check if this is a permissions error
+      if (isPermissionError(err)) {
+        console.log("Permissions error detected, switching to mock data");
+        setUseMockData(true);
+        const mockReminders = generateMockReminders(7);
+        setReminders(mockReminders);
+        setTotalCount(mockReminders.length);
+        setHasMore(false);
+        
+        if (!isRefresh) {
+          toast({
+            title: "Firestore Permissions Issue",
+            description: "Using demo data. Firebase configuration needs to be updated.",
+            variant: "destructive",
+            duration: 6000,
+          });
+        }
+      } else {
+        // Try to use cached data if available
+        if (user) {
+          const cacheKey = `${user.uid}-reminders`;
+          const cachedReminders = getCachedReminderList(cacheKey);
+          if (cachedReminders) {
+            console.log("Using cached reminders after error");
+            setReminders(cachedReminders);
+          } else if (retryAttempts >= MAX_RETRY_ATTEMPTS) {
+            // If we've already retried, use mock data
+            console.log("Max retry attempts reached, using mock data");
+            setUseMockData(true);
+            const mockReminders = generateMockReminders(7);
+            setReminders(mockReminders);
+            setTotalCount(mockReminders.length);
+            setHasMore(false);
+          } else {
+            // Otherwise, increment retry attempts and use empty array temporarily
+            setRetryAttempts(prev => prev + 1);
+            setReminders([]);
+          }
         } else {
           setReminders([]);
         }
-      } else {
-        setReminders([]);
-      }
-      
-      // Only show error toast for initial load, not background refreshes
-      if (!isRefresh) {
-        toast({
-          title: "Error fetching reminders",
-          description: "Please try again later",
-          variant: "destructive",
-        });
+        
+        // Only show error toast for initial load, not background refreshes
+        if (!isRefresh) {
+          toast({
+            title: "Error fetching reminders",
+            description: "Using demo data or cached data. Please try again later.",
+            variant: "destructive",
+          });
+        }
       }
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [user, isReady, db, lastRefreshTime, toast, getCachedReminderList, cacheReminderList]);
+  }, [
+    user, isReady, db, lastRefreshTime, toast, getCachedReminderList, 
+    cacheReminderList, useMockData, retryAttempts
+  ]);
   
   // Load more reminders (pagination) - we don't cache pagination results separately
   const loadMoreReminders = useCallback(async () => {
     if (!user || !isReady || !db || !lastVisible || !hasMore) {
+      return;
+    }
+    
+    // If we're using mock data, just return more mock reminders
+    if (useMockData) {
+      const moreReminders = generateMockReminders(3);
+      setReminders(prev => [...prev, ...moreReminders]);
       return;
     }
     
@@ -377,15 +535,24 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
     } catch (err: any) {
       console.error("Error loading more reminders:", err);
       setError(err);
-      toast({
-        title: "Error loading more reminders",
-        description: "Please try again later",
-        variant: "destructive",
-      });
+      
+      // If this is a permissions error, switch to mock data
+      if (isPermissionError(err)) {
+        console.log("Permissions error while loading more, adding mock data");
+        const moreReminders = generateMockReminders(3);
+        setReminders(prev => [...prev, ...moreReminders]);
+        setUseMockData(true);
+      } else {
+        toast({
+          title: "Error loading more reminders",
+          description: "Please try again later",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
-  }, [user, isReady, db, lastVisible, hasMore, toast]);
+  }, [user, isReady, db, lastVisible, hasMore, toast, useMockData]);
 
   // Optimized refresh function that also invalidates cache
   const refreshReminders = useCallback(async () => {
@@ -408,6 +575,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
     fetchReminders,
     loadMoreReminders,
     refreshReminders,
-    loadReminderDetail
+    loadReminderDetail,
+    useMockData
   };
 }

@@ -19,7 +19,7 @@ const Dashboard = () => {
   const [hasError, setHasError] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
-  const { db, isReady } = useFirestore();
+  const { db, isReady, hasFirestorePermissions } = useFirestore();
   
   const {
     reminders,
@@ -40,6 +40,7 @@ const Dashboard = () => {
     setReminders,
     setTotalCount,
     error: reminderError,
+    useMockData,
     // Batch operations
     batchCompleteReminders,
     batchAddReminders,
@@ -57,6 +58,17 @@ const Dashboard = () => {
       setHasError(false);
     }
   }, [reminders, reminderError]);
+
+  // Show a message about mock data being used
+  useEffect(() => {
+    if (useMockData) {
+      toast({
+        title: "Demo Mode Active",
+        description: "Using mock reminder data. Firebase configuration needs to be updated.",
+        duration: 5000,
+      });
+    }
+  }, [useMockData, toast]);
 
   // Set up batch operations
   const {
@@ -190,12 +202,29 @@ const Dashboard = () => {
         console.error("Error refreshing reminders in modal handler:", error);
         return false;
       }
-    }
+    },
+    useMockData: useMockData
   });
 
   return (
     <DashboardLayout>
       <DashboardHeader title="Tempo Dashboard" stats={reminderStats} />
+      
+      {!hasFirestorePermissions && (
+        <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-4">
+          <div className="flex items-start">
+            <div className="ml-3">
+              <p className="text-sm text-amber-700 font-medium">
+                Firestore API Not Configured
+              </p>
+              <p className="mt-1 text-sm text-amber-600">
+                The app is running in demo mode with mock data. To use real data storage, 
+                enable Firestore API for this project.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       
       <DashboardContent 
         urgentReminders={urgentReminders}

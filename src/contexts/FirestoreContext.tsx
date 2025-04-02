@@ -9,13 +9,15 @@ interface FirestoreContextType {
   isReady: boolean;
   error: Error | null;
   isOnline: boolean;
+  hasFirestorePermissions: boolean;
 }
 
 const FirestoreContext = createContext<FirestoreContextType>({
   db: null,
   isReady: false,
   error: null,
-  isOnline: true
+  isOnline: true,
+  hasFirestorePermissions: true
 });
 
 export const useFirestore = () => useContext(FirestoreContext);
@@ -25,6 +27,7 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [hasFirestorePermissions, setHasFirestorePermissions] = useState(true);
   const { toast } = useToast();
 
   // Set up network status monitoring
@@ -69,6 +72,22 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } catch (err) {
       console.error('Error initializing Firestore in context:', err);
       setError(err instanceof Error ? err : new Error('Unknown Firestore error'));
+      
+      // Check if this is a permissions error
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (errorMessage.includes('permission-denied') || 
+          errorMessage.includes('not been used') || 
+          errorMessage.includes('disabled')) {
+        console.warn('Firestore permissions issue detected, switching to demo mode');
+        setHasFirestorePermissions(false);
+        
+        toast({
+          title: "Firestore Access Issue",
+          description: "Running in demo mode with mock data. Firebase configuration may need to be updated.",
+          duration: 6000,
+        });
+      }
+      
       // Still set db to avoid null checks throughout the app
       // This will allow the app to gracefully handle Firestore errors
       try {
@@ -78,15 +97,16 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         console.error('Critical error getting Firestore instance:', e);
       }
     }
-  }, []);
+  }, [toast]);
 
   // Memoize the context value to prevent unnecessary renders
   const contextValue = useMemo(() => ({
     db,
     isReady,
     error,
-    isOnline
-  }), [db, isReady, error, isOnline]);
+    isOnline,
+    hasFirestorePermissions
+  }), [db, isReady, error, isOnline, hasFirestorePermissions]);
 
   return (
     <FirestoreContext.Provider value={contextValue}>

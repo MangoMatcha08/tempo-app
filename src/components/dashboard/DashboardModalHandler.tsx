@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import DashboardModals from "@/components/dashboard/DashboardModals";
 import { Reminder as UIReminder } from "@/types/reminder";
 import { useToast } from "@/hooks/use-toast";
@@ -8,11 +8,13 @@ import { convertToBackendReminder } from "@/utils/typeUtils";
 interface DashboardModalHandlerProps {
   addReminder: (reminder: any) => Promise<any>;
   refreshReminders: () => Promise<boolean>;
+  useMockData?: boolean;
 }
 
 const DashboardModalHandler = ({ 
   addReminder, 
-  refreshReminders 
+  refreshReminders,
+  useMockData = false
 }: DashboardModalHandlerProps) => {
   const [showQuickReminderModal, setShowQuickReminderModal] = useState(false);
   const [showVoiceRecorderModal, setShowVoiceRecorderModal] = useState(false);
@@ -34,16 +36,23 @@ const DashboardModalHandler = ({
           description: `"${reminder.title}" has been added to your reminders.`
         });
         
-        // Use refreshReminders which now returns Promise<boolean>
-        console.log("Triggering refresh after adding reminder");
-        return refreshReminders()
-          .then((success) => {
-            console.log("Refresh after adding result:", success);
-            if (!success) {
-              console.warn("Refresh after adding was not successful");
-            }
-            return success;
-          });
+        // If using mock data, don't try to refresh as it won't actually show new data
+        // Instead, the useReminders hook will handle updating the UI
+        if (!useMockData) {
+          // Use refreshReminders which now returns Promise<boolean>
+          console.log("Triggering refresh after adding reminder");
+          return refreshReminders()
+            .then((success) => {
+              console.log("Refresh after adding result:", success);
+              if (!success) {
+                console.warn("Refresh after adding was not successful");
+              }
+              return success;
+            });
+        } else {
+          console.log("Using mock data, skipping refresh");
+          return Promise.resolve(true);
+        }
       })
       .catch(error => {
         console.error("Error saving reminder:", error);
@@ -53,7 +62,7 @@ const DashboardModalHandler = ({
           variant: "destructive"
         });
       });
-  }, [addReminder, refreshReminders, toast]);
+  }, [addReminder, refreshReminders, toast, useMockData]);
 
   const openQuickReminderModal = useCallback(() => {
     console.log("Opening quick reminder modal");

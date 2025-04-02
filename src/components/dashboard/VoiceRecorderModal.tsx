@@ -65,13 +65,8 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   
   // Debug logging for view state
   useEffect(() => {
-    console.log("Current view:", view);
-  }, [view]);
-  
-  // Monitor transcript changes
-  useEffect(() => {
-    console.log("Transcript updated:", transcript);
-  }, [transcript]);
+    console.log("Current view:", view, "transcript length:", transcript ? transcript.length : 0);
+  }, [view, transcript]);
   
   const handleSave = () => {
     if (!transcript || !title) {
@@ -130,8 +125,8 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
     }
   };
 
-  // Fixed: Always use the transcript to determine view, not an arbitrary check
-  const shouldShowConfirmView = transcript && view === "confirm";
+  // Fixed: Use the view state directly to determine which view to show
+  const shouldShowConfirmView = view === "confirm";
 
   return (
     <Dialog 

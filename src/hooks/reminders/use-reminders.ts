@@ -38,7 +38,8 @@ export function useReminders() {
     fetchReminders,
     loadMoreReminders,
     refreshReminders: refreshRemindersBase,
-    loadReminderDetail
+    loadReminderDetail,
+    useMockData
   } = useReminderQuery(user, db, isReady);
   
   // Handle query errors
@@ -190,6 +191,7 @@ export function useReminders() {
     batchCompleteReminders,
     batchAddReminders,
     batchUpdateReminders,
-    batchDeleteReminders
+    batchDeleteReminders,
+    useMockData
   };
 }
