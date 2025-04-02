@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 
 // Constants for performance tuning
 const BATCH_SIZE = 10;
-const REFRESH_DEBOUNCE_MS = 200;
+const REFRESH_DEBOUNCE_MS = 300; // More aggressive debouncing for refreshes
 
 export function useReminderQuery(user: any, db: any, isReady: boolean) {
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -20,6 +20,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
   const [hasMore, setHasMore] = useState(false);
   const [lastVisible, setLastVisible] = useState<DocumentData | null>(null);
   const [lastRefreshTime, setLastRefreshTime] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
   
   // Process query snapshot into typed reminders
@@ -76,8 +77,11 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
         return;
       }
       
-      // Only show loading indicator for initial fetch, not for refreshes
-      if (!isRefresh) {
+      // Set refreshing state for refresh operations
+      if (isRefresh) {
+        setIsRefreshing(true);
+      } else {
+        // Only show loading indicator for initial fetch, not for refreshes
         setLoading(true);
       }
       
@@ -100,6 +104,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
           if (count === 0) {
             setReminders([]);
             setLoading(false);
+            setIsRefreshing(false);
             setHasMore(false);
             return;
           }
@@ -108,7 +113,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
         }
       }
       
-      // Build optimized query
+      // Build optimized query - sorting by createdAt still makes sense for newest items first
       const q = query(
         remindersRef, 
         where("userId", "==", user.uid),
@@ -148,6 +153,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
       throw err;
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, [user, isReady, db, lastRefreshTime, toast]);
   
@@ -209,6 +215,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean) {
     totalCount,
     setTotalCount,
     hasMore,
+    isRefreshing,
     fetchReminders,
     loadMoreReminders,
     refreshReminders

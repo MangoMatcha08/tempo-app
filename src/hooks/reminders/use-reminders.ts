@@ -26,6 +26,7 @@ export function useReminders() {
     totalCount,
     setTotalCount,
     hasMore,
+    isRefreshing,
     fetchReminders,
     loadMoreReminders,
     refreshReminders
@@ -44,9 +45,14 @@ export function useReminders() {
     updateReminder: updateReminderBase
   } = useReminderOperations(user, db, isReady);
   
-  // Initialize data fetch
+  // Initialize data fetch - now with a small delay to improve perceived performance
   useEffect(() => {
-    fetchReminders();
+    // Use a slight delay for initial load to let UI render first
+    const timer = setTimeout(() => {
+      fetchReminders();
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, [fetchReminders]);
   
   // Create wrapped versions of functions that already have setReminders bound
@@ -70,6 +76,7 @@ export function useReminders() {
     reminders,
     loading,
     error,
+    isRefreshing,
     urgentReminders,
     upcomingReminders,
     completedReminders,

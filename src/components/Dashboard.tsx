@@ -9,16 +9,20 @@ import { Reminder as UIReminder } from "@/types/reminder";
 import { useToast } from "@/hooks/use-toast";
 import { convertToUIReminder, convertToBackendReminder } from "@/utils/typeUtils";
 
+// Constants for optimizing refresh
+const INITIAL_REFRESH_DELAY = 800; // Slight delay for initial render
+const BACKGROUND_REFRESH_INTERVAL = 60000; // 60 seconds between background refreshes
+
 const Dashboard = () => {
   const [showQuickReminderModal, setShowQuickReminderModal] = useState(false);
   const [showVoiceRecorderModal, setShowVoiceRecorderModal] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
   
   const {
     reminders,
     loading,
+    isRefreshing,
     urgentReminders,
     upcomingReminders,
     completedReminders,
@@ -44,29 +48,26 @@ const Dashboard = () => {
   const performBackgroundRefresh = useCallback(async () => {
     if (!loading) {
       try {
-        setIsRefreshing(true);
         await refreshReminders();
       } catch (error) {
         console.error("Background refresh error:", error);
         // Don't show an error toast for background refreshes
-      } finally {
-        setIsRefreshing(false);
       }
     }
   }, [refreshReminders, loading]);
 
   // Set up periodic refresh with improved performance
   useEffect(() => {
-    // Initial refresh after component mounts with a slight delay
+    // Initial refresh after component mounts with a delay
     // to prioritize UI rendering first
     const initialRefreshTimer = setTimeout(() => {
       performBackgroundRefresh();
-    }, 500);
+    }, INITIAL_REFRESH_DELAY);
     
-    // Set up interval for background refresh (every 60 seconds)
+    // Set up interval for background refresh
     const refreshInterval = setInterval(() => {
       performBackgroundRefresh();
-    }, 60000);
+    }, BACKGROUND_REFRESH_INTERVAL);
     
     return () => {
       clearTimeout(initialRefreshTimer);

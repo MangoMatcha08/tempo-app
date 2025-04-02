@@ -99,6 +99,15 @@ const DashboardContent = ({
   return (
     <>
       <CurrentPeriodIndicator />
+      
+      {/* Subtle refresh indicator at the top */}
+      {isRefreshing && (
+        <div className="flex items-center justify-end pb-1">
+          <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin mr-1"></div>
+          <span className="text-xs text-muted-foreground">Refreshing...</span>
+        </div>
+      )}
+      
       <QuickActionsBar 
         onNewReminder={onNewReminder}
         onNewVoiceNote={onNewVoiceNote}
@@ -107,13 +116,6 @@ const DashboardContent = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {/* Primary content - 2/3 width on desktop */}
         <div className="md:col-span-2 space-y-4 md:space-y-6">
-          {isRefreshing && (
-            <div className="flex items-center justify-center p-3 bg-slate-50 rounded-lg mb-2">
-              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2"></div>
-              <span className="text-sm text-slate-600">Refreshing your reminders...</span>
-            </div>
-          )}
-          
           <RemindersSection 
             urgentReminders={urgentReminders} 
             upcomingReminders={upcomingReminders} 
