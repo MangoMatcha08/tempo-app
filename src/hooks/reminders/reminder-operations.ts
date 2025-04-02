@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export function useReminderOperations(user: any, db: any, isReady: boolean) {
   const { toast } = useToast();
+  const [error, setError] = useState<Error | null>(null);
 
   const handleCompleteReminder = async (id: string, setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>) => {
     try {
@@ -30,8 +31,10 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
             : reminder
         )
       );
-    } catch (error) {
+      setError(null);
+    } catch (error: any) {
       console.error("Error completing reminder:", error);
+      setError(error);
       toast({
         title: "Error updating reminder",
         description: "Please try again later",
@@ -59,8 +62,10 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
             : reminder
         )
       );
-    } catch (error) {
+      setError(null);
+    } catch (error: any) {
       console.error("Error undoing reminder completion:", error);
+      setError(error);
       toast({
         title: "Error updating reminder",
         description: "Please try again later",
@@ -111,10 +116,12 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
       // Add the new reminder at the top of the list and update count
       setReminders(prev => [savedReminder, ...prev]);
       setTotalCount(prev => prev + 1);
+      setError(null);
       
       return savedReminder;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding reminder:", error);
+      setError(error);
       toast({
         title: "Error saving reminder",
         description: "Please try again later",
@@ -160,10 +167,12 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
             : reminder
         )
       );
+      setError(null);
       
       return updatedReminder;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating reminder:", error);
+      setError(error);
       toast({
         title: "Error updating reminder",
         description: "Please try again later",
@@ -178,6 +187,7 @@ export function useReminderOperations(user: any, db: any, isReady: boolean) {
     handleCompleteReminder,
     handleUndoComplete,
     addReminder,
-    updateReminder
+    updateReminder,
+    error
   };
 }
