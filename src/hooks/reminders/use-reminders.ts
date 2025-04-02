@@ -16,7 +16,7 @@ import {
 export function useReminders() {
   const [error, setError] = useState<Error | null>(null);
   const { user } = useAuth();
-  const { db, isReady, error: firestoreError } = useFirestore();
+  const { db, isReady, error: firestoreError, useMockData: contextUseMockData } = useFirestore();
   
   // Handle Firestore errors
   useEffect(() => {
@@ -40,7 +40,7 @@ export function useReminders() {
     refreshReminders: refreshRemindersBase,
     loadReminderDetail,
     useMockData
-  } = useReminderQuery(user, db, isReady);
+  } = useReminderQuery(user, db, isReady, contextUseMockData);
   
   // Handle query errors
   useEffect(() => {

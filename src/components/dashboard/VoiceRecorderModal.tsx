@@ -125,15 +125,12 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
     }
   };
 
-  // Fixed: Use the view state directly to determine which view to show
-  const shouldShowConfirmView = view === "confirm";
-
   return (
     <Dialog 
       open={open} 
       onOpenChange={(newOpenState) => {
         // When closing the modal
-        if (!newOpenState && shouldShowConfirmView) {
+        if (!newOpenState && view === "confirm") {
           // Show confirmation before closing if we're in confirm view
           console.log("Attempt to close dialog while in confirm view");
           const shouldClose = window.confirm("Are you sure you want to discard this reminder?");
@@ -148,12 +145,12 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
       <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto" ref={dialogContentRef}>
         <DialogHeader>
           <DialogTitle>
-            {shouldShowConfirmView ? "Confirm Your Reminder" : "Record Voice Reminder"}
+            {view === "confirm" ? "Confirm Your Reminder" : "Record Voice Reminder"}
           </DialogTitle>
         </DialogHeader>
         
         <ScrollArea className="max-h-[calc(85vh-10rem)]">
-          {shouldShowConfirmView ? (
+          {view === "confirm" ? (
             <VoiceReminderConfirmView
               title={title}
               setTitle={setTitle}
@@ -178,7 +175,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
         </ScrollArea>
         
         <ModalFooterActions
-          view={shouldShowConfirmView ? "confirm" : "record"}
+          view={view === "confirm" ? "confirm" : "record"}
           onCancel={handleCancel}
           onGoBack={handleGoBack}
           onSave={handleSave}

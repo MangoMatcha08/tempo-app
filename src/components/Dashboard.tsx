@@ -19,7 +19,7 @@ const Dashboard = () => {
   const [hasError, setHasError] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
-  const { db, isReady, hasFirestorePermissions } = useFirestore();
+  const { hasFirestorePermissions, useMockData } = useFirestore();
   
   const {
     reminders,
@@ -40,8 +40,6 @@ const Dashboard = () => {
     setReminders,
     setTotalCount,
     error: reminderError,
-    useMockData,
-    // Batch operations
     batchCompleteReminders,
     batchAddReminders,
     batchUpdateReminders,
@@ -59,17 +57,6 @@ const Dashboard = () => {
     }
   }, [reminders, reminderError]);
 
-  // Show a message about mock data being used
-  useEffect(() => {
-    if (useMockData) {
-      toast({
-        title: "Demo Mode Active",
-        description: "Using mock reminder data. Firebase configuration needs to be updated.",
-        duration: 5000,
-      });
-    }
-  }, [useMockData, toast]);
-
   // Set up batch operations
   const {
     addToBatchComplete,
@@ -77,8 +64,6 @@ const Dashboard = () => {
     cleanupBatchOperations
   } = useBatchOperations(
     user,
-    db,
-    isReady,
     setReminders,
     setTotalCount
   );
@@ -218,8 +203,8 @@ const Dashboard = () => {
                 Firestore API Not Configured
               </p>
               <p className="mt-1 text-sm text-amber-600">
-                The app is running in demo mode with mock data. To use real data storage, 
-                enable Firestore API for this project.
+                The Firestore API needs to be enabled for this project. Visit the Firebase Console
+                to enable the Firestore API for project: tempowizard-ac888
               </p>
             </div>
           </div>

@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Firestore } from 'firebase/firestore';
 import { firebaseApp, getFirestoreInstance } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface FirestoreContextType {
   db: Firestore | null;
@@ -10,6 +11,7 @@ interface FirestoreContextType {
   error: Error | null;
   isOnline: boolean;
   hasFirestorePermissions: boolean;
+  useMockData: boolean;
 }
 
 const FirestoreContext = createContext<FirestoreContextType>({
@@ -17,7 +19,8 @@ const FirestoreContext = createContext<FirestoreContextType>({
   isReady: false,
   error: null,
   isOnline: true,
-  hasFirestorePermissions: true
+  hasFirestorePermissions: true,
+  useMockData: false
 });
 
 export const useFirestore = () => useContext(FirestoreContext);
@@ -28,7 +31,15 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [error, setError] = useState<Error | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [hasFirestorePermissions, setHasFirestorePermissions] = useState(true);
+  const [useMockData, setUseMockData] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  // Determine if the current user is a test account
+  const isTestAccount = useMemo(() => {
+    if (!user) return false;
+    return user.email === 'test@example.com';
+  }, [user]);
 
   // Set up network status monitoring
   useEffect(() => {
@@ -78,14 +89,25 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (errorMessage.includes('permission-denied') || 
           errorMessage.includes('not been used') || 
           errorMessage.includes('disabled')) {
-        console.warn('Firestore permissions issue detected, switching to demo mode');
+        console.warn('Firestore permissions issue detected');
         setHasFirestorePermissions(false);
         
-        toast({
-          title: "Firestore Access Issue",
-          description: "Running in demo mode with mock data. Firebase configuration may need to be updated.",
-          duration: 6000,
-        });
+        // Only use mock data for test accounts when there's a permissions issue
+        if (isTestAccount) {
+          setUseMockData(true);
+          toast({
+            title: "Test Account Mode",
+            description: "Using mock data for test account.",
+            duration: 6000,
+          });
+        } else {
+          toast({
+            title: "Firestore Access Issue",
+            description: "Firebase Firestore API may need to be enabled in your project.",
+            duration: 6000,
+            variant: "destructive"
+          });
+        }
       }
       
       // Still set db to avoid null checks throughout the app
@@ -97,7 +119,7 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         console.error('Critical error getting Firestore instance:', e);
       }
     }
-  }, [toast]);
+  }, [toast, isTestAccount]);
 
   // Memoize the context value to prevent unnecessary renders
   const contextValue = useMemo(() => ({
@@ -105,8 +127,9 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     isReady,
     error,
     isOnline,
-    hasFirestorePermissions
-  }), [db, isReady, error, isOnline, hasFirestorePermissions]);
+    hasFirestorePermissions,
+    useMockData
+  }), [db, isReady, error, isOnline, hasFirestorePermissions, useMockData]);
 
   return (
     <FirestoreContext.Provider value={contextValue}>
