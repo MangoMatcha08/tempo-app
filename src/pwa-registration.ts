@@ -1,123 +1,126 @@
 
-import { toast } from "sonner";
+// Service Worker Registration and Update Management
+interface CustomRegistration extends ServiceWorkerRegistration {
+  sync?: {
+    register(tag: string): Promise<void>;
+  };
+}
 
-let updateAvailable = false;
-let registration: ServiceWorkerRegistration | null = null;
-
-// Register service worker
-export async function registerServiceWorker() {
+// Register the service worker
+export const registerServiceWorker = async () => {
   if ('serviceWorker' in navigator) {
     try {
-      registration = await navigator.serviceWorker.register('/service-worker.js');
-      console.log('Service worker registered successfully', registration);
-      
-      // Check for updates on registration
-      checkForUpdates(registration);
-      
-      // Listen for new service workers
-      registration.addEventListener('updatefound', () => {
-        const newWorker = registration?.installing;
-        
-        if (newWorker) {
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // New service worker is installed but waiting to activate
-              console.log('New service worker available');
-              updateAvailable = true;
-              notifyUpdate();
-            }
-          });
-        }
-      });
-      
-      // Listen for controller change
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (updateAvailable) {
-          console.log('New service worker activated');
-          // Reload the page to ensure all resources are fetched from the new service worker
-          window.location.reload();
-        }
-      });
-      
+      const registration = await navigator.serviceWorker.register('/service-worker.js');
+      console.log('Service worker registration complete');
       return registration;
     } catch (error) {
       console.error('Service worker registration failed:', error);
-      return null;
+      throw error;
     }
   } else {
-    console.warn('Service workers not supported by this browser');
-    return null;
+    console.warn('Service workers are not supported in this browser');
+    throw new Error('Service workers not supported');
   }
-}
+};
 
-// Check if there's an update to the service worker
-async function checkForUpdates(reg: ServiceWorkerRegistration) {
-  if (!navigator.onLine) {
-    return;
-  }
-  
-  try {
-    // Try to update service worker
-    const updated = await reg.update();
-    console.log('Service worker update check completed', updated);
-  } catch (error) {
-    console.error('Service worker update check failed:', error);
-  }
-}
-
-// Notify user about update and prompt to refresh
-function notifyUpdate() {
-  toast.info("Update available!", {
-    description: "A new version is available. Refresh to update?",
-    action: {
-      label: "Update now",
-      onClick: () => {
-        if (registration && registration.waiting) {
-          // Send message to service worker to skip waiting
-          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-        }
+// Check for service worker updates
+export const checkForUpdates = async () => {
+  if ('serviceWorker' in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (registration) {
+        await registration.update();
+        console.log('Service worker update check complete');
       }
-    },
-    duration: 10000,
-  });
-}
+    } catch (error) {
+      console.error('Service worker update check failed:', error);
+    }
+  }
+};
 
-// Setup periodic update checks
-export function setupPeriodicUpdateChecks(intervalMinutes = 60) {
-  // Check for updates on page visibility change
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && registration) {
-      checkForUpdates(registration);
-    }
-  });
+// Setup periodic update checks (time in minutes)
+export const setupPeriodicUpdateChecks = (intervalMinutes: number) => {
+  // Convert minutes to milliseconds
+  const interval = intervalMinutes * 60 * 1000;
   
-  // Check for updates periodically
-  setInterval(() => {
-    if (registration) {
-      checkForUpdates(registration);
-    }
-  }, intervalMinutes * 60 * 1000);
-}
+  // Perform initial check
+  checkForUpdates();
+  
+  // Set up periodic checks
+  setInterval(checkForUpdates, interval);
+  
+  console.log(`Service worker update checks scheduled every ${intervalMinutes} minutes`);
+};
+
+// Handle update found event
+export const onUpdateFound = (callback: () => void) => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistration().then(registration => {
+      if (registration) {
+        registration.addEventListener('updatefound', () => {
+          console.log('Service worker update found');
+          
+          // Get the new service worker
+          const newWorker = registration.installing;
+          
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // New service worker is installed and ready to take over
+                console.log('New service worker installed and ready');
+                callback();
+              }
+            });
+          }
+        });
+      }
+    });
+  }
+};
+
+// Prompt user to reload the page for updates
+export const promptUserToReload = () => {
+  // This can be implemented with a custom UI component
+  const userConfirmed = window.confirm(
+    'A new version of this app is available. Reload to update?'
+  );
+  
+  if (userConfirmed) {
+    window.location.reload();
+  }
+};
 
 // Register for background sync
-export async function registerBackgroundSync() {
-  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+export const registerBackgroundSync = async (syncTag: string) => {
+  if ('serviceWorker' in navigator) {
     try {
-      const reg = await navigator.serviceWorker.ready;
-      await reg.sync.register('sync-reminders');
-      console.log('Background sync registered');
-      return true;
+      const registration = await navigator.serviceWorker.ready;
+      // Use the custom interface to handle the optional sync property
+      const customReg = registration as CustomRegistration;
+      
+      if (customReg.sync) {
+        await customReg.sync.register(syncTag);
+        console.log(`Background sync registered for tag: ${syncTag}`);
+        return true;
+      } else {
+        console.warn('Background sync is not supported in this browser');
+        return false;
+      }
     } catch (error) {
       console.error('Background sync registration failed:', error);
       return false;
     }
   }
   return false;
-}
+};
 
-// Helper to determine if the app is running as installed PWA
-export function isRunningAsInstalledPwa() {
-  return window.matchMedia('(display-mode: standalone)').matches ||
-         (window.navigator as any).standalone === true || // iOS
-         document.referrer.includes('android-app://');
-}
+// Manually trigger an update and reload
+export const updateAndReload = async () => {
+  if ('serviceWorker' in navigator) {
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (registration) {
+      await registration.update();
+      window.location.reload();
+    }
+  }
+};

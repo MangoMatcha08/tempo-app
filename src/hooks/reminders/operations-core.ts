@@ -13,7 +13,7 @@ export function useReminderOperationsCore(user: any, db: any, isReady: boolean) 
   const [error, setError] = useState<Error | null>(null);
   const { 
     cacheReminder, 
-    invalidateReminder 
+    invalidateReminder,
   } = useReminderCache();
 
   // Helper to check if we're in offline mode

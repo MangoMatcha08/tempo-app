@@ -1,4 +1,5 @@
 
+import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Index from "@/pages/Index";
 import Dashboard from "@/components/Dashboard";
@@ -28,30 +29,32 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <FirestoreProvider>
-          <ScheduleProvider>
-            <NotificationProvider>
-              <Router>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/schedule" element={<Schedule />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route path="/404" element={<NotFound />} />
-                  <Route path="*" element={<Navigate to="/404" replace />} />
-                </Routes>
-                <Toaster />
-                <SonnerToaster position="top-right" closeButton />
-                <OfflineNotification />
-                <PwaInstallPrompt />
-              </Router>
-            </NotificationProvider>
-          </ScheduleProvider>
-        </FirestoreProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <FirestoreProvider>
+            <ScheduleProvider>
+              <NotificationProvider>
+                <Router>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/schedule" element={<Schedule />} />
+                    <Route path="/settings" element={<Settings />} />
+                    <Route path="/404" element={<NotFound />} />
+                    <Route path="*" element={<Navigate to="/404" replace />} />
+                  </Routes>
+                  <Toaster />
+                  <SonnerToaster position="top-right" closeButton />
+                  <OfflineNotification />
+                  <PwaInstallPrompt />
+                </Router>
+              </NotificationProvider>
+            </ScheduleProvider>
+          </FirestoreProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </React.StrictMode>
   );
 }
 

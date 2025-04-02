@@ -1,4 +1,5 @@
 
+// This is a separate file to extract auth functionality
 import { 
   getAuth, 
   signInWithEmailAndPassword, 
