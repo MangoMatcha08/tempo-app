@@ -30,6 +30,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     stopListening,
     resetTranscript,
     error,
+    isPWA: recognitionIsPWA,
   } = useSpeechRecognition();
   
   // Check if running as PWA
@@ -129,7 +130,12 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
       if (transcript.trim()) {
         addDebugInfo(`Sending transcript: "${transcript.substring(0, 30)}${transcript.length > 30 ? '...' : ''}"`);
         setTranscriptSent(true);
-        onTranscriptComplete(transcript);
+        
+        // Add slight delay to ensure the final transcript is captured
+        setTimeout(() => {
+          addDebugInfo(`Final transcript being sent: "${transcript.substring(0, 30)}${transcript.length > 30 ? '...' : ''}"`);
+          onTranscriptComplete(transcript);
+        }, isPWA ? 300 : 100);
       } else {
         addDebugInfo("No transcript to send - recording produced no text");
       }
@@ -158,7 +164,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
       setTimeout(() => {
         startListening();
         addDebugInfo("Recognition started after delay");
-      }, 300);
+      }, 500);
     } else {
       startListening();
       addDebugInfo("Recognition started immediately");
@@ -210,6 +216,16 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
       addDebugInfo(`Interim transcript: "${interimTranscript.substring(0, 20)}..."`);
     }
   }, [interimTranscript, isRecording]);
+
+  // Add effect to monitor isProcessing changes
+  useEffect(() => {
+    addDebugInfo(`Processing state changed to: ${isProcessing ? "processing" : "not processing"}`);
+  }, [isProcessing]);
+
+  // Add effect to monitor transcriptSent changes
+  useEffect(() => {
+    addDebugInfo(`Transcript sent state changed to: ${transcriptSent ? "sent" : "not sent"}`);
+  }, [transcriptSent]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -326,29 +342,27 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
         </ScrollArea>
       </div>
       
-      {/* Show debug info in development OR in PWA mode (for troubleshooting) */}
-      {(process.env.NODE_ENV === 'development' || isPWA) && (
-        <details className="mt-4 text-xs text-gray-500 border rounded p-2" open={isPWA}>
-          <summary>Debug Info {isPWA && "(PWA Mode)"}</summary>
-          <ScrollArea className="h-[100px] mt-2">
-            <div className="space-y-1">
-              <div>Recognition active: {isListening ? "Yes" : "No"}</div>
-              <div>Recording state: {isRecording ? "Recording" : "Stopped"}</div>
-              <div>Is processing: {isProcessing ? "Yes" : "No"}</div>
-              <div>Transcript sent: {transcriptSent ? "Yes" : "No"}</div>
-              <div>Permission state: {permissionState}</div>
-              <div>Is mobile device: {isMobile ? "Yes" : "No"}</div>
-              <div>Is PWA: {isPWA ? "Yes" : "No"}</div>
-              <div>Log:</div>
-              <ul className="ml-4 space-y-1">
-                {debugInfo.map((info, i) => (
-                  <li key={i}>{info}</li>
-                ))}
-              </ul>
-            </div>
-          </ScrollArea>
-        </details>
-      )}
+      {/* Show debug info in development mode OR ALWAYS in PWA mode (for troubleshooting) */}
+      <details className="mt-4 text-xs text-gray-500 border rounded p-2" open={isPWA}>
+        <summary>Debug Info {isPWA && "(PWA Mode)"}</summary>
+        <ScrollArea className="h-[100px] mt-2">
+          <div className="space-y-1">
+            <div>Recognition active: {isListening ? "Yes" : "No"}</div>
+            <div>Recording state: {isRecording ? "Recording" : "Stopped"}</div>
+            <div>Is processing: {isProcessing ? "Yes" : "No"}</div>
+            <div>Transcript sent: {transcriptSent ? "Yes" : "No"}</div>
+            <div>Permission state: {permissionState}</div>
+            <div>Is mobile device: {isMobile ? "Yes" : "No"}</div>
+            <div>Is PWA: {isPWA ? "Yes" : "No"}</div>
+            <div>Log:</div>
+            <ul className="ml-4 space-y-1">
+              {debugInfo.map((info, i) => (
+                <li key={i}>{info}</li>
+              ))}
+            </ul>
+          </div>
+        </ScrollArea>
+      </details>
       
       <div className="mt-3 text-sm text-center text-gray-500">
         <p>Speak clearly and naturally.</p>

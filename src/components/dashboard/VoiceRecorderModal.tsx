@@ -60,7 +60,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
     if (open && !lastOpenStateRef.current) {
       console.log("Voice modal opened, checking microphone access");
       
-      // Always pre-request permission in PWA mode
+      // Always pre-request permission in PWA mode or on mobile
       const shouldPreRequest = isPWA || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
       if (shouldPreRequest && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -101,10 +101,15 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
     }
   }, [view, processingResult]);
   
-  // Debug logging for view state
+  // Debug logging for view state and PWA
   useEffect(() => {
-    console.log("Current view:", view, "transcript length:", transcript ? transcript.length : 0);
-  }, [view, transcript]);
+    console.log("Current view:", view, "transcript length:", transcript ? transcript.length : 0, "isPWA:", isPWA);
+  }, [view, transcript, isPWA]);
+  
+  // Enhanced debug logging for isProcessing state
+  useEffect(() => {
+    console.log("Processing state:", isProcessing, "in view:", view);
+  }, [isProcessing, view]);
   
   // Cleanup microphone stream when modal closes
   useEffect(() => {
@@ -118,6 +123,21 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
       }
     };
   }, []);
+  
+  // Enhanced transcript handler with better logging for PWA
+  const enhancedTranscriptHandler = (text: string) => {
+    console.log(`Transcript complete called with text of length: ${text.length}`);
+    console.log(`First 30 chars: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
+    
+    if (isPWA) {
+      console.log("PWA mode detected, adding slight delay before processing");
+      setTimeout(() => {
+        handleTranscriptComplete(text);
+      }, 200);
+    } else {
+      handleTranscriptComplete(text);
+    }
+  };
   
   const handleSave = () => {
     if (!transcript || !title) {
@@ -220,7 +240,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
             />
           ) : (
             <VoiceRecorderView 
-              onTranscriptComplete={handleTranscriptComplete}
+              onTranscriptComplete={enhancedTranscriptHandler}
               isProcessing={isProcessing}
             />
           )}

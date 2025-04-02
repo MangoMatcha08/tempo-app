@@ -26,4 +26,7 @@ export interface UseSpeechRecognitionReturn {
   
   /** Error message if something goes wrong */
   error?: string;
+  
+  /** Whether the app is running in PWA mode */
+  isPWA: boolean;
 }

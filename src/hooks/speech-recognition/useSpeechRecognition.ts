@@ -178,7 +178,8 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     stopListening,
     resetTranscript: resetTranscriptState,
     browserSupportsSpeechRecognition,
-    error
+    error,
+    isPWA
   };
 };
 

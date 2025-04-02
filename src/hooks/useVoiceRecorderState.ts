@@ -19,6 +19,18 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   // Ref to track if we're currently in the process of confirming a transcript
   const isConfirmingRef = useRef(false);
   const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [isPWA, setIsPWA] = useState(false);
+  
+  // Check if running as PWA
+  useEffect(() => {
+    const isStandalone = 
+      window.matchMedia('(display-mode: standalone)').matches || 
+      // @ts-ignore - Property 'standalone' exists on iOS Safari but not in TS types
+      window.navigator.standalone === true;
+    
+    setIsPWA(isStandalone);
+    console.log("useVoiceRecorderState: running as PWA:", isStandalone);
+  }, []);
   
   // Reset state when modal opens
   const resetState = () => {
@@ -100,11 +112,15 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         clearTimeout(transitionTimerRef.current);
       }
       
+      // Use longer timeout for PWA mode
+      const transitionDelay = isPWA ? 400 : 200;
+      console.log(`Setting transition delay of ${transitionDelay}ms for view change to confirm`);
+      
       transitionTimerRef.current = setTimeout(() => {
         console.log("Setting view to confirm");
         setView("confirm");
         transitionTimerRef.current = null;
-      }, 200);  // Increased timeout for more reliable state transitions
+      }, transitionDelay);  // Longer timeout for more reliable state transitions
     } catch (error) {
       console.error('Error processing voice input:', error);
       setIsProcessing(false);
@@ -146,9 +162,10 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       isProcessing, 
       hasTranscript: !!transcript,
       hasResult: !!processingResult,
-      title
+      title,
+      isPWA
     });
-  }, [view, transcript, isProcessing, processingResult, title]);
+  }, [view, transcript, isProcessing, processingResult, title, isPWA]);
   
   return {
     title,
