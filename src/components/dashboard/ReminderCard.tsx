@@ -2,7 +2,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Clock, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect, memo, useCallback } from "react";
+import { useState, useEffect, memo, useCallback, useMemo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatTime } from "@/utils/typeUtils";
 
@@ -22,26 +22,28 @@ interface ReminderCardProps {
   onEdit: (reminder: Reminder) => void;
 }
 
+// Cache for priority classes to avoid recalculating
+const priorityClassCache: Record<string, string> = {
+  high: "border-l-4 border-l-red-500",
+  medium: "border-l-4 border-l-amber-500",
+  low: "border-l-4 border-l-blue-500"
+};
+
 // Memoize component to prevent unnecessary re-renders
 const ReminderCard = memo(({ reminder, onComplete, onEdit }: ReminderCardProps) => {
   const [isCompleting, setIsCompleting] = useState(false);
   
-  // Memoize priority class calculation
-  const priorityClass = (() => {
-    switch (reminder.priority) {
-      case "high":
-        return "border-l-4 border-l-red-500";
-      case "medium":
-        return "border-l-4 border-l-amber-500";
-      case "low":
-        return "border-l-4 border-l-blue-500";
-      default:
-        return "";
-    }
-  })();
+  // Get cached priority class or calculate it
+  const priorityClass = useMemo(() => 
+    priorityClassCache[reminder.priority] || "",
+    [reminder.priority]
+  );
   
   // Format time using the cached formatter
-  const formattedTime = formatTime(reminder.dueDate, 'time');
+  const formattedTime = useMemo(() => 
+    formatTime(reminder.dueDate, 'time'),
+    [reminder.dueDate]
+  );
 
   // Memoize event handlers
   const handleComplete = useCallback(() => {
@@ -57,6 +59,7 @@ const ReminderCard = memo(({ reminder, onComplete, onEdit }: ReminderCardProps) 
     onEdit(reminder);
   }, [reminder, onEdit]);
 
+  // Clean up timeout on unmount
   useEffect(() => {
     return () => {
       // Cleanup timeout if component unmounts during animation
@@ -89,7 +92,9 @@ const ReminderCard = memo(({ reminder, onComplete, onEdit }: ReminderCardProps) 
           
           <div className="flex-1">
             <h3 className="font-medium">{reminder.title}</h3>
-            <p className="text-sm mt-1">{reminder.description}</p>
+            {reminder.description && (
+              <p className="text-sm mt-1">{reminder.description}</p>
+            )}
             
             <div className="flex items-center mt-2 text-xs text-muted-foreground">
               <Clock className="h-4 w-4 mr-1" />

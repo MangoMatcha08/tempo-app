@@ -1,123 +1,65 @@
 
-import { createContext, useContext, ReactNode, useEffect, useState, useMemo } from "react";
-import { isFirebaseInitialized } from "@/lib/firebase";
-import { 
-  getFirestore, 
-  enableIndexedDbPersistence, 
-  Firestore, 
-  initializeFirestore, 
-  CACHE_SIZE_UNLIMITED, 
-  persistentLocalCache, 
-  persistentMultipleTabManager 
-} from "firebase/firestore";
-import { ScheduleProvider } from "./ScheduleContext";
-import { useToast } from "@/hooks/use-toast";
-import { app } from "@/services/notifications/firebase";
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { Firestore, collection, getFirestore } from 'firebase/firestore';
+import { firebaseApp } from '@/lib/firebase';
 
 interface FirestoreContextType {
-  isReady: boolean;
   db: Firestore | null;
+  isReady: boolean;
   error: Error | null;
 }
 
 const FirestoreContext = createContext<FirestoreContextType>({
-  isReady: false,
   db: null,
+  isReady: false,
   error: null
 });
 
-export const FirestoreProvider = ({ children }: { children: ReactNode }) => {
-  const isReady = isFirebaseInitialized();
+export const useFirestore = () => useContext(FirestoreContext);
+
+export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [db, setDb] = useState<Firestore | null>(null);
+  const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const { toast } = useToast();
-  
-  // Initialize Firestore with optimized persistent cache
+
   useEffect(() => {
-    if (!isReady) return;
-    
-    let isMounted = true;
-    console.log("Initializing Firestore...");
-    
-    const initFirestore = async () => {
+    try {
+      // Initialize Firestore
+      const firestoreInstance = getFirestore(firebaseApp);
+      
+      // Test Firestore connection by accessing a collection
+      const testRef = collection(firestoreInstance, 'system_status');
+      
+      // If no error was thrown, Firestore is ready
+      setDb(firestoreInstance);
+      setIsReady(true);
+      setError(null);
+      
+      console.log('Firestore initialized successfully');
+    } catch (err) {
+      console.error('Error initializing Firestore:', err);
+      setError(err instanceof Error ? err : new Error('Unknown Firestore error'));
+      // Still set db to avoid null checks throughout the app
+      // This will allow the app to gracefully handle Firestore errors
       try {
-        // Attempt to initialize with modern optimized settings
-        let firestore: Firestore;
-        
-        try {
-          // Use modern persistent cache with multi-tab support
-          firestore = initializeFirestore(app, {
-            cacheSizeBytes: CACHE_SIZE_UNLIMITED,
-            localCache: persistentLocalCache({
-              tabManager: persistentMultipleTabManager()
-            })
-          });
-          console.log("Initialized Firestore with optimized persistent cache");
-        } catch (err) {
-          console.warn("Could not initialize with enhanced settings, falling back:", err);
-          
-          firestore = getFirestore(app);
-          
-          // Try to enable persistence with older method
-          try {
-            await enableIndexedDbPersistence(firestore);
-            console.log("Firestore persistence enabled with fallback method");
-          } catch (persistErr: any) {
-            if (persistErr.code === 'failed-precondition') {
-              console.warn("Multiple tabs open, persistence can only be enabled in one tab");
-              // This is not a fatal error, we can continue
-            } else if (persistErr.code === 'unimplemented') {
-              console.warn("Persistence not available in this browser");
-              // This is not a fatal error, we can continue
-            } else {
-              console.error("Error enabling persistence:", persistErr);
-              if (isMounted) setError(persistErr);
-            }
-          }
-        }
-        
-        // Set the database instance even if there were non-fatal errors with persistence
-        if (isMounted) setDb(firestore);
-        console.log("Firestore initialized successfully");
-        
-        // Show additional information about Firestore API activation
-        toast({
-          title: "Firebase Connection Info",
-          description: "For this demo, you're seeing demo data. For full Firestore functionality, activate the Firestore API in the Firebase console.",
-        });
-      } catch (error: any) {
-        console.error("Error initializing Firestore:", error);
-        if (isMounted) setError(error);
-        toast({
-          title: "Database Error",
-          description: "Failed to initialize the database. Using mock data instead.",
-          variant: "destructive",
-        });
+        const firestoreInstance = getFirestore(firebaseApp);
+        setDb(firestoreInstance);
+      } catch (e) {
+        console.error('Critical error getting Firestore instance:', e);
       }
-    };
-    
-    initFirestore();
-    
-    // Cleanup function to prevent state updates after unmount
-    return () => {
-      isMounted = false;
-    };
-  }, [isReady, toast]);
-  
-  // Memoize the context value to prevent unnecessary re-renders
+    }
+  }, []);
+
+  // Memoize the context value to prevent unnecessary renders
   const contextValue = useMemo(() => ({
-    isReady,
     db,
+    isReady,
     error
-  }), [isReady, db, error]);
-  
+  }), [db, isReady, error]);
+
   return (
     <FirestoreContext.Provider value={contextValue}>
-      <ScheduleProvider>
-        {children}
-      </ScheduleProvider>
+      {children}
     </FirestoreContext.Provider>
   );
 };
-
-export const useFirestore = () => useContext(FirestoreContext);

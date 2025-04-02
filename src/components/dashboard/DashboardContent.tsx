@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import CurrentPeriodIndicator from "@/components/dashboard/CurrentPeriodIndicator";
 import QuickActionsBar from "@/components/dashboard/QuickActionsBar";
@@ -8,8 +7,9 @@ import CompletedRemindersSection from "@/components/dashboard/CompletedReminders
 import ReminderEditDialog from "@/components/dashboard/ReminderEditDialog";
 import { Reminder } from "@/types/reminder";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
 import ReminderLoadingState from "./ReminderLoadingState";
+import { Button } from "@/components/ui/button";
 
 // Define extended reminder type with UI-specific properties
 export interface UIEnhancedReminder extends Reminder {
@@ -67,7 +67,7 @@ const DashboardContent = ({
     setEditDialogOpen(false);
   };
 
-  // If there's an error loading reminders, show an alert
+  // If there's an error loading reminders, show an alert with a retry option
   if (hasError) {
     return (
       <div className="space-y-4">
@@ -75,11 +75,25 @@ const DashboardContent = ({
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
-          <AlertDescription>
-            There was an error loading your reminders. Please try refreshing the page.
-            The error may be related to Firestore connectivity - please check console logs.
+          <AlertDescription className="space-y-2">
+            <p>There was an error loading your reminders. The error may be related to Firestore connectivity.</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-2"
+              onClick={onLoadMore}
+            >
+              <RefreshCw className="h-3 w-3 mr-2" />
+              Retry
+            </Button>
           </AlertDescription>
         </Alert>
+        
+        {/* Keep the quick actions bar available even in error state */}
+        <QuickActionsBar 
+          onNewReminder={onNewReminder}
+          onNewVoiceNote={onNewVoiceNote}
+        />
       </div>
     );
   }
@@ -142,7 +156,7 @@ const DashboardContent = ({
         
         {/* Secondary content - 1/3 width on desktop */}
         <div>
-          {/* CompletedRemindersSection has been moved out of here */}
+          {/* This column is reserved for future content */}
         </div>
       </div>
 
