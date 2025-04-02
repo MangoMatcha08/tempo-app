@@ -69,14 +69,16 @@ const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProp
     // Let the animation play before actually completing
     setTimeout(() => {
       onComplete(reminder.id);
-    }, 800);
+    }, 300);
   };
+
+  if (isCompleting) {
+    return null; // Don't render anything if being completed
+  }
 
   return (
     <div 
-      className={`border-b border-l-4 ${priorityBorderClass} p-3 flex items-center transition-all duration-300 ${
-        isCompleting ? "bg-green-100 opacity-0" : ""
-      } hover:bg-slate-50 cursor-pointer`}
+      className={`border-b border-l-4 ${priorityBorderClass} p-3 flex items-center transition-all duration-300 hover:bg-slate-50 cursor-pointer`}
       onClick={handleComplete}
     >
       <div 

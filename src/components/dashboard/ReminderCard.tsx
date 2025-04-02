@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Reminder } from '@/types/reminder';
@@ -14,9 +14,15 @@ interface ReminderCardProps {
 }
 
 const ReminderCard: React.FC<ReminderCardProps> = ({ reminder, onComplete, onEdit }) => {
+  const [isCompleting, setIsCompleting] = useState(false);
+
   const handleComplete = () => {
     if (reminder.id && onComplete) {
-      onComplete(reminder.id);
+      setIsCompleting(true);
+      // Let the animation play before calling the completion handler
+      setTimeout(() => {
+        onComplete(reminder.id!);
+      }, 300);
     }
   };
 
@@ -29,8 +35,12 @@ const ReminderCard: React.FC<ReminderCardProps> = ({ reminder, onComplete, onEdi
   // Get color class based on priority
   const priorityColorClass = getPriorityColorClass(reminder.priority);
 
+  if (isCompleting) {
+    return null; // Don't render anything if being completed
+  }
+
   return (
-    <Card className="w-full">
+    <Card className="w-full transition-all duration-300">
       <CardContent className="flex flex-col p-4">
         <div className="flex items-center justify-between mb-2">
           <Badge className={`${priorityColorClass} border`} variant="outline">
