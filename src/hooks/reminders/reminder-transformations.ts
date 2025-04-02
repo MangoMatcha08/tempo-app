@@ -1,12 +1,28 @@
 
 import { Reminder as BackendReminder } from "@/types/reminderTypes";
 import { Reminder as UIReminder } from "@/types/reminder";
-import { ensureValidPriority } from "@/utils/typeUtils";
 import { 
   getRemainingTimeDisplay, 
   getTimeAgoDisplay, 
   formatDate 
 } from "./reminder-formatting";
+
+/**
+ * Ensures a priority value is one of the allowed string literal types
+ */
+const ensureValidPriority = (priority: string | any): "high" | "medium" | "low" => {
+  if (priority === "high" || priority === "medium" || priority === "low") {
+    return priority;
+  } else if (typeof priority === "string") {
+    const priorityStr = priority.toLowerCase();
+    if (priorityStr.includes("high") || priorityStr.includes("urgent")) {
+      return "high";
+    } else if (priorityStr.includes("low")) {
+      return "low";
+    }
+  }
+  return "medium"; // Default priority
+};
 
 /**
  * Transforms backend reminders to UI reminders with formatted time info
