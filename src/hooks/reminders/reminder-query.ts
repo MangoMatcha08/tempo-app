@@ -219,6 +219,15 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, contextUs
     );
   };
   
+  // Helper to check for quota errors
+  const isQuotaError = (err: any): boolean => {
+    const errorMessage = String(err);
+    return (
+      errorMessage.includes('quota') && 
+      errorMessage.includes('exceeded')
+    );
+  };
+  
   // Fetch reminders with cache support
   const fetchReminders = useCallback(async (isRefresh = false) => {
     if (!user || !isReady) {
@@ -317,6 +326,29 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, contextUs
         } catch (countErr) {
           console.warn("Error getting count, continuing without count:", countErr);
           
+          // Handle quota error
+          if (isQuotaError(countErr)) {
+            console.log("Quota exceeded error detected during count query");
+            // Continue with cached data if available
+            const cachedReminders = getCachedReminderList(cacheKey);
+            if (cachedReminders) {
+              console.log("Using cached reminders due to quota error:", cachedReminders.length);
+              setReminders(cachedReminders);
+              setLoading(false);
+              setIsRefreshing(false);
+              
+              if (!isRefresh) {
+                toast({
+                  title: "Quota Exceeded",
+                  description: "Using cached data. Firebase quota has been reached.",
+                  variant: "destructive",
+                  duration: 6000,
+                });
+              }
+              return;
+            }
+          }
+          
           // If this is a permissions error but we're not using mock data
           if (isPermissionError(countErr)) {
             console.log("Permissions error detected during count query");
@@ -403,6 +435,30 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, contextUs
       } catch (queryErr) {
         console.error("Error executing query:", queryErr);
         
+        // Handle quota error
+        if (isQuotaError(queryErr)) {
+          console.log("Quota exceeded error detected during main query");
+          
+          // Use cached data if available
+          const cachedReminders = getCachedReminderList(cacheKey);
+          if (cachedReminders) {
+            console.log("Using cached reminders due to quota error:", cachedReminders.length);
+            setReminders(cachedReminders);
+            setLoading(false);
+            setIsRefreshing(false);
+            
+            if (!isRefresh) {
+              toast({
+                title: "Quota Exceeded",
+                description: "Using cached data. Firebase quota has been reached.",
+                variant: "destructive",
+                duration: 6000,
+              });
+            }
+            return;
+          }
+        }
+        
         // Check if this is an index error
         if (isIndexError(queryErr)) {
           console.log("Index error detected, will use simplified query next time");
@@ -487,6 +543,33 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, contextUs
     } catch (err: any) {
       console.error("Error fetching reminders:", err);
       setError(err);
+      
+      // Handle quota error
+      if (isQuotaError(err)) {
+        console.log("Quota exceeded error detected during fetch");
+        
+        // Use cached data if available
+        if (user) {
+          const cacheKey = `${user.uid}-reminders`;
+          const cachedReminders = getCachedReminderList(cacheKey);
+          if (cachedReminders) {
+            console.log("Using cached reminders due to quota error");
+            setReminders(cachedReminders);
+            setLoading(false);
+            setIsRefreshing(false);
+            
+            if (!isRefresh) {
+              toast({
+                title: "Quota Exceeded",
+                description: "Using cached data. Firebase quota has been reached.",
+                variant: "destructive",
+                duration: 6000,
+              });
+            }
+            return;
+          }
+        }
+      }
       
       // If this is a permissions error but we're not using mock data
       if (isPermissionError(err)) {
@@ -591,6 +674,17 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, contextUs
       console.error("Error loading more reminders:", err);
       setError(err);
       
+      // Check for quota errors
+      if (isQuotaError(err)) {
+        toast({
+          title: "Quota Exceeded",
+          description: "Firebase quota has been reached. Try again later.",
+          variant: "destructive",
+          duration: 5000,
+        });
+        return;
+      }
+      
       // Check if this is an index error
       if (isIndexError(err)) {
         console.log("Index error detected during load more");
@@ -619,7 +713,13 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, contextUs
       // Invalidate cache before refreshing
       invalidateUserCache(user.uid);
     }
-    return fetchReminders(true);
+    try {
+      await fetchReminders(true);
+      return true;
+    } catch (error) {
+      console.error("Error refreshing reminders:", error);
+      return false;
+    }
   }, [fetchReminders, invalidateUserCache, user]);
 
   return {

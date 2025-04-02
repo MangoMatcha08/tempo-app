@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useReminderCache } from "./use-reminder-cache";
 import { doc, Timestamp, writeBatch } from "firebase/firestore";
+import { isQuotaError } from "@/lib/firebase/error-utils";
 
 /**
  * Core hook for reminder operations, providing shared state and utilities
@@ -33,6 +34,21 @@ export function useReminderOperationsCore(user: any, db: any, isReady: boolean) 
     });
   };
 
+  // Helper for handling quota errors
+  const handleQuotaError = (err: any) => {
+    if (isQuotaError(err)) {
+      console.log("Quota exceeded error detected");
+      toast({
+        title: "Firebase Quota Exceeded",
+        description: "Daily quota limit reached. Some operations may be unavailable.",
+        variant: "destructive",
+        duration: 6000,
+      });
+      return true;
+    }
+    return false;
+  };
+
   return {
     toast,
     error,
@@ -40,6 +56,7 @@ export function useReminderOperationsCore(user: any, db: any, isReady: boolean) 
     cacheReminder,
     invalidateReminder,
     isOfflineMode,
-    showErrorToast
+    showErrorToast,
+    handleQuotaError
   };
 }

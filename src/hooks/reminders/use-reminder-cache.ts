@@ -173,22 +173,29 @@ export function useReminderCache() {
     // Also remove from localStorage
     try {
       localStorage.removeItem(`reminder-detail-${id}`);
+      return true;
     } catch (err) {
       console.error(`Error removing reminder ${id} from localStorage:`, err);
+      return false;
     }
   }, []);
 
   // Invalidate all cache for a specific user
   const invalidateUserCache = useCallback((userId: string) => {
     // Clear lists that belong to this user
+    const keysToDelete: string[] = [];
     cacheRef.current.reminderLists.forEach((_, key) => {
       if (key.startsWith(userId)) {
-        cacheRef.current.reminderLists.delete(key);
+        keysToDelete.push(key);
       }
     });
     
-    // We could also clear individual reminders, but that's more complex
-    // For simplicity, we'll keep them since they'll expire anyway
+    // Delete keys in a separate loop to avoid modifying while iterating
+    keysToDelete.forEach(key => {
+      cacheRef.current.reminderLists.delete(key);
+    });
+    
+    return true;
   }, []);
 
   return {
