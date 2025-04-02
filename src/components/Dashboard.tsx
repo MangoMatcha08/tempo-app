@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useReminders } from "@/hooks/reminders/use-reminders";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
@@ -62,13 +61,13 @@ const Dashboard = () => {
     addToBatchComplete,
     addToBatchUpdate,
     cleanupBatchOperations
-  } = useBatchOperations(
+  } = useBatchOperations({
     user,
     setReminders,
     setTotalCount,
     batchCompleteReminders,
     batchUpdateReminders
-  );
+  });
 
   // Clean up batch operations on unmount
   useEffect(() => {
@@ -177,7 +176,13 @@ const Dashboard = () => {
   } = DashboardModalHandler({
     addReminder: (reminder) => {
       console.log("Adding new reminder from modal:", reminder);
-      return addReminder(reminder);
+      return addReminder(reminder)
+        .then(savedReminder => {
+          console.log("Successfully saved reminder, now refreshing:", savedReminder);
+          // Force refresh reminders list after adding a new reminder
+          refreshReminders();
+          return savedReminder;
+        });
     },
     refreshReminders: async () => {
       console.log("Refreshing reminders after modal action");

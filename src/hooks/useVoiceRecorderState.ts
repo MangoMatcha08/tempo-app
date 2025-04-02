@@ -51,6 +51,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       console.log("Processing voice input:", text);
       // Process the transcript with NLP
       const result = processVoiceInput(text);
+      console.log("NLP processing result:", result);
       
       // Generate a better title based on category and content
       const generatedTitle = generateMeaningfulTitle(
@@ -66,9 +67,11 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       setProcessingResult(result);
       
       console.log("Switching to confirmation view with result:", result);
-      // Switch to confirmation view
-      setView("confirm");
+      // First finish processing, then switch to confirmation view
       setIsProcessing(false);
+      setTimeout(() => {
+        setView("confirm");
+      }, 300);
     } catch (error) {
       console.error('Error processing voice input:', error);
       setIsProcessing(false);

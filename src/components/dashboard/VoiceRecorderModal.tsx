@@ -93,7 +93,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
         voiceTranscript: transcript,
         checklist: processingResult?.reminder.checklist || [],
         // Use the processed date if available
-        dueDate: processingResult?.reminder.dueDate
+        dueDate: processingResult?.reminder.dueDate || new Date(Date.now() + 24 * 60 * 60 * 1000) // Default to tomorrow
       };
       
       const newReminder = createReminder(reminderInput);
@@ -129,6 +129,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
     <Dialog 
       open={open} 
       onOpenChange={(newOpenState) => {
+        console.log("Dialog open state changing to:", newOpenState, "current view:", view);
         // When closing the modal
         if (!newOpenState && view === "confirm") {
           // Show confirmation before closing if we're in confirm view

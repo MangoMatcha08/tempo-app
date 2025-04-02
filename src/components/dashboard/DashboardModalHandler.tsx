@@ -36,16 +36,17 @@ const DashboardModalHandler = ({
           description: `"${reminder.title}" has been added to your reminders.`
         });
         
-        // Always trigger a refresh after adding a reminder, regardless of mock data status
-        console.log("Triggering refresh after adding reminder");
-        return refreshReminders()
-          .then((success) => {
-            console.log("Refresh after adding result:", success);
-            if (!success) {
-              console.warn("Refresh after adding was not successful");
-            }
-            return success;
-          });
+        // Force refresh after adding a reminder
+        setTimeout(() => {
+          console.log("Triggering delayed refresh after adding reminder");
+          refreshReminders()
+            .then((success) => {
+              console.log("Delayed refresh after adding result:", success);
+            })
+            .catch(err => {
+              console.error("Error in delayed refresh:", err);
+            });
+        }, 500);
       })
       .catch(error => {
         console.error("Error saving reminder:", error);
