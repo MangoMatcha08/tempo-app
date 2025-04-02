@@ -25,12 +25,13 @@ import { cn } from "@/lib/utils";
 import { createReminder } from "@/utils/reminderUtils";
 import { ReminderPriority, ReminderCategory } from "@/types/reminderTypes";
 import { mockPeriods } from "@/utils/reminderUtils";
-import { Reminder } from "@/types/reminder";
+import { Reminder as UIReminder } from "@/types/reminder";
+import { convertToUIReminder } from "@/utils/typeUtils";
 
 interface QuickReminderModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onReminderCreated?: (reminder: Reminder) => void;
+  onReminderCreated?: (reminder: UIReminder) => void;
 }
 
 const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickReminderModalProps) => {
@@ -71,9 +72,10 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
       
       console.log("Created new quick reminder:", newReminder);
       
-      // Call the callback with the new reminder
+      // Convert backend reminder to UI reminder type before passing to callback
       if (onReminderCreated) {
-        onReminderCreated(newReminder);
+        const uiReminder = convertToUIReminder(newReminder);
+        onReminderCreated(uiReminder);
       }
       
       // Close the modal

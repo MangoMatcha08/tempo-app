@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useSpeechRecognition } from "@/hooks/speech-recognition";
+import useSpeechRecognition from "@/hooks/speech-recognition";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface VoiceRecorderViewProps {
@@ -21,11 +21,11 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     transcript,
     interimTranscript,
     isListening,
-    hasRecognitionSupport,
+    browserSupportsSpeechRecognition: hasRecognitionSupport,
     startListening,
     stopListening,
     resetTranscript,
-  } = useSpeechRecognition({ continuous: true });
+  } = useSpeechRecognition();
   
   // Log debug info
   const addDebugInfo = (info: string) => {
