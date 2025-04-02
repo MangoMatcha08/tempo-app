@@ -21,7 +21,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { createReminder } from "@/utils/reminderUtils";
 import { ReminderPriority, ReminderCategory } from "@/types/reminderTypes";
 import { mockPeriods } from "@/utils/reminderUtils";
@@ -37,9 +36,7 @@ interface QuickReminderModalProps {
 const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickReminderModalProps) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [dueDate, setDueDate] = useState<Date | undefined>(
-    new Date(Date.now() + 24 * 60 * 60 * 1000) // Default to tomorrow
-  );
+  const [dueDate, setDueDate] = useState<Date | undefined>(new Date()); // Default to today
   const [priority, setPriority] = useState<ReminderPriority>(ReminderPriority.MEDIUM);
   const [category, setCategory] = useState<ReminderCategory>(ReminderCategory.TASK);
   const [periodId, setPeriodId] = useState<string>("none");
@@ -49,7 +46,7 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
     if (open) {
       setTitle("");
       setDescription("");
-      setDueDate(new Date(Date.now() + 24 * 60 * 60 * 1000)); // Default to tomorrow
+      setDueDate(new Date()); // Default to today
       setPriority(ReminderPriority.MEDIUM);
       setCategory(ReminderCategory.TASK);
       setPeriodId("none");
@@ -60,11 +57,37 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
     if (!title.trim()) return;
     
     try {
+      // Get current time for comparison
+      const now = new Date();
+      let finalDueDate = dueDate || new Date();
+      
+      // If a period is selected, check if we need to move to tomorrow
+      if (periodId !== "none") {
+        const selectedPeriod = mockPeriods.find(p => p.id === periodId);
+        if (selectedPeriod && selectedPeriod.startTime) {
+          const [hours, minutes] = selectedPeriod.startTime.split(':').map(Number);
+          
+          // Create a date object for the period time today
+          const periodTime = new Date(finalDueDate);
+          periodTime.setHours(hours, minutes, 0, 0);
+          
+          // If period time is earlier than current time and the date is today, move to tomorrow
+          if (periodTime < now && 
+              finalDueDate.getDate() === now.getDate() && 
+              finalDueDate.getMonth() === now.getMonth() && 
+              finalDueDate.getFullYear() === now.getFullYear()) {
+            const tomorrow = new Date(finalDueDate);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            finalDueDate = tomorrow;
+          }
+        }
+      }
+      
       // Create a new reminder
       const newReminder = createReminder({
         title,
         description,
-        dueDate: dueDate || new Date(Date.now() + 24 * 60 * 60 * 1000),
+        dueDate: finalDueDate,
         priority,
         category,
         periodId: periodId === "none" ? undefined : periodId

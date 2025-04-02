@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,13 +32,18 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
   const [priority, setPriority] = useState<ReminderPriority>(ReminderPriority.MEDIUM);
   const [category, setCategory] = useState<ReminderCategory>(ReminderCategory.TASK);
   const [periodId, setPeriodId] = useState<string | undefined>(undefined);
-  const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
+  const [dueDate, setDueDate] = useState<Date | undefined>(new Date()); // Default to today
   const [dueTime, setDueTime] = useState<string | undefined>(undefined);
   const [checklist, setChecklist] = useState<{ id: string, text: string, isCompleted: boolean }[]>([]);
   
   const [viewMode, setViewMode] = useState<'simple' | 'detailed'>('simple');
   const [showChecklist, setShowChecklist] = useState(false);
   const [newChecklistItem, setNewChecklistItem] = useState('');
+  
+  // Initialize with default date of today when component mounts
+  useEffect(() => {
+    setDueDate(new Date());
+  }, []);
   
   const toggleViewMode = () => {
     setViewMode(viewMode === 'simple' ? 'detailed' : 'simple');
@@ -75,27 +81,66 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
       checklist: checklist.length > 0 ? checklist : undefined,
     };
     
-    const newReminder = createReminder(reminderInput);
+    // Use today as default if no date was selected
+    let finalDueDate = dueDate || new Date();
     
-    if (dueDate) {
-      const due = new Date(dueDate);
+    // If a period is selected, check if we need to move to tomorrow based on timing
+    if (periodId) {
+      const now = new Date();
+      const selectedPeriod = mockPeriods.find(p => p.id === periodId);
       
-      if (dueTime) {
-        const [hoursStr, minutesStr, period] = dueTime.split(/[:\s]/);
-        let hours = parseInt(hoursStr);
-        const minutes = parseInt(minutesStr);
+      if (selectedPeriod && selectedPeriod.startTime) {
+        const [hours, minutes] = selectedPeriod.startTime.split(':').map(Number);
         
-        if (period === 'PM' && hours < 12) {
-          hours += 12;
-        } else if (period === 'AM' && hours === 12) {
-          hours = 0;
+        // Create a date object for the period time today
+        const periodTime = new Date(finalDueDate);
+        periodTime.setHours(hours, minutes, 0, 0);
+        
+        // If period time is earlier than current time and the date is today, move to tomorrow
+        if (periodTime < now && 
+            finalDueDate.getDate() === now.getDate() && 
+            finalDueDate.getMonth() === now.getMonth() && 
+            finalDueDate.getFullYear() === now.getFullYear()) {
+          const tomorrow = new Date(finalDueDate);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          finalDueDate = tomorrow;
         }
-        
-        due.setHours(hours, minutes);
+      }
+    }
+    // If a specific time was selected, apply similar logic
+    else if (dueTime) {
+      const now = new Date();
+      const [hoursStr, minutesStr, period] = dueTime.split(/[:\s]/);
+      let hours = parseInt(hoursStr);
+      const minutes = parseInt(minutesStr);
+      
+      if (period === 'PM' && hours < 12) {
+        hours += 12;
+      } else if (period === 'AM' && hours === 12) {
+        hours = 0;
       }
       
-      newReminder.dueDate = due;
+      // Create a date object for the selected time today
+      const selectedTime = new Date(finalDueDate);
+      selectedTime.setHours(hours, minutes, 0, 0);
+      
+      // If selected time is earlier than current time and the date is today, move to tomorrow
+      if (selectedTime < now && 
+          finalDueDate.getDate() === now.getDate() && 
+          finalDueDate.getMonth() === now.getMonth() && 
+          finalDueDate.getFullYear() === now.getFullYear()) {
+        const tomorrow = new Date(finalDueDate);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        finalDueDate = tomorrow;
+      } else {
+        finalDueDate.setHours(hours, minutes);
+      }
     }
+    
+    const newReminder = createReminder({
+      ...reminderInput,
+      dueDate: finalDueDate
+    });
     
     const uiReminder = convertToUIReminder(newReminder);
     
@@ -112,7 +157,7 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
     setPriority(ReminderPriority.MEDIUM);
     setCategory(ReminderCategory.TASK);
     setPeriodId(undefined);
-    setDueDate(undefined);
+    setDueDate(new Date()); // Reset to today
     setDueTime(undefined);
     setChecklist([]);
     setNewChecklistItem('');

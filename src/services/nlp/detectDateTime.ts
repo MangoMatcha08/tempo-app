@@ -121,6 +121,12 @@ export const detectDateTime = (text: string): DateTimeInfo => {
     }
   }
   
+  // If no date was detected yet, default to today
+  if (!result.detectedDate) {
+    result.detectedDate = startOfDay(new Date());
+    result.confidence = Math.max(result.confidence, 0.7);
+  }
+  
   // Check for periods (like "2nd period") and set time accordingly
   const periodRegex = /(\d+)(?:st|nd|rd|th)?\s*period/i;
   const periodMatch = lowercaseText.match(periodRegex);
@@ -139,21 +145,16 @@ export const detectDateTime = (text: string): DateTimeInfo => {
       result.periodId = period.id;
       
       // Set the time from the period if we have a date
-      if (period.startTime && (result.detectedDate || !result.detectedDate)) {
-        // If no date was detected yet, use today
-        if (!result.detectedDate) {
-          result.detectedDate = startOfDay(now);
-        }
-        
+      if (period.startTime && result.detectedDate) {
         // Parse the start time (format: "HH:MM")
         const [hours, minutes] = period.startTime.split(':').map(Number);
         result.detectedTime = setMinutes(setHours(new Date(), hours), minutes);
         
-        // If the period has already passed today, set it for tomorrow
+        // Check if this period time has already passed today
         const periodTime = new Date();
         periodTime.setHours(hours, minutes, 0, 0);
         
-        if (periodTime < now && format(result.detectedDate, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd')) {
+        if (periodTime < now && isSameDay(result.detectedDate, now)) {
           result.detectedDate = addDays(result.detectedDate, 1);
         }
         
@@ -189,18 +190,63 @@ export const detectDateTime = (text: string): DateTimeInfo => {
       const timeDate = setMinutes(setHours(new Date(), hours), minutes);
       result.detectedTime = timeDate;
       
-      // If we don't have a date yet, use today
-      if (!result.detectedDate) {
-        result.detectedDate = startOfDay(now);
-        
-        // If the time has already passed today, set it for tomorrow
-        if (timeDate < now) {
-          result.detectedDate = addDays(result.detectedDate, 1);
-        }
+      // Check if this time has already passed today
+      if (timeDate < now && isSameDay(result.detectedDate, now)) {
+        result.detectedDate = addDays(result.detectedDate, 1);
       }
       
       result.confidence = Math.max(result.confidence, 0.8);
       break;
+    }
+  }
+  
+  // Check for "before school" or "after school" references
+  const beforeSchoolRegex = /\b(before|early)\s+(school|class|morning)/i;
+  const afterSchoolRegex = /\b(after|end of|late)\s+(school|class|day)/i;
+  
+  if (beforeSchoolRegex.test(lowercaseText)) {
+    // Find "Before School" period
+    const beforeSchoolPeriod = mockPeriods.find(p => 
+      p.name.toLowerCase().includes('before school')
+    );
+    
+    if (beforeSchoolPeriod) {
+      result.periodId = beforeSchoolPeriod.id;
+      
+      if (beforeSchoolPeriod.startTime && result.detectedDate) {
+        const [hours, minutes] = beforeSchoolPeriod.startTime.split(':').map(Number);
+        result.detectedTime = setMinutes(setHours(new Date(), hours), minutes);
+        
+        // Check if "before school" time has already passed today
+        const periodTime = new Date();
+        periodTime.setHours(hours, minutes, 0, 0);
+        
+        if (periodTime < now && isSameDay(result.detectedDate, now)) {
+          result.detectedDate = addDays(result.detectedDate, 1);
+        }
+      }
+    }
+  } else if (afterSchoolRegex.test(lowercaseText)) {
+    // Find "After School" period
+    const afterSchoolPeriod = mockPeriods.find(p => 
+      p.name.toLowerCase().includes('after school')
+    );
+    
+    if (afterSchoolPeriod) {
+      result.periodId = afterSchoolPeriod.id;
+      
+      if (afterSchoolPeriod.startTime && result.detectedDate) {
+        const [hours, minutes] = afterSchoolPeriod.startTime.split(':').map(Number);
+        result.detectedTime = setMinutes(setHours(new Date(), hours), minutes);
+        
+        // Check if "after school" time has already passed today
+        const periodTime = new Date();
+        periodTime.setHours(hours, minutes, 0, 0);
+        
+        if (periodTime < now && isSameDay(result.detectedDate, now)) {
+          result.detectedDate = addDays(result.detectedDate, 1);
+        }
+      }
     }
   }
   
@@ -217,6 +263,14 @@ export const detectDateTime = (text: string): DateTimeInfo => {
       if (result.detectedDate && !result.detectedTime && planningPeriod.startTime) {
         const [hours, minutes] = planningPeriod.startTime.split(':').map(Number);
         result.detectedTime = setMinutes(setHours(new Date(), hours), minutes);
+        
+        // Check if planning period has already passed today
+        const periodTime = new Date();
+        periodTime.setHours(hours, minutes, 0, 0);
+        
+        if (periodTime < now && isSameDay(result.detectedDate, now)) {
+          result.detectedDate = addDays(result.detectedDate, 1);
+        }
       }
     }
   }
@@ -227,6 +281,14 @@ export const detectDateTime = (text: string): DateTimeInfo => {
     if (selectedPeriod && selectedPeriod.startTime) {
       const [hours, minutes] = selectedPeriod.startTime.split(':').map(Number);
       result.detectedTime = setMinutes(setHours(new Date(), hours), minutes);
+      
+      // Check if this period time has already passed today
+      const periodTime = new Date();
+      periodTime.setHours(hours, minutes, 0, 0);
+      
+      if (periodTime < now && isSameDay(result.detectedDate, now)) {
+        result.detectedDate = addDays(result.detectedDate, 1);
+      }
     }
   }
   
@@ -241,6 +303,15 @@ export const detectDateTime = (text: string): DateTimeInfo => {
       const [hours, minutes] = beforeSchoolPeriod.startTime.split(':').map(Number);
       result.detectedTime = setMinutes(setHours(new Date(), hours), minutes);
       result.periodId = beforeSchoolPeriod.id;
+      
+      // Check if "before school" time has already passed today
+      const periodTime = new Date();
+      periodTime.setHours(hours, minutes, 0, 0);
+      
+      if (periodTime < now && isSameDay(result.detectedDate, now)) {
+        result.detectedDate = addDays(result.detectedDate, 1);
+      }
+      
       result.confidence = Math.max(result.confidence, 0.7);
     }
   }
@@ -256,3 +327,10 @@ export const detectDateTime = (text: string): DateTimeInfo => {
   
   return result;
 };
+
+// Helper function to check if two dates are the same day
+function isSameDay(date1: Date, date2: Date): boolean {
+  return date1.getDate() === date2.getDate() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getFullYear() === date2.getFullYear();
+}

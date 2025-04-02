@@ -1,3 +1,4 @@
+
 import { VoiceProcessingResult, CreateReminderInput, ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
 import { detectPriority } from './detectPriority';
 import { detectCategory } from './detectCategory';
@@ -40,6 +41,9 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
     p.name.toLowerCase().includes('before school')
   );
   
+  // Current date and time for comparison
+  const now = new Date();
+  
   // Create the reminder input
   const reminderInput: CreateReminderInput = {
     title,
@@ -51,7 +55,8 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
     checklist: checklistItems.map(text => ({
       text,
       isCompleted: false
-    }))
+    })),
+    dueDate: new Date() // Default to today
   };
   
   // Add detected date if available - CRITICAL for correct date handling
@@ -89,6 +94,53 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
       dueDate.setHours(hours, minutes, 0, 0);
       reminderInput.dueDate = dueDate;
       console.log('Updated due date with before school time:', reminderInput.dueDate);
+    }
+  } else {
+    // No date was explicitly detected, use today
+    // Check if we need to move to tomorrow based on selected period/time
+    if (finalPeriodId) {
+      const selectedPeriod = mockPeriods.find(p => p.id === finalPeriodId);
+      if (selectedPeriod && selectedPeriod.startTime) {
+        const [hours, minutes] = selectedPeriod.startTime.split(':').map(Number);
+        
+        // Create a date object for the period time today
+        const periodTime = new Date();
+        periodTime.setHours(hours, minutes, 0, 0);
+        
+        // If period time is earlier than current time, move to tomorrow
+        if (periodTime < now) {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          tomorrow.setHours(hours, minutes, 0, 0);
+          reminderInput.dueDate = tomorrow;
+          console.log('Period time already passed today, setting due date to tomorrow:', reminderInput.dueDate);
+        } else {
+          const today = new Date();
+          today.setHours(hours, minutes, 0, 0);
+          reminderInput.dueDate = today;
+          console.log('Setting due date to today with period time:', reminderInput.dueDate);
+        }
+      }
+    } else if (beforeSchoolPeriod && beforeSchoolPeriod.startTime) {
+      const [hours, minutes] = beforeSchoolPeriod.startTime.split(':').map(Number);
+      
+      // Create a date object for the before school time today
+      const beforeSchoolTime = new Date();
+      beforeSchoolTime.setHours(hours, minutes, 0, 0);
+      
+      // If before school time is earlier than current time, move to tomorrow
+      if (beforeSchoolTime < now) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(hours, minutes, 0, 0);
+        reminderInput.dueDate = tomorrow;
+        console.log('Before school time already passed today, setting due date to tomorrow:', reminderInput.dueDate);
+      } else {
+        const today = new Date();
+        today.setHours(hours, minutes, 0, 0);
+        reminderInput.dueDate = today;
+        console.log('Setting due date to today with before school time:', reminderInput.dueDate);
+      }
     }
   }
   
