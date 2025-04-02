@@ -1,5 +1,5 @@
 
-import { createContext, useContext, ReactNode, useEffect, useState } from "react";
+import { createContext, useContext, ReactNode, useEffect, useState, useMemo } from "react";
 import { isFirebaseInitialized } from "@/lib/firebase";
 import { 
   getFirestore, 
@@ -36,11 +36,12 @@ export const FirestoreProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!isReady) return;
     
+    let isMounted = true;
+    console.log("Initializing Firestore...");
+    
     const initFirestore = async () => {
       try {
-        console.log("Initializing Firestore...");
-        
-        // Initialize Firestore with modern optimized settings
+        // Attempt to initialize with modern optimized settings
         let firestore: Firestore;
         
         try {
@@ -52,9 +53,6 @@ export const FirestoreProvider = ({ children }: { children: ReactNode }) => {
             })
           });
           console.log("Initialized Firestore with optimized persistent cache");
-          
-          // No need to call enableIndexedDbPersistence with the new approach
-          // as it's handled by persistentLocalCache
         } catch (err) {
           console.warn("Could not initialize with enhanced settings, falling back:", err);
           
@@ -73,23 +71,23 @@ export const FirestoreProvider = ({ children }: { children: ReactNode }) => {
               // This is not a fatal error, we can continue
             } else {
               console.error("Error enabling persistence:", persistErr);
-              setError(persistErr);
+              if (isMounted) setError(persistErr);
             }
           }
         }
         
         // Set the database instance even if there were non-fatal errors with persistence
-        setDb(firestore);
+        if (isMounted) setDb(firestore);
         console.log("Firestore initialized successfully");
         
-        // Show additional information about Firestore API activation for better user guidance
+        // Show additional information about Firestore API activation
         toast({
           title: "Firebase Connection Info",
           description: "For this demo, you're seeing demo data. For full Firestore functionality, activate the Firestore API in the Firebase console.",
         });
       } catch (error: any) {
         console.error("Error initializing Firestore:", error);
-        setError(error);
+        if (isMounted) setError(error);
         toast({
           title: "Database Error",
           description: "Failed to initialize the database. Using mock data instead.",
@@ -99,10 +97,22 @@ export const FirestoreProvider = ({ children }: { children: ReactNode }) => {
     };
     
     initFirestore();
+    
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted = false;
+    };
   }, [isReady, toast]);
   
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    isReady,
+    db,
+    error
+  }), [isReady, db, error]);
+  
   return (
-    <FirestoreContext.Provider value={{ isReady, db, error }}>
+    <FirestoreContext.Provider value={contextValue}>
       <ScheduleProvider>
         {children}
       </ScheduleProvider>

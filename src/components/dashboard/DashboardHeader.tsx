@@ -4,6 +4,7 @@ import { signOutUser } from "@/lib/firebase";
 import { useNavigate } from "react-router-dom";
 import { Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { memo, useCallback } from "react";
 
 interface DashboardHeaderProps {
   title: string;
@@ -17,11 +18,13 @@ interface DashboardHeaderProps {
   };
 }
 
-const DashboardHeader = ({ title, stats }: DashboardHeaderProps) => {
+// Use React.memo to prevent re-renders when props haven't changed
+const DashboardHeader = memo(({ title, stats }: DashboardHeaderProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const handleSignOut = async () => {
+  // Memoize event handlers to prevent recreating functions on each render
+  const handleSignOut = useCallback(async () => {
     const { success, error } = await signOutUser();
     
     if (success) {
@@ -29,11 +32,14 @@ const DashboardHeader = ({ title, stats }: DashboardHeaderProps) => {
     } else {
       console.error("Sign out failed:", error?.message);
     }
-  };
+  }, [navigate]);
 
-  const navigateToSchedule = () => {
+  const navigateToSchedule = useCallback(() => {
     navigate("/schedule");
-  };
+  }, [navigate]);
+
+  // User display name with fallback
+  const userDisplayName = user?.displayName || user?.email || "User";
 
   return (
     <div className="flex justify-between items-center mb-8">
@@ -57,7 +63,7 @@ const DashboardHeader = ({ title, stats }: DashboardHeaderProps) => {
           Schedule
         </Button>
         <span className="text-sm text-muted-foreground">
-          {user?.displayName || user?.email}
+          {userDisplayName}
         </span>
         <Button variant="outline" onClick={handleSignOut}>
           Sign Out
@@ -65,6 +71,9 @@ const DashboardHeader = ({ title, stats }: DashboardHeaderProps) => {
       </div>
     </div>
   );
-};
+});
+
+// Set display name for better debugging in React DevTools
+DashboardHeader.displayName = "DashboardHeader";
 
 export default DashboardHeader;

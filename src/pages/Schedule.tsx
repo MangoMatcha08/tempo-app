@@ -1,14 +1,19 @@
 
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import { ScheduleView } from '@/components/schedule/ScheduleView';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Home } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-const Schedule = () => {
+// Memoize the Schedule component to prevent unnecessary renders
+const Schedule = memo(() => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+
+  // Memoize navigation handler
+  const handleNavigateToDashboard = useCallback(() => 
+    navigate('/dashboard'), [navigate]);
 
   return (
     <div className="container mx-auto px-1 py-2 max-w-[1200px] h-[calc(100vh-1rem)]">
@@ -16,7 +21,7 @@ const Schedule = () => {
         <h1 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold`}>Class Schedule</h1>
         <Button 
           variant="outline" 
-          onClick={() => navigate('/dashboard')}
+          onClick={handleNavigateToDashboard}
           className="flex items-center gap-2"
           size={isMobile ? "sm" : "default"}
         >
@@ -29,6 +34,9 @@ const Schedule = () => {
       </div>
     </div>
   );
-};
+});
+
+// Set display name for better debugging
+Schedule.displayName = "Schedule";
 
 export default Schedule;

@@ -1,6 +1,6 @@
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Bell, CheckCircle } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 import ReminderCard from "./ReminderCard";
 import ReminderListItem from "./ReminderListItem";
 import { memo } from "react";
@@ -30,6 +30,9 @@ const RemindersSection = memo(({
   onCompleteReminder,
   onEditReminder
 }: RemindersSectionProps) => {
+  // Determine if there are no reminders to show
+  const noReminders = urgentReminders.length === 0 && upcomingReminders.length === 0;
+  
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold">Today's Reminders</h2>
@@ -71,7 +74,7 @@ const RemindersSection = memo(({
         </div>
       )}
       
-      {urgentReminders.length === 0 && upcomingReminders.length === 0 && (
+      {noReminders && (
         <div className="text-center py-8 bg-slate-50 rounded-lg border border-slate-100">
           <CheckCircle className="mx-auto h-10 w-10 text-green-500 mb-3" />
           <h3 className="text-xl font-medium text-slate-900">All done!</h3>
@@ -83,6 +86,7 @@ const RemindersSection = memo(({
   );
 });
 
+// Set display name for better debugging in React DevTools
 RemindersSection.displayName = "RemindersSection";
 
 export default RemindersSection;

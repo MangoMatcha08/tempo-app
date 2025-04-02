@@ -1,9 +1,10 @@
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Check, Clock, Edit } from "lucide-react";
+import { Clock, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo, useCallback } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { formatTime } from "@/utils/typeUtils";
 
 interface Reminder {
   id: string;
@@ -21,11 +22,13 @@ interface ReminderCardProps {
   onEdit: (reminder: Reminder) => void;
 }
 
-const ReminderCard = ({ reminder, onComplete, onEdit }: ReminderCardProps) => {
+// Memoize component to prevent unnecessary re-renders
+const ReminderCard = memo(({ reminder, onComplete, onEdit }: ReminderCardProps) => {
   const [isCompleting, setIsCompleting] = useState(false);
   
-  const getPriorityClass = (priority: string) => {
-    switch (priority) {
+  // Memoize priority class calculation
+  const priorityClass = (() => {
+    switch (reminder.priority) {
       case "high":
         return "border-l-4 border-l-red-500";
       case "medium":
@@ -35,34 +38,24 @@ const ReminderCard = ({ reminder, onComplete, onEdit }: ReminderCardProps) => {
       default:
         return "";
     }
-  };
+  })();
   
-  const formatTimeRemaining = (dueDate: Date) => {
-    const now = new Date();
-    const diffMs = dueDate.getTime() - now.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    
-    if (diffMins < 0) return "Overdue";
-    if (diffMins < 60) return `${diffMins} min${diffMins !== 1 ? 's' : ''}`;
-    
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''}`;
-    
-    const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays} day${diffDays !== 1 ? 's' : ''}`;
-  };
+  // Format time using the cached formatter
+  const formattedTime = formatTime(reminder.dueDate, 'time');
 
-  const formattedTime = (dueDate: Date) => {
-    return dueDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const handleComplete = () => {
+  // Memoize event handlers
+  const handleComplete = useCallback(() => {
     setIsCompleting(true);
     // Let the animation play before actually completing
     setTimeout(() => {
       onComplete(reminder.id);
     }, 800);
-  };
+  }, [reminder.id, onComplete]);
+
+  const handleEdit = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEdit(reminder);
+  }, [reminder, onEdit]);
 
   useEffect(() => {
     return () => {
@@ -73,7 +66,7 @@ const ReminderCard = ({ reminder, onComplete, onEdit }: ReminderCardProps) => {
 
   return (
     <Card 
-      className={`shadow-md ${getPriorityClass(reminder.priority)} transition-all duration-300 ${
+      className={`shadow-md ${priorityClass} transition-all duration-300 ${
         isCompleting ? "bg-green-100 opacity-0 transform translate-y-2" : ""
       } hover:bg-slate-50`}
       onClick={handleComplete}
@@ -90,7 +83,7 @@ const ReminderCard = ({ reminder, onComplete, onEdit }: ReminderCardProps) => {
             <Checkbox 
               className="h-6 w-6 rounded-sm border-2 border-gray-300"
               checked={false}
-              onCheckedChange={() => handleComplete()}
+              onCheckedChange={handleComplete}
             />
           </div>
           
@@ -102,7 +95,7 @@ const ReminderCard = ({ reminder, onComplete, onEdit }: ReminderCardProps) => {
               <Clock className="h-4 w-4 mr-1" />
               <span>
                 {reminder.location && `${reminder.location} • `}
-                {formattedTime(reminder.dueDate)}
+                {formattedTime}
               </span>
             </div>
           </div>
@@ -111,10 +104,7 @@ const ReminderCard = ({ reminder, onComplete, onEdit }: ReminderCardProps) => {
             size="sm" 
             variant="ghost" 
             className="h-8 w-8 p-0 ml-1 flex-shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(reminder);
-            }}
+            onClick={handleEdit}
           >
             <Edit className="h-4 w-4 text-gray-500" />
             <span className="sr-only">Edit</span>
@@ -123,6 +113,9 @@ const ReminderCard = ({ reminder, onComplete, onEdit }: ReminderCardProps) => {
       </CardContent>
     </Card>
   );
-};
+});
+
+// Set display name for better debugging in React DevTools
+ReminderCard.displayName = "ReminderCard";
 
 export default ReminderCard;
