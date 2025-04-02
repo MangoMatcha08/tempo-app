@@ -29,7 +29,7 @@ const priorityClassCache: Record<string, string> = {
   low: "border-l-4 border-l-blue-500"
 };
 
-// Memoize component to prevent unnecessary re-renders
+// Memoize component to prevent unnecessary re-renders with custom equality function
 const ReminderCard = memo(({ reminder, onComplete, onEdit }: ReminderCardProps) => {
   const [isCompleting, setIsCompleting] = useState(false);
   
@@ -44,6 +44,13 @@ const ReminderCard = memo(({ reminder, onComplete, onEdit }: ReminderCardProps) 
     formatTime(reminder.dueDate, 'time'),
     [reminder.dueDate]
   );
+  
+  // Calculate the complete card class once
+  const cardClass = useMemo(() => {
+    return `shadow-md ${priorityClass} transition-all duration-300 ${
+      isCompleting ? "bg-green-100 opacity-0 transform translate-y-2" : ""
+    } hover:bg-slate-50`;
+  }, [priorityClass, isCompleting]);
 
   // Memoize event handlers
   const handleComplete = useCallback(() => {
@@ -59,19 +66,42 @@ const ReminderCard = memo(({ reminder, onComplete, onEdit }: ReminderCardProps) 
     onEdit(reminder);
   }, [reminder, onEdit]);
 
+  // Handle checkbox change separately to avoid event bubbling issues
+  const handleCheckboxChange = useCallback((checked: boolean | string) => {
+    if (checked) {
+      handleComplete();
+    }
+  }, [handleComplete]);
+
   // Clean up timeout on unmount
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    if (isCompleting) {
+      timeoutId = setTimeout(() => {}, 800);
+    }
+    
     return () => {
-      // Cleanup timeout if component unmounts during animation
+      if (timeoutId) clearTimeout(timeoutId);
       setIsCompleting(false);
     };
-  }, []);
+  }, [isCompleting]);
+
+  // Memoize description with fallback
+  const description = useMemo(() => 
+    reminder.description || "",
+    [reminder.description]
+  );
+
+  // Memoize location with conditional rendering
+  const locationText = useMemo(() => 
+    reminder.location ? `${reminder.location} • ` : "",
+    [reminder.location]
+  );
 
   return (
     <Card 
-      className={`shadow-md ${priorityClass} transition-all duration-300 ${
-        isCompleting ? "bg-green-100 opacity-0 transform translate-y-2" : ""
-      } hover:bg-slate-50`}
+      className={cardClass}
       onClick={handleComplete}
     >
       <CardContent className="p-4">
@@ -86,20 +116,20 @@ const ReminderCard = memo(({ reminder, onComplete, onEdit }: ReminderCardProps) 
             <Checkbox 
               className="h-6 w-6 rounded-sm border-2 border-gray-300"
               checked={false}
-              onCheckedChange={handleComplete}
+              onCheckedChange={handleCheckboxChange}
             />
           </div>
           
           <div className="flex-1">
             <h3 className="font-medium">{reminder.title}</h3>
-            {reminder.description && (
-              <p className="text-sm mt-1">{reminder.description}</p>
+            {description && (
+              <p className="text-sm mt-1">{description}</p>
             )}
             
             <div className="flex items-center mt-2 text-xs text-muted-foreground">
               <Clock className="h-4 w-4 mr-1" />
               <span>
-                {reminder.location && `${reminder.location} • `}
+                {locationText}
                 {formattedTime}
               </span>
             </div>
@@ -117,6 +147,18 @@ const ReminderCard = memo(({ reminder, onComplete, onEdit }: ReminderCardProps) 
         </div>
       </CardContent>
     </Card>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison function for memo
+  // Only re-render if these specific properties change
+  return (
+    prevProps.reminder.id === nextProps.reminder.id &&
+    prevProps.reminder.title === nextProps.reminder.title &&
+    prevProps.reminder.description === nextProps.reminder.description &&
+    prevProps.reminder.priority === nextProps.reminder.priority &&
+    prevProps.reminder.dueDate.getTime() === nextProps.reminder.dueDate.getTime() &&
+    prevProps.reminder.location === nextProps.reminder.location &&
+    prevProps.reminder.completed === nextProps.reminder.completed
   );
 });
 

@@ -11,6 +11,14 @@ import {
   updateProfile,
   User
 } from "firebase/auth";
+import {
+  getFirestore,
+  enableIndexedDbPersistence,
+  CACHE_SIZE_UNLIMITED,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
+} from "firebase/firestore";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -26,6 +34,7 @@ const firebaseConfig = {
 // Firebase initialization
 let firebaseApp: FirebaseApp;
 let firebaseInitError: Error | null = null;
+let firestoreInitialized = false;
 
 try {
   const apps = getApps();
@@ -40,6 +49,45 @@ try {
   console.error("Error initializing Firebase:", error);
   firebaseInitError = error instanceof Error ? error : new Error(String(error));
 }
+
+// Initialize Firestore with persistence settings
+const initializeFirestoreWithSettings = async () => {
+  if (firestoreInitialized) {
+    return;
+  }
+
+  try {
+    // Initialize Firestore with multi-tab persistence
+    const db = initializeFirestore(firebaseApp, {
+      localCache: persistentLocalCache({
+        cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+        tabManager: persistentMultipleTabManager()
+      })
+    });
+
+    // Enable offline persistence
+    // Note: This is only needed for older Firebase versions, newer ones use the settings above
+    try {
+      await enableIndexedDbPersistence(db);
+      console.log('Firestore persistence enabled successfully');
+    } catch (err: any) {
+      // These errors are normal in certain circumstances and can be ignored
+      if (err.code === 'failed-precondition') {
+        console.warn('Firestore persistence failed - multiple tabs open');
+      } else if (err.code === 'unimplemented') {
+        console.warn('Firestore persistence not supported in this browser');
+      } else {
+        console.error('Error enabling Firestore persistence:', err);
+      }
+    }
+    
+    firestoreInitialized = true;
+    console.log('Firestore initialization complete');
+    
+  } catch (error) {
+    console.error('Error setting up Firestore:', error);
+  }
+};
 
 // Auth functions
 const auth = getAuth(firebaseApp);
@@ -61,6 +109,22 @@ export const isFirebaseInitialized = () => {
 
 export const getFirebaseInitError = () => {
   return firebaseInitError;
+};
+
+// Get Firestore instance with init check
+export const getFirestoreInstance = () => {
+  if (!isFirebaseInitialized()) {
+    throw new Error("Firebase not initialized");
+  }
+  
+  const db = getFirestore(firebaseApp);
+  
+  // Initialize persistence settings in the background
+  initializeFirestoreWithSettings().catch(err => {
+    console.error("Error initializing Firestore persistence:", err);
+  });
+  
+  return db;
 };
 
 // Ping Firebase to verify connection
@@ -154,6 +218,20 @@ export const signOutUser = async () => {
       error: error instanceof Error ? error : new Error(String(error)) 
     };
   }
+};
+
+// Monitor online status
+export const setupNetworkMonitoring = (
+  onOnline: () => void,
+  onOffline: () => void
+) => {
+  window.addEventListener('online', onOnline);
+  window.addEventListener('offline', onOffline);
+  
+  return () => {
+    window.removeEventListener('online', onOnline);
+    window.removeEventListener('offline', onOffline);
+  };
 };
 
 // Export firebaseApp for use in other modules
