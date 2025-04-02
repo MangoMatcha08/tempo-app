@@ -160,7 +160,7 @@ const Dashboard = () => {
     }
   }, [batchDeleteReminders, toast]);
 
-  const clearCacheAndRefresh = useCallback(() => {
+  const clearCacheAndRefresh = useCallback(async (): Promise<void> => {
     try {
       localStorage.removeItem('reminderCache');
       console.log("Reminder cache cleared");
@@ -169,18 +169,16 @@ const Dashboard = () => {
         description: "Reminder cache has been cleared"
       });
       console.log("Initiating refresh after cache clear");
-      return refreshReminders()
+      await refreshReminders()
         .then(success => {
           console.log("Refresh result after cache clear:", success);
-          return success;
+          return;
         })
         .catch(err => {
           console.error("Error during refresh after cache clear:", err);
-          return false;
         });
     } catch (err) {
       console.error("Error clearing cache:", err);
-      return Promise.resolve(false);
     }
   }, [refreshReminders, toast]);
 
