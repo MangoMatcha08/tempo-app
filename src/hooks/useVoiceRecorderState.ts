@@ -71,91 +71,102 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     setTranscript(text);
     setIsProcessing(true);
     
-    try {
-      debugLog("Processing voice input:", text);
-      // Process the transcript with NLP
-      const result = processVoiceInput(text);
-      debugLog("NLP processing result:", result);
-      
-      // Generate a better title based on category and content
-      const generatedTitle = generateMeaningfulTitle(
-        result.reminder.category || ReminderCategory.TASK, 
-        text
-      );
-      
-      // Set the processed data
-      setTitle(generatedTitle);
-      setPriority(result.reminder.priority || ReminderPriority.MEDIUM);
-      setCategory(result.reminder.category || ReminderCategory.TASK);
-      setPeriod(result.reminder.periodId || "none");
-      
-      // Ensure we have a due date (default to tomorrow if not detected)
-      if (!result.reminder.dueDate) {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(9, 0, 0, 0);
-        result.reminder.dueDate = tomorrow;
-      }
-      
-      // Update the result with the default due date
-      setProcessingResult({
-        ...result,
-        reminder: {
-          ...result.reminder,
-          dueDate: result.reminder.dueDate
+    // Create a function for the actual processing
+    const processTranscript = () => {
+      try {
+        debugLog("Processing voice input:", text);
+        // Process the transcript with NLP
+        const result = processVoiceInput(text);
+        debugLog("NLP processing result:", result);
+        
+        // Generate a better title based on category and content
+        const generatedTitle = generateMeaningfulTitle(
+          result.reminder.category || ReminderCategory.TASK, 
+          text
+        );
+        
+        // Set the processed data
+        setTitle(generatedTitle);
+        setPriority(result.reminder.priority || ReminderPriority.MEDIUM);
+        setCategory(result.reminder.category || ReminderCategory.TASK);
+        setPeriod(result.reminder.periodId || "none");
+        
+        // Ensure we have a due date (default to tomorrow if not detected)
+        if (!result.reminder.dueDate) {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          tomorrow.setHours(9, 0, 0, 0);
+          result.reminder.dueDate = tomorrow;
         }
-      });
-      
-      debugLog("Switching to confirmation view with result:", result);
-      
-      // First finish processing, then switch to confirmation view
-      setIsProcessing(false);
-      
-      // Add a forced delay of 800ms to ensure UI renders correctly before transition
-      // This is critical for iOS transitions
-      const baseDelay = 800;
-      const platformMultiplier = (isPWA || isMobile) ? 1.5 : 1;
-      const transitionDelay = Math.round(baseDelay * platformMultiplier);
-      
-      debugLog(`Using transition delay of ${transitionDelay}ms before view change`);
-      
-      // Clear any previous transition timer
-      if (transitionTimerRef.current) {
-        clearTimeout(transitionTimerRef.current);
+        
+        // Update the result with the default due date
+        setProcessingResult({
+          ...result,
+          reminder: {
+            ...result.reminder,
+            dueDate: result.reminder.dueDate
+          }
+        });
+        
+        debugLog("Switching to confirmation view with result:", result);
+        
+        // First finish processing, then switch to confirmation view
+        setIsProcessing(false);
+        
+        // Add a forced delay of 800ms to ensure UI renders correctly before transition
+        // This is critical for iOS transitions
+        const baseDelay = 800;
+        const platformMultiplier = (isPWA || isMobile) ? 1.5 : 1;
+        const transitionDelay = Math.round(baseDelay * platformMultiplier);
+        
+        debugLog(`Using transition delay of ${transitionDelay}ms before view change`);
+        
+        // Clear any previous transition timer
+        if (transitionTimerRef.current) {
+          clearTimeout(transitionTimerRef.current);
+        }
+        
+        // Use setTimeout with a reference to ensure we can clear it if needed
+        transitionTimerRef.current = setTimeout(() => {
+          debugLog("Transition timer fired, setting view to confirm");
+          setView("confirm");
+          transitionTimerRef.current = null;
+        }, transitionDelay);
+        
+        return true;
+      } catch (error) {
+        console.error('Error processing voice input:', error);
+        debugLog(`Error processing voice input: ${error}`);
+        
+        // After retries, show error
+        setIsProcessing(false);
+        isConfirmingRef.current = false;
+        
+        toast({
+          title: "Processing Error",
+          description: "There was an error processing your voice input. Please try again.",
+          variant: "destructive"
+        });
+        
+        return false;
       }
-      
-      // Use setTimeout with a reference to ensure we can clear it if needed
-      transitionTimerRef.current = setTimeout(() => {
-        debugLog("Transition timer fired, setting view to confirm");
-        setView("confirm");
-        transitionTimerRef.current = null;
-      }, transitionDelay);
-    } catch (error) {
-      console.error('Error processing voice input:', error);
-      debugLog(`Error processing voice input: ${error}`);
+    };
+    
+    // Execute processing with delayed retry logic for reliability
+    setTimeout(() => {
+      const success = processTranscript();
       
       // Check if we should retry processing
-      if (processingAttemptsRef.current < 2) { // Max 2 retries
+      if (!success && processingAttemptsRef.current < 2) { // Max 2 retries
         processingAttemptsRef.current++;
         debugLog(`Retry attempt ${processingAttemptsRef.current} for processing`);
         
         // Wait a moment before retrying
         setTimeout(() => {
-          handleTranscriptComplete(text);
-        }, 1000);
-        return;
+          processTranscript();
+        }, 1200);
       }
-      
-      // After retries, show error
-      setIsProcessing(false);
-      isConfirmingRef.current = false;
-      
-      toast({
-        title: "Processing Error",
-        description: "There was an error processing your voice input. Please try again.",
-        variant: "destructive"
-      });
-    }
+    }, 300); // Small initial delay to ensure transcript is fully captured
   };
   
   const handleCancel = () => {

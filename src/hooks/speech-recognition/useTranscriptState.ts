@@ -115,8 +115,8 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
         setTranscript(finalTranscript);
       }
       
-      // Explicitly cast to boolean to avoid TypeScript error
-      const shouldStillBeProcessing = Boolean(interimResult.length > 0);
+      // Set processing state based on interim result presence
+      const shouldStillBeProcessing = interimResult.length > 0;
       setIsProcessing(shouldStillBeProcessing);
       
     } catch (error) {
