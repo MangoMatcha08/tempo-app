@@ -27,6 +27,7 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
   const finalResultsRef = useRef<string[]>([]);
   const lastResultTimestampRef = useRef(0);
   const resultCountRef = useRef(0);
+  const lastProcessedEventRef = useRef<any>(null);
   
   // Cleanup function to reset all state
   const resetTranscriptState = useCallback(() => {
@@ -37,6 +38,7 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
     finalResultsRef.current = [];
     lastResultTimestampRef.current = 0;
     resultCountRef.current = 0;
+    lastProcessedEventRef.current = null;
   }, []);
   
   // Debounced update for better UX
@@ -59,6 +61,9 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
       return;
     }
     
+    // Store the event for potential reprocessing
+    lastProcessedEventRef.current = event;
+    
     // Track result processing
     resultCountRef.current++;
     const resultCount = resultCountRef.current;
@@ -71,8 +76,8 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
     // Log processing metrics
     debugLog(`Result #${resultCount}, time since last: ${timeSinceLastResult}ms`);
     
-    // Throttle processing on iOS to prevent too frequent updates
-    const shouldThrottle = isIOS && timeSinceLastResult < 300 && resultCount > 3;
+    // More conservative throttling to ensure we catch results
+    const shouldThrottle = isIOS && timeSinceLastResult < 200 && resultCount > 5;
     if (shouldThrottle) {
       debugLog("Throttling rapid results on iOS");
       return;
@@ -84,6 +89,7 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
       const results = event.results;
       let finalTranscript = '';
       let interimResult = '';
+      let hasMeaningfulContent = false;
       
       // Process results
       for (let i = 0; i < results.length; i++) {
@@ -94,10 +100,19 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
           const text = result[0].transcript.trim();
           if (text) {
             finalResultsRef.current.push(text);
+            hasMeaningfulContent = true;
+            debugLog(`Added final result: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
           }
         } else {
           // Interim result - more potential updates coming
-          interimResult += result[0].transcript;
+          const interimText = result[0].transcript.trim();
+          if (interimText) {
+            interimResult += interimText + ' ';
+            // Even interim results can indicate we have content
+            if (interimText.length > 5) {
+              hasMeaningfulContent = true;
+            }
+          }
         }
       }
       
@@ -107,6 +122,7 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
       // Update interim transcript via debounced function
       if (interimResult) {
         debouncedInterimUpdate(interimResult);
+        debugLog(`Updated interim transcript: "${interimResult.substring(0, 30)}${interimResult.length > 30 ? '...' : ''}"`);
       }
       
       // Only update transcript if we have a meaningful change
@@ -115,9 +131,17 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
         setTranscript(finalTranscript);
       }
       
-      // Set processing state based on interim result presence
-      const shouldStillBeProcessing = interimResult.length > 0;
-      setIsProcessing(shouldStillBeProcessing);
+      // Always mark as processing if we have any content at all
+      // This helps bridge the gap between result processing
+      if (hasMeaningfulContent) {
+        debugLog("Setting isProcessing to true because meaningful content was detected");
+        setIsProcessing(true);
+      } else {
+        // Set processing state based on interim result presence
+        const shouldStillBeProcessing = interimResult.length > 0;
+        setIsProcessing(shouldStillBeProcessing);
+        debugLog(`Setting isProcessing to ${shouldStillBeProcessing} based on interim result`);
+      }
       
     } catch (error) {
       console.error("Error processing speech results:", error);
@@ -125,6 +149,17 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
       setIsProcessing(false);
     }
   }, [transcript, debouncedInterimUpdate, isPWA, isIOS]);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    if (transcript && transcript.trim().length > 0) {
+      // If we have a transcript, ensure isProcessing is true
+      if (!isProcessing) {
+        debugLog("Setting processing to true because we have transcript content");
+        setIsProcessing(true);
+      }
+    }
+  }, [transcript, isProcessing]);
   
   // Cleanup on unmount
   useEffect(() => {

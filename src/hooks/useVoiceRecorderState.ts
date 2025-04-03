@@ -26,6 +26,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   // Ref to track if we're currently in the process of confirming a transcript
   const isConfirmingRef = useRef(false);
   const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const processingRetryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [isPWA, setIsPWA] = useState(false);
   const processingAttemptsRef = useRef(0);
   
@@ -55,6 +56,11 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         clearTimeout(transitionTimerRef.current);
         transitionTimerRef.current = null;
       }
+      
+      if (processingRetryTimerRef.current) {
+        clearTimeout(processingRetryTimerRef.current);
+        processingRetryTimerRef.current = null;
+      }
     }
   };
   
@@ -68,8 +74,12 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     // Set the confirming flag to prevent accidental resets
     isConfirmingRef.current = true;
     
-    setTranscript(text);
+    // Ensure processing state is true
     setIsProcessing(true);
+    
+    // Set transcript
+    setTranscript(text);
+    debugLog(`Transcript set: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
     
     // Create a function for the actual processing
     const processTranscript = () => {
@@ -113,7 +123,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         // First finish processing, then switch to confirmation view
         setIsProcessing(false);
         
-        // Add a forced delay of 800ms to ensure UI renders correctly before transition
+        // Add a forced delay to ensure UI renders correctly before transition
         // This is critical for iOS transitions
         const baseDelay = 800;
         const platformMultiplier = (isPWA || isMobile) ? 1.5 : 1;
@@ -138,6 +148,24 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         console.error('Error processing voice input:', error);
         debugLog(`Error processing voice input: ${error}`);
         
+        // If we've tried less than 3 times, schedule a retry
+        if (processingAttemptsRef.current < 2) {  // Max 2 retries
+          processingAttemptsRef.current++;
+          debugLog(`Scheduling retry #${processingAttemptsRef.current} for processing`);
+          
+          if (processingRetryTimerRef.current) {
+            clearTimeout(processingRetryTimerRef.current);
+          }
+          
+          processingRetryTimerRef.current = setTimeout(() => {
+            debugLog(`Executing retry #${processingAttemptsRef.current}`);
+            processTranscript();
+            processingRetryTimerRef.current = null;
+          }, 1200);
+          
+          return false;
+        }
+        
         // After retries, show error
         setIsProcessing(false);
         isConfirmingRef.current = false;
@@ -156,14 +184,19 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     setTimeout(() => {
       const success = processTranscript();
       
-      // Check if we should retry processing
-      if (!success && processingAttemptsRef.current < 2) { // Max 2 retries
+      // If processing immediately fails and we haven't scheduled a retry already
+      if (!success && processingAttemptsRef.current === 0) {
         processingAttemptsRef.current++;
-        debugLog(`Retry attempt ${processingAttemptsRef.current} for processing`);
+        debugLog(`Immediate retry attempt ${processingAttemptsRef.current} for processing`);
         
         // Wait a moment before retrying
-        setTimeout(() => {
+        if (processingRetryTimerRef.current) {
+          clearTimeout(processingRetryTimerRef.current);
+        }
+        
+        processingRetryTimerRef.current = setTimeout(() => {
           processTranscript();
+          processingRetryTimerRef.current = null;
         }, 1200);
       }
     }, 300); // Small initial delay to ensure transcript is fully captured
@@ -177,6 +210,11 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     if (transitionTimerRef.current) {
       clearTimeout(transitionTimerRef.current);
       transitionTimerRef.current = null;
+    }
+    
+    if (processingRetryTimerRef.current) {
+      clearTimeout(processingRetryTimerRef.current);
+      processingRetryTimerRef.current = null;
     }
     
     resetState();
@@ -196,6 +234,12 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         clearTimeout(transitionTimerRef.current);
         transitionTimerRef.current = null;
       }
+      
+      if (processingRetryTimerRef.current) {
+        clearTimeout(processingRetryTimerRef.current);
+        processingRetryTimerRef.current = null;
+      }
+      
       debugLog("Cleanup: clearing timers and refs");
     };
   }, []);
