@@ -29,4 +29,7 @@ export interface UseSpeechRecognitionReturn {
   
   /** Whether the app is running in PWA mode */
   isPWA: boolean;
+  
+  /** Whether the app is running on a mobile device */
+  isMobile: boolean;
 }
