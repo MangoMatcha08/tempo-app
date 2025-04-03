@@ -5,6 +5,7 @@ export interface UseSpeechRecognitionReturn {
   interimTranscript: string;
   browserSupportsSpeechRecognition: boolean;
   isListening: boolean;
+  isProcessing: boolean;
   startListening: () => Promise<void>;
   stopListening: () => void;
   resetTranscript: () => void;
