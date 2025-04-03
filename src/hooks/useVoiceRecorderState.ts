@@ -6,6 +6,7 @@ import { processVoiceInput } from "@/services/nlp";
 import { useToast } from "@/hooks/use-toast";
 import { isPwaMode, getPwaAdjustedTimeout } from "@/utils/pwaUtils";
 import { createDebugLogger } from "@/utils/debugUtils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Set up debug logger
 const debugLog = createDebugLogger("VoiceRecorderState");
@@ -20,6 +21,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   const [category, setCategory] = useState<ReminderCategory>(ReminderCategory.TASK);
   const [periodId, setPeriod] = useState<string>("none");
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   
   // Ref to track if we're currently in the process of confirming a transcript
   const isConfirmingRef = useRef(false);
@@ -113,8 +115,9 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         clearTimeout(transitionTimerRef.current);
       }
       
-      // Use longer timeout for PWA mode
-      const transitionDelay = getPwaAdjustedTimeout(200, 2); // 200ms standard, 400ms in PWA
+      // Use longer timeout for PWA mode or mobile
+      const transitionMultiplier = (isPWA || isMobile) ? 3 : 1.5;
+      const transitionDelay = getPwaAdjustedTimeout(200, transitionMultiplier); // 200ms standard, 600ms in PWA/mobile
       debugLog(`Setting transition delay of ${transitionDelay}ms for view change to confirm`);
       
       transitionTimerRef.current = setTimeout(() => {
@@ -164,9 +167,10 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       hasTranscript: !!transcript,
       hasResult: !!processingResult,
       title,
-      isPWA
+      isPWA,
+      isMobile
     });
-  }, [view, transcript, isProcessing, processingResult, title, isPWA]);
+  }, [view, transcript, isProcessing, processingResult, title, isPWA, isMobile]);
   
   return {
     title,
@@ -180,11 +184,12 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     category,
     setCategory,
     periodId,
-    setPeriod,  // This is the key fix - ensure this name matches what's expected
+    setPeriod,
     handleTranscriptComplete,
     handleCancel,
     handleGoBack,
     resetState,
-    isPWA
+    isPWA,
+    isMobile
   };
 }

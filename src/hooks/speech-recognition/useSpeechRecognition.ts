@@ -3,6 +3,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { UseSpeechRecognitionReturn } from './types';
 import { useSpeechRecognitionSetup } from './useSpeechRecognitionSetup';
 import { useTranscriptState } from './useTranscriptState';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { createDebugLogger } from '@/utils/debugUtils';
+
+const debugLog = createDebugLogger("SpeechRecognition");
 
 /**
  * Custom hook for speech recognition functionality
@@ -11,6 +15,7 @@ import { useTranscriptState } from './useTranscriptState';
 const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   const [error, setError] = useState<string | undefined>(undefined);
   const [isListening, setIsListening] = useState<boolean>(false);
+  const isMobile = useIsMobile();
   
   // Use separate hooks for managing recognition and transcript
   const { recognition, browserSupportsSpeechRecognition, isPWA } = useSpeechRecognitionSetup({
@@ -31,15 +36,16 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   useEffect(() => {
     if (!recognition) return;
     
-    console.log("Setting up recognition event handlers");
+    debugLog("Setting up recognition event handlers");
     
     recognition.onresult = (event: any) => {
-      console.log("Recognition result received");
+      debugLog("Recognition result received");
       processSpeechResults(event);
     };
     
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
+      debugLog(`Recognition error: ${event.error}`);
       
       // Map error types to user-friendly messages
       const errorMessages = {
@@ -53,7 +59,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       
       // Don't stop listening on "no-speech" errors, just log them
       if (event.error === 'no-speech') {
-        console.log('No speech detected, continuing to listen...');
+        debugLog('No speech detected, continuing to listen...');
         return;
       }
       
@@ -66,14 +72,14 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       
       // For network errors, try to restart recognition
       if (event.error === 'network') {
-        console.log('Network error, attempting to restart recognition...');
+        debugLog('Network error, attempting to restart recognition...');
         setError(errorMessages[event.error] || `Speech recognition error: ${event.error}`);
         
         setTimeout(() => {
           if (isListening) {
             try {
               recognition.start();
-              console.log("Recognition restarted after network error");
+              debugLog("Recognition restarted after network error");
             } catch (err) {
               console.error('Failed to restart after network error:', err);
               setError(`Speech recognition network error. Please try again.`);
@@ -98,7 +104,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       if (recognition) {
         try {
           recognition.stop();
-          console.log("Recognition stopped during cleanup");
+          debugLog("Recognition stopped during cleanup");
         } catch (err) {
           console.error('Error stopping recognition during cleanup:', err);
         }
@@ -120,36 +126,46 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     setError(undefined);
     
     setIsListening(true);
+    debugLog("Starting speech recognition");
+    
     try {
       recognition.start();
-      console.log('Speech recognition started');
+      debugLog('Speech recognition started');
     } catch (err) {
       // Handle the case where recognition is already started
       console.error('Recognition error on start:', err);
+      debugLog(`Recognition error on start: ${err}`);
       
       // Try to stop and restart if already started
       try {
         recognition.stop();
-        console.log("Recognition stopped after error, will attempt restart");
+        debugLog("Recognition stopped after error, will attempt restart");
         
-        // Use a longer timeout in PWA mode
+        // Use a longer timeout in PWA mode or on mobile
+        const delayTime = (isPWA || isMobile) ? 1000 : 300;
+        debugLog(`Setting restart delay of ${delayTime}ms`);
+        
         setTimeout(() => {
           try {
+            if (!isListening) return; // Don't restart if no longer listening
+            
             recognition.start();
-            console.log("Recognition successfully restarted");
+            debugLog("Recognition successfully restarted");
           } catch (startErr) {
             console.error("Second start attempt failed:", startErr);
+            debugLog(`Second start attempt failed: ${startErr}`);
             setError('Failed to start speech recognition. Please try reloading the page.');
             setIsListening(false);
           }
-        }, isPWA ? 500 : 100);
+        }, delayTime);
       } catch (stopErr) {
         console.error('Failed to restart recognition:', stopErr);
+        debugLog(`Failed to restart recognition: ${stopErr}`);
         setError('Failed to start speech recognition. Please try reloading the page.');
         setIsListening(false);
       }
     }
-  }, [recognition, resetTranscriptState, isPWA]);
+  }, [recognition, resetTranscriptState, isPWA, isMobile, isListening]);
 
   /**
    * Stops the speech recognition process
@@ -160,15 +176,24 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       return;
     }
     
-    console.log('Stopping speech recognition');
+    debugLog('Stopping speech recognition');
     setIsListening(false);
     try {
       recognition.stop();
-      console.log('Speech recognition stopped');
+      debugLog('Speech recognition stopped successfully');
+      
+      // On mobile, ensure we have the complete transcript before proceeding
+      if (isMobile) {
+        // Give a small delay to ensure final results are captured on mobile
+        setTimeout(() => {
+          debugLog(`Final transcript after mobile delay: "${transcript}"`);
+        }, 300);
+      }
     } catch (err) {
       console.error('Error stopping recognition:', err);
+      debugLog(`Error stopping recognition: ${err}`);
     }
-  }, [recognition]);
+  }, [recognition, transcript, isMobile]);
 
   return {
     transcript,
@@ -179,7 +204,8 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     resetTranscript: resetTranscriptState,
     browserSupportsSpeechRecognition,
     error,
-    isPWA
+    isPWA,
+    isMobile
   };
 };
 

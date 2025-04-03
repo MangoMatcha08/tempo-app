@@ -4,7 +4,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import useSpeechRecognition from "@/hooks/speech-recognition";
-import { isPwaMode, requestMicrophoneAccess } from "@/utils/pwaUtils";
+import { isPwaMode, requestMicrophoneAccess, releaseMicrophoneStreams } from "@/utils/pwaUtils";
 import { createDebugLogger } from "@/utils/debugUtils";
 import VoiceRecordingButton from "./VoiceRecordingButton";
 import RecordingStatusText from "./RecordingStatusText";
@@ -20,13 +20,14 @@ interface VoiceRecorderViewProps {
   isProcessing: boolean;
 }
 
-const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorderViewProps) => {
+const RefactoredVoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorderViewProps) => {
   const [isRecording, setIsRecording] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [transcriptSent, setTranscriptSent] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string[]>([]);
   const [permissionState, setPermissionState] = useState<PermissionState | "unknown">("unknown");
   const [isPWA, setIsPWA] = useState(false);
+  const transcriptSentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isMobile = useIsMobile();
   
   const {
@@ -39,7 +40,19 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     resetTranscript,
     error,
     isPWA: recognitionIsPWA,
+    isMobile: recognitionIsMobile
   } = useSpeechRecognition();
+  
+  // Store transcript in ref to ensure we always have the latest
+  const transcriptRef = useRef(transcript);
+  useEffect(() => {
+    transcriptRef.current = transcript;
+    
+    // Log transcript changes but only when meaningful
+    if (transcript && transcript !== "" && isRecording) {
+      addDebugInfo(`Transcript updated: "${transcript.substring(0, 15)}..."`);
+    }
+  }, [transcript, isRecording]);
   
   // Check if running as PWA
   useEffect(() => {
@@ -97,7 +110,36 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     checkMicPermission();
   }, []);
 
-  // Enhanced recording toggle with PWA-specific handling
+  // Enhanced function for sending transcript
+  const sendTranscript = (text: string) => {
+    if (!text || !text.trim()) {
+      addDebugInfo("Empty transcript, not sending");
+      return;
+    }
+    
+    addDebugInfo(`Attempting to send transcript: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
+    setTranscriptSent(true);
+    
+    // Clear any existing timeout
+    if (transcriptSentTimeoutRef.current) {
+      clearTimeout(transcriptSentTimeoutRef.current);
+    }
+    
+    // Add delay to ensure the final transcript is captured
+    // Use longer delay on mobile or in PWA mode
+    const sendDelay = (isMobile || isPWA) ? 800 : 300;
+    addDebugInfo(`Using send delay of ${sendDelay}ms`);
+    
+    transcriptSentTimeoutRef.current = setTimeout(() => {
+      // Always use the latest transcript from the ref
+      const finalText = transcriptRef.current || text;
+      addDebugInfo(`Sending final transcript: "${finalText.substring(0, 30)}${finalText.length > 30 ? '...' : ''}"`);
+      onTranscriptComplete(finalText);
+      transcriptSentTimeoutRef.current = null;
+    }, sendDelay);
+  };
+
+  // Enhanced recording toggle with PWA/mobile-specific handling
   const toggleRecording = async () => {
     // If already recording, stop recording
     if (isRecording) {
@@ -107,14 +149,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
       
       // Only send transcript if we have content
       if (transcript.trim()) {
-        addDebugInfo(`Sending transcript: "${transcript.substring(0, 30)}${transcript.length > 30 ? '...' : ''}"`);
-        setTranscriptSent(true);
-        
-        // Add slight delay to ensure the final transcript is captured
-        setTimeout(() => {
-          addDebugInfo(`Final transcript being sent: "${transcript.substring(0, 30)}${transcript.length > 30 ? '...' : ''}"`);
-          onTranscriptComplete(transcript);
-        }, isPWA ? 300 : 100);
+        sendTranscript(transcript);
       } else {
         addDebugInfo("No transcript to send - recording produced no text");
       }
@@ -139,13 +174,13 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     setTranscriptSent(false);
     resetTranscript();
     
-    // In PWA mode, add extra delay to ensure recognition initializes properly
-    if (isPWA) {
-      addDebugInfo("PWA mode detected, adding delay before starting recognition");
+    // In PWA mode or on mobile, add extra delay to ensure recognition initializes properly
+    if (isPWA || isMobile) {
+      addDebugInfo(`${isPWA ? 'PWA' : 'Mobile'} mode detected, adding delay before starting recognition`);
       setTimeout(() => {
         startListening();
         addDebugInfo("Recognition started after delay");
-      }, 500);
+      }, (isPWA && isMobile) ? 1000 : 500); // Even longer delay if both PWA and mobile
     } else {
       startListening();
       addDebugInfo("Recognition started immediately");
@@ -184,13 +219,6 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     };
   }, [isRecording]);
 
-  // Add effect to monitor transcript updates
-  useEffect(() => {
-    if (isRecording && transcript) {
-      addDebugInfo(`Transcript updated (${transcript.length} chars): "${transcript.substring(0, 20)}..."`);
-    }
-  }, [transcript, isRecording]);
-
   // Add effect to monitor isProcessing changes
   useEffect(() => {
     addDebugInfo(`Processing state changed to: ${isProcessing ? "processing" : "not processing"}`);
@@ -208,13 +236,14 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
         stopListening();
         addDebugInfo("Cleanup: stopped listening");
       }
-      // Release microphone stream on component unmount
-      if ((window as any).microphoneStream) {
-        const tracks = (window as any).microphoneStream.getTracks();
-        tracks.forEach((track: MediaStreamTrack) => track.stop());
-        (window as any).microphoneStream = null;
-        console.log("Microphone stream released on unmount");
+      
+      // Clear any pending timeouts
+      if (transcriptSentTimeoutRef.current) {
+        clearTimeout(transcriptSentTimeoutRef.current);
       }
+      
+      // Release microphone streams
+      releaseMicrophoneStreams();
     };
   }, [isRecording, stopListening]);
 
@@ -282,9 +311,14 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
       <div className="mt-3 text-sm text-center text-gray-500">
         <p>Speak clearly and naturally.</p>
         <p>Recording will automatically stop after 30 seconds.</p>
+        {isMobile && (
+          <p className="mt-1 font-medium text-blue-500">
+            For best results on mobile, speak for at least 3-5 seconds.
+          </p>
+        )}
       </div>
     </div>
   );
 };
 
-export default VoiceRecorderView;
+export default RefactoredVoiceRecorderView;

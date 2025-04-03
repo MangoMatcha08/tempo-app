@@ -6,6 +6,9 @@ import {
   isSpeechRecognitionSupported
 } from './utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { createDebugLogger } from '@/utils/debugUtils';
+
+const debugLog = createDebugLogger("SpeechRecognitionSetup");
 
 interface UseSpeechRecognitionSetupProps {
   onError: (error: string | undefined) => void;
@@ -32,7 +35,7 @@ export const useSpeechRecognitionSetup = ({
       window.navigator.standalone === true;
     
     setIsPWA(isStandalone);
-    console.log("Running as PWA:", isStandalone);
+    debugLog("Running as PWA:", isStandalone);
   }, []);
   
   // Initialize speech recognition
@@ -40,7 +43,7 @@ export const useSpeechRecognitionSetup = ({
     // Check browser support first
     const isSupported = isSpeechRecognitionSupported();
     setBrowserSupportsSpeechRecognition(isSupported);
-    console.log("Speech recognition supported:", isSupported);
+    debugLog("Speech recognition supported:", isSupported);
     
     if (!isSupported) {
       onError('Your browser does not support speech recognition.');
@@ -50,33 +53,46 @@ export const useSpeechRecognitionSetup = ({
     // Create recognition instance with improved error handling
     try {
       const recognitionInstance = createSpeechRecognition();
-      console.log("Created recognition instance:", !!recognitionInstance);
+      debugLog("Created recognition instance:", !!recognitionInstance);
       
       if (recognitionInstance) {
         // Configure with better settings for mobile/PWA
         configureSpeechRecognition(recognitionInstance, isMobile || isPWA);
         
-        // Handle recognition end event with better restart logic
+        // Enhanced onend handler with better mobile support
         recognitionInstance.onend = () => {
-          console.log('Speech recognition ended, isListening:', isListening);
+          debugLog('Speech recognition ended, isListening:', isListening);
           
           // Only restart if still supposed to be listening
           if (isListening) {
-            console.log('Restarting speech recognition...');
+            debugLog('Restarting speech recognition...');
             try {
               // Longer timeout on mobile or in PWA to reduce battery usage and ensure proper restart
+              const restartDelay = (isMobile || isPWA) ? 800 : 300;
+              debugLog(`Using restart delay of ${restartDelay}ms`);
+              
               setTimeout(() => {
                 if (isListening) {
                   recognitionInstance.start();
-                  console.log("Recognition restarted after timeout");
+                  debugLog("Recognition restarted after timeout");
+                } else {
+                  debugLog("Not restarting - no longer listening");
                 }
-              }, (isMobile || isPWA) ? 500 : 100);
+              }, restartDelay);
             } catch (err) {
               console.error('Error restarting recognition:', err);
+              debugLog(`Error restarting recognition: ${err}`);
               onError('Failed to restart speech recognition. Please try again.');
               setIsListening(false);
             }
+          } else {
+            debugLog("Not restarting - listening state is false");
           }
+        };
+        
+        // Add an onstart handler for better debugging
+        recognitionInstance.onstart = () => {
+          debugLog("Recognition started successfully");
         };
         
         setRecognition(recognitionInstance);
@@ -85,9 +101,10 @@ export const useSpeechRecognitionSetup = ({
       }
     } catch (error) {
       console.error('Error setting up speech recognition:', error);
+      debugLog(`Error setting up speech recognition: ${error}`);
       onError('Failed to initialize speech recognition.');
     }
-  }, [onError, setIsListening, isMobile, isPWA]);
+  }, [onError, setIsListening, isMobile, isPWA, isListening]);
 
   return {
     recognition,
