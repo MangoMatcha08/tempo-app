@@ -7,4 +7,5 @@
 import useSpeechRecognition from './useSpeechRecognition';
 export type { UseSpeechRecognitionReturn } from './types';
 
+export { useSpeechRecognition };
 export default useSpeechRecognition;

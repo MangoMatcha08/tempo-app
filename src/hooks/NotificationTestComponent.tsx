@@ -72,7 +72,7 @@ export const NotificationTestComponent = () => {
     }
     
     return (
-      <Alert variant="success">
+      <Alert variant="default">
         <AlertTitle>Permission Granted</AlertTitle>
         <AlertDescription>You will receive notifications when they are sent.</AlertDescription>
       </Alert>

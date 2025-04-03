@@ -11,12 +11,40 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { processVoiceInput } from '@/services/nlp/processVoiceInput';
-import ModalFooterActions from './ModalFooterActions';
 import RefactoredVoiceRecorderView from './RefactoredVoiceRecorderView';
 import VoiceReminderConfirmView from '../VoiceReminderConfirmView';
 import { createDebugLogger } from '@/utils/debugUtils';
 
 const debugLog = createDebugLogger("VoiceRecorderModal");
+
+interface ModalFooterActionsProps {
+  onCancel: () => void;
+  currentTab: 'record' | 'confirm';
+  hasTranscript: boolean;
+  isRecording: boolean;
+  isSaving: boolean;
+}
+
+// Create a simple ModalFooterActions component
+const ModalFooterActions: React.FC<ModalFooterActionsProps> = ({
+  onCancel,
+  currentTab,
+  hasTranscript,
+  isRecording,
+  isSaving
+}) => {
+  return (
+    <div className="flex justify-end space-x-2">
+      <Button 
+        variant="ghost" 
+        onClick={onCancel}
+        disabled={isRecording || isSaving}
+      >
+        Cancel
+      </Button>
+    </div>
+  );
+};
 
 interface RefactoredVoiceRecorderModalProps {
   isOpen: boolean;
@@ -168,11 +196,10 @@ const RefactoredVoiceRecorderModal: React.FC<RefactoredVoiceRecorderModalProps> 
         <DialogFooter>
           <ModalFooterActions 
             onCancel={handleCancel}
-            isProcessing={isProcessing}
-            isSaving={isSaving}
             hasTranscript={!!transcript}
             currentTab={tab}
             isRecording={isRecording}
+            isSaving={isSaving}
           />
         </DialogFooter>
       </DialogContent>

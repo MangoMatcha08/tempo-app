@@ -4,9 +4,57 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Mic, MicOff, StopCircle } from 'lucide-react';
-import PermissionAlert from './PermissionAlert';
-import TranscriptDisplay from './TranscriptDisplay';
 import { useVoiceRecorderState } from '@/hooks/useVoiceRecorderState';
+
+// Define interfaces for components that are missing them
+interface PermissionAlertProps {
+  status: 'prompt' | 'denied' | 'loading' | 'unsupported' | 'granted';
+  onRequestPermission: () => Promise<boolean>;
+}
+
+interface TranscriptDisplayProps {
+  transcript: string;
+  isProcessing?: boolean;
+}
+
+// Create the missing components
+const PermissionAlert: React.FC<PermissionAlertProps> = ({ status, onRequestPermission }) => {
+  return (
+    <Alert variant={status === 'denied' ? 'destructive' : 'default'}>
+      <AlertDescription>
+        {status === 'denied' 
+          ? "Microphone access was denied. Please enable it in your browser settings."
+          : status === 'prompt'
+          ? "Microphone access is needed to record voice notes. Please grant permission."
+          : status === 'loading'
+          ? "Checking microphone permissions..."
+          : status === 'unsupported'
+          ? "Your browser does not support microphone access."
+          : ""}
+      </AlertDescription>
+      {status === 'prompt' && (
+        <Button onClick={onRequestPermission} variant="outline" size="sm" className="mt-2">
+          Enable Microphone
+        </Button>
+      )}
+    </Alert>
+  );
+};
+
+const TranscriptDisplay: React.FC<TranscriptDisplayProps> = ({ transcript, isProcessing }) => {
+  return (
+    <div className="space-y-2">
+      <h3 className="text-sm font-semibold">Transcript</h3>
+      <div className="p-3 bg-muted rounded-md text-sm whitespace-pre-wrap">
+        {isProcessing ? (
+          <div className="text-muted-foreground italic">Processing transcript...</div>
+        ) : (
+          transcript || "No transcript available"
+        )}
+      </div>
+    </div>
+  );
+};
 
 export interface RefactoredVoiceRecorderViewProps {
   isProcessing: boolean;
