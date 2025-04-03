@@ -1,8 +1,10 @@
-
 // Firebase initialization and configuration
 import { initializeApp } from 'firebase/app';
-import { getMessaging, isSupported } from 'firebase/messaging';
+import { getMessaging, isSupported, onMessage } from 'firebase/messaging';
 import { getFirestore } from 'firebase/firestore';
+import { createDebugLogger } from '@/utils/debugUtils';
+
+const debugLog = createDebugLogger("FirebaseService");
 
 // Firebase configuration
 const firebaseConfig = {
@@ -30,7 +32,7 @@ export const initializeFirebase = async () => {
   
   if (typeof window !== 'undefined') {
     try {
-      console.log('Initializing Firebase...');
+      debugLog('Initializing Firebase...');
       app = initializeApp(firebaseConfig);
       
       // Check if messaging is supported
@@ -38,21 +40,23 @@ export const initializeFirebase = async () => {
       if (supported) {
         try {
           messaging = getMessaging(app);
-          console.log('Firebase messaging initialized');
+          debugLog('Firebase messaging initialized');
         } catch (messagingError) {
           console.error('Error initializing Firebase messaging:', messagingError);
+          debugLog(`Error initializing Firebase messaging: ${messagingError}`);
           messaging = null;
         }
       } else {
-        console.log('Firebase messaging not supported in this browser');
+        debugLog('Firebase messaging not supported in this browser');
       }
       
       // Initialize Firestore
       try {
         firestore = getFirestore(app);
-        console.log('Firebase Firestore initialized');
+        debugLog('Firebase Firestore initialized');
       } catch (firestoreError) {
         console.error('Error initializing Firestore:', firestoreError);
+        debugLog(`Error initializing Firestore: ${firestoreError}`);
         firestore = null;
       }
       
@@ -66,23 +70,50 @@ export const initializeFirebase = async () => {
             const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
               scope: '/'
             });
-            console.log('Service worker registered:', registration);
+            debugLog('Service worker registered:', registration);
           } else {
-            console.log('Existing service worker found');
+            debugLog('Existing service worker found');
           }
         } catch (swError) {
           console.error('Service worker registration failed:', swError);
+          debugLog(`Service worker registration failed: ${swError}`);
         }
       }
       
       return { messaging, firestore };
     } catch (error) {
       console.error('Error initializing Firebase:', error);
+      debugLog(`Error initializing Firebase: ${error}`);
       return { messaging: null, firestore: null };
     }
   }
   
   return { messaging: null, firestore: null };
+};
+
+// Check if running on iOS device
+export const isIOSDevice = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return /iphone|ipad|ipod|macintosh/.test(userAgent) && 'ontouchend' in document;
+};
+
+// Check if running on Android device
+export const isAndroidDevice = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return /android/.test(userAgent);
+};
+
+// Check if running in standalone PWA mode
+export const isPWAMode = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  
+  return window.matchMedia('(display-mode: standalone)').matches || 
+         (window.navigator as any).standalone === true || 
+         document.referrer.includes('android-app://');
 };
 
 // Initialize Firebase when this module is loaded

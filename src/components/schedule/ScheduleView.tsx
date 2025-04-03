@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { useSchedule } from '@/hooks/useSchedule';
 import { WeeklyCalendar } from './WeeklyCalendar';
@@ -8,6 +8,11 @@ import { Period } from '@/contexts/ScheduleContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DayDetailView } from './DayDetailView';
 import { format } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
+import { createDebugLogger } from '@/utils/debugUtils';
+
+const debugLog = createDebugLogger("ScheduleView");
 
 export const ScheduleView: React.FC = () => {
   const isMobile = useIsMobile();
@@ -25,13 +30,21 @@ export const ScheduleView: React.FC = () => {
     getPeriodsForDay,
     updatePeriod,
     deletePeriod,
-    getDaysOfWeek
+    getDaysOfWeek,
+    resetToDefaultSchedule
   } = useSchedule();
+  
+  useEffect(() => {
+    debugLog(`Loaded ${periods.length} periods for schedule view`);
+    periods.forEach(period => {
+      debugLog(`Period: ${period.title}, Time: ${format(period.startTime, 'h:mm a')} - ${format(period.endTime, 'h:mm a')}`);
+    });
+  }, [periods]);
   
   const handlePeriodClick = (period: Period, displayDay: Date) => {
     setSelectedDay(displayDay);
     setIsDayDetailOpen(true);
-    console.log(`Selected day: ${selectedDay ? format(selectedDay, 'EEEE, MMMM d') : 'none'}`);
+    debugLog(`Selected day: ${selectedDay ? format(selectedDay, 'EEEE, MMMM d') : 'none'}`);
   };
   
   const handleDayClick = (day: Date) => {
@@ -51,6 +64,11 @@ export const ScheduleView: React.FC = () => {
       deletePeriod(selectedPeriod.id);
     }
     setIsEditorOpen(false);
+  };
+  
+  const handleResetSchedule = () => {
+    debugLog("Resetting to default schedule");
+    resetToDefaultSchedule();
   };
   
   if (loading) {
@@ -77,13 +95,24 @@ export const ScheduleView: React.FC = () => {
   
   return (
     <div className="flex flex-col h-full space-y-2">
-      <ScheduleToolbar 
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        selectedDate={selectedDate}
-        onDateChange={setSelectedDate}
-        onAddPeriod={() => {}}
-      />
+      <div className="flex justify-between items-center">
+        <ScheduleToolbar 
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          selectedDate={selectedDate}
+          onDateChange={setSelectedDate}
+          onAddPeriod={() => {}}
+        />
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleResetSchedule}
+          className="flex items-center gap-1"
+        >
+          <RefreshCw className="h-3 w-3" />
+          Reset
+        </Button>
+      </div>
       
       <div className="flex-1 overflow-hidden">
         <WeeklyCalendar 

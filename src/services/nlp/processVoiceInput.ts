@@ -1,11 +1,10 @@
-
 import { VoiceProcessingResult, CreateReminderInput, ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
 import { detectPriority } from './detectPriority';
 import { detectCategory } from './detectCategory';
 import { detectPeriod } from './detectPeriod';
 import { extractChecklistItems } from './extractChecklistItems';
 import { detectDateTime } from './detectDateTime';
-import { mockPeriods } from '@/utils/reminderUtils';
+import { mockPeriods, getPeriodByTime } from '@/utils/reminderUtils';
 import { generateMeaningfulTitle } from '@/utils/voiceReminderUtils';
 
 // Main function to process voice input
@@ -81,8 +80,27 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
       const selectedPeriod = mockPeriods.find(p => p.id === finalPeriodId);
       if (selectedPeriod && selectedPeriod.startTime) {
         const dueDate = new Date(dateTimeResult.detectedDate);
-        const [hours, minutes] = selectedPeriod.startTime.split(':').map(Number);
-        dueDate.setHours(hours, minutes, 0, 0);
+        
+        // Parse the start time (handle both 24-hour and 12-hour formats)
+        let [hours, minutes] = selectedPeriod.startTime.split(':').map(part => {
+          // Handle cases like "1:14" (convert to 13:14)
+          if (part.includes(":")) return part;
+          
+          const num = parseInt(part, 10);
+          // If it's a single-digit hour in the afternoon (1-9), convert to 24-hour format
+          if (num >= 1 && num <= 9 && selectedPeriod.startTime.indexOf(":") > 1) {
+            return (num + 12).toString();
+          }
+          return part;
+        });
+        
+        // Convert hours to number, handling 12-hour format
+        let hoursNum = parseInt(hours, 10);
+        if (hoursNum < 8 && selectedPeriod.startTime.indexOf(":") > 1) {
+          hoursNum += 12; // Convert afternoon hours to 24-hour format
+        }
+        
+        dueDate.setHours(hoursNum, parseInt(minutes, 10), 0, 0);
         reminderInput.dueDate = dueDate;
         console.log('Updated due date with period start time:', reminderInput.dueDate);
       }
@@ -96,27 +114,44 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
       console.log('Updated due date with before school time:', reminderInput.dueDate);
     }
   } else {
-    // No date was explicitly detected, use today
+    // No date was explicitly detected, use today or tomorrow
     // Check if we need to move to tomorrow based on selected period/time
     if (finalPeriodId) {
       const selectedPeriod = mockPeriods.find(p => p.id === finalPeriodId);
       if (selectedPeriod && selectedPeriod.startTime) {
-        const [hours, minutes] = selectedPeriod.startTime.split(':').map(Number);
+        // Parse the start time (handle both 24-hour and 12-hour formats)
+        let [hours, minutes] = selectedPeriod.startTime.split(':').map(part => {
+          // Handle cases like "1:14" (convert to 13:14)
+          if (part.includes(":")) return part;
+          
+          const num = parseInt(part, 10);
+          // If it's a single-digit hour in the afternoon (1-9), convert to 24-hour format
+          if (num >= 1 && num <= 9 && selectedPeriod.startTime.indexOf(":") > 1) {
+            return (num + 12).toString();
+          }
+          return part;
+        });
+        
+        // Convert hours to number, handling 12-hour format
+        let hoursNum = parseInt(hours, 10);
+        if (hoursNum < 8 && selectedPeriod.startTime.indexOf(":") > 1) {
+          hoursNum += 12; // Convert afternoon hours to 24-hour format
+        }
         
         // Create a date object for the period time today
         const periodTime = new Date();
-        periodTime.setHours(hours, minutes, 0, 0);
+        periodTime.setHours(hoursNum, parseInt(minutes, 10), 0, 0);
         
         // If period time is earlier than current time, move to tomorrow
         if (periodTime < now) {
           const tomorrow = new Date();
           tomorrow.setDate(tomorrow.getDate() + 1);
-          tomorrow.setHours(hours, minutes, 0, 0);
+          tomorrow.setHours(hoursNum, parseInt(minutes, 10), 0, 0);
           reminderInput.dueDate = tomorrow;
           console.log('Period time already passed today, setting due date to tomorrow:', reminderInput.dueDate);
         } else {
           const today = new Date();
-          today.setHours(hours, minutes, 0, 0);
+          today.setHours(hoursNum, parseInt(minutes, 10), 0, 0);
           reminderInput.dueDate = today;
           console.log('Setting due date to today with period time:', reminderInput.dueDate);
         }

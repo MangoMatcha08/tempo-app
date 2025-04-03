@@ -1,10 +1,9 @@
-
 import { useState, useEffect, useRef } from "react";
 import { VoiceProcessingResult, ReminderPriority, ReminderCategory } from "@/types/reminderTypes";
 import { generateMeaningfulTitle } from "@/utils/voiceReminderUtils";
 import { processVoiceInput } from "@/services/nlp";
 import { useToast } from "@/hooks/use-toast";
-import { isPwaMode, getPwaAdjustedTimeout } from "@/utils/pwaUtils";
+import { isPwaMode, getPwaAdjustedTimeout, isIOSDevice } from "@/utils/pwaUtils";
 import { createDebugLogger } from "@/utils/debugUtils";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -28,13 +27,17 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const processingRetryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [isPWA, setIsPWA] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
   const processingAttemptsRef = useRef(0);
+  const viewChangeAttemptedRef = useRef(false);
   
-  // Check if running as PWA
+  // Check if running as PWA and on iOS
   useEffect(() => {
     const pwaStatus = isPwaMode();
+    const iosStatus = isIOSDevice();
     setIsPWA(pwaStatus);
-    debugLog("Running as PWA:", pwaStatus);
+    setIsIOS(iosStatus);
+    debugLog("Running as PWA:", pwaStatus, "on iOS:", iosStatus);
   }, []);
   
   // Reset state when modal opens
@@ -50,6 +53,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       setCategory(ReminderCategory.TASK);
       setPeriod("none");
       processingAttemptsRef.current = 0;
+      viewChangeAttemptedRef.current = false;
       
       // Clear any pending timers
       if (transitionTimerRef.current) {
@@ -125,7 +129,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         
         // Add a forced delay to ensure UI renders correctly before transition
         // This is critical for iOS transitions
-        const baseDelay = 800;
+        const baseDelay = isIOS ? 1200 : 800;
         const platformMultiplier = (isPWA || isMobile) ? 1.5 : 1;
         const transitionDelay = Math.round(baseDelay * platformMultiplier);
         
@@ -136,11 +140,22 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
           clearTimeout(transitionTimerRef.current);
         }
         
+        // Mark that we've attempted to change the view
+        viewChangeAttemptedRef.current = true;
+        
         // Use setTimeout with a reference to ensure we can clear it if needed
         transitionTimerRef.current = setTimeout(() => {
           debugLog("Transition timer fired, setting view to confirm");
           setView("confirm");
           transitionTimerRef.current = null;
+          
+          // Add a second check to ensure view change happened
+          setTimeout(() => {
+            if (view !== "confirm" && viewChangeAttemptedRef.current) {
+              debugLog("View change didn't take effect, forcing view change again");
+              setView("confirm");
+            }
+          }, 500);
         }, transitionDelay);
         
         return true;
@@ -205,6 +220,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   const handleCancel = () => {
     debugLog("Cancel handler called");
     isConfirmingRef.current = false;
+    viewChangeAttemptedRef.current = false;
     
     // Clear any pending transitions
     if (transitionTimerRef.current) {
@@ -225,6 +241,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     debugLog("Go back handler called");
     setView("record");
     isConfirmingRef.current = false;
+    viewChangeAttemptedRef.current = false;
   };
   
   // Clean up timer on unmount
@@ -247,6 +264,11 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   // Debug logging for view transitions
   useEffect(() => {
     debugLog("View state changed:", view);
+    
+    // If view changed to confirm, mark the attempt as successful
+    if (view === "confirm") {
+      viewChangeAttemptedRef.current = false;
+    }
   }, [view]);
   
   // For debugging
@@ -258,9 +280,10 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       hasResult: !!processingResult,
       title,
       isPWA,
+      isIOS,
       isMobile
     });
-  }, [view, transcript, isProcessing, processingResult, title, isPWA, isMobile]);
+  }, [view, transcript, isProcessing, processingResult, title, isPWA, isIOS, isMobile]);
   
   return {
     title,
@@ -280,6 +303,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     handleGoBack,
     resetState,
     isPWA,
+    isIOS,
     isMobile
   };
 }

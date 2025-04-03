@@ -6,6 +6,7 @@ import Dashboard from "@/components/Dashboard";
 import Schedule from "@/pages/Schedule";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
+import TestPage from '@/pages/TestPage';
 import { AuthProvider } from "@/contexts/AuthContext";
 import { FirestoreProvider } from "@/contexts/FirestoreContext";
 import { ScheduleProvider } from "@/contexts/ScheduleContext";
@@ -16,6 +17,28 @@ import { Toaster } from "@/components/ui/toaster";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster as SonnerToaster } from "sonner";
 
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <Dashboard />,
+  },
+  {
+    path: '/dashboard',
+    element: <Dashboard />,
+  },
+  {
+    path: '/schedule',
+    element: <Schedule />,
+  },
+  {
+    path: '/settings',
+    element: <Settings />,
+  },
+  {
+    path: '/test',
+    element: <TestPage />,
+  },
+  
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

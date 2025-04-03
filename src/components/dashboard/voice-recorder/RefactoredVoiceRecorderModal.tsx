@@ -1,4 +1,3 @@
-
 import { useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -35,13 +34,15 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
     handleCancel,
     handleGoBack,
     resetState,
-    isPWA
+    isPWA,
+    isIOS
   } = useVoiceRecorderState(onOpenChange);
   
   const { toast } = useToast();
   const dialogContentRef = useRef<HTMLDivElement>(null);
   const lastOpenStateRef = useRef(open);
   const transcriptProcessedRef = useRef(false);
+  const viewChangeTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // When modal opens, try to request microphone permission proactively
   useEffect(() => {
@@ -58,18 +59,23 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   useEffect(() => {
     if (view === "confirm" && dialogContentRef.current) {
       debugLog("View changed to confirm, scrolling to bottom");
+      
+      // Use a slightly longer delay for iOS devices
+      const scrollDelay = isIOS ? 300 : 100;
+      
       setTimeout(() => {
         if (dialogContentRef.current) {
           dialogContentRef.current.scrollTop = dialogContentRef.current.scrollHeight;
+          debugLog("Scrolled to bottom of dialog content");
         }
-      }, 100);
+      }, scrollDelay);
     }
-  }, [view, processingResult]);
+  }, [view, processingResult, isIOS]);
   
   // Debug logging for view state and PWA
   useEffect(() => {
-    debugLog(`Current view: ${view}, transcript length: ${transcript ? transcript.length : 0}, isPWA: ${isPWA}`);
-  }, [view, transcript, isPWA]);
+    debugLog(`Current view: ${view}, transcript length: ${transcript ? transcript.length : 0}, isPWA: ${isPWA}, isIOS: ${isIOS}`);
+  }, [view, transcript, isPWA, isIOS]);
   
   // Enhanced debug logging for isProcessing state
   useEffect(() => {
@@ -100,7 +106,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
       debugLog("PWA mode detected, adding slight delay before processing");
       setTimeout(() => {
         handleTranscriptComplete(text);
-      }, 300);
+      }, isIOS ? 500 : 300);
     } else {
       handleTranscriptComplete(text);
     }
@@ -163,6 +169,33 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
       });
     }
   };
+
+  // Force view to confirm if we have a transcript but view is still record
+  useEffect(() => {
+    if (transcript && transcript.length > 0 && !isProcessing && view === "record" && processingResult) {
+      debugLog("Detected transcript with processing result but view is still record, forcing view change");
+      
+      if (viewChangeTimerRef.current) {
+        clearTimeout(viewChangeTimerRef.current);
+      }
+      
+      viewChangeTimerRef.current = setTimeout(() => {
+        if (view === "record") {
+          debugLog("Forcing view change to confirm");
+          // Force view to confirm
+          setView("confirm");
+        }
+        viewChangeTimerRef.current = null;
+      }, 1000);
+    }
+    
+    return () => {
+      if (viewChangeTimerRef.current) {
+        clearTimeout(viewChangeTimerRef.current);
+        viewChangeTimerRef.current = null;
+      }
+    };
+  }, [transcript, isProcessing, view, processingResult, setView]);
 
   return (
     <Dialog 

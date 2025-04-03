@@ -1,96 +1,72 @@
 import { useState, useCallback } from 'react';
 import { useScheduleContext, Period, PeriodType } from '@/contexts/ScheduleContext';
-import { addMinutes, addDays, startOfWeek, isToday, isSameDay } from 'date-fns';
+import { addMinutes, addDays, startOfWeek, isToday, isSameDay, parse, set } from 'date-fns';
+import { mockPeriods as defaultPeriods } from '@/utils/reminderUtils';
+import { createDebugLogger } from '@/utils/debugUtils';
 
-// Mock data generator
-const generateMockPeriods = (): Period[] => {
+const debugLog = createDebugLogger("ScheduleHook");
+
+// Convert mockPeriods from reminderUtils to Period objects
+const convertDefaultPeriods = (): Period[] => {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   
-  const mockPeriods: Period[] = [
-    {
-      id: '1',
-      title: 'Math 101',
-      type: 'core',
-      startTime: addMinutes(today, 480), // 8:00 AM
-      endTime: addMinutes(today, 540),   // 9:00 AM
-      location: 'Room 204',
-      isRecurring: true,
-      daysOfWeek: [1, 3, 5], // Mon, Wed, Fri
-      notes: 'Collect homework, Review Chapter 5, Quiz preparation',
-    },
-    {
-      id: '2',
-      title: 'English Literature',
-      type: 'core',
-      startTime: addMinutes(today, 560), // 9:20 AM
-      endTime: addMinutes(today, 620),   // 10:20 AM
-      location: 'Room 115',
-      isRecurring: true,
-      daysOfWeek: [1, 3, 5], // Mon, Wed, Fri
-      notes: 'Essay due date, Discussion on Hamlet',
-    },
-    {
-      id: '3',
-      title: 'Planning Period',
-      type: 'planning',
-      startTime: addMinutes(today, 640), // 10:40 AM
-      endTime: addMinutes(today, 700),   // 11:40 AM
-      location: 'Teachers Lounge',
+  return defaultPeriods.map(period => {
+    // Parse start time
+    const [startHours, startMinutes] = period.startTime.split(':').map(part => {
+      const num = parseInt(part, 10);
+      // If it's a single-digit hour in the afternoon (1-9), convert to 24-hour format
+      if (num >= 1 && num <= 9 && period.startTime.indexOf(":") > 1) {
+        return num + 12;
+      }
+      return num;
+    });
+    
+    // Parse end time
+    const [endHours, endMinutes] = period.endTime.split(':').map(part => {
+      const num = parseInt(part, 10);
+      // If it's a single-digit hour in the afternoon (1-9), convert to 24-hour format
+      if (num >= 1 && num <= 9 && period.endTime.indexOf(":") > 1) {
+        return num + 12;
+      }
+      return num;
+    });
+    
+    // Create start and end time Date objects
+    const startTime = new Date(today);
+    startTime.setHours(startHours, startMinutes, 0, 0);
+    
+    const endTime = new Date(today);
+    endTime.setHours(endHours, endMinutes, 0, 0);
+    
+    // Determine period type based on name
+    let type: PeriodType = 'core';
+    if (period.name.toLowerCase().includes('lunch')) {
+      type = 'other';
+    } else if (period.name.toLowerCase().includes('break')) {
+      type = 'other';
+    } else if (period.name.toLowerCase().includes('before school') || period.name.toLowerCase().includes('after school')) {
+      type = 'other';
+    }
+    
+    // Create Period object
+    return {
+      id: period.id,
+      title: period.name,
+      type,
+      startTime,
+      endTime,
+      location: '',
       isRecurring: true,
       daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
-      notes: 'Grade papers, Prepare test materials',
-    },
-    {
-      id: '4',
-      title: 'Lunch Break',
-      type: 'other',
-      startTime: addMinutes(today, 720), // 12:00 PM
-      endTime: addMinutes(today, 760),   // 12:40 PM
-      isRecurring: true,
-      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
-    },
-    {
-      id: '5',
-      title: 'Science Lab',
-      type: 'core',
-      startTime: addMinutes(today, 780), // 1:00 PM
-      endTime: addMinutes(today, 840),   // 2:00 PM
-      location: 'Lab 3',
-      isRecurring: true,
-      daysOfWeek: [2, 4], // Tue, Thu
-      notes: 'Chemical reactions demo, Safety procedures review',
-    },
-    {
-      id: '6',
-      title: 'Art Class',
-      type: 'elective',
-      startTime: addMinutes(today, 780), // 1:00 PM
-      endTime: addMinutes(today, 840),   // 2:00 PM
-      location: 'Art Studio',
-      isRecurring: true,
-      daysOfWeek: [1, 3, 5], // Mon, Wed, Fri
-      notes: 'Materials for next project, Student showcase preparation',
-    },
-    {
-      id: '7',
-      title: 'Faculty Meeting',
-      type: 'meeting',
-      startTime: addMinutes(today, 900), // 3:00 PM
-      endTime: addMinutes(today, 960),   // 4:00 PM
-      location: 'Conference Room',
-      isRecurring: true,
-      daysOfWeek: [3], // Wed only
-      notes: 'Budget discussion, Upcoming events, Parent-teacher conferences',
-    },
-  ];
-  
-  return mockPeriods;
+      notes: '',
+    };
+  });
 };
 
 export const useSchedule = () => {
   const { isReady } = useScheduleContext();
-  const [periods, setPeriods] = useState<Period[]>(generateMockPeriods());
+  const [periods, setPeriods] = useState<Period[]>(convertDefaultPeriods());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   
@@ -159,6 +135,11 @@ export const useSchedule = () => {
     return result;
   }, []);
   
+  const resetToDefaultSchedule = useCallback(() => {
+    debugLog("Resetting to default schedule");
+    setPeriods(convertDefaultPeriods());
+  }, []);
+  
   return {
     periods,
     loading,
@@ -169,6 +150,7 @@ export const useSchedule = () => {
     updatePeriod,
     deletePeriod,
     getDaysOfWeek,
+    resetToDefaultSchedule,
     isToday
   };
 };

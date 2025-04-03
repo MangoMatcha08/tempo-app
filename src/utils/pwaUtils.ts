@@ -1,14 +1,179 @@
 
+import { useEffect, useState } from 'react';
 import { createDebugLogger } from '@/utils/debugUtils';
 
 const debugLog = createDebugLogger("PWAUtils");
 
-// Check if running in PWA mode
-export const isPwaMode = (): boolean => {
+// Check if running on iOS device
+export const isIOSDevice = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return /iphone|ipad|ipod|macintosh/.test(userAgent) && 'ontouchend' in document;
+};
+
+// Check if running on Android device
+export const isAndroidDevice = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return /android/.test(userAgent);
+};
+
+// Check if running in standalone PWA mode
+export const isPWAMode = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  
   return window.matchMedia('(display-mode: standalone)').matches || 
          (window.navigator as any).standalone === true || 
          document.referrer.includes('android-app://');
 };
+
+// Hook to detect PWA and device type
+export const usePWADetection = () => {
+  const [isPWA, setIsPWA] = useState<boolean>(false);
+  const [isIOS, setIsIOS] = useState<boolean>(false);
+  const [isAndroid, setIsAndroid] = useState<boolean>(false);
+  const [isReady, setIsReady] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Detect device and PWA status
+    const detectEnvironment = () => {
+      const ios = isIOSDevice();
+      const android = isAndroidDevice();
+      const pwa = isPWAMode();
+      
+      setIsIOS(ios);
+      setIsAndroid(android);
+      setIsPWA(pwa);
+      setIsReady(true);
+      
+      debugLog(`Environment detection - iOS: ${ios}, Android: ${android}, PWA: ${pwa}`);
+    };
+
+    // Run detection on mount
+    detectEnvironment();
+    
+    // Also check when visibility changes (useful for PWA detection)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        detectEnvironment();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  return { isPWA, isIOS, isAndroid, isReady };
+};
+
+// iOS PWA specific utilities
+export const iOSPWAUtils = {
+  // Add delay for iOS PWA transitions
+  getTransitionDelay: (): number => {
+    if (isIOSDevice() && isPWAMode()) {
+      return 300; // Longer delay for iOS PWA
+    }
+    return 100; // Normal delay for other platforms
+  },
+  
+  // Fix for iOS PWA audio context issues
+  fixAudioContext: (): void => {
+    if (isIOSDevice() && isPWAMode() && typeof window !== 'undefined') {
+      // Create and immediately suspend a dummy audio context to "warm up" the audio system
+      try {
+        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContext) {
+          const dummyContext = new AudioContext();
+          dummyContext.suspend();
+          
+          // Resume on user interaction
+          const resumeAudio = () => {
+            dummyContext.resume().then(() => {
+              debugLog('Audio context resumed for iOS PWA');
+            }).catch(err => {
+              debugLog('Error resuming audio context:', err);
+            });
+            
+            // Remove listeners after first interaction
+            document.removeEventListener('touchstart', resumeAudio);
+            document.removeEventListener('touchend', resumeAudio);
+          };
+          
+          document.addEventListener('touchstart', resumeAudio);
+          document.addEventListener('touchend', resumeAudio);
+          
+          debugLog('iOS PWA audio context fix applied');
+        }
+      } catch (err) {
+        debugLog('Error applying iOS PWA audio fix:', err);
+      }
+    }
+  },
+  
+  // Fix for iOS PWA scroll issues
+  fixScrolling: (): void => {
+    if (isIOSDevice() && isPWAMode() && typeof document !== 'undefined') {
+      // Prevent overscroll/bounce
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.height = '100%';
+      document.body.style.width = '100%';
+      
+      debugLog('iOS PWA scroll fix applied');
+    }
+  }
+};
+
+// Test PWA compatibility
+export const testPWACompatibility = (): {
+  isPWA: boolean;
+  isIOS: boolean;
+  isAndroid: boolean;
+  features: Record<string, boolean>;
+} => {
+  const ios = isIOSDevice();
+  const android = isAndroidDevice();
+  const pwa = isPWAMode();
+  
+  // Test various features
+  const features = {
+    serviceWorker: 'serviceWorker' in navigator,
+    webAudio: !!(window.AudioContext || (window as any).webkitAudioContext),
+    notifications: 'Notification' in window,
+    pushManager: 'PushManager' in window,
+    mediaRecorder: 'MediaRecorder' in window,
+    speechRecognition: 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window,
+    indexedDB: 'indexedDB' in window,
+    localStorage: 'localStorage' in window,
+    webShare: 'share' in navigator,
+    vibration: 'vibrate' in navigator,
+    geolocation: 'geolocation' in navigator,
+    deviceOrientation: 'DeviceOrientationEvent' in window,
+    deviceMotion: 'DeviceMotionEvent' in window,
+    fullscreen: document.documentElement.requestFullscreen !== undefined
+  };
+  
+  debugLog('PWA Compatibility Test Results:', {
+    isPWA: pwa,
+    isIOS: ios,
+    isAndroid: android,
+    features
+  });
+  
+  return {
+    isPWA: pwa,
+    isIOS: ios,
+    isAndroid: android,
+    features
+  };
+};
+
 
 // Get a timeout value adjusted for PWA
 export const getPwaAdjustedTimeout = (baseTimeout: number, isMobile = false): number => {
@@ -225,17 +390,5 @@ export const ensureActiveAudioStream = async (): Promise<boolean> => {
     debugLog(`Error ensuring audio stream: ${error}`);
     return false;
   }
-};
-
-// Check if running on iOS device
-export const isIOSDevice = (): boolean => {
-  const userAgent = window.navigator.userAgent.toLowerCase();
-  return /iphone|ipad|ipod|macintosh/.test(userAgent) && 'ontouchend' in document;
-};
-
-// Check if running on mobile device
-export const isMobileDevice = (): boolean => {
-  const userAgent = window.navigator.userAgent.toLowerCase();
-  return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
 };
 
