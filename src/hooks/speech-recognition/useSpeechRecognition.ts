@@ -1,10 +1,11 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { UseSpeechRecognitionReturn } from './types';
 import { useSpeechRecognitionSetup } from './useSpeechRecognitionSetup';
 import { useTranscriptState } from './useTranscriptState';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { createDebugLogger } from '@/utils/debugUtils';
+import { getPlatformAdjustedTimeout } from './utils';
 
 const debugLog = createDebugLogger("SpeechRecognition");
 
@@ -16,9 +17,16 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   const [error, setError] = useState<string | undefined>(undefined);
   const [isListening, setIsListening] = useState<boolean>(false);
   const isMobile = useIsMobile();
+  const attemptCountRef = useRef<number>(0);
+  const activeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Use separate hooks for managing recognition and transcript
-  const { recognition, browserSupportsSpeechRecognition, isPWA } = useSpeechRecognitionSetup({
+  const { 
+    recognition, 
+    browserSupportsSpeechRecognition, 
+    isPWA,
+    isIOS 
+  } = useSpeechRecognitionSetup({
     onError: setError,
     isListening,
     setIsListening
@@ -27,12 +35,14 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   const { 
     transcript, 
     interimTranscript,
+    isProcessing,
     setTranscript, 
     resetTranscriptState, 
     processSpeechResults 
-  } = useTranscriptState();
+  } = useTranscriptState({ isPWA, isIOS });
   
-  // Configure recognition event handlers
+  // IMPROVEMENT 3: Robust Recognition State Management (continued)
+  // Configure recognition event handlers with improved mobile handling
   useEffect(() => {
     if (!recognition) return;
     
@@ -40,6 +50,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     
     recognition.onresult = (event: any) => {
       debugLog("Recognition result received");
+      attemptCountRef.current = 0; // Reset attempt counter on success
       processSpeechResults(event);
     };
     
@@ -70,10 +81,14 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         return;
       }
       
-      // For network errors, try to restart recognition
+      // For network errors, try to restart recognition with special handling
       if (event.error === 'network') {
         debugLog('Network error, attempting to restart recognition...');
         setError(errorMessages[event.error] || `Speech recognition error: ${event.error}`);
+        
+        // Attempt to recover with exponential backoff (for mobile network issues)
+        const backoffTime = Math.min(1000 * (2 ** attemptCountRef.current), 10000);
+        debugLog(`Backoff attempt ${attemptCountRef.current + 1}, waiting ${backoffTime}ms`);
         
         setTimeout(() => {
           if (isListening) {
@@ -82,11 +97,19 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
               debugLog("Recognition restarted after network error");
             } catch (err) {
               console.error('Failed to restart after network error:', err);
-              setError(`Speech recognition network error. Please try again.`);
-              setIsListening(false);
+              
+              // Increment attempt counter
+              attemptCountRef.current++;
+              
+              // Give up after too many attempts
+              if (attemptCountRef.current >= 3) {
+                setError(`Speech recognition network error. Please try again.`);
+                setIsListening(false);
+                attemptCountRef.current = 0;
+              }
             }
           }
-        }, 1000);
+        }, backoffTime);
         return;
       }
       
@@ -109,11 +132,17 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
           console.error('Error stopping recognition during cleanup:', err);
         }
       }
+      
+      // Clear any pending timeouts
+      if (activeTimeoutRef.current) {
+        clearTimeout(activeTimeoutRef.current);
+        activeTimeoutRef.current = null;
+      }
     };
   }, [recognition, isListening, processSpeechResults]);
 
   /**
-   * Starts the speech recognition process
+   * Starts the speech recognition process with enhanced mobile handling
    */
   const startListening = useCallback(() => {
     if (!recognition) {
@@ -121,16 +150,59 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       return;
     }
     
-    // Reset transcript
+    // Reset transcript and error state
     resetTranscriptState();
     setError(undefined);
+    attemptCountRef.current = 0;
     
+    // Update state
     setIsListening(true);
     debugLog("Starting speech recognition");
     
     try {
       recognition.start();
       debugLog('Speech recognition started');
+      
+      // IMPROVEMENT 5: User Feedback Enhancement
+      // Set a timeout to detect if nothing happens after start
+      if (activeTimeoutRef.current) {
+        clearTimeout(activeTimeoutRef.current);
+      }
+      
+      const timeoutDuration = getPlatformAdjustedTimeout(5000, { isPWA, isMobile, isIOS });
+      
+      activeTimeoutRef.current = setTimeout(() => {
+        // If we haven't received any results after a reasonable time,
+        // provide feedback and try restarting
+        if (isListening && !transcript && !interimTranscript) {
+          debugLog("No speech detected after timeout, attempting restart");
+          
+          try {
+            // Try stopping and restarting
+            recognition.stop();
+            
+            // Give browser a moment to release resources
+            setTimeout(() => {
+              if (isListening) {
+                try {
+                  recognition.start();
+                  debugLog("Successfully restarted after no-speech timeout");
+                } catch (err) {
+                  debugLog(`Failed restart after timeout: ${err}`);
+                  // If we still can't restart, show error
+                  setError("Speech recognition isn't responding. Please try again.");
+                  setIsListening(false);
+                }
+              }
+            }, 800);
+          } catch (err) {
+            debugLog(`Error in no-speech recovery: ${err}`);
+          }
+        }
+        
+        activeTimeoutRef.current = null;
+      }, timeoutDuration);
+      
     } catch (err) {
       // Handle the case where recognition is already started
       console.error('Recognition error on start:', err);
@@ -141,8 +213,8 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         recognition.stop();
         debugLog("Recognition stopped after error, will attempt restart");
         
-        // Use a longer timeout in PWA mode or on mobile
-        const delayTime = (isPWA || isMobile) ? 1000 : 300;
+        // Use an appropriate platform-specific delay
+        const delayTime = getPlatformAdjustedTimeout(500, { isPWA, isMobile, isIOS });
         debugLog(`Setting restart delay of ${delayTime}ms`);
         
         setTimeout(() => {
@@ -154,8 +226,27 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
           } catch (startErr) {
             console.error("Second start attempt failed:", startErr);
             debugLog(`Second start attempt failed: ${startErr}`);
-            setError('Failed to start speech recognition. Please try reloading the page.');
-            setIsListening(false);
+            
+            // For iOS, which can be problematic, try a third time with longer delay
+            if (isIOS) {
+              debugLog("iOS detected, trying third restart with longer delay");
+              
+              setTimeout(() => {
+                if (!isListening) return;
+                
+                try {
+                  recognition.start();
+                  debugLog("Third start attempt succeeded on iOS");
+                } catch (thirdErr) {
+                  debugLog(`Third start attempt failed: ${thirdErr}`);
+                  setError('Failed to start speech recognition. Please try reloading the page.');
+                  setIsListening(false);
+                }
+              }, 1500);
+            } else {
+              setError('Failed to start speech recognition. Please try reloading the page.');
+              setIsListening(false);
+            }
           }
         }, delayTime);
       } catch (stopErr) {
@@ -165,10 +256,10 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         setIsListening(false);
       }
     }
-  }, [recognition, resetTranscriptState, isPWA, isMobile, isListening]);
+  }, [recognition, resetTranscriptState, isPWA, isMobile, isIOS, isListening, transcript, interimTranscript]);
 
   /**
-   * Stops the speech recognition process
+   * Stops the speech recognition process with enhanced mobile handling
    */
   const stopListening = useCallback(() => {
     if (!recognition) {
@@ -178,22 +269,34 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     
     debugLog('Stopping speech recognition');
     setIsListening(false);
+    
+    // Clear any pending timeouts
+    if (activeTimeoutRef.current) {
+      clearTimeout(activeTimeoutRef.current);
+      activeTimeoutRef.current = null;
+    }
+    
     try {
       recognition.stop();
       debugLog('Speech recognition stopped successfully');
       
-      // On mobile, ensure we have the complete transcript before proceeding
-      if (isMobile) {
-        // Give a small delay to ensure final results are captured on mobile
+      // Platform-specific post-stop actions
+      if (isMobile || isPWA) {
+        // Give a small delay to ensure final results are captured
+        const delayMs = getPlatformAdjustedTimeout(300, { isPWA, isMobile, isIOS });
+        
         setTimeout(() => {
           debugLog(`Final transcript after mobile delay: "${transcript}"`);
-        }, 300);
+        }, delayMs);
       }
     } catch (err) {
       console.error('Error stopping recognition:', err);
       debugLog(`Error stopping recognition: ${err}`);
+      
+      // Even if stopping fails, we consider it stopped from the user's perspective
+      setIsListening(false);
     }
-  }, [recognition, transcript, isMobile]);
+  }, [recognition, transcript, isMobile, isPWA, isIOS]);
 
   return {
     transcript,

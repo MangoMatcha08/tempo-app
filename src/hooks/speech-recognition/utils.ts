@@ -1,3 +1,4 @@
+
 /**
  * Utility functions for speech recognition
  */
@@ -37,32 +38,59 @@ export const createSpeechRecognition = (): any | null => {
   return null;
 };
 
-// Configure speech recognition with optimal settings
-export const configureSpeechRecognition = (recognition: any, isHighLatency = false): void => {
+// IMPROVEMENT 1: Enhanced Speech Recognition Configuration for Mobile
+// Configure speech recognition with optimized settings for different platforms
+export const configureSpeechRecognition = (recognition: any, options: SpeechRecognitionOptions = {}): void => {
   if (!recognition) return;
   
+  const {
+    isHighLatency = false,
+    isPWA = false,
+    isMobile = false,
+    isIOS = false
+  } = options;
+  
   try {
-    // Adjust settings for high latency environments (mobile/PWA)
+    // Base configuration that works across platforms
     recognition.continuous = true;
     recognition.interimResults = true;
-    
-    // Use a language setting that works well on mobile
     recognition.lang = 'en-US';
     
-    // Other possible settings to experiment with
+    // Platform-specific optimizations
+    if (isMobile || isPWA) {
+      // Mobile optimizations - reduce processing burden
+      recognition.maxAlternatives = 1; // Limit alternatives to improve performance
+      
+      // iOS Safari has specific behavior that needs accommodation
+      if (isIOS) {
+        // iOS Safari works better with these settings
+        recognition.interimResults = true; // Ensure this is on for iOS
+      }
+      
+      // Android-specific tweaks
+      if (isMobile && !isIOS) {
+        // Android sometimes needs these adjustments
+        if ('audioContext' in recognition) {
+          // @ts-ignore - This is a non-standard property
+          recognition.audioContext = {
+            sampleRate: 16000 // Lower sample rate for better performance on mobile
+          };
+        }
+      }
+      
+      // PWA-specific optimizations
+      if (isPWA) {
+        // PWA mode - extra robustness for context switches
+        recognition.continuous = true; // Keep continuous mode for PWAs
+      }
+    }
+    
+    // High latency network accommodations (especially for mobile data)
     if (isHighLatency) {
       // For higher latency environments, these settings may work better
       recognition.maxAlternatives = 1;
-      
-      // Some browsers support additional settings
-      if ('audioContext' in recognition) {
-        // @ts-ignore - This is a non-standard property
-        recognition.audioContext = {
-          sampleRate: 16000 // Lower sample rate for better performance on mobile
-        };
-      }
     } else {
-      // For low latency environments
+      // For low latency environments (usually desktop)
       recognition.maxAlternatives = 3;
     }
   } catch (error) {
@@ -94,3 +122,48 @@ export const getSpeechRecognitionSupportLevel = (): 'full' | 'limited' | 'unsupp
   
   return 'full';
 };
+
+// IMPROVEMENT 2: Platform-Aware Timing Adjustments
+// Get optimized timeout based on platform detection
+export const getPlatformAdjustedTimeout = (
+  baseTimeout: number,
+  options: { isPWA?: boolean; isMobile?: boolean; isIOS?: boolean } = {}
+): number => {
+  const { isPWA = false, isMobile = false, isIOS = false } = options;
+  
+  let multiplier = 1;
+  
+  // Apply multipliers based on platform
+  if (isPWA) multiplier *= 2.0; // PWA needs longer timeouts
+  if (isMobile) multiplier *= 1.5; // Mobile generally needs more time
+  if (isIOS) multiplier *= 1.2; // iOS Safari has specific timing needs
+  
+  // Combine factors but ensure reasonable bounds
+  multiplier = Math.max(1, Math.min(multiplier, 3.5));
+  
+  return Math.round(baseTimeout * multiplier);
+};
+
+// Detect iOS device
+export const isIOSDevice = (): boolean => {
+  const userAgent = navigator.userAgent;
+  return /iPad|iPhone|iPod/.test(userAgent);
+};
+
+// Detect if running in a high latency environment
+export const isHighLatencyEnvironment = (): boolean => {
+  // Simple heuristic - mobile networks are often higher latency
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
+  // Could be enhanced with actual network detection
+  // For now, assume mobile is higher latency than desktop
+  return isMobile;
+};
+
+// Helper interface for speech recognition configuration
+export interface SpeechRecognitionOptions {
+  isHighLatency?: boolean;
+  isPWA?: boolean;
+  isMobile?: boolean;
+  isIOS?: boolean;
+}

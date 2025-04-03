@@ -1,30 +1,40 @@
 
-import { useState, useRef, useCallback } from 'react';
-import { debounce } from './utils';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { debounce, getPlatformAdjustedTimeout } from './utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { createDebugLogger } from '@/utils/debugUtils';
 
 const debugLog = createDebugLogger("TranscriptState");
 
-export const useTranscriptState = () => {
+// IMPROVEMENT 4: Improved Voice Processing Workflow
+export const useTranscriptState = (options: { isPWA: boolean; isIOS: boolean } = { isPWA: false, isIOS: false }) => {
   const [transcript, setTranscript] = useState<string>('');
   const [interimTranscript, setInterimTranscript] = useState<string>('');
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [lastResultTimestamp, setLastResultTimestamp] = useState<number>(0);
   const isMobile = useIsMobile();
+  const { isPWA, isIOS } = options;
   
   // Use refs to store the current full transcript and interim results
   const finalTranscriptRef = useRef<string>('');
   const interimTranscriptRef = useRef<string>('');
+  const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Create a debounced update function with mobile-specific timing
+  // Create a debounced update function with platform-specific timing
   const debouncedSetTranscript = useCallback(
     debounce((text: string) => {
       debugLog(`Setting transcript: "${text.substring(0, 20)}${text.length > 20 ? '...' : ''}"`);
       setTranscript(text);
-    }, isMobile ? 30 : 50), // Even faster updates on mobile
-    [isMobile]
+    }, getPlatformAdjustedTimeout(50, { isPWA, isMobile, isIOS })),
+    [isMobile, isPWA, isIOS]
   );
 
+  // Enhanced method to process speech results with platform-specific optimizations
   const processSpeechResults = useCallback((event: any) => {
+    // Update the last result timestamp for activity tracking
+    setLastResultTimestamp(Date.now());
+    setIsProcessing(true);
+    
     // Process results to separate final from interim
     let finalTranscript = finalTranscriptRef.current;
     let interimTranscript = '';
@@ -45,7 +55,7 @@ export const useTranscriptState = () => {
       }
     }
     
-    // Update refs
+    // Update refs with clean values
     finalTranscriptRef.current = finalTranscript.trim();
     interimTranscriptRef.current = interimTranscript;
     
@@ -60,26 +70,76 @@ export const useTranscriptState = () => {
     if (fullTranscript) {
       debouncedSetTranscript(fullTranscript);
       
-      // On mobile, we need to ensure the transcript is set immediately
-      // This helps with the issue where the transcript isn't being sent
-      if (isMobile && finalTranscriptRef.current) {
-        debugLog(`Direct setting transcript on mobile: "${finalTranscriptRef.current.substring(0, 20)}${finalTranscriptRef.current.length > 20 ? '...' : ''}"`);
+      // Mobile-specific direct update for more immediate feedback
+      if ((isMobile || isPWA) && finalTranscriptRef.current) {
+        debugLog(`Direct setting transcript on mobile/PWA: "${finalTranscriptRef.current.substring(0, 20)}${finalTranscriptRef.current.length > 20 ? '...' : ''}"`);
         setTranscript(finalTranscriptRef.current);
       }
     }
-  }, [debouncedSetTranscript, isMobile]);
+    
+    // Clear any existing processing timeout
+    if (processingTimeoutRef.current) {
+      clearTimeout(processingTimeoutRef.current);
+    }
+    
+    // Set a timeout to clear processing state
+    processingTimeoutRef.current = setTimeout(() => {
+      setIsProcessing(false);
+      processingTimeoutRef.current = null;
+    }, getPlatformAdjustedTimeout(300, { isPWA, isMobile, isIOS }));
+  }, [debouncedSetTranscript, isMobile, isPWA, isIOS]);
 
+  // Reset state with proper cleanup
   const resetTranscriptState = useCallback(() => {
     debugLog('Resetting transcript state');
     setTranscript('');
     setInterimTranscript('');
+    setIsProcessing(false);
+    setLastResultTimestamp(0);
     finalTranscriptRef.current = '';
     interimTranscriptRef.current = '';
+    
+    // Clear any pending timeouts
+    if (processingTimeoutRef.current) {
+      clearTimeout(processingTimeoutRef.current);
+      processingTimeoutRef.current = null;
+    }
+  }, []);
+  
+  // Activity timeout monitoring - for detecting when speech has stopped
+  useEffect(() => {
+    // Only set up monitoring when we have a transcript and are receiving results
+    if (lastResultTimestamp > 0 && (transcript || interimTranscript)) {
+      const inactivityTimeout = getPlatformAdjustedTimeout(3000, { isPWA, isMobile, isIOS });
+      
+      const checkActivityInterval = setInterval(() => {
+        const timeSinceLastResult = Date.now() - lastResultTimestamp;
+        
+        // If no results for a while, assume speech has ended
+        if (timeSinceLastResult > inactivityTimeout) {
+          debugLog(`No speech detected for ${timeSinceLastResult}ms, finalizing transcript`);
+          setIsProcessing(false);
+          clearInterval(checkActivityInterval);
+        }
+      }, 1000);
+      
+      return () => clearInterval(checkActivityInterval);
+    }
+  }, [lastResultTimestamp, transcript, interimTranscript, isPWA, isMobile, isIOS]);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (processingTimeoutRef.current) {
+        clearTimeout(processingTimeoutRef.current);
+      }
+    };
   }, []);
 
   return {
     transcript,
     interimTranscript,
+    isProcessing,
     setTranscript,
     resetTranscriptState,
     processSpeechResults
