@@ -7,6 +7,33 @@ import { detectDateTime } from './detectDateTime';
 import { mockPeriods, getPeriodByTime } from '@/utils/reminderUtils';
 import { generateMeaningfulTitle } from '@/utils/voiceReminderUtils';
 
+// This function handles moving from a period ID to a due date with the proper time
+const setPeriodBasedDueDate = (periodId: string | undefined, inputDate: Date): Date => {
+  if (!periodId) return inputDate;
+  
+  const selectedPeriod = mockPeriods.find(p => p.id === periodId);
+  if (!selectedPeriod || !selectedPeriod.startTime) return inputDate;
+  
+  // Parse the start time with AM/PM
+  const startTimeStr = selectedPeriod.startTime;
+  const startParts = startTimeStr.split(' ');
+  const [startHour, startMin] = startParts[0].split(':').map(Number);
+  const startPeriod = startParts[1]; // 'AM' or 'PM'
+  
+  // Convert to 24-hour format
+  let hour24 = startHour;
+  if (startPeriod === 'PM' && startHour !== 12) {
+    hour24 += 12;
+  } else if (startPeriod === 'AM' && startHour === 12) {
+    hour24 = 0;
+  }
+  
+  // Create a new date object with the correct time
+  const dueDate = new Date(inputDate);
+  dueDate.setHours(hour24, startMin, 0, 0);
+  return dueDate;
+};
+
 // Main function to process voice input
 export const processVoiceInput = (transcript: string): VoiceProcessingResult => {
   console.log('Processing voice input:', transcript);

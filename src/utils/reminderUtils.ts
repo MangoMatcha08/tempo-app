@@ -7,18 +7,17 @@ import {
   ChecklistItem
 } from '../types/reminderTypes';
 
-// Default schedule
+// Mock schedule for testing
 export const mockPeriods = [
-  { id: "p1", name: "Before school", startTime: "8:00", endTime: "8:50" },
-  { id: "p2", name: "Period 1", startTime: "8:50", endTime: "9:50" },
-  { id: "p3", name: "Break", startTime: "9:50", endTime: "10:05" },
-  { id: "p4", name: "Period 2", startTime: "10:08", endTime: "11:08" },
-  { id: "p5", name: "Period 3", startTime: "11:11", endTime: "12:11" },
-  { id: "p6", name: "Period 4", startTime: "12:14", endTime: "1:14" },
-  { id: "p7", name: "Lunch", startTime: "1:14", endTime: "1:44" },
-  { id: "p8", name: "Period 5", startTime: "1:47", endTime: "2:47" },
-  { id: "p9", name: "Period 6", startTime: "2:50", endTime: "3:30" },
-  { id: "p10", name: "After School", startTime: "3:30", endTime: "5:00" }
+  { id: 'before-school', name: 'Before School', startTime: '7:30 AM', endTime: '8:00 AM' },
+  { id: 'period-1', name: '1st Period', startTime: '8:00 AM', endTime: '8:50 AM' },
+  { id: 'period-2', name: '2nd Period', startTime: '9:00 AM', endTime: '9:50 AM' },
+  { id: 'period-3', name: '3rd Period', startTime: '10:00 AM', endTime: '10:50 AM' },
+  { id: 'period-4', name: '4th Period', startTime: '11:00 AM', endTime: '11:50 AM' },
+  { id: 'lunch', name: 'Lunch', startTime: '12:00 PM', endTime: '12:30 PM' },
+  { id: 'period-5', name: '5th Period', startTime: '12:40 PM', endTime: '1:30 PM' },
+  { id: 'period-6', name: '6th Period', startTime: '1:40 PM', endTime: '2:30 PM' },
+  { id: 'after-school', name: 'After School', startTime: '2:30 PM', endTime: '4:00 PM' }
 ];
 
 // Helper function to create a new reminder

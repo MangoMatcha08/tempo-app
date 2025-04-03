@@ -23,28 +23,23 @@ export const detectDateTime = (text: string) => {
     // Find the period to get its start time
     const period = mockPeriods.find(p => p.id === periodResult.periodId);
     if (period && period.startTime) {
-      // Parse the start time (handle both 24-hour and 12-hour formats)
-      let [hours, minutes] = period.startTime.split(':').map(part => {
-        // Handle cases like "1:14" (convert to 13:14)
-        if (part.includes(":")) return part;
-        
-        const num = parseInt(part, 10);
-        // If it's a single-digit hour in the afternoon (1-9), convert to 24-hour format
-        if (num >= 1 && num <= 9 && period.startTime.indexOf(":") > 1) {
-          return (num + 12).toString();
-        }
-        return part;
-      });
+      // Parse the start time with AM/PM
+      const startTimeStr = period.startTime;
+      const startParts = startTimeStr.split(' ');
+      const [startHour, startMin] = startParts[0].split(':').map(Number);
+      const startPeriod = startParts[1]; // 'AM' or 'PM'
       
-      // Convert hours to number, handling 12-hour format
-      let hoursNum = parseInt(hours, 10);
-      if (hoursNum < 8 && period.startTime.indexOf(":") > 1) {
-        hoursNum += 12; // Convert afternoon hours to 24-hour format
+      // Convert to 24-hour format
+      let hour24 = startHour;
+      if (startPeriod === 'PM' && startHour !== 12) {
+        hour24 += 12;
+      } else if (startPeriod === 'AM' && startHour === 12) {
+        hour24 = 0;
       }
       
       // Create a time object
       const time = new Date();
-      time.setHours(hoursNum, parseInt(minutes, 10), 0, 0);
+      time.setHours(hour24, startMin, 0, 0);
       result.detectedTime = time;
     }
   }

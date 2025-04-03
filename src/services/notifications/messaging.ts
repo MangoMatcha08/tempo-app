@@ -174,19 +174,20 @@ export const sendTestNotification = async (email: string): Promise<boolean> => {
     
     // Fallback to FCM for cross-device notifications
     try {
-      const messaging = getMessaging();
-      const currentToken = await getToken(messaging);
-      
-      if (currentToken) {
-        // In a real app, you would send this to your server
-        // For now, we'll just log it
-        debugLog('FCM token available, would send to server:', currentToken.substring(0, 10) + '...');
+      if (messaging) {
+        const currentToken = await getToken(messaging);
         
-        // Simulate sending to FCM
-        debugLog('Simulating FCM notification send');
-        return true;
-      } else {
-        debugLog('No FCM token available');
+        if (currentToken) {
+          // In a real app, you would send this to your server
+          // For now, we'll just log it
+          debugLog('FCM token available, would send to server:', currentToken.substring(0, 10) + '...');
+          
+          // Simulate sending to FCM
+          debugLog('Simulating FCM notification send');
+          return true;
+        } else {
+          debugLog('No FCM token available');
+        }
       }
     } catch (fcmError) {
       console.error('Error with FCM:', fcmError);

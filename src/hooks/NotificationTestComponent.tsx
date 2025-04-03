@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNotificationPermission } from '@/hooks/useNotificationPermission';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,35 @@ const NotificationTestComponent = () => {
     requestPermission, 
     sendTestNotification 
   } = useNotificationPermission();
+  const [notificationsSupported, setNotificationsSupported] = useState(false);
+  const [permissionGranted, setPermissionGranted] = useState(false);
+  const [canRequest, setCanRequest] = useState(false);
+  const [compatibilityStatus, setCompatibilityStatus] = useState('');
+
+  useEffect(() => {
+    // Determine if notifications are supported by checking permission status
+    const isSupported = permissionStatus !== 'unsupported';
+    setNotificationsSupported(isSupported);
+    
+    // Update permission granted status
+    if (permissionStatus === 'granted') {
+      setPermissionGranted(true);
+    } else {
+      setPermissionGranted(false);
+    }
+    
+    // Update request button state
+    setCanRequest(permissionStatus === 'default' || permissionStatus === 'denied');
+    
+    // Update compatibility status
+    if (!isSupported) {
+      setCompatibilityStatus('unsupported');
+    } else if (permissionStatus === 'granted') {
+      setCompatibilityStatus('supported');
+    } else {
+      setCompatibilityStatus('partial');
+    }
+  }, [permissionStatus]);
 
   useEffect(() => {
     debugLog(`Notification permission status: ${permissionStatus}`);

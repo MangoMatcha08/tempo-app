@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { VoiceProcessingResult, ReminderPriority, ReminderCategory } from "@/types/reminderTypes";
 import { generateMeaningfulTitle } from "@/utils/voiceReminderUtils";
 import { processVoiceInput } from "@/services/nlp";
@@ -31,7 +30,43 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   const [isIOS, setIsIOS] = useState(false);
   const processingAttemptsRef = useRef(0);
   const viewChangeAttemptedRef = useRef(false);
-  
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
+  const [permissionStatus, setPermissionStatus] = useState<'requesting' | 'granted' | 'denied'>('requesting');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Get microphone permission
+  const requestMicrophonePermission = useCallback(async () => {
+    try {
+      setPermissionStatus('requesting');
+      
+      // For iOS PWA, we need special handling
+      const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const isPWAMode = window.matchMedia('(display-mode: standalone)').matches || 
+                        (window.navigator as any).standalone === true;
+      
+      if (isIOSDevice && isPWAMode) {
+        debugLog('iOS PWA detected, using alternative approach for microphone access');
+        // For iOS PWA, try to get user media without audio constraints first
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setAudioStream(stream);
+        setPermissionStatus('granted');
+        return true;
+      } else {
+        // Standard approach for other browsers
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setAudioStream(stream);
+        setPermissionStatus('granted');
+        return true;
+      }
+    } catch (error) {
+      console.error('Error requesting microphone permission:', error);
+      setPermissionStatus('denied');
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+      return false;
+    }
+  }, []);
+
   // Check if running as PWA and on iOS
   useEffect(() => {
     const pwaStatus = isPWAMode();
@@ -40,7 +75,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     setIsIOS(iosStatus);
     debugLog("Running as PWA:", pwaStatus, "on iOS:", iosStatus);
   }, []);
-  
+
   // Reset state when modal opens
   const resetState = () => {
     debugLog("Reset state called, current view:", view);
@@ -68,7 +103,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       }
     }
   };
-  
+
   const handleTranscriptComplete = (text: string) => {
     debugLog("Transcript complete called with:", text);
     if (!text || !text.trim()) {
@@ -217,7 +252,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       }
     }, 300); // Small initial delay to ensure transcript is fully captured
   };
-  
+
   const handleCancel = () => {
     debugLog("Cancel handler called");
     isConfirmingRef.current = false;
@@ -244,7 +279,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     isConfirmingRef.current = false;
     viewChangeAttemptedRef.current = false;
   };
-  
+
   // Clean up timer on unmount
   useEffect(() => {
     return () => {
@@ -261,7 +296,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       debugLog("Cleanup: clearing timers and refs");
     };
   }, []);
-  
+
   // Debug logging for view transitions
   useEffect(() => {
     debugLog("View state changed:", view);
@@ -271,7 +306,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       viewChangeAttemptedRef.current = false;
     }
   }, [view]);
-  
+
   // For debugging
   useEffect(() => {
     debugLog("Voice recorder state changed:", {
@@ -282,10 +317,13 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       title,
       isPWA,
       isIOS,
-      isMobile
+      isMobile,
+      audioStream,
+      permissionStatus,
+      errorMessage
     });
-  }, [view, transcript, isProcessing, processingResult, title, isPWA, isIOS, isMobile]);
-  
+  }, [view, transcript, isProcessing, processingResult, title, isPWA, isIOS, isMobile, audioStream, permissionStatus, errorMessage]);
+
   return {
     title,
     setTitle,
@@ -306,6 +344,10 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     resetState,
     isPWA,
     isIOS,
-    isMobile
+    isMobile,
+    audioStream,
+    permissionStatus,
+    errorMessage,
+    requestMicrophonePermission
   };
 }

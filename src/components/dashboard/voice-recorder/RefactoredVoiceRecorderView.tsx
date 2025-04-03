@@ -1,376 +1,353 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Button } from "@/components/ui/button";
+import { Mic, X } from 'lucide-react';
+import { useSpeechRecognition } from 'react-speech-kit';
+import { useToast } from "@/hooks/use-toast";
+import { processVoiceInput } from '@/services/nlp/processVoiceInput';
+import { VoiceProcessingResult } from '@/types/reminderTypes';
+import { isIOSDevice, isPWAMode } from '@/services/notifications/firebase';
+import { useVoiceRecorderState } from '@/hooks/useVoiceRecorderState';
+import { createDebugLogger } from '@/utils/debugUtils';
 
-import { useState, useEffect, useRef } from "react";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
-import useSpeechRecognition from "@/hooks/speech-recognition";
-import { isPWAMode, requestMicrophoneAccess, releaseMicrophoneStreams } from "@/utils/pwaUtils";
-import { createDebugLogger } from "@/utils/debugUtils";
-import VoiceRecordingButton from "./VoiceRecordingButton";
-import RecordingStatusText from "./RecordingStatusText";
-import TranscriptDisplay from "./TranscriptDisplay";
-import DebugInfoPanel from "./DebugInfoPanel";
-import PermissionAlert from "./PermissionAlert";
-
-// Set up debug logger
 const debugLog = createDebugLogger("VoiceRecorder");
 
-interface VoiceRecorderViewProps {
-  onTranscriptComplete: (transcript: string) => void;
-  isProcessing: boolean;
+interface RefactoredVoiceRecorderViewProps {
+  onReminderCreated: (processingResult: VoiceProcessingResult) => void;
+  onClose: () => void;
 }
 
-const RefactoredVoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorderViewProps) => {
-  const [isRecording, setIsRecording] = useState(false);
-  const [countdown, setCountdown] = useState(0);
-  const [transcriptSent, setTranscriptSent] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string[]>([]);
-  const [permissionState, setPermissionState] = useState<PermissionState | "unknown">("unknown");
+const RefactoredVoiceRecorderView: React.FC<RefactoredVoiceRecorderViewProps> = ({ onReminderCreated, onClose }) => {
+  // Component state
+  const { transcript, finalTranscript, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition();
+  const { toast } = useToast();
+  const [isListening, setIsListening] = useState(false);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingResult, setProcessingResult] = useState<VoiceProcessingResult | null>(null);
+  const [audioURL, setAudioURL] = useState<string | null>(null);
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [isIOS, setIsIOS] = useState(false);
   const [isPWA, setIsPWA] = useState(false);
-  const [isStartingRecognition, setIsStartingRecognition] = useState(false);
-  const transcriptSentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isMobile = useIsMobile();
   
+  // Refs
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<number | null>(null);
+
+  // On component mount
+  useEffect(() => {
+    // Check if we're on iOS
+    setIsIOS(
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    );
+    
+    // Check if we're in PWA mode
+    setIsPWA(isPWAMode());
+    
+    // Get microphone permission status
+    checkMicrophonePermission();
+    
+    // Log browser support status
+    debugLog(`Browser supports speech recognition: ${browserSupportsSpeechRecognition}`);
+    
+    // Clean up on unmount
+    return () => {
+      stopRecording();
+      resetTimer();
+    };
+  }, [browserSupportsSpeechRecognition]);
+
+  // Custom hook for managing voice recorder state
   const {
-    transcript,
-    interimTranscript,
-    isListening,
-    browserSupportsSpeechRecognition,
-    startListening,
-    stopListening,
-    resetTranscript,
-    error,
-    isPWA: recognitionIsPWA,
-    isMobile: recognitionIsMobile
-  } = useSpeechRecognition();
-  
-  const transcriptRef = useRef(transcript);
-  useEffect(() => {
-    transcriptRef.current = transcript;
-    
-    if (transcript && transcript !== "" && isRecording) {
-      addDebugInfo(`Transcript updated: "${transcript.substring(0, 15)}..."`);
-    }
-  }, [transcript, isRecording]);
-  
-  useEffect(() => {
-    addDebugInfo(`Recognition isListening changed to: ${isListening}`);
-    
-    if (isStartingRecognition && isListening) {
-      setIsStartingRecognition(false);
-      setIsRecording(true);
-      addDebugInfo("Recording state synced with active recognition");
-    } else if (isRecording && !isListening && !isStartingRecognition) {
-      addDebugInfo("Recognition stopped unexpectedly, syncing recording state");
-      setIsRecording(false);
-    }
-  }, [isListening, isRecording, isStartingRecognition]);
-  
-  useEffect(() => {
-    const pwaStatus = isPwaMode();
-    setIsPWA(pwaStatus);
-    if (pwaStatus) {
-      addDebugInfo("Running as PWA in standalone mode");
-    }
-  }, []);
-  
-  const addDebugInfo = (info: string) => {
-    debugLog(info);
-    setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${info}`]);
-  };
+    permissionStatus,
+    audioStream,
+    setAudioStream,
+    setPermissionStatus,
+    setErrorMessage: setVoiceRecorderErrorMessage,
+    requestMicrophonePermission
+  } = useVoiceRecorderState();
 
-  useEffect(() => {
-    const checkMicPermission = async () => {
-      try {
-        addDebugInfo("Checking microphone permission");
-        if (navigator.permissions && navigator.permissions.query) {
-          const permissionResult = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-          setPermissionState(permissionResult.state);
-          addDebugInfo(`Initial microphone permission: ${permissionResult.state}`);
-          
-          permissionResult.onchange = () => {
-            setPermissionState(permissionResult.state);
-            addDebugInfo(`Microphone permission changed to: ${permissionResult.state}`);
-            
-            if (permissionResult.state === 'granted' && isRecording) {
-              addDebugInfo("Permission granted during recording - restarting");
-              resetTranscript();
-              setTimeout(() => {
-                startListening();
-                addDebugInfo("Restarting recording after permission granted");
-              }, 500);
-            }
-          };
-        } else {
-          setPermissionState("unknown");
-          addDebugInfo("Permissions API not supported, status unknown");
-        }
-      } catch (err) {
-        console.error("Error checking microphone permission:", err);
-        setPermissionState("unknown");
-        addDebugInfo(`Error checking permission: ${err}`);
-      }
-    };
-    
-    checkMicPermission();
-  }, []);
-
-  const sendTranscript = (text: string) => {
-    if (!text || !text.trim()) {
-      addDebugInfo("Empty transcript, not sending");
-      return;
-    }
-    
-    addDebugInfo(`Attempting to send transcript: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
-    setTranscriptSent(true);
-    
-    if (transcriptSentTimeoutRef.current) {
-      clearTimeout(transcriptSentTimeoutRef.current);
-    }
-    
-    const sendDelay = (isMobile || isPWA) ? 800 : 300;
-    addDebugInfo(`Using send delay of ${sendDelay}ms`);
-    
-    transcriptSentTimeoutRef.current = setTimeout(() => {
-      const finalText = transcriptRef.current || text;
-      addDebugInfo(`Sending final transcript: "${finalText.substring(0, 30)}${finalText.length > 30 ? '...' : ''}"`);
-      onTranscriptComplete(finalText);
-      transcriptSentTimeoutRef.current = null;
-    }, sendDelay);
-  };
-
-  const toggleRecording = async () => {
-    if (isRecording) {
-      addDebugInfo("Stopping recording");
-      setIsRecording(false);
-      stopListening();
+  // Check microphone permission
+  const checkMicrophonePermission = useCallback(async () => {
+    try {
+      const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+      setHasPermission(permissionStatus.state === 'granted');
+      setPermissionStatus(permissionStatus.state);
+      debugLog(`Microphone permission status: ${permissionStatus.state}`);
       
-      if (transcript && transcript.trim()) {
-        sendTranscript(transcript);
-      } else {
-        addDebugInfo("No transcript to send - recording produced no text");
+      if (permissionStatus.state === 'granted') {
+        // Try to get user media to check if microphone is available
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setAudioStream(stream);
       }
-      return;
+    } catch (error) {
+      console.error('Error checking microphone permission:', error);
+      setHasPermission(false);
+      setPermissionStatus('denied');
+      setVoiceRecorderErrorMessage(error instanceof Error ? error.message : String(error));
     }
-    
-    if (permissionState !== "granted") {
-      addDebugInfo("Permission not granted, requesting access");
-      const permissionGranted = await requestMicrophoneAccess();
-      setPermissionState(permissionGranted ? "granted" : "denied");
-      
-      if (!permissionGranted) {
-        addDebugInfo("Cannot start recording - microphone access not granted");
-        return;
-      }
-    }
-    
-    addDebugInfo("Requesting to start recording - waiting for recognition to activate");
-    setIsStartingRecognition(true);
-    setTranscriptSent(false);
+  }, [setHasPermission, setPermissionStatus, setVoiceRecorderErrorMessage, setAudioStream]);
+
+  // Start recording
+  const startRecording = useCallback(async () => {
+    debugLog('Starting recording...');
     resetTranscript();
+    setErrorMessage(null);
+    setProcessingResult(null);
+    setAudioURL(null);
+    audioChunksRef.current = [];
+    setRecordingTime(0);
     
-    if (isPWA || isMobile) {
-      addDebugInfo(`${isPWA ? 'PWA' : 'Mobile'} mode detected, adding delay before starting recognition`);
+    try {
+      // Check if we have permission
+      if (permissionStatus !== 'granted') {
+        debugLog('Microphone permission not granted, requesting now...');
+        const permission = await requestMicrophonePermission();
+        if (!permission) {
+          debugLog('Microphone permission denied');
+          return;
+        }
+      }
       
-      if (isPWA && isMobile) {
-        addDebugInfo("PWA on mobile detected - using forced microphone restart flow");
-        await requestMicrophoneAccess();
-        setTimeout(() => {
-          try {
-            startListening();
-            addDebugInfo("Recognition started after forced restart");
-          } catch (error) {
-            addDebugInfo(`Failed to start recognition: ${error}`);
-            setIsStartingRecognition(false);
+      // Check if we have an audio stream
+      if (!audioStream) {
+        debugLog('No audio stream available, getting now...');
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setAudioStream(stream);
+      }
+      
+      // Create media recorder
+      if (audioStream) {
+        debugLog('Creating media recorder');
+        mediaRecorderRef.current = new MediaRecorder(audioStream);
+        mediaRecorderRef.current.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
           }
-        }, 1000);
+        };
+        mediaRecorderRef.current.onstop = () => {
+          debugLog('Recording stopped');
+          createAudioURL();
+        };
+        mediaRecorderRef.current.start();
+        setIsListening(true);
+        startTimer();
+        debugLog('Recording started');
       } else {
-        setTimeout(() => {
-          try {
-            startListening();
-            addDebugInfo("Recognition started after delay");
-          } catch (error) {
-            addDebugInfo(`Failed to start recognition: ${error}`);
-            setIsStartingRecognition(false);
-          }
-        }, (isPWA && isMobile) ? 1000 : 500);
+        debugLog('No audio stream available');
+        setErrorMessage('No audio stream available. Please check your microphone settings.');
       }
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    }
+  }, [permissionStatus, audioStream, setAudioStream, requestMicrophonePermission, resetTranscript, setErrorMessage]);
+
+  // Stop recording
+  const stopRecording = useCallback(() => {
+    debugLog('Stopping recording...');
+    setIsListening(false);
+    stopTimer();
+    
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      debugLog('Media recorder stopped');
     } else {
-      try {
-        startListening();
-        addDebugInfo("Recognition started immediately");
-      } catch (error) {
-        addDebugInfo(`Failed to start recognition: ${error}`);
-        setIsStartingRecognition(false);
-      }
+      debugLog('Media recorder is not active');
     }
-  };
+  }, []);
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
-    let countdownTimer: NodeJS.Timeout | null = null;
-    
-    if (isRecording) {
-      setCountdown(30);
-      
-      timer = setTimeout(() => {
-        if (isRecording) {
-          addDebugInfo("Auto-stopping after 30 seconds");
-          toggleRecording();
-        }
-      }, 30000);
-      
-      countdownTimer = setInterval(() => {
-        setCountdown(prev => {
-          if (prev <= 1) {
-            if (countdownTimer) clearInterval(countdownTimer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+  // Create audio URL
+  const createAudioURL = useCallback(() => {
+    debugLog('Creating audio URL');
+    if (audioChunksRef.current.length > 0) {
+      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      const url = URL.createObjectURL(audioBlob);
+      setAudioURL(url);
+      debugLog(`Audio URL created: ${url}`);
+    } else {
+      debugLog('No audio data available');
+      setErrorMessage('No audio data available. Please try recording again.');
+    }
+  }, [setErrorMessage]);
+
+  // Process transcript
+  const processTranscript = useCallback(async () => {
+    if (!finalTranscript) {
+      toast({
+        title: "No Voice Data",
+        description: "Please record your reminder first",
+        variant: "destructive"
+      });
+      return;
     }
     
-    return () => {
-      if (timer) clearTimeout(timer);
-      if (countdownTimer) clearInterval(countdownTimer);
-    };
-  }, [isRecording]);
-
-  useEffect(() => {
-    addDebugInfo(`Processing state changed to: ${isProcessing ? "processing" : "not processing"}`);
-  }, [isProcessing]);
-
-  useEffect(() => {
-    addDebugInfo(`Transcript sent state changed to: ${transcriptSent ? "sent" : "not sent"}`);
-  }, [transcriptSent]);
-
-  useEffect(() => {
-    if (isStartingRecognition) {
-      const recoveryTimeout = setTimeout(() => {
-        if (isStartingRecognition && !isListening) {
-          addDebugInfo("Recognition failed to start after timeout, attempting recovery");
-          
-          setIsStartingRecognition(false);
-          stopListening();
-          resetTranscript();
-          
-          releaseMicrophoneStreams();
-          
-          setTimeout(async () => {
-            await requestMicrophoneAccess();
-            addDebugInfo("Attempting recognition restart after recovery");
-            setIsStartingRecognition(true);
-            
-            setTimeout(() => {
-              try {
-                startListening();
-                addDebugInfo("Recognition restarted after recovery");
-              } catch (error) {
-                addDebugInfo(`Recovery restart failed: ${error}`);
-                setIsStartingRecognition(false);
-              }
-            }, 1000);
-          }, 1500);
-        }
-      }, 5000);
+    setIsProcessing(true);
+    setErrorMessage(null);
+    
+    try {
+      debugLog(`Processing transcript: ${finalTranscript}`);
+      const result = processVoiceInput(finalTranscript);
+      setProcessingResult(result);
+      debugLog('Voice processing result:', result);
       
-      return () => clearTimeout(recoveryTimeout);
+      // Show success toast
+      toast({
+        title: "Voice Reminder Created",
+        description: `"${result.reminder.title}" has been added to your reminders.`
+      });
+      
+      // Pass processing result to parent component
+      onReminderCreated(result);
+      
+      // Close the modal
+      onClose();
+    } catch (error) {
+      console.error('Error processing voice input:', error);
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+      toast({
+        title: "Error Processing Voice",
+        description: "There was a problem processing your voice input.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
     }
-  }, [isStartingRecognition, isListening, resetTranscript, startListening, stopListening]);
+  }, [finalTranscript, toast, setErrorMessage, setIsProcessing, setProcessingResult, onReminderCreated, onClose]);
 
-  useEffect(() => {
-    return () => {
-      if (isRecording) {
-        stopListening();
-        addDebugInfo("Cleanup: stopped listening");
-      }
-      
-      if (transcriptSentTimeoutRef.current) {
-        clearTimeout(transcriptSentTimeoutRef.current);
-      }
-      
-      releaseMicrophoneStreams();
-    };
-  }, [isRecording, stopListening]);
+  // Start timer
+  const startTimer = useCallback(() => {
+    debugLog('Starting timer');
+    timerRef.current = window.setInterval(() => {
+      setRecordingTime((prevTime) => prevTime + 1);
+    }, 1000);
+  }, [setRecordingTime]);
 
-  if (!browserSupportsSpeechRecognition) {
-    return (
-      <div className="text-center p-6">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Browser Not Supported</AlertTitle>
-          <AlertDescription>
-            Your browser does not support speech recognition.
-            Please try Chrome, Edge, or Safari on desktop for the best experience.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
+  // Stop timer
+  const stopTimer = useCallback(() => {
+    debugLog('Stopping timer');
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
 
-  if (permissionState === "denied" || (permissionState === "prompt" && isMobile)) {
-    return (
-      <PermissionAlert 
-        permissionState={permissionState} 
-        onRequestAccess={toggleRecording} 
-        error={error}
-      />
-    );
-  }
+  // Reset timer
+  const resetTimer = useCallback(() => {
+    debugLog('Resetting timer');
+    stopTimer();
+    setRecordingTime(0);
+  }, [stopTimer, setRecordingTime]);
+
+  // Toggle listening
+  const toggleListening = useCallback(() => {
+    if (isListening) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  }, [isListening, startRecording, stopRecording]);
 
   return (
-    <div className="space-y-4">
-      <div className="text-center mb-6">
-        <VoiceRecordingButton 
-          isRecording={isRecording}
-          isProcessing={isProcessing}
-          transcriptSent={transcriptSent}
-          onClick={toggleRecording}
-        />
-        
-        <RecordingStatusText 
-          isRecording={isRecording}
-          countdown={countdown}
-          transcriptSent={transcriptSent}
-          permissionState={permissionState}
-        />
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b">
+        <h2 className="text-lg font-semibold">Voice Recorder</h2>
+        <Button variant="ghost" size="sm" onClick={onClose}>
+          <X className="h-4 w-4" />
+        </Button>
       </div>
       
-      {isStartingRecognition && !isListening && (
-        <Alert variant="default" className="my-2 bg-amber-50 text-amber-800 border-amber-300">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Starting recognition...</AlertTitle>
-          <AlertDescription>
-            Please wait while we access your microphone. If recording doesn't start in a few seconds, try tapping the button again.
-          </AlertDescription>
-        </Alert>
-      )}
-      
-      <TranscriptDisplay 
-        transcript={transcript} 
-        interimTranscript={interimTranscript} 
-      />
-      
-      <DebugInfoPanel 
-        isPWA={isPWA}
-        isListening={isListening}
-        isRecording={isRecording}
-        isProcessing={isProcessing}
-        transcriptSent={transcriptSent}
-        permissionState={permissionState}
-        isMobile={isMobile}
-        debugInfo={debugInfo}
-      />
-      
-      <div className="mt-3 text-sm text-center text-gray-500">
-        <p>Speak clearly and naturally.</p>
-        <p>Recording will automatically stop after 30 seconds.</p>
-        {isMobile && (
-          <p className="mt-1 font-medium text-blue-500">
-            For best results on mobile, speak for at least 3-5 seconds.
-          </p>
+      {/* Content */}
+      <div className="flex-grow flex flex-col p-4 space-y-4">
+        {/* Microphone Permission Status */}
+        {permissionStatus !== 'granted' && (
+          <div className="text-red-500">
+            Microphone permission is {permissionStatus}. Please grant permission to use the voice recorder.
+          </div>
         )}
+        
+        {/* Error Message */}
+        {errorMessage && (
+          <div className="text-red-500">
+            Error: {errorMessage}
+          </div>
+        )}
+        
+        {/* Transcript Display */}
+        <div className="flex-grow overflow-y-auto border rounded-md p-2">
+          <p className="whitespace-pre-line">{transcript || 'Start recording to see the transcript...'}</p>
+        </div>
+        
+        {/* Recording Time */}
+        <div className="text-sm text-muted-foreground">
+          Recording Time: {recordingTime} seconds
+        </div>
+        
+        {/* Audio Playback */}
+        {audioURL && (
+          <audio src={audioURL} controls className="w-full"></audio>
+        )}
+        
+        {/* Debug Information */}
+        {showDebugInfo && (
+          <div className="border rounded-md p-2 text-xs">
+            <h4 className="font-semibold">Debug Information:</h4>
+            <p>Final Transcript: {finalTranscript}</p>
+            <p>Is iOS: {isIOS ? 'Yes' : 'No'}</p>
+            <p>Is PWA: {isPWA ? 'Yes' : 'No'}</p>
+            <p>Browser Supports Speech Recognition: {browserSupportsSpeechRecognition ? 'Yes' : 'No'}</p>
+            <p>Permission Status: {permissionStatus}</p>
+          </div>
+        )}
+      </div>
+      
+      {/* Footer */}
+      <div className="p-4 border-t">
+        <div className="flex items-center justify-between">
+          {/* Toggle Debug Info Button */}
+          <Button variant="outline" size="sm" onClick={() => setShowDebugInfo(!showDebugInfo)}>
+            Toggle Debug Info
+          </Button>
+          
+          {/* Action Buttons */}
+          <div className="flex items-center space-x-2">
+            {/* Reset Button */}
+            <Button variant="secondary" size="sm" onClick={resetTranscript}>
+              Reset
+            </Button>
+            
+            {/* Record Button */}
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={toggleListening}
+              disabled={isProcessing || permissionStatus !== 'granted'}
+            >
+              {isListening ? (
+                <>
+                  Stop Recording <Mic className="ml-2 h-4 w-4" />
+                </>
+              ) : (
+                <>
+                  Start Recording <Mic className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+            
+            {/* Process Button */}
+            <Button
+              size="sm"
+              onClick={processTranscript}
+              disabled={isProcessing || !finalTranscript}
+            >
+              Process
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

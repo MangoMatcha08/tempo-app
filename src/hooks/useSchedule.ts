@@ -12,32 +12,41 @@ const convertDefaultPeriods = (): Period[] => {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   
   return defaultPeriods.map(period => {
-    // Parse start time
-    const [startHours, startMinutes] = period.startTime.split(':').map(part => {
-      const num = parseInt(part, 10);
-      // If it's a single-digit hour in the afternoon (1-9), convert to 24-hour format
-      if (num >= 1 && num <= 9 && period.startTime.indexOf(":") > 1) {
-        return num + 12;
-      }
-      return num;
-    });
+    // Parse start time with AM/PM
+    const startTimeStr = period.startTime;
+    const startHours = parseInt(startTimeStr.split(':')[0]);
+    const startMinutesStr = startTimeStr.split(':')[1] || '00';
+    const startMinutes = parseInt(startMinutesStr.split(' ')[0]);
+    const startPeriod = startTimeStr.includes('PM') ? 'PM' : 'AM';
     
-    // Parse end time
-    const [endHours, endMinutes] = period.endTime.split(':').map(part => {
-      const num = parseInt(part, 10);
-      // If it's a single-digit hour in the afternoon (1-9), convert to 24-hour format
-      if (num >= 1 && num <= 9 && period.endTime.indexOf(":") > 1) {
-        return num + 12;
-      }
-      return num;
-    });
+    // Parse end time with AM/PM
+    const endTimeStr = period.endTime;
+    const endHours = parseInt(endTimeStr.split(':')[0]);
+    const endMinutesStr = endTimeStr.split(':')[1] || '00';
+    const endMinutes = parseInt(endMinutesStr.split(' ')[0]);
+    const endPeriod = endTimeStr.includes('PM') ? 'PM' : 'AM';
+    
+    // Convert to 24-hour format
+    let startHours24 = startHours;
+    if (startPeriod === 'PM' && startHours !== 12) {
+      startHours24 += 12;
+    } else if (startPeriod === 'AM' && startHours === 12) {
+      startHours24 = 0;
+    }
+    
+    let endHours24 = endHours;
+    if (endPeriod === 'PM' && endHours !== 12) {
+      endHours24 += 12;
+    } else if (endPeriod === 'AM' && endHours === 12) {
+      endHours24 = 0;
+    }
     
     // Create start and end time Date objects
     const startTime = new Date(today);
-    startTime.setHours(startHours, startMinutes, 0, 0);
+    startTime.setHours(startHours24, startMinutes, 0, 0);
     
     const endTime = new Date(today);
-    endTime.setHours(endHours, endMinutes, 0, 0);
+    endTime.setHours(endHours24, endMinutes, 0, 0);
     
     // Determine period type based on name
     let type: PeriodType = 'core';
