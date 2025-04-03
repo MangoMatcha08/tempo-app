@@ -67,7 +67,42 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     processSpeechResults
   } = useTranscriptState({ isPWA: detectedIsPWA, isIOS: detectedIsIOS });
 
-  // Add the missing startContinuousRecognitionTimer function
+  // Set up a keep-alive timer to ensure recognition doesn't end prematurely
+  // IMPORTANT: Moved this function before restartRecognition that depends on it
+  const startKeepAliveTimer = useCallback(() => {
+    if (recognitionKeepAliveTimerRef.current) {
+      clearTimeout(recognitionKeepAliveTimerRef.current);
+    }
+    
+    // Check every 3 seconds if recognition is still active
+    recognitionKeepAliveTimerRef.current = setInterval(() => {
+      if (isListening && !manuallyStoppedRef.current) {
+        const now = Date.now();
+        const timeSinceLastEvent = now - lastRecognitionEventRef.current;
+        
+        // If it's been more than 8 seconds since the last event, consider it inactive
+        if (timeSinceLastEvent > 8000) {
+          debugLog(`No recognition events for ${timeSinceLastEvent}ms, restarting`);
+          restartRecognition("keep-alive timeout");
+        }
+      } else {
+        // Stop the timer if we're not listening anymore
+        if (recognitionKeepAliveTimerRef.current) {
+          clearInterval(recognitionKeepAliveTimerRef.current);
+          recognitionKeepAliveTimerRef.current = null;
+        }
+      }
+    }, 3000);
+    
+    return () => {
+      if (recognitionKeepAliveTimerRef.current) {
+        clearInterval(recognitionKeepAliveTimerRef.current);
+        recognitionKeepAliveTimerRef.current = null;
+      }
+    };
+  }, [isListening]); // We'll add restartRecognition to deps after its declaration
+
+  // Add the continuousRecognitionTimer function
   const startContinuousRecognitionTimer = useCallback(() => {
     // Clear any existing timer
     if (continuousRecognitionTimerRef.current) {
@@ -101,7 +136,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         continuousRecognitionTimerRef.current = null;
       }
     };
-  }, [isListening]);
+  }, [isListening]); // We'll add restartRecognition to deps after its declaration
 
   // Restart recognition to prevent premature endings
   const restartRecognition = useCallback(async (reason: string) => {
@@ -164,40 +199,14 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     }
   }, [isListening, isIOS, recognition, startKeepAliveTimer]);
   
-  // Set up a keep-alive timer to ensure recognition doesn't end prematurely
-  const startKeepAliveTimer = useCallback(() => {
-    if (recognitionKeepAliveTimerRef.current) {
-      clearTimeout(recognitionKeepAliveTimerRef.current);
-    }
-    
-    // Check every 3 seconds if recognition is still active
-    recognitionKeepAliveTimerRef.current = setInterval(() => {
-      if (isListening && !manuallyStoppedRef.current) {
-        const now = Date.now();
-        const timeSinceLastEvent = now - lastRecognitionEventRef.current;
-        
-        // If it's been more than 8 seconds since the last event, consider it inactive
-        if (timeSinceLastEvent > 8000) {
-          debugLog(`No recognition events for ${timeSinceLastEvent}ms, restarting`);
-          restartRecognition("keep-alive timeout");
-        }
-      } else {
-        // Stop the timer if we're not listening anymore
-        if (recognitionKeepAliveTimerRef.current) {
-          clearInterval(recognitionKeepAliveTimerRef.current);
-          recognitionKeepAliveTimerRef.current = null;
-        }
-      }
-    }, 3000);
-    
-    return () => {
-      if (recognitionKeepAliveTimerRef.current) {
-        clearInterval(recognitionKeepAliveTimerRef.current);
-        recognitionKeepAliveTimerRef.current = null;
-      }
-    };
-  }, [isListening, restartRecognition]);
+  // Update dependencies for the functions that use restartRecognition
+  // This is necessary to complete the circular dependency properly
+  const updatedStartKeepAliveTimer = useCallback(startKeepAliveTimer, 
+    [isListening, restartRecognition]);
   
+  const updatedStartContinuousRecognitionTimer = useCallback(startContinuousRecognitionTimer,
+    [isListening, restartRecognition]);
+
   // Helper to stabilize recognition status with improved diagnostics
   const stabilizeRecognitionStatus = useCallback(() => {
     if (recognitionStabilityTimerRef.current) {
@@ -895,6 +904,18 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   const resetTranscript = useCallback(() => {
     resetTranscriptState();
   }, [resetTranscriptState]);
+  
+  // Ensure we use the properly fixed circular references
+  useEffect(() => {
+    // Update the keep-alive timer and continuous recognition timer refs
+    const keepAliveCleanup = updatedStartKeepAliveTimer();
+    const continuousTimerCleanup = updatedStartContinuousRecognitionTimer();
+    
+    return () => {
+      keepAliveCleanup();
+      continuousTimerCleanup();
+    };
+  }, [updatedStartKeepAliveTimer, updatedStartContinuousRecognitionTimer]);
   
   return {
     transcript,
