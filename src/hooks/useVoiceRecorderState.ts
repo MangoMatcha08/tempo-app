@@ -27,6 +27,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   const isConfirmingRef = useRef(false);
   const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [isPWA, setIsPWA] = useState(false);
+  const processingAttemptsRef = useRef(0);
   
   // Check if running as PWA
   useEffect(() => {
@@ -47,6 +48,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       setPriority(ReminderPriority.MEDIUM);
       setCategory(ReminderCategory.TASK);
       setPeriod("none");
+      processingAttemptsRef.current = 0;
       
       // Clear any pending timers
       if (transitionTimerRef.current) {
@@ -109,24 +111,42 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       // First finish processing, then switch to confirmation view
       setIsProcessing(false);
       
-      // Use setTimeout to ensure state updates properly between transitions
-      // Clear any existing timer first
+      // Add a forced delay of 800ms to ensure UI renders correctly before transition
+      // This is critical for iOS transitions
+      const baseDelay = 800;
+      const platformMultiplier = (isPWA || isMobile) ? 1.5 : 1;
+      const transitionDelay = Math.round(baseDelay * platformMultiplier);
+      
+      debugLog(`Using transition delay of ${transitionDelay}ms before view change`);
+      
+      // Clear any previous transition timer
       if (transitionTimerRef.current) {
         clearTimeout(transitionTimerRef.current);
       }
       
-      // Use longer timeout for PWA mode or mobile
-      const transitionMultiplier = (isPWA || isMobile) ? 3 : 1.5;
-      const transitionDelay = getPwaAdjustedTimeout(200, transitionMultiplier); // 200ms standard, 600ms in PWA/mobile
-      debugLog(`Setting transition delay of ${transitionDelay}ms for view change to confirm`);
-      
+      // Use setTimeout with a reference to ensure we can clear it if needed
       transitionTimerRef.current = setTimeout(() => {
-        debugLog("Setting view to confirm");
+        debugLog("Transition timer fired, setting view to confirm");
         setView("confirm");
         transitionTimerRef.current = null;
       }, transitionDelay);
     } catch (error) {
       console.error('Error processing voice input:', error);
+      debugLog(`Error processing voice input: ${error}`);
+      
+      // Check if we should retry processing
+      if (processingAttemptsRef.current < 2) { // Max 2 retries
+        processingAttemptsRef.current++;
+        debugLog(`Retry attempt ${processingAttemptsRef.current} for processing`);
+        
+        // Wait a moment before retrying
+        setTimeout(() => {
+          handleTranscriptComplete(text);
+        }, 1000);
+        return;
+      }
+      
+      // After retries, show error
       setIsProcessing(false);
       isConfirmingRef.current = false;
       
@@ -139,12 +159,21 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   };
   
   const handleCancel = () => {
+    debugLog("Cancel handler called");
     isConfirmingRef.current = false;
+    
+    // Clear any pending transitions
+    if (transitionTimerRef.current) {
+      clearTimeout(transitionTimerRef.current);
+      transitionTimerRef.current = null;
+    }
+    
     resetState();
     onOpenChange(false);
   };
 
   const handleGoBack = () => {
+    debugLog("Go back handler called");
     setView("record");
     isConfirmingRef.current = false;
   };
@@ -156,8 +185,14 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         clearTimeout(transitionTimerRef.current);
         transitionTimerRef.current = null;
       }
+      debugLog("Cleanup: clearing timers and refs");
     };
   }, []);
+  
+  // Debug logging for view transitions
+  useEffect(() => {
+    debugLog("View state changed:", view);
+  }, [view]);
   
   // For debugging
   useEffect(() => {

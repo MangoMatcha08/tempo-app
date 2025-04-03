@@ -41,6 +41,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   const { toast } = useToast();
   const dialogContentRef = useRef<HTMLDivElement>(null);
   const lastOpenStateRef = useRef(open);
+  const transcriptProcessedRef = useRef(false);
   
   // When modal opens, try to request microphone permission proactively
   useEffect(() => {
@@ -48,6 +49,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
       debugLog("Voice modal opened, checking microphone access");
       debugLog("Modal opened, resetting state");
       resetState();
+      transcriptProcessedRef.current = false;
     }
     lastOpenStateRef.current = open;
   }, [open, resetState]);
@@ -86,11 +88,19 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
     debugLog(`Transcript complete called with text of length: ${text.length}`);
     debugLog(`First 30 chars: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
     
+    // Prevent multiple processing of the same transcript
+    if (transcriptProcessedRef.current) {
+      debugLog("Transcript already processed, ignoring duplicate");
+      return;
+    }
+    
+    transcriptProcessedRef.current = true;
+    
     if (isPWA) {
       debugLog("PWA mode detected, adding slight delay before processing");
       setTimeout(() => {
         handleTranscriptComplete(text);
-      }, 200);
+      }, 300);
     } else {
       handleTranscriptComplete(text);
     }
@@ -141,6 +151,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
       });
       
       // Reset and close
+      transcriptProcessedRef.current = false;
       handleCancel();
     } catch (error) {
       console.error("Error saving voice reminder:", error);
@@ -164,9 +175,11 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
           debugLog("Attempt to close dialog while in confirm view");
           const shouldClose = window.confirm("Are you sure you want to discard this reminder?");
           if (shouldClose) {
+            transcriptProcessedRef.current = false;
             onOpenChange(false);
           }
         } else {
+          transcriptProcessedRef.current = false;
           onOpenChange(newOpenState);
         }
       }}

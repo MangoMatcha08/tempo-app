@@ -1,39 +1,35 @@
 
 /// <reference types="vite/client" />
 
-// Extend the Window interface to include firebase
+// Speech Recognition API types
 interface Window {
-  firebase: any;
   SpeechRecognition?: typeof SpeechRecognition;
   webkitSpeechRecognition?: typeof SpeechRecognition;
-  activeMicrophoneStream?: MediaStream;
-  audioContext?: AudioContext;
-  microphoneStream?: MediaStream;
   MSStream?: any;
 }
 
-// Add SpeechRecognition interface for TypeScript
+// SpeechRecognition interface
 interface SpeechRecognition extends EventTarget {
+  new(): SpeechRecognition;
+  lang: string;
   continuous: boolean;
   interimResults: boolean;
-  lang: string;
   maxAlternatives: number;
-  onstart: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
-  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionError) => any) | null;
-  onend: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onaudiostart: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onspeechstart: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onspeechend: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onsoundend: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onaudioend: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onnomatch: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
   start(): void;
   stop(): void;
   abort(): void;
+  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
+  onstart: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any) | null;
+  onaudiostart: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onspeechstart: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onspeechend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onaudioend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onnomatch: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
 }
 
-interface SpeechRecognitionError extends Event {
+interface SpeechRecognitionErrorEvent extends Event {
   error: string;
   message: string;
 }
@@ -50,10 +46,10 @@ interface SpeechRecognitionResultList {
 }
 
 interface SpeechRecognitionResult {
-  isFinal: boolean;
   length: number;
   item(index: number): SpeechRecognitionAlternative;
   [index: number]: SpeechRecognitionAlternative;
+  isFinal: boolean;
 }
 
 interface SpeechRecognitionAlternative {

@@ -1,15 +1,22 @@
 
+// Speech recognition hook return type
 export interface UseSpeechRecognitionReturn {
   transcript: string;
   interimTranscript: string;
   browserSupportsSpeechRecognition: boolean;
   isListening: boolean;
-  startListening: () => void;
+  startListening: () => Promise<void>;
   stopListening: () => void;
   resetTranscript: () => void;
-  error?: string;
-  // Platform detection properties
+  error: string | undefined;
   isPWA: boolean;
   isMobile: boolean;
-  isIOS?: boolean; // Added iOS detection
+}
+
+// Speech recognition options
+export interface SpeechRecognitionOptions {
+  isPWA?: boolean;
+  isMobile?: boolean;
+  isIOS?: boolean;
+  isHighLatency?: boolean;
 }

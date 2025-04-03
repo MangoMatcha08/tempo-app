@@ -16,6 +16,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   const isMobile = useIsMobile();
   const startTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const attemptCountRef = useRef<number>(0);
+  const isProcessingResultRef = useRef<boolean>(false);
   
   // Detect iOS and PWA status
   const isIOS = isIOSDevice();
@@ -54,8 +55,24 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     // Set up all event handlers in one place for better cleanup
     const handleResults = (event: any) => {
       debugLog("Recognition results received");
-      if (isListening) {
-        processSpeechResults(event);
+      
+      // Prevent duplicate processing on iOS
+      if (!isProcessingResultRef.current && isListening) {
+        isProcessingResultRef.current = true;
+        try {
+          processSpeechResults(event);
+          
+          // Reset the flag after a delay to prevent rapid duplicates
+          // but allow subsequent legitimate results
+          setTimeout(() => {
+            isProcessingResultRef.current = false;
+          }, 1000);
+        } catch (err) {
+          debugLog(`Error processing results: ${err}`);
+          isProcessingResultRef.current = false;
+        }
+      } else {
+        debugLog("Ignoring results - already processing or not listening");
       }
     };
     
@@ -236,10 +253,11 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       startTimeoutRef.current = null;
     }
     
-    // Reset the transcript
+    // Reset the transcript and flags
     resetTranscriptState();
     setError(undefined);
     attemptCountRef.current = 0;
+    isProcessingResultRef.current = false;
     
     // iOS-specific pre-start sequence
     if (isIOS) {
@@ -336,6 +354,9 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         // Non-critical error, don't set error state
       }
     }
+    
+    // Reset processing flag
+    isProcessingResultRef.current = false;
     
     // For iOS, release the audio stream when stopping
     // This helps with permission context in some cases
