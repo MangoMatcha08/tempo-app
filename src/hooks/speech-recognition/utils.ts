@@ -1,3 +1,4 @@
+
 /**
  * Utility functions for speech recognition 
  */
@@ -9,7 +10,7 @@ export const isSpeechRecognitionSupported = (): boolean => {
 
 // Platform detection utilities
 export const isIOSDevice = (): boolean => {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window.MSStream);
 };
 
 export const isHighLatencyEnvironment = (): boolean => {

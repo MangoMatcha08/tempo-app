@@ -1,3 +1,4 @@
+
 /**
  * Utility functions for PWA mode detection and adjustments
  */
@@ -17,7 +18,7 @@ export const isPwaMode = (): boolean => {
 
 // Check if device is iOS
 export const isIOSDevice = (): boolean => {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window.MSStream);
 };
 
 // Get PWA-adjusted timeout values

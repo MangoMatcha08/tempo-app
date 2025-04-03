@@ -127,7 +127,7 @@ export const useTranscriptState = (options: { isPWA: boolean; isIOS: boolean } =
     processingTimeoutRef.current = setTimeout(() => {
       setIsProcessing(false);
       processingTimeoutRef.current = null;
-    }, getPlatformAdjustedTimeout(300, { isPWA, isMobile, isIOS: isIOS ? 2 : false }));
+    }, getPlatformAdjustedTimeout(300, { isPWA, isMobile, isIOS }));
   }, [debouncedSetTranscript, isMobile, isPWA, isIOS, transcript]);
 
   // Reset state with proper cleanup
