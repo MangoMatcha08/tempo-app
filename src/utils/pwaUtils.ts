@@ -20,6 +20,30 @@ export const getPwaAdjustedTimeout = (baseTimeout: number, multiplier: number = 
   return baseTimeout;
 };
 
+// Request microphone access
+export const requestMicrophoneAccess = async (): Promise<boolean> => {
+  try {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Store the stream to prevent it from being garbage collected in PWA
+      if (isPwaMode()) {
+        (window as any).microphoneStream = stream;
+        console.log("Stored microphone stream for PWA");
+      } else {
+        // Release the stream if not in PWA mode
+        stream.getTracks().forEach(track => track.stop());
+      }
+      
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.error("Error requesting microphone access:", err);
+    return false;
+  }
+};
+
 // Release any stored microphone streams
 export const releaseMicrophoneStreams = (): void => {
   // Release microphone stream if we stored one
