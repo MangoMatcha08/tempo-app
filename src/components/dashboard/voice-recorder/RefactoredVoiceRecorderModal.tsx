@@ -7,7 +7,7 @@ import { createReminder } from "@/utils/reminderUtils";
 import { useToast } from "@/hooks/use-toast";
 import { Reminder } from "@/types/reminderTypes";
 import { useVoiceRecorderState } from "@/hooks/useVoiceRecorderState";
-import { RefactoredVoiceRecorderView } from "./RefactoredVoiceRecorderView";
+import RefactoredVoiceRecorderView from "./RefactoredVoiceRecorderView";
 import ModalFooterActions from "./ModalFooterActions";
 import { createDebugLogger } from "@/utils/debugUtils";
 import { releaseMicrophoneStreams } from "@/utils/pwaUtils";
@@ -66,12 +66,12 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   
   // Debug logging for view state and PWA
   useEffect(() => {
-    debugLog("Current view:", view, "transcript length:", transcript ? transcript.length : 0, "isPWA:", isPWA);
+    debugLog(`Current view: ${view}, transcript length: ${transcript ? transcript.length : 0}, isPWA: ${isPWA}`);
   }, [view, transcript, isPWA]);
   
   // Enhanced debug logging for isProcessing state
   useEffect(() => {
-    debugLog("Processing state:", isProcessing, "in view:", view);
+    debugLog(`Processing state: ${isProcessing}, in view: ${view}`);
   }, [isProcessing, view]);
   
   // Cleanup microphone stream when modal closes
@@ -103,13 +103,13 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
     }
     
     try {
-      debugLog("Creating reminder with:", {
+      debugLog(`Creating reminder with: ${JSON.stringify({
         title,
         priority,
         category,
         periodId: periodId === "none" ? undefined : periodId,
         dueDate: processingResult?.reminder.dueDate
-      });
+      })}`);
       
       // Create reminder with the confirmed data
       const reminderInput = {
@@ -125,7 +125,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
       };
       
       const newReminder = createReminder(reminderInput);
-      debugLog("Created reminder:", newReminder);
+      debugLog(`Created reminder: ${newReminder.id}`);
       
       // Call the callback if provided
       if (onReminderCreated) {
@@ -157,7 +157,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
     <Dialog 
       open={open} 
       onOpenChange={(newOpenState) => {
-        debugLog("Dialog open state changing to:", newOpenState, "current view:", view);
+        debugLog(`Dialog open state changing to: ${newOpenState}, current view: ${view}`);
         // When closing the modal
         if (!newOpenState && view === "confirm") {
           // Show confirmation before closing if we're in confirm view

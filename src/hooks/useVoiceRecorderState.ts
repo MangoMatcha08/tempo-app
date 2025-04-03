@@ -18,7 +18,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   const [processingResult, setProcessingResult] = useState<VoiceProcessingResult | null>(null);
   const [priority, setPriority] = useState<ReminderPriority>(ReminderPriority.MEDIUM);
   const [category, setCategory] = useState<ReminderCategory>(ReminderCategory.TASK);
-  const [periodId, setPeriodId] = useState<string>("none");
+  const [periodId, setPeriod] = useState<string>("none");
   const { toast } = useToast();
   
   // Ref to track if we're currently in the process of confirming a transcript
@@ -44,7 +44,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       setProcessingResult(null);
       setPriority(ReminderPriority.MEDIUM);
       setCategory(ReminderCategory.TASK);
-      setPeriodId("none");
+      setPeriod("none");
       
       // Clear any pending timers
       if (transitionTimerRef.current) {
@@ -83,7 +83,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       setTitle(generatedTitle);
       setPriority(result.reminder.priority || ReminderPriority.MEDIUM);
       setCategory(result.reminder.category || ReminderCategory.TASK);
-      setPeriodId(result.reminder.periodId || "none");
+      setPeriod(result.reminder.periodId || "none");
       
       // Ensure we have a due date (default to tomorrow if not detected)
       if (!result.reminder.dueDate) {
@@ -180,7 +180,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     category,
     setCategory,
     periodId,
-    setPeriod: setPeriodId,  // Fixed the interface mismatch
+    setPeriod,  // This is the key fix - ensure this name matches what's expected
     handleTranscriptComplete,
     handleCancel,
     handleGoBack,

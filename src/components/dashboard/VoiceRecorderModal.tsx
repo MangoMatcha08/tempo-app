@@ -31,7 +31,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
     processingResult,
     priority, setPriority,
     category, setCategory,
-    periodId, setPeriodId,
+    periodId, setPeriod,
     handleTranscriptComplete,
     handleCancel,
     handleGoBack,
@@ -232,7 +232,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
               category={category}
               setCategory={setCategory}
               periodId={periodId}
-              setPeriodId={setPeriodId}
+              setPeriodId={setPeriod}
               processingResult={processingResult}
               onSave={handleSave}
               onCancel={handleCancel}
