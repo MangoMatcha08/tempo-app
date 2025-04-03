@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { debounce } from './utils';
 import { createDebugLogger } from '@/utils/debugUtils';
@@ -17,6 +16,7 @@ export interface UseTranscriptStateReturn {
   isProcessing: boolean;
   resetTranscriptState: () => void;
   processSpeechResults: (event: any) => void;
+  setTranscript: (text: string) => void; // Added this missing property
 }
 
 export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscriptStateProps): UseTranscriptStateReturn => {
@@ -223,6 +223,7 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
     interimTranscript,
     isProcessing,
     resetTranscriptState,
-    processSpeechResults
+    processSpeechResults,
+    setTranscript
   };
 };

@@ -9,6 +9,12 @@ export const isIOSDevice = (): boolean => {
   return /iphone|ipad|ipod|macintosh/.test(userAgent) && 'ontouchend' in document;
 };
 
+// Detect mobile device
+export const isMobileDevice = (): boolean => {
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+};
+
 // Detect PWA mode
 export const isPwaMode = (): boolean => {
   return window.matchMedia('(display-mode: standalone)').matches || 
