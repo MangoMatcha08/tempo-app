@@ -171,3 +171,71 @@ export const testAudioContext = async (): Promise<boolean> => {
     return false;
   }
 };
+
+// Function to ensure an active audio stream is available
+export const ensureActiveAudioStream = async (): Promise<boolean> => {
+  try {
+    debugLog("Ensuring active audio stream");
+    
+    // Check if we already have active streams
+    if (activeStreams.length > 0) {
+      // Check if any stream is still active
+      for (const stream of activeStreams) {
+        const activeTracks = stream.getAudioTracks().filter(track => track.readyState === 'live');
+        
+        if (activeTracks.length > 0) {
+          debugLog("Using existing active audio stream");
+          return true;
+        }
+      }
+      
+      debugLog("No active tracks in existing streams, requesting new stream");
+    }
+    
+    // Request a new stream
+    const constraints = { audio: true, video: false };
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    
+    // Store reference in PWA mode
+    if (isPwaMode()) {
+      activeStreams.push(stream);
+      debugLog(`New stream stored in PWA mode (total: ${activeStreams.length})`);
+      
+      // Clean up older streams if we have too many
+      if (activeStreams.length > 3) {
+        const oldStream = activeStreams.shift();
+        if (oldStream) {
+          oldStream.getTracks().forEach(track => track.stop());
+          debugLog("Released oldest stream to prevent memory issues");
+        }
+      }
+    }
+    
+    // Check if we got audio tracks
+    const audioTracks = stream.getAudioTracks();
+    debugLog(`Obtained ${audioTracks.length} audio tracks`);
+    
+    if (audioTracks.length === 0) {
+      debugLog("No audio tracks in new stream");
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    debugLog(`Error ensuring audio stream: ${error}`);
+    return false;
+  }
+};
+
+// Check if running on iOS device
+export const isIOSDevice = (): boolean => {
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return /iphone|ipad|ipod|macintosh/.test(userAgent) && 'ontouchend' in document;
+};
+
+// Check if running on mobile device
+export const isMobileDevice = (): boolean => {
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+};
+

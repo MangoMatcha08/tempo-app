@@ -260,3 +260,4 @@ export const forceAudioPermissionCheck = async (): Promise<boolean> => {
     return false;
   }
 };
+

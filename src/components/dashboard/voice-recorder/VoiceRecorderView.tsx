@@ -32,6 +32,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
   const [isPWA, setIsPWA] = useState(false);
   const [isStartingRecognition, setIsStartingRecognition] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [error, setError] = useState<string | undefined>(undefined); // Added error state
   const transcriptSentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const transcriptRef = useRef<string>('');
   const startClickTimestampRef = useRef<number>(0);
@@ -45,9 +46,16 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     startListening,
     stopListening,
     resetTranscript,
-    error,
+    error: recognitionError,
     isPWA: recognitionIsPWA,
   } = useSpeechRecognition();
+  
+  // Sync recognition error to local error state
+  useEffect(() => {
+    if (recognitionError) {
+      setError(recognitionError);
+    }
+  }, [recognitionError]);
   
   // Check if running as PWA
   useEffect(() => {
@@ -529,3 +537,4 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
 };
 
 export default VoiceRecorderView;
+
