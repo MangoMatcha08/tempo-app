@@ -1,4 +1,3 @@
-
 /**
  * Utility functions for PWA mode detection and adjustments
  */
@@ -61,6 +60,12 @@ export const requestMicrophoneAccess = async (): Promise<boolean> => {
       
       // Store the stream to prevent it from being garbage collected in PWA
       if (isPWA || isIOS) {
+        // Release any existing stream first
+        if ((window as any).microphoneStream) {
+          const oldTracks = (window as any).microphoneStream.getTracks();
+          oldTracks.forEach((track: MediaStreamTrack) => track.stop());
+        }
+        
         (window as any).microphoneStream = stream;
         debugLog("Stored microphone stream for PWA/iOS");
         
@@ -69,12 +74,23 @@ export const requestMicrophoneAccess = async (): Promise<boolean> => {
           debugLog("iOS PWA detected, maintaining stream connection");
           // Create an audio context to keep the stream active
           try {
+            if ((window as any).audioContext) {
+              try {
+                (window as any).audioContext.close();
+              } catch (e) {
+                // Ignore error
+              }
+            }
+            
             const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
             if (AudioContext) {
               const audioCtx = new AudioContext();
               const source = audioCtx.createMediaStreamSource(stream);
               // Connect to a silent destination to keep active without audio output
-              source.connect(audioCtx.createGain());
+              const gain = audioCtx.createGain();
+              gain.gain.value = 0;
+              source.connect(gain);
+              gain.connect(audioCtx.destination);
               (window as any).audioContext = audioCtx;
               debugLog("Created audio context to maintain stream");
             }

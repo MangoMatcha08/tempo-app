@@ -1,4 +1,3 @@
-
 /**
  * Utility functions for speech recognition 
  */
@@ -113,13 +112,59 @@ export const ensureActiveAudioStream = async (): Promise<boolean> => {
   try {
     // Get stream and KEEP REFERENCE to prevent garbage collection
     const stream = await navigator.mediaDevices.getUserMedia({ 
-      audio: true,
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      },
       video: false
     });
     
     // Store globally - critical for iOS permission persistence
+    if ((window as any).activeMicrophoneStream) {
+      try {
+        const oldTracks = (window as any).activeMicrophoneStream.getTracks();
+        oldTracks.forEach((track: MediaStreamTrack) => track.stop());
+      } catch (e) {
+        console.error("Error stopping old stream:", e);
+      }
+    }
+    
     (window as any).activeMicrophoneStream = stream;
     console.log("Acquired and stored active microphone stream");
+    
+    // For iOS, we need to create an audio context to keep the stream active
+    const isIOS = isIOSDevice();
+    const isPWA = isPwaMode();
+    
+    if (isIOS && isPWA) {
+      console.log("iOS PWA detected, setting up audio context");
+      try {
+        if ((window as any).audioContext) {
+          try {
+            (window as any).audioContext.close();
+          } catch (e) {
+            // Ignore error
+          }
+        }
+        
+        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContext) {
+          const audioCtx = new AudioContext();
+          const source = audioCtx.createMediaStreamSource(stream);
+          // Connect to a silent destination to keep active without audio output
+          const gain = audioCtx.createGain();
+          gain.gain.value = 0;
+          source.connect(gain);
+          gain.connect(audioCtx.destination);
+          (window as any).audioContext = audioCtx;
+          console.log("Created audio context to maintain stream");
+        }
+      } catch (err) {
+        console.error("Error creating audio context:", err);
+      }
+    }
+    
     return true;
   } catch (error) {
     console.error("Microphone permission error:", error);
@@ -131,6 +176,16 @@ export const ensureActiveAudioStream = async (): Promise<boolean> => {
  * Closes any existing microphone streams
  */
 export const releaseAudioStream = (): void => {
+  if ((window as any).audioContext) {
+    try {
+      (window as any).audioContext.close();
+      (window as any).audioContext = null;
+      console.log("Released audio context");
+    } catch (error) {
+      console.error("Error releasing audio context:", error);
+    }
+  }
+  
   if ((window as any).activeMicrophoneStream) {
     try {
       const stream = (window as any).activeMicrophoneStream;
