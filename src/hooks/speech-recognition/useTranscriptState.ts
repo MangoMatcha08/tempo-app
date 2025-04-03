@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { debounce } from './utils';
 import { createDebugLogger } from '@/utils/debugUtils';
@@ -28,6 +27,7 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
   const lastResultTimestampRef = useRef(0);
   const resultCountRef = useRef(0);
   const lastProcessedEventRef = useRef<any>(null);
+  const processingAttemptsRef = useRef(0);
   
   // Cleanup function to reset all state
   const resetTranscriptState = useCallback(() => {
@@ -39,6 +39,7 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
     lastResultTimestampRef.current = 0;
     resultCountRef.current = 0;
     lastProcessedEventRef.current = null;
+    processingAttemptsRef.current = 0;
   }, []);
   
   // Debounced update for better UX
@@ -58,6 +59,7 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
     // Ensure we have results
     if (!event || !event.results) {
       debugLog("No results in event");
+      setIsProcessing(true);
       return;
     }
     
@@ -84,12 +86,16 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
     }
     
     try {
+      // Always set to processing when handling results
       setIsProcessing(true);
       
       const results = event.results;
       let finalTranscript = '';
       let interimResult = '';
       let hasMeaningfulContent = false;
+      
+      // Track if we found any content at all in the results
+      let hasAnyContent = false;
       
       // Process results
       for (let i = 0; i < results.length; i++) {
@@ -101,6 +107,7 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
           if (text) {
             finalResultsRef.current.push(text);
             hasMeaningfulContent = true;
+            hasAnyContent = true;
             debugLog(`Added final result: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
           }
         } else {
@@ -108,8 +115,9 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
           const interimText = result[0].transcript.trim();
           if (interimText) {
             interimResult += interimText + ' ';
+            hasAnyContent = true;
             // Even interim results can indicate we have content
-            if (interimText.length > 5) {
+            if (interimText.length > 2) {
               hasMeaningfulContent = true;
             }
           }
@@ -131,34 +139,60 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
         setTranscript(finalTranscript);
       }
       
-      // Always mark as processing if we have any content at all
+      // Important: if we have any content at all, mark as processing
       // This helps bridge the gap between result processing
-      if (hasMeaningfulContent) {
-        debugLog("Setting isProcessing to true because meaningful content was detected");
+      if (hasAnyContent) {
+        debugLog("Setting isProcessing to true because content was detected");
         setIsProcessing(true);
+        processingAttemptsRef.current = 0; // Reset attempts counter when we get content
       } else {
-        // Set processing state based on interim result presence
-        const shouldStillBeProcessing = interimResult.length > 0;
-        setIsProcessing(shouldStillBeProcessing);
-        debugLog(`Setting isProcessing to ${shouldStillBeProcessing} based on interim result`);
+        processingAttemptsRef.current++;
+        debugLog(`No content detected, attempt ${processingAttemptsRef.current}`);
+        
+        // Only set not processing after multiple consecutive attempts with no content
+        // This prevents flickering and premature termination
+        if (processingAttemptsRef.current > 3 && !interimResult && !finalTranscript) {
+          debugLog(`Multiple attempts with no content, setting processing to ${!!interimResult}`);
+          setIsProcessing(!!interimResult);
+        } else {
+          // Keep processing flag on during initial attempts
+          setIsProcessing(true);
+        }
       }
       
     } catch (error) {
       console.error("Error processing speech results:", error);
       debugLog(`Error processing speech results: ${error}`);
-      setIsProcessing(false);
+      setIsProcessing(true);
     }
   }, [transcript, debouncedInterimUpdate, isPWA, isIOS]);
   
-  // Cleanup on unmount
+  // Add stability monitoring
   useEffect(() => {
-    if (transcript && transcript.trim().length > 0) {
-      // If we have a transcript, ensure isProcessing is true
-      if (!isProcessing) {
-        debugLog("Setting processing to true because we have transcript content");
-        setIsProcessing(true);
+    const stabilityCheck = setInterval(() => {
+      if (isProcessing && transcript === '') {
+        // If we're processing but have no transcript after a while,
+        // we may need to reset the processing state
+        processingAttemptsRef.current++;
+        debugLog(`Stability check: processing with no transcript, attempt ${processingAttemptsRef.current}`);
+        
+        // After multiple checks with no transcript, reset the processing state
+        if (processingAttemptsRef.current > 5) {
+          debugLog("Resetting processing state due to stability check");
+          setIsProcessing(false);
+        }
+      } else if (transcript && transcript.trim().length > 0) {
+        // If we have a transcript, ensure processing is true
+        if (!isProcessing) {
+          debugLog("Setting processing to true because we have transcript content");
+          setIsProcessing(true);
+        }
+        // Reset the attempts counter when we have content
+        processingAttemptsRef.current = 0;
       }
-    }
+    }, 2000);
+    
+    return () => clearInterval(stabilityCheck);
   }, [transcript, isProcessing]);
   
   // Cleanup on unmount
