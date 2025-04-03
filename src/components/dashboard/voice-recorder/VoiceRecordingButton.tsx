@@ -17,6 +17,9 @@ const VoiceRecordingButton = ({
   transcriptSent,
   onClick 
 }: VoiceRecordingButtonProps) => {
+  // Use a slightly softer animation to avoid flickering
+  const pulseAnimation = isRecording ? "animate-[pulse_1.5s_ease-in-out_infinite]" : "";
+  
   return (
     <div className="flex justify-center mb-4">
       <Button
@@ -24,10 +27,11 @@ const VoiceRecordingButton = ({
         disabled={isProcessing || transcriptSent}
         size="lg"
         className={cn(
-          "rounded-full h-16 w-16 p-0 transition-all",
+          "rounded-full h-16 w-16 p-0 transition-all duration-300",
           isRecording 
-            ? "bg-red-500 hover:bg-red-600 animate-pulse" 
+            ? "bg-red-500 hover:bg-red-600" 
             : "bg-blue-500 hover:bg-blue-600",
+          pulseAnimation,
           (isProcessing || transcriptSent) && "opacity-50 cursor-not-allowed"
         )}
         aria-label={isRecording ? "Stop recording" : "Start recording"}

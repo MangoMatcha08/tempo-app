@@ -9,7 +9,8 @@ import {
   isIOSDevice, 
   isPwaMode,
   createNoResultsTimeout,
-  diagnoseAudioContext
+  diagnoseAudioContext,
+  debounce
 } from './utils';
 import { UseSpeechRecognitionReturn } from './types';
 
@@ -32,6 +33,9 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   const diagnosticTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const recognitionStartTimeRef = useRef<number>(0);
   const audioContextDiagnosedRef = useRef<boolean>(false);
+  const unexpectedStopCountRef = useRef<number>(0);
+  const continuousRecognitionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const recognitionKeepAliveTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Detect iOS and PWA status
   const isIOS = isIOSDevice();
@@ -62,6 +66,101 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     resetTranscriptState,
     processSpeechResults
   } = useTranscriptState({ isPWA: detectedIsPWA, isIOS: detectedIsIOS });
+
+  // Restart recognition to prevent premature endings
+  const restartRecognition = useCallback(async (reason: string) => {
+    if (!isListening || manuallyStoppedRef.current) {
+      debugLog(`Not restarting: ${isListening ? 'manually stopped' : 'not listening'}`);
+      return;
+    }
+
+    debugLog(`Restarting recognition: ${reason}`);
+    
+    try {
+      // Try stopping first to ensure clean state
+      try {
+        recognition?.stop();
+      } catch (e) {
+        // Ignore stop errors
+      }
+      
+      // Small delay before restart
+      const restartDelay = isIOS ? 800 : 300;
+      
+      setTimeout(async () => {
+        if (isListening && !manuallyStoppedRef.current) {
+          try {
+            await ensureActiveAudioStream();
+            recognition?.start();
+            debugLog(`Recognition restarted successfully after ${reason}`);
+            lastRecognitionEventRef.current = Date.now();
+            
+            // Set up keep-alive timer
+            startKeepAliveTimer();
+          } catch (e) {
+            debugLog(`Failed to restart after ${reason}: ${e}`);
+            unexpectedStopCountRef.current++;
+            
+            // If we've failed multiple times, try a more aggressive restart
+            if (unexpectedStopCountRef.current > 2) {
+              debugLog("Multiple restart failures, trying aggressive restart");
+              releaseAudioStream();
+              
+              setTimeout(async () => {
+                if (isListening && !manuallyStoppedRef.current) {
+                  try {
+                    await ensureActiveAudioStream();
+                    recognition?.start();
+                    debugLog("Aggressive restart successful");
+                    lastRecognitionEventRef.current = Date.now();
+                  } catch (e) {
+                    debugLog(`Aggressive restart failed: ${e}`);
+                    setIsListening(false);
+                  }
+                }
+              }, 1000);
+            }
+          }
+        }
+      }, restartDelay);
+    } catch (e) {
+      debugLog(`Error in restart sequence: ${e}`);
+    }
+  }, [isListening, isIOS, recognition]);
+  
+  // Set up a keep-alive timer to ensure recognition doesn't end prematurely
+  const startKeepAliveTimer = useCallback(() => {
+    if (recognitionKeepAliveTimerRef.current) {
+      clearTimeout(recognitionKeepAliveTimerRef.current);
+    }
+    
+    // Check every 3 seconds if recognition is still active
+    recognitionKeepAliveTimerRef.current = setInterval(() => {
+      if (isListening && !manuallyStoppedRef.current) {
+        const now = Date.now();
+        const timeSinceLastEvent = now - lastRecognitionEventRef.current;
+        
+        // If it's been more than 8 seconds since the last event, consider it inactive
+        if (timeSinceLastEvent > 8000) {
+          debugLog(`No recognition events for ${timeSinceLastEvent}ms, restarting`);
+          restartRecognition("keep-alive timeout");
+        }
+      } else {
+        // Stop the timer if we're not listening anymore
+        if (recognitionKeepAliveTimerRef.current) {
+          clearInterval(recognitionKeepAliveTimerRef.current);
+          recognitionKeepAliveTimerRef.current = null;
+        }
+      }
+    }, 3000);
+    
+    return () => {
+      if (recognitionKeepAliveTimerRef.current) {
+        clearInterval(recognitionKeepAliveTimerRef.current);
+        recognitionKeepAliveTimerRef.current = null;
+      }
+    };
+  }, [isListening, restartRecognition]);
   
   // Helper to stabilize recognition status with improved diagnostics
   const stabilizeRecognitionStatus = useCallback(() => {
@@ -300,6 +399,9 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       lastRecognitionEventRef.current = Date.now();
       hasReceivedAnyResultsRef.current = true;
       
+      // Reset unexpected stop counter since we're successfully getting results
+      unexpectedStopCountRef.current = 0;
+      
       // Clear diagnostic timeout since we got results
       if (diagnosticTimeoutRef.current) {
         clearTimeout(diagnosticTimeoutRef.current);
@@ -330,6 +432,9 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         try {
           processSpeechResults(event);
           
+          // After processing results, ensure recognition stays active
+          startContinuousRecognitionTimer();
+          
           // Reset the flag after a delay to prevent rapid duplicates
           // but allow subsequent legitimate results
           setTimeout(() => {
@@ -359,98 +464,11 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       
       // Only restart if still supposed to be listening and not manually stopped
       if (isListening && !manuallyStoppedRef.current) {
-        debugLog('Restarting speech recognition...');
-        
-        try {
-          // Platform-specific restart delay - longer for iOS
-          const restartDelay = isIOS ? 
-            (isPWA ? 1000 : 800) : 
-            (isPWA ? 600 : 300);
-          
-          debugLog(`Using restart delay of ${restartDelay}ms for ${isIOS ? 'iOS' : 'non-iOS'}`);
-          
-          setTimeout(async () => {
-            if (isListening && !manuallyStoppedRef.current) {
-              try {
-                if (isIOS && isPWA) {
-                  // For iOS PWA, ensure we have an active audio stream before restarting
-                  debugLog("iOS PWA: Reestablishing audio stream before restart");
-                  await ensureActiveAudioStream();
-                  
-                  // Force stop first (iOS needs this)
-                  try {
-                    recognition.stop();
-                  } catch (e) {
-                    // Ignore - may not be started
-                  }
-                  
-                  // Add another delay for iOS before starting
-                  setTimeout(() => {
-                    try {
-                      if (isListening && !manuallyStoppedRef.current) {
-                        recognition.start();
-                        debugLog("iOS PWA: Recognition restarted after stop-start sequence");
-                        startDiagnosticTimeout();
-                      }
-                    } catch (iosErr) {
-                      debugLog(`iOS PWA restart failed: ${iosErr}`);
-                      setError('Speech recognition failed. Please try again.');
-                      setIsListening(false);
-                    }
-                  }, 300);
-                } else {
-                  // Standard restart for other platforms
-                  if (isListening && !manuallyStoppedRef.current) {
-                    recognition.start();
-                    debugLog("Recognition restarted after timeout");
-                    startDiagnosticTimeout();
-                    
-                    // Reset the no results timeout
-                    startNoResultsTimeout();
-                  }
-                }
-              } catch (startErr) {
-                debugLog(`Error on restart: ${startErr}`);
-                
-                // Special handling for iOS Safari which can be finicky
-                if (isIOS) {
-                  debugLog("iOS detected, using special restart approach");
-                  setTimeout(async () => {
-                    try {
-                      if (isListening && !manuallyStoppedRef.current) {
-                        // For iOS, try reacquiring the audio stream
-                        await ensureActiveAudioStream();
-                        
-                        recognition.start();
-                        debugLog("iOS special restart successful");
-                        startNoResultsTimeout();
-                      }
-                    } catch (iosErr) {
-                      debugLog(`iOS restart failed: ${iosErr}`);
-                      setError('Speech recognition failed. Please try again.');
-                      setIsListening(false);
-                    }
-                  }, 1000);
-                } else {
-                  setError('Failed to restart speech recognition. Please try again.');
-                  setIsListening(false);
-                }
-              }
-            } else {
-              debugLog("Not restarting - no longer listening or manually stopped");
-            }
-          }, restartDelay);
-        } catch (err) {
-          debugLog(`Error restarting recognition: ${err}`);
-          setError('Failed to restart speech recognition. Please try again.');
-          setIsListening(false);
-        }
+        debugLog('Recognition ended unexpectedly - restarting');
+        restartRecognition("unexpected end");
       } else {
         debugLog(`Not restarting - listening state is ${isListening}, manually stopped: ${manuallyStoppedRef.current}`);
       }
-      
-      // Ensure recognition remains stable
-      stabilizeRecognitionStatus();
     };
     
     const handleAudioStart = () => {
@@ -470,6 +488,9 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     const handleSpeechStart = () => {
       debugLog("Speech detected - user has begun speaking");
       lastRecognitionEventRef.current = Date.now();
+      
+      // Reset unexpected stop counter since speech is being detected
+      unexpectedStopCountRef.current = 0;
     };
     
     const handleSpeechEnd = () => {
@@ -487,59 +508,11 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         return;
       }
       
-      // Implement iOS recovery logic with exponential backoff
-      if (['network', 'service-not-allowed', 'aborted'].includes(event.error) && isListening && !manuallyStoppedRef.current) {
-        debugLog(`Recoverable error: ${event.error} - attempting recovery`);
-        
-        const baseDelay = 300;
-        const maxAttempts = 3;
-        
-        if (attemptCountRef.current < maxAttempts) {
-          // Exponential backoff with jitter
-          const backoffFactor = Math.min(Math.pow(1.5, attemptCountRef.current), 10);
-          const jitter = Math.random() * 0.3 + 0.85;
-          const backoffTime = Math.min(baseDelay * backoffFactor * jitter, 5000);
-          
-          debugLog(`Recovery attempt ${attemptCountRef.current + 1}/${maxAttempts} with delay ${backoffTime}ms`);
-          
-          setTimeout(async () => {
-            if (isListening && !manuallyStoppedRef.current) {
-              try {
-                // For iOS, ensure we have an active audio stream
-                if (isIOS) {
-                  await ensureActiveAudioStream();
-                }
-                
-                try {
-                  recognition.stop();
-                } catch (e) {
-                  // Ignore - may not be started
-                }
-                
-                setTimeout(() => {
-                  try {
-                    if (isListening && !manuallyStoppedRef.current) {
-                      recognition.start();
-                      debugLog("Recovery successful");
-                      startNoResultsTimeout();
-                      startDiagnosticTimeout();
-                    }
-                  } catch (startErr) {
-                    debugLog(`Recovery start failed: ${startErr}`);
-                  }
-                }, 300);
-              } catch (err) {
-                debugLog(`Recovery attempt failed: ${err}`);
-              }
-            }
-          }, backoffTime);
-          
-          attemptCountRef.current++;
-        } else {
-          debugLog("Max recovery attempts reached");
-          setError('Recognition failed after multiple attempts. Please try again.');
-          setIsListening(false);
-        }
+      // For network errors or aborted sessions, restart recognition
+      if (['network', 'aborted', 'service-not-allowed'].includes(event.error) && isListening && !manuallyStoppedRef.current) {
+        debugLog(`Recoverable error: ${event.error} - attempting restart`);
+        restartRecognition(`error: ${event.error}`);
+        return;
       }
       
       // Ensure recognition remains stable
@@ -550,32 +523,10 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       debugLog("No match event received");
       lastRecognitionEventRef.current = Date.now();
       
-      // On no match, try to restart the recognition
+      // On no match, restart recognition to keep it going
       if (isListening && !manuallyStoppedRef.current) {
-        debugLog("No match, attempting to restart recognition");
-        
-        setTimeout(async () => {
-          if (isListening && !manuallyStoppedRef.current) {
-            try {
-              recognition.stop();
-            } catch (e) {
-              // Ignore stop errors
-            }
-            
-            setTimeout(async () => {
-              if (isListening && !manuallyStoppedRef.current) {
-                try {
-                  recognition.start();
-                  debugLog("Restarted after no match");
-                  startNoResultsTimeout();
-                  startDiagnosticTimeout();
-                } catch (e) {
-                  debugLog(`Restart after no match failed: ${e}`);
-                }
-              }
-            }, 500);
-          }
-        }, 300);
+        debugLog("No match, restarting recognition");
+        restartRecognition("no match");
       }
     };
     
@@ -613,9 +564,19 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
           clearTimeout(diagnosticTimeoutRef.current);
           diagnosticTimeoutRef.current = null;
         }
+        
+        if (continuousRecognitionTimerRef.current) {
+          clearTimeout(continuousRecognitionTimerRef.current);
+          continuousRecognitionTimerRef.current = null;
+        }
+        
+        if (recognitionKeepAliveTimerRef.current) {
+          clearInterval(recognitionKeepAliveTimerRef.current);
+          recognitionKeepAliveTimerRef.current = null;
+        }
       }
     };
-  }, [recognition, isListening, processSpeechResults, isIOS, isPWA, setError, stabilizeRecognitionStatus, startNoResultsTimeout, startDiagnosticTimeout]);
+  }, [recognition, isListening, processSpeechResults, isIOS, isPWA, setError, stabilizeRecognitionStatus, startNoResultsTimeout, startDiagnosticTimeout, restartRecognition]);
   
   // Enhanced start listening function with improved audio initialization
   const startListening = useCallback(async () => {
@@ -642,10 +603,21 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       diagnosticTimeoutRef.current = null;
     }
     
+    if (continuousRecognitionTimerRef.current) {
+      clearTimeout(continuousRecognitionTimerRef.current);
+      continuousRecognitionTimerRef.current = null;
+    }
+    
+    if (recognitionKeepAliveTimerRef.current) {
+      clearInterval(recognitionKeepAliveTimerRef.current);
+      recognitionKeepAliveTimerRef.current = null;
+    }
+    
     // Reset the transcript and flags
     resetTranscriptState();
     setError(undefined);
     attemptCountRef.current = 0;
+    unexpectedStopCountRef.current = 0;
     isProcessingResultRef.current = false;
     lastRecognitionEventRef.current = Date.now();
     manuallyStoppedRef.current = false;
@@ -696,6 +668,9 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
               debugLog("Recognition started with iOS-optimized delay");
               startNoResultsTimeout();
               startDiagnosticTimeout();
+              
+              // Start keep-alive timer
+              startKeepAliveTimer();
             } else {
               debugLog("Not starting - manually stopped during delay");
             }
@@ -740,6 +715,9 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
               debugLog("Recognition started successfully");
               startNoResultsTimeout();
               startDiagnosticTimeout();
+              
+              // Start keep-alive timer
+              startKeepAliveTimer();
             } else {
               debugLog("Not starting - manually stopped during delay");
             }
@@ -769,7 +747,8 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     isPWA, 
     stabilizeRecognitionStatus, 
     startNoResultsTimeout,
-    startDiagnosticTimeout
+    startDiagnosticTimeout,
+    startKeepAliveTimer
   ]);
   
   // Enhanced stop listening function with improved cleanup
@@ -779,7 +758,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     // Mark as manually stopped to prevent automatic restarts
     manuallyStoppedRef.current = true;
     
-    // Clear any pending start timeouts
+    // Clear any pending timers
     if (startTimeoutRef.current) {
       clearTimeout(startTimeoutRef.current);
       startTimeoutRef.current = null;
@@ -798,6 +777,16 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     if (diagnosticTimeoutRef.current) {
       clearTimeout(diagnosticTimeoutRef.current);
       diagnosticTimeoutRef.current = null;
+    }
+    
+    if (continuousRecognitionTimerRef.current) {
+      clearTimeout(continuousRecognitionTimerRef.current);
+      continuousRecognitionTimerRef.current = null;
+    }
+    
+    if (recognitionKeepAliveTimerRef.current) {
+      clearInterval(recognitionKeepAliveTimerRef.current);
+      recognitionKeepAliveTimerRef.current = null;
     }
     
     setIsListening(false);
@@ -820,62 +809,66 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     
     // For iOS, release the audio stream when stopping
     // This helps with permission context in some cases
-    if (isIOS && !isPWA) {
-      debugLog("iOS: Releasing audio stream on stop");
+    if (isIOS) {
       releaseAudioStream();
     }
-    
-    // For iOS PWA, keep the stream alive for faster restarts
-  }, [recognition, isIOS, isPWA, transcript, interimTranscript]);
+  }, [transcript, interimTranscript, isIOS, isPWA, recognition]);
   
-  // Cleanup on unmount
+  // Automatic cleanup on unmount
   useEffect(() => {
     return () => {
-      if (recognitionStabilityTimerRef.current) {
-        clearTimeout(recognitionStabilityTimerRef.current);
-      }
+      debugLog("Cleaning up speech recognition on unmount");
+      
       if (startTimeoutRef.current) {
         clearTimeout(startTimeoutRef.current);
       }
+      
+      if (recognitionStabilityTimerRef.current) {
+        clearTimeout(recognitionStabilityTimerRef.current);
+      }
+      
       if (clearNoResultsTimeoutRef.current) {
         clearNoResultsTimeoutRef.current();
       }
+      
       if (diagnosticTimeoutRef.current) {
         clearTimeout(diagnosticTimeoutRef.current);
       }
       
-      // Ensure recognition is stopped
-      if (recognition && isListening) {
+      if (continuousRecognitionTimerRef.current) {
+        clearTimeout(continuousRecognitionTimerRef.current);
+      }
+      
+      if (recognitionKeepAliveTimerRef.current) {
+        clearInterval(recognitionKeepAliveTimerRef.current);
+      }
+      
+      releaseAudioStream();
+      
+      if (recognition) {
         try {
           recognition.stop();
         } catch (e) {
-          // Ignore cleanup errors
+          // Ignore
         }
       }
-      
-      // Release audio resources
-      releaseAudioStream();
     };
-  }, [recognition, isListening]);
+  }, [recognition]);
   
-  // Log state changes for debugging
-  useEffect(() => {
-    debugLog(`isListening changed to: ${isListening}`);
-  }, [isListening]);
+  // Reset transcript function
+  const resetTranscript = useCallback(() => {
+    resetTranscriptState();
+  }, [resetTranscriptState]);
   
-  useEffect(() => {
-    debugLog(`transcript changed: ${transcript ? 'has content' : 'empty'}`);
-  }, [transcript]);
-  
-  // Export the enhanced API
   return {
     transcript,
     interimTranscript,
-    browserSupportsSpeechRecognition,
-    isListening,
+    resetTranscript,
     startListening,
     stopListening,
-    resetTranscript: resetTranscriptState,
+    isListening,
+    isProcessing,
+    browserSupportsSpeechRecognition,
     error,
     isPWA: detectedIsPWA,
     isMobile
