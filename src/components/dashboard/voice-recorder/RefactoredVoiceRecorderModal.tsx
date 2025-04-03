@@ -186,7 +186,7 @@ const RefactoredVoiceRecorderModal: React.FC<RefactoredVoiceRecorderModalProps> 
               <VoiceReminderConfirmView
                 transcript={transcript}
                 reminderInput={processedResult.reminder}
-                onSave={handleSaveReminder}
+                onSave={() => handleSaveReminder(processedResult.reminder)}
                 isSaving={isSaving}
               />
             )}

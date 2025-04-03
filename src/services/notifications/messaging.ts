@@ -30,9 +30,7 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
         if (!swRegistration) {
           // Register service worker if not already registered
           debugLog('Service worker not found, registering now...');
-          swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-            scope: '/'
-          });
+          swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
           debugLog('Service worker registered:', swRegistration);
         } else {
           debugLog('Found existing service worker:', swRegistration);

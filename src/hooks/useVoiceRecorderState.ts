@@ -1,7 +1,7 @@
-
 import { useState, useRef, useEffect, useCallback } from 'react';
 import useSpeechRecognition from './speech-recognition';
 import { createDebugLogger } from '@/utils/debugUtils';
+import { UseSpeechRecognitionReturn } from './speech-recognition';
 
 const debugLog = createDebugLogger("useVoiceRecorderState");
 
@@ -30,7 +30,7 @@ export const useVoiceRecorderState = () => {
   // Setup speech recognition
   const { 
     transcript: recognitionTranscript,
-    listening,
+    isListening,
     startListening,
     stopListening,
     browserSupportsSpeechRecognition,
@@ -48,8 +48,8 @@ export const useVoiceRecorderState = () => {
   
   // Update isRecording state when listening changes
   useEffect(() => {
-    setIsRecording(listening);
-  }, [listening]);
+    setIsRecording(isListening);
+  }, [isListening]);
   
   // Handle recording timer
   useEffect(() => {

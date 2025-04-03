@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -13,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Reminder, ReminderPriority, ReminderCategory } from "@/types/reminderTypes";
 import VoiceRecorderView from "./voice-recorder/VoiceRecorderView";
 import ModalFooterActions from "./voice-recorder/ModalFooterActions";
+import { isPWAMode } from "@/utils/pwaUtils";
 
 interface VoiceRecorderModalProps {
   open: boolean;
@@ -118,7 +120,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   useEffect(() => {
     const isStandalone = 
       window.matchMedia('(display-mode: standalone)').matches || 
-      window.navigator.standalone === true;
+      isPWAMode();
     
     setIsPWA(isStandalone);
     console.log("VoiceRecorderModal running as PWA:", isStandalone);
@@ -283,7 +285,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
               category={category}
               setCategory={setCategory}
               periodId={periodId}
-              setPeriodId={setPeriod}
+              setPeriodId={setPeriodId}
               processingResult={processingResult}
               onSave={handleSave}
               onCancel={handleCancel}
