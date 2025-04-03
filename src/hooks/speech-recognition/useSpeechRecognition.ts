@@ -19,6 +19,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   const isMobile = useIsMobile();
   const attemptCountRef = useRef<number>(0);
   const activeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastStartAttemptRef = useRef<number>(0);
   
   // Use separate hooks for managing recognition and transcript
   const { 
@@ -41,7 +42,9 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     processSpeechResults 
   } = useTranscriptState({ isPWA, isIOS });
   
-  // IMPROVEMENT 3: Robust Recognition State Management (continued)
+  // Track if we're trying to start recognition
+  const startingRef = useRef<boolean>(false);
+  
   // Configure recognition event handlers with improved mobile handling
   useEffect(() => {
     if (!recognition) return;
@@ -81,45 +84,94 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         return;
       }
       
-      // For network errors, try to restart recognition with special handling
-      if (event.error === 'network') {
-        debugLog('Network error, attempting to restart recognition...');
-        setError(errorMessages[event.error] || `Speech recognition error: ${event.error}`);
+      // For all critical errors except "aborted", try to recover
+      if (event.error !== 'aborted') {
+        debugLog(`Critical error (${event.error}), attempting recovery...`);
         
-        // Attempt to recover with exponential backoff (for mobile network issues)
-        const backoffTime = Math.min(1000 * (2 ** attemptCountRef.current), 10000);
-        debugLog(`Backoff attempt ${attemptCountRef.current + 1}, waiting ${backoffTime}ms`);
-        
-        setTimeout(() => {
-          if (isListening) {
-            try {
-              recognition.start();
-              debugLog("Recognition restarted after network error");
-            } catch (err) {
-              console.error('Failed to restart after network error:', err);
+        // If we're in PWA or mobile mode, try harder to recover
+        if (isPWA || isMobile) {
+          // Calculate exponential backoff with jitter
+          const baseDelay = 300;
+          const backoffFactor = Math.min(Math.pow(1.5, attemptCountRef.current), 10);
+          const jitter = Math.random() * 0.3 + 0.85; // Random between 0.85 and 1.15
+          const backoffTime = Math.min(baseDelay * backoffFactor * jitter, 5000);
+          
+          debugLog(`Advanced recovery attempt ${attemptCountRef.current + 1}, waiting ${Math.round(backoffTime)}ms`);
+          
+          // Increment attempt counter before the timeout
+          attemptCountRef.current++;
+          
+          // Set a timeout to try recovery
+          setTimeout(() => {
+            // Only try recovery if we're still supposed to be listening
+            if (isListening) {
+              debugLog("Attempting recognition restart after error");
               
-              // Increment attempt counter
-              attemptCountRef.current++;
-              
-              // Give up after too many attempts
-              if (attemptCountRef.current >= 3) {
-                setError(`Speech recognition network error. Please try again.`);
-                setIsListening(false);
-                attemptCountRef.current = 0;
+              try {
+                // First stop any ongoing recognition
+                try {
+                  recognition.stop();
+                  debugLog("Stopped existing recognition for restart");
+                } catch (stopErr) {
+                  debugLog(`Could not stop existing recognition: ${stopErr}`);
+                }
+                
+                // Add a small delay before restarting
+                setTimeout(() => {
+                  // Double-check we still want to listen
+                  if (isListening) {
+                    try {
+                      recognition.start();
+                      debugLog("Successfully restarted recognition after error");
+                      startingRef.current = false;
+                    } catch (startErr) {
+                      debugLog(`Error on restart: ${startErr}`);
+                      
+                      // If too many consecutive failures, give up
+                      if (attemptCountRef.current >= 3) {
+                        setError("Speech recognition failed after multiple attempts. Please try again.");
+                        setIsListening(false);
+                        startingRef.current = false;
+                        attemptCountRef.current = 0;
+                      }
+                    }
+                  }
+                }, 500);
+              } catch (err) {
+                debugLog(`Error in recovery attempt: ${err}`);
+                
+                // If we've tried too many times, give up
+                if (attemptCountRef.current >= 3) {
+                  setError("Speech recognition failed after multiple attempts. Please try again.");
+                  setIsListening(false);
+                  startingRef.current = false;
+                  attemptCountRef.current = 0;
+                }
               }
+            } else {
+              // We're no longer trying to listen, so reset attempt counter
+              attemptCountRef.current = 0;
+              startingRef.current = false;
             }
+          }, backoffTime);
+        } else {
+          // Simpler recovery for desktop
+          setError(errorMessages[event.error as keyof typeof errorMessages] || `Speech recognition error: ${event.error}`);
+          
+          // Stop listening for critical errors on desktop
+          if (['not-allowed', 'audio-capture', 'service-not-allowed'].includes(event.error)) {
+            setIsListening(false);
+            startingRef.current = false;
           }
-        }, backoffTime);
-        return;
+        }
       }
-      
-      // Set user-friendly error message
-      setError(errorMessages[event.error as keyof typeof errorMessages] || `Speech recognition error: ${event.error}`);
-      
-      // Stop listening for critical errors
-      if (['not-allowed', 'audio-capture', 'service-not-allowed'].includes(event.error)) {
-        setIsListening(false);
-      }
+    };
+    
+    // Enhanced start event handler
+    recognition.onstart = () => {
+      debugLog("Recognition started successfully");
+      startingRef.current = false;
+      setIsListening(true);
     };
     
     // Cleanup
@@ -129,7 +181,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
           recognition.stop();
           debugLog("Recognition stopped during cleanup");
         } catch (err) {
-          console.error('Error stopping recognition during cleanup:', err);
+          debugLog(`Error stopping during cleanup: ${err}`);
         }
       }
       
@@ -139,64 +191,87 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         activeTimeoutRef.current = null;
       }
     };
-  }, [recognition, isListening, processSpeechResults]);
+  }, [recognition, isListening, processSpeechResults, isPWA, isMobile, isIOS]);
 
   /**
    * Starts the speech recognition process with enhanced mobile handling
    */
   const startListening = useCallback(() => {
+    // Prevent rapid repeated calls
+    const now = Date.now();
+    if (now - lastStartAttemptRef.current < 1000) {
+      debugLog("Ignoring start request - too soon after previous attempt");
+      return;
+    }
+    lastStartAttemptRef.current = now;
+    
     if (!recognition) {
       console.error("Cannot start listening: recognition not initialized");
       return;
     }
+    
+    // If already starting or listening, don't try again
+    if (startingRef.current || isListening) {
+      debugLog("Already starting or listening - ignoring duplicate start request");
+      return;
+    }
+    
+    // Mark that we're trying to start
+    startingRef.current = true;
     
     // Reset transcript and error state
     resetTranscriptState();
     setError(undefined);
     attemptCountRef.current = 0;
     
-    // Update state
-    setIsListening(true);
     debugLog("Starting speech recognition");
     
     try {
       recognition.start();
-      debugLog('Speech recognition started');
+      debugLog('Speech recognition start request sent');
       
-      // IMPROVEMENT 5: User Feedback Enhancement
       // Set a timeout to detect if nothing happens after start
       if (activeTimeoutRef.current) {
         clearTimeout(activeTimeoutRef.current);
       }
       
-      const timeoutDuration = getPlatformAdjustedTimeout(5000, { isPWA, isMobile, isIOS });
+      const timeoutDuration = getPlatformAdjustedTimeout(10000, { isPWA, isMobile, isIOS });
       
       activeTimeoutRef.current = setTimeout(() => {
-        // If we haven't received any results after a reasonable time,
-        // provide feedback and try restarting
-        if (isListening && !transcript && !interimTranscript) {
-          debugLog("No speech detected after timeout, attempting restart");
+        // If we've sent the start request but haven't received confirmation
+        if (startingRef.current && !isListening) {
+          debugLog("Recognition failed to start after timeout, attempting recovery");
           
           try {
-            // Try stopping and restarting
-            recognition.stop();
+            // Try stopping (might throw if never started)
+            try {
+              recognition.stop();
+              debugLog("Stopped recognition during recovery");
+            } catch (stopErr) {
+              debugLog(`Error stopping during recovery: ${stopErr}`);
+              // Ignore stop errors during recovery
+            }
             
             // Give browser a moment to release resources
             setTimeout(() => {
-              if (isListening) {
+              if (startingRef.current) { // Still trying to start
                 try {
                   recognition.start();
-                  debugLog("Successfully restarted after no-speech timeout");
+                  debugLog("Successfully restarted after no-start timeout");
                 } catch (err) {
                   debugLog(`Failed restart after timeout: ${err}`);
                   // If we still can't restart, show error
-                  setError("Speech recognition isn't responding. Please try again.");
+                  setError("Unable to start speech recognition. Please try again.");
                   setIsListening(false);
+                  startingRef.current = false;
                 }
               }
-            }, 800);
+            }, 1500);
           } catch (err) {
-            debugLog(`Error in no-speech recovery: ${err}`);
+            debugLog(`Error in no-start recovery: ${err}`);
+            setError("Unable to start speech recognition. Please try again.");
+            setIsListening(false);
+            startingRef.current = false;
           }
         }
         
@@ -219,7 +294,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         
         setTimeout(() => {
           try {
-            if (!isListening) return; // Don't restart if no longer listening
+            if (!startingRef.current) return; // Don't restart if no longer trying to start
             
             recognition.start();
             debugLog("Recognition successfully restarted");
@@ -232,7 +307,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
               debugLog("iOS detected, trying third restart with longer delay");
               
               setTimeout(() => {
-                if (!isListening) return;
+                if (!startingRef.current) return;
                 
                 try {
                   recognition.start();
@@ -241,11 +316,13 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
                   debugLog(`Third start attempt failed: ${thirdErr}`);
                   setError('Failed to start speech recognition. Please try reloading the page.');
                   setIsListening(false);
+                  startingRef.current = false;
                 }
               }, 1500);
             } else {
               setError('Failed to start speech recognition. Please try reloading the page.');
               setIsListening(false);
+              startingRef.current = false;
             }
           }
         }, delayTime);
@@ -254,9 +331,10 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         debugLog(`Failed to restart recognition: ${stopErr}`);
         setError('Failed to start speech recognition. Please try reloading the page.');
         setIsListening(false);
+        startingRef.current = false;
       }
     }
-  }, [recognition, resetTranscriptState, isPWA, isMobile, isIOS, isListening, transcript, interimTranscript]);
+  }, [recognition, resetTranscriptState, isPWA, isMobile, isIOS, isListening]);
 
   /**
    * Stops the speech recognition process with enhanced mobile handling
@@ -268,6 +346,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     }
     
     debugLog('Stopping speech recognition');
+    startingRef.current = false;
     setIsListening(false);
     
     // Clear any pending timeouts
