@@ -1,12 +1,14 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   createSpeechRecognition, 
   configureSpeechRecognition,
   isSpeechRecognitionSupported,
   isIOSDevice,
   isHighLatencyEnvironment,
-  SpeechRecognitionOptions
+  isPwaMode,
+  SpeechRecognitionOptions,
+  ensureActiveAudioStream
 } from './utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { createDebugLogger } from '@/utils/debugUtils';
@@ -19,7 +21,7 @@ interface UseSpeechRecognitionSetupProps {
   setIsListening: (isListening: boolean) => void;
 }
 
-// IMPROVEMENT 3: Robust Recognition State Management
+// Enhanced Recognition State Management
 export const useSpeechRecognitionSetup = ({
   onError,
   isListening,
@@ -31,25 +33,36 @@ export const useSpeechRecognitionSetup = ({
   const [isPWA, setIsPWA] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isHighLatency, setIsHighLatency] = useState(false);
+  const hasAudioStartedRef = useRef(false);
+  const recoveryAttemptsRef = useRef(0);
+  const iosStreamEstablishedRef = useRef(false);
   
   // Enhanced platform detection
   useEffect(() => {
-    // Check if app is running in standalone mode (PWA)
-    const isStandalone = 
-      window.matchMedia('(display-mode: standalone)').matches || 
-      // @ts-ignore - Property 'standalone' exists on iOS Safari but not in TS types
-      window.navigator.standalone === true;
+    const ios = isIOSDevice();
+    const pwa = isPwaMode();
+    const highLatency = isHighLatencyEnvironment();
     
-    setIsPWA(isStandalone);
-    setIsIOS(isIOSDevice());
-    setIsHighLatency(isHighLatencyEnvironment());
+    setIsPWA(pwa);
+    setIsIOS(ios);
+    setIsHighLatency(highLatency);
     
     debugLog("Platform detection:", {
-      isPWA: isStandalone,
+      isPWA: pwa,
       isMobile,
-      isIOS: isIOSDevice(),
-      isHighLatency: isHighLatencyEnvironment()
+      isIOS: ios,
+      isHighLatency: highLatency
     });
+    
+    // For iOS PWA, preemptively request audio permission
+    if (ios && pwa && !iosStreamEstablishedRef.current) {
+      debugLog("iOS PWA detected, preemptively requesting audio permission");
+      setTimeout(async () => {
+        const success = await ensureActiveAudioStream();
+        iosStreamEstablishedRef.current = success;
+        debugLog(`iOS audio stream ${success ? 'established' : 'failed'}`);
+      }, 500);
+    }
   }, [isMobile]);
   
   // Initialize speech recognition with platform-aware configuration
@@ -72,41 +85,90 @@ export const useSpeechRecognitionSetup = ({
       if (recognitionInstance) {
         // Enhanced configuration with platform-specific settings
         const options: SpeechRecognitionOptions = {
-          isHighLatency: isHighLatency,
-          isPWA: isPWA,
-          isMobile: isMobile,
-          isIOS: isIOS
+          isHighLatency,
+          isPWA,
+          isMobile,
+          isIOS
         };
         
         configureSpeechRecognition(recognitionInstance, options);
         debugLog("Configured recognition with options:", options);
         
+        // iOS-optimized handlers
+        recognitionInstance.onstart = (event: any) => {
+          debugLog("Recognition started event received");
+          setIsListening(true);
+          hasAudioStartedRef.current = false; // Reset audio flag
+          recoveryAttemptsRef.current = 0; // Reset recovery attempts
+        };
+        
+        recognitionInstance.onaudiostart = (event: any) => {
+          debugLog("Audio capturing started");
+          // Important iOS flag - tracks if audio capture actually began
+          hasAudioStartedRef.current = true;
+        };
+        
         // Enhanced onend handler with better mobile/PWA support
         recognitionInstance.onend = () => {
-          debugLog('Speech recognition ended, isListening:', isListening);
+          debugLog('Speech recognition ended, isListening state:', isListening);
           
           // Only restart if still supposed to be listening
           if (isListening) {
             debugLog('Restarting speech recognition...');
+            
             try {
-              // Platform-specific restart delay
-              const restartDelay = isPWA ? 1000 : (isMobile ? 800 : 300);
-              debugLog(`Using restart delay of ${restartDelay}ms`);
+              // Platform-specific restart delay - longer for iOS
+              const restartDelay = isIOS ? 
+                (isPWA ? 1500 : 1000) : 
+                (isPWA ? 800 : 300);
               
-              setTimeout(() => {
+              debugLog(`Using restart delay of ${restartDelay}ms for ${isIOS ? 'iOS' : 'non-iOS'}`);
+              
+              setTimeout(async () => {
                 if (isListening) {
                   try {
-                    recognitionInstance.start();
-                    debugLog("Recognition restarted after timeout");
+                    if (isIOS && isPWA) {
+                      // For iOS PWA, ensure we have an active audio stream before restarting
+                      if (!iosStreamEstablishedRef.current) {
+                        debugLog("iOS PWA: Reestablishing audio stream before restart");
+                        iosStreamEstablishedRef.current = await ensureActiveAudioStream();
+                      }
+                      
+                      // Force stop first (iOS needs this)
+                      try {
+                        recognitionInstance.stop();
+                      } catch (e) {
+                        // Ignore - may not be started
+                      }
+                      
+                      // Add another delay for iOS before starting
+                      setTimeout(() => {
+                        try {
+                          recognitionInstance.start();
+                          debugLog("iOS PWA: Recognition restarted after stop-start sequence");
+                        } catch (iosErr) {
+                          debugLog(`iOS PWA restart failed: ${iosErr}`);
+                          onError('Speech recognition failed. Please try again.');
+                          setIsListening(false);
+                        }
+                      }, 300);
+                    } else {
+                      // Standard restart for other platforms
+                      recognitionInstance.start();
+                      debugLog("Recognition restarted after timeout");
+                    }
                   } catch (startErr) {
                     debugLog(`Error on restart: ${startErr}`);
                     
                     // Special handling for iOS Safari which can be finicky
                     if (isIOS) {
                       debugLog("iOS detected, using special restart approach");
-                      setTimeout(() => {
+                      setTimeout(async () => {
                         try {
                           if (isListening) {
+                            // For iOS, try reacquiring the audio stream
+                            iosStreamEstablishedRef.current = await ensureActiveAudioStream();
+                            
                             recognitionInstance.start();
                             debugLog("iOS special restart successful");
                           }
@@ -140,25 +202,62 @@ export const useSpeechRecognitionSetup = ({
         recognitionInstance.onerror = (event: any) => {
           debugLog(`Recognition error: ${event.error}, isListening: ${isListening}`);
           
-          // Handle specific error types differently
-          if (event.error === 'aborted' && isListening) {
-            debugLog("Aborted error during active listening - attempting recovery");
-            setTimeout(() => {
-              if (isListening) {
-                try {
-                  recognitionInstance.start();
-                  debugLog("Recovery successful after aborted error");
-                } catch (startErr) {
-                  debugLog(`Recovery failed: ${startErr}`);
-                }
-              }
-            }, isPWA ? 1200 : 600);
+          // Don't treat no-speech as critical error on iOS
+          if (event.error === 'no-speech' && isIOS) {
+            debugLog("iOS: Ignoring no-speech error");
+            return;
           }
-        };
-        
-        // Add an onstart handler for better debugging
-        recognitionInstance.onstart = () => {
-          debugLog("Recognition started successfully");
+          
+          // Implement iOS recovery logic with exponential backoff
+          if (['network', 'service-not-allowed', 'aborted'].includes(event.error) && isListening) {
+            debugLog(`Recoverable error: ${event.error} - attempting recovery`);
+            
+            const baseDelay = 300;
+            const maxAttempts = 3;
+            
+            if (recoveryAttemptsRef.current < maxAttempts) {
+              // Exponential backoff with jitter
+              const backoffFactor = Math.min(Math.pow(1.5, recoveryAttemptsRef.current), 10);
+              const jitter = Math.random() * 0.3 + 0.85;
+              const backoffTime = Math.min(baseDelay * backoffFactor * jitter, 5000);
+              
+              debugLog(`Recovery attempt ${recoveryAttemptsRef.current + 1}/${maxAttempts} with delay ${backoffTime}ms`);
+              
+              setTimeout(async () => {
+                if (isListening) {
+                  try {
+                    // For iOS, ensure we have an active audio stream
+                    if (isIOS) {
+                      iosStreamEstablishedRef.current = await ensureActiveAudioStream();
+                    }
+                    
+                    try {
+                      recognitionInstance.stop();
+                    } catch (e) {
+                      // Ignore - may not be started
+                    }
+                    
+                    setTimeout(() => {
+                      try {
+                        recognitionInstance.start();
+                        debugLog("Recovery successful");
+                      } catch (startErr) {
+                        debugLog(`Recovery start failed: ${startErr}`);
+                      }
+                    }, 300);
+                  } catch (err) {
+                    debugLog(`Recovery attempt failed: ${err}`);
+                  }
+                }
+              }, backoffTime);
+              
+              recoveryAttemptsRef.current++;
+            } else {
+              debugLog("Max recovery attempts reached");
+              onError('Recognition failed after multiple attempts. Please try again.');
+              setIsListening(false);
+            }
+          }
         };
         
         setRecognition(recognitionInstance);

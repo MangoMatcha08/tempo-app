@@ -6,7 +6,7 @@ import { createDebugLogger } from '@/utils/debugUtils';
 
 const debugLog = createDebugLogger("TranscriptState");
 
-// IMPROVEMENT 4: Improved Voice Processing Workflow
+// Improved Voice Processing Workflow
 export const useTranscriptState = (options: { isPWA: boolean; isIOS: boolean } = { isPWA: false, isIOS: false }) => {
   const [transcript, setTranscript] = useState<string>('');
   const [interimTranscript, setInterimTranscript] = useState<string>('');
@@ -19,39 +19,74 @@ export const useTranscriptState = (options: { isPWA: boolean; isIOS: boolean } =
   const finalTranscriptRef = useRef<string>('');
   const interimTranscriptRef = useRef<string>('');
   const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previousResultsLengthRef = useRef<number>(0);
+  const lastProcessedTextRef = useRef<string>('');
   
   // Create a debounced update function with platform-specific timing
   const debouncedSetTranscript = useCallback(
     debounce((text: string) => {
-      debugLog(`Setting transcript: "${text.substring(0, 20)}${text.length > 20 ? '...' : ''}"`);
-      setTranscript(text);
+      if (text && text !== lastProcessedTextRef.current) {
+        debugLog(`Setting transcript: "${text.substring(0, 20)}${text.length > 20 ? '...' : ''}"`);
+        setTranscript(text);
+        lastProcessedTextRef.current = text;
+      }
     }, getPlatformAdjustedTimeout(50, { isPWA, isMobile, isIOS })),
     [isMobile, isPWA, isIOS]
   );
 
-  // Enhanced method to process speech results with platform-specific optimizations
+  // Enhanced method to process speech results with iOS-specific optimizations
   const processSpeechResults = useCallback((event: any) => {
     // Update the last result timestamp for activity tracking
     setLastResultTimestamp(Date.now());
     setIsProcessing(true);
     
+    // iOS-specific handling to prevent duplicate processing
+    const currentResultsLength = event.results.length;
+    if (isIOS && currentResultsLength === previousResultsLengthRef.current) {
+      debugLog("iOS: Skipping duplicate results processing");
+      return;
+    }
+    previousResultsLengthRef.current = currentResultsLength;
+    
     // Process results to separate final from interim
     let finalTranscript = finalTranscriptRef.current;
     let interimTranscript = '';
     
-    debugLog(`Processing speech results with ${event.results.length} results`);
+    debugLog(`Processing speech results with ${event.results.length} results, is iOS: ${isIOS}`);
     
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const transcriptResult = event.results[i][0].transcript;
+    // iOS-specific processing to handle its quirky result objects
+    if (isIOS) {
+      // For iOS, focus on processing the most recent result which tends to be more reliable
+      const lastResultIndex = event.results.length - 1;
+      const lastResult = event.results[lastResultIndex];
       
-      if (event.results[i].isFinal) {
-        // Only add to final transcript if it's a final result
-        finalTranscript += ' ' + transcriptResult;
-        debugLog(`Added final result: "${transcriptResult}"`);
-      } else {
-        // Store interim results separately
-        interimTranscript += transcriptResult;
-        debugLog(`Added interim result: "${transcriptResult}"`);
+      if (lastResult) {
+        // Check if this is a final result
+        if (lastResult.isFinal) {
+          // Append to the final transcript
+          const transcriptResult = lastResult[0].transcript;
+          finalTranscript += ' ' + transcriptResult;
+          debugLog(`iOS: Added final result: "${transcriptResult}"`);
+        } else {
+          // Use as interim transcript
+          interimTranscript = lastResult[0].transcript;
+          debugLog(`iOS: Added interim result: "${interimTranscript}"`);
+        }
+      }
+    } else {
+      // Standard processing for other platforms
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcriptResult = event.results[i][0].transcript;
+        
+        if (event.results[i].isFinal) {
+          // Only add to final transcript if it's a final result
+          finalTranscript += ' ' + transcriptResult;
+          debugLog(`Added final result: "${transcriptResult}"`);
+        } else {
+          // Store interim results separately
+          interimTranscript += transcriptResult;
+          debugLog(`Added interim result: "${transcriptResult}"`);
+        }
       }
     }
     
@@ -70,10 +105,16 @@ export const useTranscriptState = (options: { isPWA: boolean; isIOS: boolean } =
     if (fullTranscript) {
       debouncedSetTranscript(fullTranscript);
       
-      // Mobile-specific direct update for more immediate feedback
-      if ((isMobile || isPWA) && finalTranscriptRef.current) {
-        debugLog(`Direct setting transcript on mobile/PWA: "${finalTranscriptRef.current.substring(0, 20)}${finalTranscriptRef.current.length > 20 ? '...' : ''}"`);
-        setTranscript(finalTranscriptRef.current);
+      // Platform-specific direct update for more immediate feedback
+      if ((isMobile || isPWA || isIOS) && finalTranscriptRef.current) {
+        // For iOS, try more eager transcript updates to avoid recognition lapses
+        if (isIOS && finalTranscriptRef.current !== transcript) {
+          debugLog(`iOS direct setting transcript: "${finalTranscriptRef.current.substring(0, 20)}${finalTranscriptRef.current.length > 20 ? '...' : ''}"`);
+          setTranscript(finalTranscriptRef.current);
+        } else if ((isMobile || isPWA) && finalTranscriptRef.current !== transcript) { 
+          debugLog(`Direct setting transcript on mobile/PWA: "${finalTranscriptRef.current.substring(0, 20)}${finalTranscriptRef.current.length > 20 ? '...' : ''}"`);
+          setTranscript(finalTranscriptRef.current);
+        }
       }
     }
     
@@ -82,12 +123,12 @@ export const useTranscriptState = (options: { isPWA: boolean; isIOS: boolean } =
       clearTimeout(processingTimeoutRef.current);
     }
     
-    // Set a timeout to clear processing state
+    // Set a timeout to clear processing state - longer for iOS
     processingTimeoutRef.current = setTimeout(() => {
       setIsProcessing(false);
       processingTimeoutRef.current = null;
-    }, getPlatformAdjustedTimeout(300, { isPWA, isMobile, isIOS }));
-  }, [debouncedSetTranscript, isMobile, isPWA, isIOS]);
+    }, getPlatformAdjustedTimeout(300, { isPWA, isMobile, isIOS: isIOS ? 2 : false }));
+  }, [debouncedSetTranscript, isMobile, isPWA, isIOS, transcript]);
 
   // Reset state with proper cleanup
   const resetTranscriptState = useCallback(() => {
@@ -98,6 +139,8 @@ export const useTranscriptState = (options: { isPWA: boolean; isIOS: boolean } =
     setLastResultTimestamp(0);
     finalTranscriptRef.current = '';
     interimTranscriptRef.current = '';
+    previousResultsLengthRef.current = 0;
+    lastProcessedTextRef.current = '';
     
     // Clear any pending timeouts
     if (processingTimeoutRef.current) {
@@ -107,10 +150,15 @@ export const useTranscriptState = (options: { isPWA: boolean; isIOS: boolean } =
   }, []);
   
   // Activity timeout monitoring - for detecting when speech has stopped
+  // iOS needs special handling here as it can stop delivering results while still listening
   useEffect(() => {
     // Only set up monitoring when we have a transcript and are receiving results
     if (lastResultTimestamp > 0 && (transcript || interimTranscript)) {
-      const inactivityTimeout = getPlatformAdjustedTimeout(3000, { isPWA, isMobile, isIOS });
+      // Use a longer timeout for iOS to account for its processing delays
+      const inactivityTimeout = getPlatformAdjustedTimeout(
+        isIOS ? 4000 : 3000, 
+        { isPWA, isMobile, isIOS }
+      );
       
       const checkActivityInterval = setInterval(() => {
         const timeSinceLastResult = Date.now() - lastResultTimestamp;

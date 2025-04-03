@@ -8,7 +8,8 @@ export interface UseSpeechRecognitionReturn {
   stopListening: () => void;
   resetTranscript: () => void;
   error?: string;
-  // Add platform detection properties
+  // Platform detection properties
   isPWA: boolean;
   isMobile: boolean;
+  isIOS?: boolean; // Added iOS detection
 }
