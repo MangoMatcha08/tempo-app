@@ -1,154 +1,173 @@
-/**
- * Utility functions for PWA mode detection and adjustments
- */
 
-import { createDebugLogger } from './debugUtils';
+import { createDebugLogger } from '@/utils/debugUtils';
 
 const debugLog = createDebugLogger("PWAUtils");
 
-// Check if app is running in standalone mode (PWA)
+// Check if running in PWA mode
 export const isPwaMode = (): boolean => {
-  return (
-    window.matchMedia('(display-mode: standalone)').matches || 
-    // @ts-ignore - Property 'standalone' exists on iOS Safari but not in TS types
-    window.navigator.standalone === true
-  );
+  return window.matchMedia('(display-mode: standalone)').matches || 
+         (window.navigator as any).standalone === true || 
+         document.referrer.includes('android-app://');
 };
 
-// Check if device is iOS
-export const isIOSDevice = (): boolean => {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window.MSStream);
+// Get a timeout value adjusted for PWA
+export const getPwaAdjustedTimeout = (baseTimeout: number, isMobile = false): number => {
+  const isPWA = isPwaMode();
+  
+  // Increase timeouts in PWA mode and/or on mobile
+  const multiplier = (isPWA && isMobile) ? 1.5 : 
+                    (isPWA || isMobile) ? 1.3 : 1;
+  
+  return Math.round(baseTimeout * multiplier);
 };
 
-// Get PWA-adjusted timeout values
-export const getPwaAdjustedTimeout = (baseTimeout: number, multiplier: number = 1.5): number => {
-  let finalMultiplier = multiplier;
-  
-  if (isPwaMode()) {
-    finalMultiplier *= 1.5;
-  }
-  
-  if (isIOSDevice()) {
-    finalMultiplier *= 1.3;
-  }
-  
-  return Math.round(baseTimeout * finalMultiplier);
-};
+// Store active audio stream references to avoid garbage collection in PWA mode
+const activeStreams: MediaStream[] = [];
 
-// Request microphone access with iOS-specific handling
+// Request microphone access
 export const requestMicrophoneAccess = async (): Promise<boolean> => {
   try {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      debugLog("Requesting microphone access");
+    debugLog("Requesting microphone access");
+    
+    // Check if we already have permission
+    if (navigator.permissions && navigator.permissions.query) {
+      const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
       
-      const isIOS = isIOSDevice();
-      const isPWA = isPwaMode();
-      
-      // Get stream with iOS-specific options
-      const streamOptions = {
-        audio: isIOS ? {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        } : true,
-        video: false
-      };
-      
-      const stream = await navigator.mediaDevices.getUserMedia(streamOptions);
-      
-      debugLog(`Microphone access granted, is iOS: ${isIOS}, is PWA: ${isPWA}`);
-      
-      // Store the stream to prevent it from being garbage collected in PWA
-      if (isPWA || isIOS) {
-        // Release any existing stream first
-        if ((window as any).microphoneStream) {
-          const oldTracks = (window as any).microphoneStream.getTracks();
-          oldTracks.forEach((track: MediaStreamTrack) => track.stop());
-        }
-        
-        (window as any).microphoneStream = stream;
-        debugLog("Stored microphone stream for PWA/iOS");
-        
-        // For iOS PWA, we need to keep the stream active longer
-        if (isIOS && isPWA) {
-          debugLog("iOS PWA detected, maintaining stream connection");
-          // Create an audio context to keep the stream active
-          try {
-            if ((window as any).audioContext) {
-              try {
-                (window as any).audioContext.close();
-              } catch (e) {
-                // Ignore error
-              }
-            }
-            
-            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-            if (AudioContext) {
-              const audioCtx = new AudioContext();
-              const source = audioCtx.createMediaStreamSource(stream);
-              // Connect to a silent destination to keep active without audio output
-              const gain = audioCtx.createGain();
-              gain.gain.value = 0;
-              source.connect(gain);
-              gain.connect(audioCtx.destination);
-              (window as any).audioContext = audioCtx;
-              debugLog("Created audio context to maintain stream");
-            }
-          } catch (err) {
-            debugLog(`Error creating audio context: ${err}`);
-          }
-        }
-      } else {
-        // For non-PWA on non-iOS, we can release immediately
-        // We still store it temporarily so it can be released later if needed
-        (window as any).microphoneStream = stream;
+      if (permissionStatus.state === 'granted') {
+        debugLog("Microphone permission already granted");
+        return true;
       }
-      
-      return true;
     }
-    debugLog("getUserMedia not supported");
-    return false;
-  } catch (err) {
-    console.error("Error requesting microphone access:", err);
-    debugLog(`Error requesting microphone access: ${err}`);
+    
+    // Request audio access
+    const constraints = { audio: true, video: false };
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    
+    // Store reference to prevent garbage collection in PWA
+    if (isPwaMode()) {
+      activeStreams.push(stream);
+      debugLog(`Stream stored in PWA mode (total: ${activeStreams.length})`);
+    }
+    
+    // Check if we got audio tracks
+    const audioTracks = stream.getAudioTracks();
+    debugLog(`Obtained ${audioTracks.length} audio tracks`);
+    
+    if (audioTracks.length === 0) {
+      debugLog("No audio tracks in stream");
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    debugLog(`Error requesting microphone access: ${error}`);
     return false;
   }
 };
 
-// Release any stored microphone streams
+// Helper to release microphone streams
 export const releaseMicrophoneStreams = (): void => {
-  debugLog("Releasing microphone streams");
-  
-  // Release audio context if we created one
-  if ((window as any).audioContext) {
-    try {
-      (window as any).audioContext.close();
-      (window as any).audioContext = null;
-      debugLog("Released audio context");
-    } catch (err) {
-      debugLog(`Error releasing audio context: ${err}`);
-    }
-  }
-  
-  // Release microphone stream if we stored one
-  if ((window as any).microphoneStream) {
-    try {
-      const tracks = (window as any).microphoneStream.getTracks();
-      tracks.forEach((track: MediaStreamTrack) => track.stop());
-      (window as any).microphoneStream = null;
-      debugLog("Microphone stream released");
-    } catch (err) {
-      debugLog(`Error releasing microphone stream: ${err}`);
-    }
+  // Only release non-PWA streams or when explicitly cleaning up
+  if (!isPwaMode() || activeStreams.length > 3) {
+    debugLog(`Releasing ${activeStreams.length} microphone streams`);
+    
+    activeStreams.forEach(stream => {
+      try {
+        stream.getTracks().forEach(track => {
+          track.stop();
+          debugLog(`Released track: ${track.kind}`);
+        });
+      } catch (e) {
+        debugLog(`Error releasing stream: ${e}`);
+      }
+    });
+    
+    activeStreams.length = 0;
+    debugLog("All microphone streams released");
+  } else if (isPwaMode()) {
+    debugLog(`Keeping ${activeStreams.length} streams in PWA mode`);
   }
 };
 
-// Fix for iOS alert variant
-export const fixAlertVariantForRefactoredVoiceRecorderView = () => {
-  const alertBg = document.querySelector('.bg-amber-50');
-  if (alertBg) {
-    alertBg.classList.add('bg-amber-50');
-    alertBg.classList.add('text-amber-800');
-    alertBg.classList.add('border-amber-300');
+// Force audio permission check
+export const forceAudioPermissionCheck = async (): Promise<boolean> => {
+  try {
+    debugLog("Forcing audio permission check");
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    
+    // Store briefly then release
+    const tracks = stream.getAudioTracks();
+    debugLog(`Got ${tracks.length} audio tracks for permission check`);
+    
+    if (isPwaMode()) {
+      activeStreams.push(stream);
+      debugLog(`Stream stored in PWA mode (total: ${activeStreams.length})`);
+      // Clean up older streams if we have too many
+      if (activeStreams.length > 3) {
+        const oldStream = activeStreams.shift();
+        if (oldStream) {
+          oldStream.getTracks().forEach(track => track.stop());
+          debugLog("Released oldest stream to prevent memory issues");
+        }
+      }
+    } else {
+      // Release after a short delay (in case needed by recognition)
+      setTimeout(() => {
+        tracks.forEach(track => track.stop());
+        debugLog("Permission check audio tracks released");
+      }, 500);
+    }
+    
+    return true;
+  } catch (error) {
+    debugLog(`Audio permission check failed: ${error}`);
+    return false;
+  }
+};
+
+// Test audio functionality
+export const testAudioContext = async (): Promise<boolean> => {
+  try {
+    debugLog("Testing audio context");
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    
+    if (!AudioContext) {
+      debugLog("Web Audio API not supported");
+      return false;
+    }
+    
+    const audioCtx = new AudioContext();
+    debugLog(`Audio context created, state: ${audioCtx.state}`);
+    
+    if (audioCtx.state === "suspended") {
+      try {
+        await audioCtx.resume();
+        debugLog(`Audio context resumed, state: ${audioCtx.state}`);
+      } catch (e) {
+        debugLog(`Failed to resume audio context: ${e}`);
+      }
+    }
+    
+    // Create a silent oscillator to test
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    gainNode.gain.value = 0; // Silent
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    oscillator.start();
+    
+    // Stop after a short time
+    setTimeout(() => {
+      oscillator.stop();
+      audioCtx.close();
+      debugLog("Audio context test completed");
+    }, 100);
+    
+    return true;
+  } catch (error) {
+    debugLog(`Audio context test failed: ${error}`);
+    return false;
   }
 };

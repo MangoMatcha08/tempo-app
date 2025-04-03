@@ -169,3 +169,94 @@ export const diagnoseAudioContext = async (): Promise<boolean> => {
     return false;
   }
 };
+
+// Pre-warm the speech recognition engine
+let preWarmedSpeechRecognition: any = null;
+
+export const prewarmSpeechRecognition = (): void => {
+  try {
+    if (preWarmedSpeechRecognition) {
+      debugLog("Speech recognition already prewarmed");
+      return;
+    }
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      debugLog("Prewarming speech recognition");
+      const recognition = new SpeechRecognition();
+      
+      // Configure with minimal settings
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+      recognition.lang = navigator.language || 'en-US';
+      
+      // Set up minimal handlers
+      recognition.onstart = () => {
+        debugLog("Prewarm recognition started");
+        setTimeout(() => {
+          try {
+            recognition.stop();
+            debugLog("Prewarm recognition stopped");
+          } catch (e) {
+            debugLog(`Error stopping prewarm recognition: ${e}`);
+          }
+        }, 300);
+      };
+      
+      recognition.onend = () => {
+        debugLog("Prewarm recognition ended");
+        preWarmedSpeechRecognition = recognition;
+      };
+      
+      recognition.onerror = (event: any) => {
+        debugLog(`Prewarm recognition error: ${event.error}`);
+        preWarmedSpeechRecognition = null;
+      };
+      
+      // Start briefly to initialize the engine
+      try {
+        recognition.start();
+        debugLog("Prewarm recognition start called");
+      } catch (e) {
+        debugLog(`Error starting prewarm recognition: ${e}`);
+      }
+    }
+  } catch (e) {
+    debugLog(`Error in prewarm speech recognition: ${e}`);
+  }
+};
+
+// Get the prewarmed instance if available
+export const getPrewarmedSpeechRecognition = (): any => {
+  if (preWarmedSpeechRecognition) {
+    debugLog("Returning prewarmed speech recognition");
+    const instance = preWarmedSpeechRecognition;
+    preWarmedSpeechRecognition = null; // Use only once
+    return instance;
+  }
+  return null;
+};
+
+// Helper to force audio permission check
+export const forceAudioPermissionCheck = async (): Promise<boolean> => {
+  try {
+    debugLog("Forcing audio permission check");
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    
+    // Store briefly then release
+    const tracks = stream.getAudioTracks();
+    debugLog(`Got ${tracks.length} audio tracks for permission check`);
+    
+    // Release after a short delay (in case needed by recognition)
+    setTimeout(() => {
+      tracks.forEach(track => track.stop());
+      debugLog("Permission check audio tracks released");
+    }, 500);
+    
+    return true;
+  } catch (error) {
+    debugLog(`Audio permission check failed: ${error}`);
+    return false;
+  }
+};

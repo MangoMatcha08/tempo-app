@@ -2,7 +2,14 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { UseSpeechRecognitionReturn, SpeechRecognitionOptions } from './types';
 import { useSpeechRecognitionSetup } from './useSpeechRecognitionSetup';
 import { useTranscriptState } from './useTranscriptState';
-import { isPwaMode, isIOSDevice, isMobileDevice } from './utils';
+import { 
+  isPwaMode, 
+  isIOSDevice, 
+  isMobileDevice, 
+  ensureActiveAudioStream, 
+  releaseAudioStream,
+  diagnoseAudioContext
+} from './utils';
 import { createDebugLogger } from '@/utils/debugUtils';
 
 // Set up debug logger
@@ -42,6 +49,11 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
   const recoveryModeRef = useRef<boolean>(false);
   const isInitializing = useRef<boolean>(false);
   const restartInProgressRef = useRef<boolean>(false);
+  const noActivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Add a silence detection counter
+  const silenceCountRef = useRef<number>(0);
+  const lastActivityTimestampRef = useRef<number>(Date.now());
   
   // Set up recognition
   const { recognition, browserSupportsSpeechRecognition, isPWA, isIOS } = useSpeechRecognitionSetup({
@@ -58,8 +70,8 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
     setTranscript,
     processSpeechResults
   } = useTranscriptState({ isPWA: detectedIsPWA, isIOS: detectedIsIOS });
-
-  // Set up a keep-alive timer to ensure recognition doesn't end prematurely
+  
+  // Define startKeepAliveTimer first since it's referenced by restartRecognition later
   const startKeepAliveTimer = useCallback(() => {
     if (recognitionKeepAliveTimerRef.current) {
       clearInterval(recognitionKeepAliveTimerRef.current);
@@ -78,7 +90,23 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
           
           // Only attempt restart if we're not already in the process of restarting
           if (!restartInProgressRef.current) {
-            restartRecognition("keep-alive timeout");
+            debugLog("Triggering restart from keep-alive timer");
+            
+            // Before trying to restart, check audio functionality
+            ensureActiveAudioStream().then(audioAvailable => {
+              if (audioAvailable) {
+                restartRecognition("keep-alive timeout");
+              } else {
+                debugLog("Audio stream not available, cannot restart recognition");
+                diagnoseAudioContext().then(audioDiagnostic => {
+                  debugLog(`Audio diagnostic result: ${audioDiagnostic}`);
+                  if (audioDiagnostic) {
+                    // Audio seems to work, try restart anyway
+                    restartRecognition("keep-alive timeout with audio diagnostic");
+                  }
+                });
+              }
+            });
           }
         }
       } else {
@@ -88,7 +116,7 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
           recognitionKeepAliveTimerRef.current = null;
         }
       }
-    }, 2000);
+    }, 1500); // Reduced from 2000ms to 1500ms for faster detection
     
     return () => {
       if (recognitionKeepAliveTimerRef.current) {
@@ -96,43 +124,8 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
         recognitionKeepAliveTimerRef.current = null;
       }
     };
-  }, [isListening]); // We'll add restartRecognition later
-
-  // Start continuous recognition timer to periodically restart recognition
-  const startContinuousRecognitionTimer = useCallback(() => {
-    // Clear any existing timer
-    if (continuousRecognitionTimerRef.current) {
-      clearTimeout(continuousRecognitionTimerRef.current);
-      continuousRecognitionTimerRef.current = null;
-    }
-    
-    // Only set up timer if we're actively listening
-    if (isListening && !manuallyStoppedRef.current) {
-      // Restart recognition every 45-60 seconds to prevent disconnections
-      // This is especially important for long dictations
-      const restartInterval = Math.floor(Math.random() * 15000) + 45000; // 45-60 seconds
-      
-      continuousRecognitionTimerRef.current = setTimeout(() => {
-        if (isListening && !manuallyStoppedRef.current) {
-          debugLog(`Continuous recognition timer triggered after ${restartInterval}ms`);
-          
-          // Only restart if we're not already in the process of restarting
-          if (!restartInProgressRef.current) {
-            restartRecognition("continuous timer");
-          }
-        }
-        continuousRecognitionTimerRef.current = null;
-      }, restartInterval);
-    }
-    
-    return () => {
-      if (continuousRecognitionTimerRef.current) {
-        clearTimeout(continuousRecognitionTimerRef.current);
-        continuousRecognitionTimerRef.current = null;
-      }
-    };
-  }, [isListening]); // We'll add restartRecognition later
-
+  }, [isListening]); // restartRecognition will be added later
+  
   // Restart recognition to prevent premature endings
   const restartRecognition = useCallback(async (reason: string) => {
     // Prevent multiple simultaneous restarts
@@ -167,6 +160,26 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
       
       // Reset flags and update state
       lastRecognitionEventRef.current = Date.now();
+      lastActivityTimestampRef.current = Date.now();
+      silenceCountRef.current = 0;
+      
+      // Ensure we have audio access before restarting
+      const audioAvailable = await ensureActiveAudioStream();
+      if (!audioAvailable) {
+        debugLog("Cannot restart recognition: audio stream not available");
+        
+        // Try to diagnose audio
+        const audioDiagnostic = await diagnoseAudioContext();
+        debugLog(`Audio diagnostic result: ${audioDiagnostic}`);
+        
+        if (!audioDiagnostic) {
+          debugLog("Audio diagnostic failed, cannot restart recognition");
+          setError("Could not access microphone. Please check your browser settings.");
+          setIsListening(false);
+          restartInProgressRef.current = false;
+          return;
+        }
+      }
       
       // Only try to start if we still want to be listening
       if (isListening && !manuallyStoppedRef.current) {
@@ -232,17 +245,43 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
     } finally {
       restartInProgressRef.current = false;
     }
-  }, [isListening, isIOS, recognition, startKeepAliveTimer, startContinuousRecognitionTimer]);
+  }, [isListening, isIOS, recognition, startKeepAliveTimer]);
   
-  // Fix circular dependencies by creating updated versions of the functions
-  const updatedStartKeepAliveTimer = useCallback(() => {
-    return startKeepAliveTimer();
-  }, [startKeepAliveTimer, restartRecognition]);
+  // Start continuous recognition timer to periodically restart recognition
+  const startContinuousRecognitionTimer = useCallback(() => {
+    // Clear any existing timer
+    if (continuousRecognitionTimerRef.current) {
+      clearTimeout(continuousRecognitionTimerRef.current);
+      continuousRecognitionTimerRef.current = null;
+    }
+    
+    // Only set up timer if we're actively listening
+    if (isListening && !manuallyStoppedRef.current) {
+      // Restart recognition every 45-60 seconds to prevent disconnections
+      // This is especially important for long dictations
+      const restartInterval = Math.floor(Math.random() * 15000) + 45000; // 45-60 seconds
+      
+      continuousRecognitionTimerRef.current = setTimeout(() => {
+        if (isListening && !manuallyStoppedRef.current) {
+          debugLog(`Continuous recognition timer triggered after ${restartInterval}ms`);
+          
+          // Only restart if we're not already in the process of restarting
+          if (!restartInProgressRef.current) {
+            restartRecognition("continuous timer");
+          }
+        }
+        continuousRecognitionTimerRef.current = null;
+      }, restartInterval);
+    }
+    
+    return () => {
+      if (continuousRecognitionTimerRef.current) {
+        clearTimeout(continuousRecognitionTimerRef.current);
+        continuousRecognitionTimerRef.current = null;
+      }
+    };
+  }, [isListening, restartRecognition]);
   
-  const updatedStartContinuousRecognitionTimer = useCallback(() => {
-    return startContinuousRecognitionTimer();
-  }, [startContinuousRecognitionTimer, restartRecognition]);
-
   // Helper to stabilize recognition status with improved diagnostics
   const stabilizeRecognitionStatus = useCallback(() => {
     if (recognitionStabilityTimerRef.current) {
@@ -260,10 +299,11 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
             
             // Update the last event timestamp so we don't trigger keep-alive at the same time
             lastRecognitionEventRef.current = Date.now();
+            lastActivityTimestampRef.current = Date.now();
             
             // Restart the timers
-            updatedStartKeepAliveTimer();
-            updatedStartContinuousRecognitionTimer();
+            startKeepAliveTimer();
+            startContinuousRecognitionTimer();
           } catch (err) {
             debugLog(`Error in stability check: ${err}`);
           }
@@ -281,7 +321,46 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
         recognitionStabilityTimerRef.current = null;
       }
     };
-  }, [isListening, recognition, updatedStartKeepAliveTimer, updatedStartContinuousRecognitionTimer]);
+  }, [isListening, recognition, startKeepAliveTimer, startContinuousRecognitionTimer]);
+  
+  // Start a timer to detect long periods of silence/no activity
+  const startNoActivityTimer = useCallback(() => {
+    if (noActivityTimeoutRef.current) {
+      clearTimeout(noActivityTimeoutRef.current);
+      noActivityTimeoutRef.current = null;
+    }
+    
+    if (isListening && !manuallyStoppedRef.current) {
+      noActivityTimeoutRef.current = setTimeout(() => {
+        const now = Date.now();
+        const timeSinceLastActivity = now - lastActivityTimestampRef.current;
+        
+        // If there's been no activity for 10 seconds, increment the counter
+        if (timeSinceLastActivity > 10000) {
+          debugLog(`No speech activity for ${timeSinceLastActivity}ms`);
+          silenceCountRef.current += 1;
+          
+          // If we've had 3 consecutive silence checks, try restarting
+          if (silenceCountRef.current >= 3 && !restartInProgressRef.current) {
+            debugLog("Extended silence detected, attempting restart");
+            restartRecognition("no speech activity");
+          }
+        } else {
+          silenceCountRef.current = 0;
+        }
+        
+        // Restart the timer
+        startNoActivityTimer();
+      }, 10000);
+    }
+    
+    return () => {
+      if (noActivityTimeoutRef.current) {
+        clearTimeout(noActivityTimeoutRef.current);
+        noActivityTimeoutRef.current = null;
+      }
+    };
+  }, [isListening, restartRecognition]);
 
   // Set up recognition event handlers
   const setupRecognitionHandlers = useCallback((recognitionInstance: any) => {
@@ -304,6 +383,8 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
     recognitionInstance.onresult = (event: any) => {
       // Update the last event timestamp
       lastRecognitionEventRef.current = Date.now();
+      lastActivityTimestampRef.current = Date.now();
+      silenceCountRef.current = 0;
       
       // Process the speech results
       processSpeechResults(event);
@@ -313,12 +394,16 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
     recognitionInstance.onstart = () => {
       debugLog("Recognition started");
       lastRecognitionEventRef.current = Date.now();
+      lastActivityTimestampRef.current = Date.now();
+      silenceCountRef.current = 0;
+      
       setIsListening(true);
       isInitializing.current = false;
       
       // Start timers
-      updatedStartKeepAliveTimer();
-      updatedStartContinuousRecognitionTimer();
+      startKeepAliveTimer();
+      startContinuousRecognitionTimer();
+      startNoActivityTimer();
       stabilizeRecognitionStatus();
     };
     
@@ -372,6 +457,9 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
           setIsListening(false);
           manuallyStoppedRef.current = true;
         }
+      } else if (event.error === 'no-speech') {
+        // Update last activity for no-speech errors too
+        lastActivityTimestampRef.current = Date.now();
       }
     };
     
@@ -379,6 +467,7 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
     recognitionInstance.onaudiostart = () => {
       debugLog("Audio capture started");
       lastRecognitionEventRef.current = Date.now();
+      lastActivityTimestampRef.current = Date.now();
     };
     
     recognitionInstance.onaudioend = () => {
@@ -388,6 +477,8 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
     recognitionInstance.onspeechstart = () => {
       debugLog("Speech started");
       lastRecognitionEventRef.current = Date.now();
+      lastActivityTimestampRef.current = Date.now();
+      silenceCountRef.current = 0;
     };
     
     recognitionInstance.onspeechend = () => {
@@ -395,7 +486,7 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
       lastRecognitionEventRef.current = Date.now();
     };
     
-  }, [processSpeechResults, updatedStartKeepAliveTimer, updatedStartContinuousRecognitionTimer, stabilizeRecognitionStatus, restartRecognition]);
+  }, [processSpeechResults, startKeepAliveTimer, startContinuousRecognitionTimer, startNoActivityTimer, stabilizeRecognitionStatus, restartRecognition]);
 
   // Initialize recognition
   useEffect(() => {
@@ -441,6 +532,14 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
           clearTimeout(continuousRecognitionTimerRef.current);
           continuousRecognitionTimerRef.current = null;
         }
+        
+        if (noActivityTimeoutRef.current) {
+          clearTimeout(noActivityTimeoutRef.current);
+          noActivityTimeoutRef.current = null;
+        }
+        
+        // Release any audio streams
+        releaseAudioStream();
       } catch (err) {
         debugLog(`Error during cleanup: ${err}`);
       }
@@ -459,6 +558,7 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
     if (!isListening) {
       unexpectedStopsCountRef.current = 0;
       recoveryModeRef.current = false;
+      silenceCountRef.current = 0;
     }
   }, [isListening]);
   
@@ -479,6 +579,13 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
     setIsProcessing(true);
     
     try {
+      // Ensure we have audio access before starting recognition
+      const audioAvailable = await ensureActiveAudioStream();
+      if (!audioAvailable) {
+        debugLog("Cannot start recognition: audio stream not available");
+        throw new Error("Could not access microphone");
+      }
+      
       if (!recognition && !recognitionRef.current) {
         throw new Error("Speech recognition not available");
       }
@@ -490,9 +597,11 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
       
       // Reset unexpected stops counter
       unexpectedStopsCountRef.current = 0;
+      silenceCountRef.current = 0;
       
       // Reset last event timestamp
       lastRecognitionEventRef.current = Date.now();
+      lastActivityTimestampRef.current = Date.now();
       
       try {
         // Start recognition
@@ -540,7 +649,7 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
       isInitializing.current = false;
       setIsProcessing(false);
     }
-  }, [recognition, isListening]);
+  }, [recognition, isListening, setError]);
   
   // Stop listening function
   const stopListening = useCallback(() => {
@@ -575,6 +684,11 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
       continuousRecognitionTimerRef.current = null;
     }
     
+    if (noActivityTimeoutRef.current) {
+      clearTimeout(noActivityTimeoutRef.current);
+      noActivityTimeoutRef.current = null;
+    }
+    
     try {
       // Try to stop recognition
       if (recognition) {
@@ -597,18 +711,6 @@ const useSpeechRecognition = (options?: SpeechRecognitionOptions): UseSpeechReco
     debugLog("Resetting transcript");
     resetTranscriptState();
   }, [resetTranscriptState]);
-  
-  // Ensure we use the properly fixed circular references
-  useEffect(() => {
-    // Update the keep-alive timer and continuous recognition timer refs
-    const keepAliveCleanup = updatedStartKeepAliveTimer();
-    const continuousTimerCleanup = updatedStartContinuousRecognitionTimer();
-    
-    return () => {
-      keepAliveCleanup();
-      continuousTimerCleanup();
-    };
-  }, [updatedStartKeepAliveTimer, updatedStartContinuousRecognitionTimer]);
   
   return {
     transcript,

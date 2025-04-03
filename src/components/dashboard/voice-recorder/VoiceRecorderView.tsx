@@ -7,7 +7,16 @@ import useSpeechRecognition from "@/hooks/speech-recognition";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { requestMicrophoneAccess, releaseMicrophoneStreams, isPwaMode } from "@/utils/pwaUtils";
+import { 
+  requestMicrophoneAccess, 
+  releaseMicrophoneStreams, 
+  isPwaMode, 
+  ensureActiveAudioStream, 
+  forceAudioPermissionCheck 
+} from "@/utils/pwaUtils";
+import { createDebugLogger } from "@/utils/debugUtils";
+
+const debugLog = createDebugLogger("VoiceRecorderView");
 
 interface VoiceRecorderViewProps {
   onTranscriptComplete: (transcript: string) => void;
@@ -22,8 +31,10 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
   const [permissionState, setPermissionState] = useState<PermissionState | "unknown">("unknown");
   const [isPWA, setIsPWA] = useState(false);
   const [isStartingRecognition, setIsStartingRecognition] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const transcriptSentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const transcriptRef = useRef<string>('');
+  const startClickTimestampRef = useRef<number>(0);
   const isMobile = useIsMobile();
   
   const {
@@ -45,6 +56,17 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     if (pwaStatus) {
       addDebugInfo("Running as PWA in standalone mode");
     }
+    
+    // Perform initial audio permission check at startup
+    setTimeout(() => {
+      debugLog("Performing initial audio permission check");
+      forceAudioPermissionCheck().then(() => {
+        debugLog("Initial audio permission check completed");
+        ensureActiveAudioStream().then(audioAvailable => {
+          debugLog(`Initial audio stream available: ${audioAvailable}`);
+        });
+      });
+    }, 1000);
   }, []);
   
   // Update transcript ref when it changes
@@ -102,7 +124,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     checkMicPermission();
   }, []);
 
-  // Enhanced recording toggle with PWA-specific handling
+  // Enhanced recording toggle with multiple attempts
   const toggleRecording = async () => {
     // If already recording, stop recording
     if (isRecording) {
@@ -136,6 +158,9 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     }
     
     // Starting a new recording - handle permissions first
+    startClickTimestampRef.current = Date.now();
+    
+    // Ensure microphone access
     if (permissionState !== "granted") {
       addDebugInfo("Permission not granted, requesting access");
       const permissionGranted = await requestMicrophoneAccess();
@@ -148,13 +173,42 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
       setPermissionState("granted");
     }
     
-    // Permission is granted, start recording
+    // Ensure we have an active audio stream before starting
+    const audioAvailable = await ensureActiveAudioStream();
+    if (!audioAvailable) {
+      addDebugInfo("Cannot access microphone stream, retrying...");
+      
+      // Try once more with a short delay
+      setTimeout(async () => {
+        const secondAttempt = await ensureActiveAudioStream();
+        if (secondAttempt) {
+          addDebugInfo("Microphone access succeeded on second attempt");
+          startRecordingAfterPermissionCheck();
+        } else {
+          addDebugInfo("Failed to access microphone after multiple attempts");
+          setError("Could not access microphone. Please check your browser settings.");
+        }
+      }, 500);
+      
+      return;
+    }
+    
+    // All checks passed, start recording
+    startRecordingAfterPermissionCheck();
+  };
+  
+  // Helper to start recording after permission checks
+  const startRecordingAfterPermissionCheck = () => {
     addDebugInfo("Starting recording with permission granted");
     setIsRecording(true);
     setTranscriptSent(false);
     setIsStartingRecognition(true);
+    setRetryCount(0);
     resetTranscript();
     transcriptRef.current = '';
+    
+    const timeSinceClick = Date.now() - startClickTimestampRef.current;
+    addDebugInfo(`Time from click to start: ${timeSinceClick}ms`);
     
     // In PWA mode, add extra delay to ensure recognition initializes properly
     if (isPWA) {
@@ -165,9 +219,26 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
         setIsStartingRecognition(false);
       }, 600);
     } else {
-      startListening();
-      addDebugInfo("Recognition started immediately");
-      setIsStartingRecognition(false);
+      // Try to start immediately
+      try {
+        startListening();
+        addDebugInfo("Recognition started immediately");
+        setIsStartingRecognition(false);
+      } catch (error) {
+        // If immediate start fails, try after a short delay
+        addDebugInfo(`Initial start failed, retrying with delay: ${error}`);
+        setTimeout(() => {
+          try {
+            startListening();
+            addDebugInfo("Recognition started after delay");
+            setIsStartingRecognition(false);
+          } catch (retryError) {
+            addDebugInfo(`Retry also failed: ${retryError}`);
+            setIsStartingRecognition(false);
+            setIsRecording(false);
+          }
+        }, 500);
+      }
     }
   };
 
@@ -175,15 +246,39 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
   useEffect(() => {
     addDebugInfo(`Recognition isListening changed to: ${isListening}`);
     
+    // If we were trying to start recognition and it succeeded
     if (isStartingRecognition && isListening) {
       setIsStartingRecognition(false);
       setIsRecording(true);
       addDebugInfo("Recording state synced with active recognition");
-    } else if (isRecording && !isListening && !isStartingRecognition) {
+    } 
+    // If recognition stopped unexpectedly (not during startup)
+    else if (isRecording && !isListening && !isStartingRecognition) {
       addDebugInfo("Recognition stopped unexpectedly, syncing recording state");
-      setIsRecording(false);
+      
+      // If we haven't tried restarting too many times, try to restart
+      if (retryCount < 2) {
+        setRetryCount(prev => prev + 1);
+        addDebugInfo(`Automatic restart attempt ${retryCount + 1}`);
+        
+        // Brief delay before restart
+        setTimeout(() => {
+          try {
+            resetTranscript();
+            startListening();
+            addDebugInfo("Auto-restarted recognition after unexpected stop");
+          } catch (error) {
+            addDebugInfo(`Auto-restart failed: ${error}`);
+            setIsRecording(false);
+          }
+        }, 500);
+      } else {
+        // Too many retries, give up and sync state
+        setIsRecording(false);
+        addDebugInfo("Too many restart attempts, stopping recording");
+      }
     }
-  }, [isListening, isRecording, isStartingRecognition]);
+  }, [isListening, isRecording, isStartingRecognition, retryCount, resetTranscript, startListening]);
 
   // Auto-stop recording after 30 seconds if still active
   useEffect(() => {

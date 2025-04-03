@@ -1,6 +1,6 @@
 
 import { useRef, useEffect, useCallback } from 'react';
-import { isPwaMode, isIOSDevice } from './utils';
+import { isPwaMode, isIOSDevice, prewarmSpeechRecognition, getPrewarmedSpeechRecognition, forceAudioPermissionCheck } from './utils';
 import { createDebugLogger } from '@/utils/debugUtils';
 
 const debugLog = createDebugLogger("SpeechRecognitionSetup");
@@ -32,6 +32,21 @@ export const useSpeechRecognitionSetup = ({
   
   debugLog(`Environment detected: isPWA=${isPWA}, isIOS=${isIOS}`);
   
+  // Prewarm speech recognition on mount
+  useEffect(() => {
+    // Prewarm speech recognition to improve first-time startup
+    setTimeout(() => {
+      prewarmSpeechRecognition();
+    }, 1000);
+    
+    // Also force an audio permission check if we don't know the status
+    setTimeout(() => {
+      forceAudioPermissionCheck().then(result => {
+        debugLog(`Initial permission check result: ${result}`);
+      });
+    }, 2000);
+  }, []);
+  
   // Initialize speech recognition
   const initSpeechRecognition = useCallback(() => {
     if (recognitionRef.current) {
@@ -40,16 +55,21 @@ export const useSpeechRecognitionSetup = ({
     }
     
     try {
-      // Get the appropriate speech recognition constructor
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      // First try to use a prewarmed instance
+      let recognition = getPrewarmedSpeechRecognition();
       
-      if (!SpeechRecognition) {
-        debugLog("Speech recognition not supported in this browser");
-        return null;
+      if (!recognition) {
+        // Get the appropriate speech recognition constructor
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (!SpeechRecognition) {
+          debugLog("Speech recognition not supported in this browser");
+          return null;
+        }
+        
+        // Create a new recognition instance
+        recognition = new SpeechRecognition();
       }
-      
-      // Create a new recognition instance
-      const recognition = new SpeechRecognition();
       
       // Configure the recognition
       recognition.continuous = true;
@@ -169,12 +189,9 @@ export const useSpeechRecognitionSetup = ({
     };
   }, [initSpeechRecognition, onError, isListening, setIsListening]);
   
-  // Check browser support
-  const browserSupportsSpeechRecognition = !!window.SpeechRecognition || !!window.webkitSpeechRecognition;
-  
   return {
     recognition: recognitionRef.current,
-    browserSupportsSpeechRecognition,
+    browserSupportsSpeechRecognition: !!recognitionRef.current,
     isPWA,
     isIOS
   };
