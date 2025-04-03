@@ -8,20 +8,22 @@ import TranscriptDisplay from "./voice-reminder/TranscriptDisplay";
 import ChecklistDisplay from "./voice-reminder/ChecklistDisplay";
 import ReminderActionButtons from "./voice-reminder/ReminderActionButtons";
 
-interface VoiceReminderConfirmViewProps {
-  title: string;
-  setTitle: (title: string) => void;
+export interface VoiceReminderConfirmViewProps {
+  title?: string;
+  setTitle?: (title: string) => void;
   transcript: string;
-  priority: ReminderPriority;
-  setPriority: (priority: ReminderPriority) => void;
-  category: ReminderCategory;
-  setCategory: (category: ReminderCategory) => void;
-  periodId: string;
-  setPeriodId: (periodId: string) => void;
-  processingResult: VoiceProcessingResult | null;
+  priority?: ReminderPriority;
+  setPriority?: (priority: ReminderPriority) => void;
+  category?: ReminderCategory;
+  setCategory?: (category: ReminderCategory) => void;
+  periodId?: string;
+  setPeriodId?: (periodId: string) => void;
+  processingResult?: VoiceProcessingResult | null;
+  reminderInput?: any; // Add this prop for compatibility with RefactoredVoiceRecorderModal
   onSave: () => void;
-  onCancel: () => void;
-  onGoBack: () => void;
+  onCancel?: () => void;
+  onGoBack?: () => void;
+  isSaving?: boolean;
 }
 
 const VoiceReminderConfirmView = ({
@@ -35,25 +37,64 @@ const VoiceReminderConfirmView = ({
   periodId,
   setPeriodId,
   processingResult,
+  reminderInput, // Add support for this prop
   onSave,
   onCancel,
-  onGoBack
+  onGoBack,
+  isSaving = false
 }: VoiceReminderConfirmViewProps) => {
+  // Use either the direct props or the ones from reminderInput if available
+  const effectiveReminder = reminderInput || (processingResult?.reminder || null);
+  
   return (
     <div className="space-y-6 py-4">
       <div className="space-y-4">
-        <ReminderTitleField title={title} setTitle={setTitle} />
-        <ReminderPriorityField priority={priority} setPriority={setPriority} />
-        <ReminderCategoryField category={category} setCategory={setCategory} />
-        <ReminderPeriodField periodId={periodId} setPeriodId={setPeriodId} />
-        <TranscriptDisplay transcript={transcript} processingResult={processingResult} />
+        {setTitle && (
+          <ReminderTitleField 
+            title={title || effectiveReminder?.title || ''} 
+            setTitle={setTitle} 
+          />
+        )}
         
-        {processingResult?.reminder.checklist && processingResult.reminder.checklist.length > 0 && (
-          <ChecklistDisplay checklist={processingResult.reminder.checklist} />
+        {setPriority && (
+          <ReminderPriorityField 
+            priority={priority || effectiveReminder?.priority || ReminderPriority.MEDIUM} 
+            setPriority={setPriority} 
+          />
+        )}
+        
+        {setCategory && (
+          <ReminderCategoryField 
+            category={category || effectiveReminder?.category || ReminderCategory.TASK} 
+            setCategory={setCategory} 
+          />
+        )}
+        
+        {setPeriodId && (
+          <ReminderPeriodField 
+            periodId={periodId || effectiveReminder?.periodId || 'none'} 
+            setPeriodId={setPeriodId} 
+          />
+        )}
+        
+        <TranscriptDisplay 
+          transcript={transcript} 
+          processingResult={processingResult} 
+        />
+        
+        {((processingResult?.reminder.checklist && processingResult.reminder.checklist.length > 0) ||
+          (effectiveReminder?.checklist && effectiveReminder.checklist.length > 0)) && (
+          <ChecklistDisplay 
+            checklist={processingResult?.reminder.checklist || effectiveReminder.checklist} 
+          />
         )}
       </div>
 
-      <ReminderActionButtons onSave={onSave} onGoBack={onGoBack} />
+      <ReminderActionButtons 
+        onSave={onSave} 
+        onGoBack={onGoBack}
+        isSaving={isSaving} 
+      />
     </div>
   );
 };

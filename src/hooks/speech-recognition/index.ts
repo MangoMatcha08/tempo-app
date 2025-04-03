@@ -5,7 +5,8 @@
  */
 
 import useSpeechRecognition from './useSpeechRecognition';
-export type { UseSpeechRecognitionReturn } from './types';
+import type { UseSpeechRecognitionReturn } from './types';
 
+export type { UseSpeechRecognitionReturn };
 export { useSpeechRecognition };
 export default useSpeechRecognition;
