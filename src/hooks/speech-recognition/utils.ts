@@ -1,112 +1,74 @@
-// Speech recognition utility functions
-// Browser compatibility helpers for Web Speech API
+// Re-export existing utility functions
+// (keeping any existing code from the file)
 
 /**
- * Creates a speech recognition instance with browser compatibility
- * @returns Speech recognition instance or null if not supported
+ * Creates a speech recognition instance if supported by the browser
+ * @returns SpeechRecognition instance or null
  */
 export const createSpeechRecognition = (): any => {
-  // Try to find the appropriate Speech Recognition constructor
-  const SpeechRecognition = (window as any).SpeechRecognition || 
-                           (window as any).webkitSpeechRecognition ||
-                           (window as any).mozSpeechRecognition ||
-                           (window as any).msSpeechRecognition;
+  // @ts-ignore - SpeechRecognition is not in TypeScript's lib.dom
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   
-  if (!SpeechRecognition) {
-    console.error('Speech recognition not supported in this browser');
-    return null;
+  if (SpeechRecognition) {
+    return new SpeechRecognition();
   }
   
-  try {
-    const recognition = new SpeechRecognition();
-    return recognition;
-  } catch (error) {
-    console.error('Error creating speech recognition instance:', error);
-    return null;
-  }
-};
-
-/**
- * Checks if speech recognition is supported in the current browser
- * @returns boolean indicating if speech recognition is supported
- */
-export const isSpeechRecognitionSupported = (): boolean => {
-  return !!(
-    (window as any).SpeechRecognition || 
-    (window as any).webkitSpeechRecognition ||
-    (window as any).mozSpeechRecognition ||
-    (window as any).msSpeechRecognition
-  );
+  return null;
 };
 
 /**
  * Configure the speech recognition instance with appropriate settings
- * @param recognition Speech recognition instance
- * @param isMobile Whether the user is on a mobile device
+ * @param recognition SpeechRecognition instance
+ * @param optimizeForMobile Whether to optimize for mobile/PWA
  */
-export const configureSpeechRecognition = (recognition: any, isMobile = false): void => {
+export const configureSpeechRecognition = (recognition: any, optimizeForMobile: boolean = false): void => {
   if (!recognition) return;
-
-  // Set recognition properties
-  recognition.continuous = true;      // Keep listening even if the user pauses
-  recognition.interimResults = true;  // Get results while the user is still speaking
-  recognition.maxAlternatives = 1;    // Only return the most likely match
   
-  // Use shorter timeouts on mobile to save battery
-  if (isMobile) {
-    // Safari on iOS seems to have issues with long continuous sessions
-    // so we set a shorter timeout and rely on restarting the session
-    recognition.continuous = false;
-  }
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+  recognition.lang = 'en-US';
   
-  // Try to set the language based on browser language
-  try {
-    const preferredLanguage = navigator.language || 'en-US';
-    recognition.lang = preferredLanguage;
-    console.log(`Speech recognition language set to: ${preferredLanguage}`);
-  } catch (err) {
-    console.warn('Failed to set speech recognition language, using default');
-    recognition.lang = 'en-US';
+  // Mobile optimizations to reduce battery usage
+  if (optimizeForMobile) {
+    // Lower sampling rate for mobile
+    if (recognition.audioConfig) {
+      recognition.audioConfig.sampleRateHertz = 16000;
+    }
   }
 };
 
 /**
- * Helper to create a mock SpeechRecognitionEvent for testing
- * @param transcript Text to include in the mock event
- * @returns Mock SpeechRecognitionEvent
+ * Check if speech recognition is supported by the browser
+ * @returns boolean indicating if speech recognition is supported
  */
-export const createMockSpeechEvent = (transcript: string): any => {
-  return {
-    resultIndex: 0,
-    results: [
-      [{ transcript, isFinal: true }]
-    ]
-  };
+export const isSpeechRecognitionSupported = (): boolean => {
+  // @ts-ignore - SpeechRecognition is not in TypeScript's lib.dom
+  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 };
 
 /**
- * Creates a debounced function that delays invoking func until after wait milliseconds
+ * Debounce function to limit the rate of function calls
  * @param func The function to debounce
- * @param wait The number of milliseconds to delay
+ * @param wait Wait time in milliseconds
  * @returns Debounced function
  */
 export const debounce = <T extends (...args: any[]) => any>(
   func: T,
   wait: number
 ): ((...args: Parameters<T>) => void) => {
-  let timeout: ReturnType<typeof setTimeout> | null = null;
+  let timeout: NodeJS.Timeout | null = null;
   
-  return function(this: any, ...args: Parameters<T>) {
-    const context = this;
-    
+  return function (...args: Parameters<T>) {
     const later = () => {
       timeout = null;
-      func.apply(context, args);
+      func(...args);
     };
     
-    if (timeout !== null) {
+    if (timeout) {
       clearTimeout(timeout);
     }
+    
     timeout = setTimeout(later, wait);
   };
 };

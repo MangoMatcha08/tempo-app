@@ -4,6 +4,11 @@ import { VoiceProcessingResult, ReminderPriority, ReminderCategory } from "@/typ
 import { generateMeaningfulTitle } from "@/utils/voiceReminderUtils";
 import { processVoiceInput } from "@/services/nlp";
 import { useToast } from "@/hooks/use-toast";
+import { isPwaMode, getPwaAdjustedTimeout } from "@/utils/pwaUtils";
+import { createDebugLogger } from "@/utils/debugUtils";
+
+// Set up debug logger
+const debugLog = createDebugLogger("VoiceRecorderState");
 
 export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   const [title, setTitle] = useState("");
@@ -23,18 +28,14 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   
   // Check if running as PWA
   useEffect(() => {
-    const isStandalone = 
-      window.matchMedia('(display-mode: standalone)').matches || 
-      // @ts-ignore - Property 'standalone' exists on iOS Safari but not in TS types
-      window.navigator.standalone === true;
-    
-    setIsPWA(isStandalone);
-    console.log("useVoiceRecorderState: running as PWA:", isStandalone);
+    const pwaStatus = isPwaMode();
+    setIsPWA(pwaStatus);
+    debugLog("Running as PWA:", pwaStatus);
   }, []);
   
   // Reset state when modal opens
   const resetState = () => {
-    console.log("Reset state called, current view:", view);
+    debugLog("Reset state called, current view:", view);
     if (!isConfirmingRef.current) {
       setTitle("");
       setTranscript("");
@@ -54,9 +55,9 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   };
   
   const handleTranscriptComplete = (text: string) => {
-    console.log("Transcript complete called with:", text);
+    debugLog("Transcript complete called with:", text);
     if (!text || !text.trim()) {
-      console.log("Empty transcript received, not processing");
+      debugLog("Empty transcript received, not processing");
       return;
     }
     
@@ -67,10 +68,10 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     setIsProcessing(true);
     
     try {
-      console.log("Processing voice input:", text);
+      debugLog("Processing voice input:", text);
       // Process the transcript with NLP
       const result = processVoiceInput(text);
-      console.log("NLP processing result:", result);
+      debugLog("NLP processing result:", result);
       
       // Generate a better title based on category and content
       const generatedTitle = generateMeaningfulTitle(
@@ -101,7 +102,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         }
       });
       
-      console.log("Switching to confirmation view with result:", result);
+      debugLog("Switching to confirmation view with result:", result);
       
       // First finish processing, then switch to confirmation view
       setIsProcessing(false);
@@ -113,14 +114,14 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       }
       
       // Use longer timeout for PWA mode
-      const transitionDelay = isPWA ? 400 : 200;
-      console.log(`Setting transition delay of ${transitionDelay}ms for view change to confirm`);
+      const transitionDelay = getPwaAdjustedTimeout(200, 2); // 200ms standard, 400ms in PWA
+      debugLog(`Setting transition delay of ${transitionDelay}ms for view change to confirm`);
       
       transitionTimerRef.current = setTimeout(() => {
-        console.log("Setting view to confirm");
+        debugLog("Setting view to confirm");
         setView("confirm");
         transitionTimerRef.current = null;
-      }, transitionDelay);  // Longer timeout for more reliable state transitions
+      }, transitionDelay);
     } catch (error) {
       console.error('Error processing voice input:', error);
       setIsProcessing(false);
@@ -157,7 +158,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   
   // For debugging
   useEffect(() => {
-    console.log("Voice recorder state changed:", {
+    debugLog("Voice recorder state changed:", {
       view, 
       isProcessing, 
       hasTranscript: !!transcript,
@@ -179,10 +180,11 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     category,
     setCategory,
     periodId,
-    setPeriodId,
+    setPeriod: setPeriodId,  // Fixed the interface mismatch
     handleTranscriptComplete,
     handleCancel,
     handleGoBack,
-    resetState
+    resetState,
+    isPWA
   };
 }
