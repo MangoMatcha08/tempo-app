@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { debounce } from './utils';
 import { createDebugLogger } from '@/utils/debugUtils';
@@ -28,6 +29,7 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
   const resultCountRef = useRef(0);
   const lastProcessedEventRef = useRef<any>(null);
   const processingAttemptsRef = useRef(0);
+  const receivedContentRef = useRef(false);
   
   // Cleanup function to reset all state
   const resetTranscriptState = useCallback(() => {
@@ -40,6 +42,7 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
     resultCountRef.current = 0;
     lastProcessedEventRef.current = null;
     processingAttemptsRef.current = 0;
+    receivedContentRef.current = false;
   }, []);
   
   // Debounced update for better UX
@@ -47,12 +50,13 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
     debounce((text: string) => {
       if (text !== interimTranscript) {
         setInterimTranscript(text);
+        debugLog(`Updated interim transcript: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
       }
     }, isPWA || isIOS ? 100 : 50),
     [interimTranscript, isPWA, isIOS]
   );
   
-  // Process speech recognition results
+  // Process speech recognition results with improved extraction logic
   const processSpeechResults = useCallback((event: any) => {
     debugLog(`Processing speech results, isPWA: ${isPWA}, isIOS: ${isIOS}`);
     
@@ -97,7 +101,9 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
       // Track if we found any content at all in the results
       let hasAnyContent = false;
       
-      // Process results
+      // Process results with detailed logging
+      debugLog(`Processing ${results.length} result groups`);
+      
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
         
@@ -105,20 +111,23 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
           // Finalized result - add to our transcript
           const text = result[0].transcript.trim();
           if (text) {
+            debugLog(`Final result [${i}]: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}" (confidence: ${result[0].confidence})`);
             finalResultsRef.current.push(text);
             hasMeaningfulContent = true;
             hasAnyContent = true;
-            debugLog(`Added final result: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
+            receivedContentRef.current = true;
           }
         } else {
           // Interim result - more potential updates coming
           const interimText = result[0].transcript.trim();
           if (interimText) {
+            debugLog(`Interim result [${i}]: "${interimText.substring(0, 30)}${interimText.length > 30 ? '...' : ''}" (confidence: ${result[0].confidence})`);
             interimResult += interimText + ' ';
             hasAnyContent = true;
             // Even interim results can indicate we have content
             if (interimText.length > 2) {
               hasMeaningfulContent = true;
+              receivedContentRef.current = true;
             }
           }
         }
@@ -130,7 +139,6 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
       // Update interim transcript via debounced function
       if (interimResult) {
         debouncedInterimUpdate(interimResult);
-        debugLog(`Updated interim transcript: "${interimResult.substring(0, 30)}${interimResult.length > 30 ? '...' : ''}"`);
       }
       
       // Only update transcript if we have a meaningful change
@@ -173,20 +181,27 @@ export const useTranscriptState = ({ isPWA = false, isIOS = false }: UseTranscri
       if (isProcessing && transcript === '') {
         // If we're processing but have no transcript after a while,
         // we may need to reset the processing state
+        const hasReceivedContent = receivedContentRef.current;
+        debugLog(`Stability check: processing with no transcript, received content ever: ${hasReceivedContent}`);
         processingAttemptsRef.current++;
-        debugLog(`Stability check: processing with no transcript, attempt ${processingAttemptsRef.current}`);
         
         // After multiple checks with no transcript, reset the processing state
-        if (processingAttemptsRef.current > 5) {
-          debugLog("Resetting processing state due to stability check");
+        // But only if we've never received content
+        if (processingAttemptsRef.current > 5 && !hasReceivedContent) {
+          debugLog("Resetting processing state due to stability check - no content ever received");
+          setIsProcessing(false);
+        } else if (processingAttemptsRef.current > 10) {
+          // Even if we received content earlier, eventually reset
+          debugLog("Resetting processing state due to stability check - timeout exceeded");
           setIsProcessing(false);
         }
       } else if (transcript && transcript.trim().length > 0) {
-        // If we have a transcript, ensure processing is true
+        // If we have a transcript, ensure processing is true and mark as having received content
         if (!isProcessing) {
           debugLog("Setting processing to true because we have transcript content");
           setIsProcessing(true);
         }
+        receivedContentRef.current = true;
         // Reset the attempts counter when we have content
         processingAttemptsRef.current = 0;
       }

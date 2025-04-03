@@ -1,204 +1,165 @@
-/**
- * Utility functions for speech recognition 
- */
 
-// Speech recognition feature detection
-export const isSpeechRecognitionSupported = (): boolean => {
-  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-};
+import { createDebugLogger } from '@/utils/debugUtils';
 
-// Platform detection utilities
+const debugLog = createDebugLogger("SpeechRecognitionUtils");
+
+// Detect iOS device
 export const isIOSDevice = (): boolean => {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window.MSStream);
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return /iphone|ipad|ipod|macintosh/.test(userAgent) && 'ontouchend' in document;
 };
 
-export const isHighLatencyEnvironment = (): boolean => {
-  return isIOSDevice() || /Android/.test(navigator.userAgent);
-};
-
+// Detect PWA mode
 export const isPwaMode = (): boolean => {
-  return (
-    window.matchMedia('(display-mode: standalone)').matches || 
-    // @ts-ignore - Property 'standalone' exists on iOS Safari but not in TS types
-    window.navigator.standalone === true
-  );
+  return window.matchMedia('(display-mode: standalone)').matches || 
+         (window.navigator as any).standalone === true || 
+         document.referrer.includes('android-app://');
 };
 
-export interface SpeechRecognitionOptions {
-  isPWA?: boolean;
-  isMobile?: boolean;
-  isIOS?: boolean;
-  isHighLatency?: boolean;
-}
-
-// Enhanced speech recognition factory with iOS optimizations
-export const createSpeechRecognition = (): any => {
-  // More robust feature detection
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+// Debounce function
+export const debounce = <F extends (...args: any[]) => any>(fn: F, delay: number) => {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
   
-  if (!SpeechRecognition) {
-    console.error("Speech recognition not supported");
-    return null;
-  }
-  
-  return new SpeechRecognition();
-};
-
-// Configure speech recognition with platform-specific settings
-export const configureSpeechRecognition = (recognition: any, options: SpeechRecognitionOptions = {}): void => {
-  const { isPWA = false, isMobile = false, isIOS = false, isHighLatency = false } = options;
-  
-  // Base configuration
-  recognition.lang = 'en-US';
-  
-  // iOS Safari-specific settings
-  if (isIOS) {
-    recognition.interimResults = true; // Critical for iOS
-    recognition.continuous = false;    // Better on iOS with false
-    recognition.maxAlternatives = 1;   // Reduce processing burden
-    console.log("Applying iOS-specific speech recognition settings");
-  } else {
-    // Default settings for other platforms
-    recognition.interimResults = true;
-    recognition.continuous = !isPWA; // PWAs work better with continuous = false in some cases
-    recognition.maxAlternatives = 1;
-  }
-  
-  // Additional logging
-  console.log(`Speech recognition configured with: isPWA=${isPWA}, isMobile=${isMobile}, isIOS=${isIOS}`);
-};
-
-// Platform-aware timeout adjustment
-export const getPlatformAdjustedTimeout = (
-  baseTimeout: number,
-  options: { isPWA?: boolean; isMobile?: boolean; isIOS?: boolean } = {}
-): number => {
-  const { isPWA = false, isMobile = false, isIOS = false } = options;
-  
-  let multiplier = 1;
-  if (isPWA) multiplier *= 2.0; 
-  if (isMobile) multiplier *= 1.5;
-  if (isIOS) multiplier *= 1.8; // Increased for iOS
-  
-  // Cap the multiplier to avoid extreme values
-  multiplier = Math.max(1, Math.min(multiplier, 5));
-  return Math.round(baseTimeout * multiplier);
-};
-
-// Helper functions for processing speech results
-export function debounce<F extends (...args: any[]) => any>(
-  func: F,
-  wait: number
-): (...args: Parameters<F>) => void {
-  let timeout: NodeJS.Timeout | null = null;
-  
-  return function(...args: Parameters<F>) {
-    if (timeout) {
-      clearTimeout(timeout);
+  return function(this: any, ...args: Parameters<F>) {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
     }
     
-    timeout = setTimeout(() => {
-      func(...args);
-      timeout = null;
-    }, wait);
+    timeoutId = setTimeout(() => {
+      fn.apply(this, args);
+      timeoutId = null;
+    }, delay);
   };
-}
+};
 
-/**
- * Ensures an active audio stream is maintained
- * This is critical for iOS permission persistence
- */
+// Active audio stream reference
+let activeAudioStream: MediaStream | null = null;
+
+// Ensure we have an active audio stream
 export const ensureActiveAudioStream = async (): Promise<boolean> => {
   try {
-    // Get stream and KEEP REFERENCE to prevent garbage collection
-    const stream = await navigator.mediaDevices.getUserMedia({ 
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-      },
-      video: false
-    });
-    
-    // Store globally - critical for iOS permission persistence
-    if ((window as any).activeMicrophoneStream) {
-      try {
-        const oldTracks = (window as any).activeMicrophoneStream.getTracks();
-        oldTracks.forEach((track: MediaStreamTrack) => track.stop());
-      } catch (e) {
-        console.error("Error stopping old stream:", e);
+    // If we already have an active stream, check if it's still valid
+    if (activeAudioStream) {
+      const activeTracks = activeAudioStream.getAudioTracks().filter(track => track.readyState === 'live');
+      
+      if (activeTracks.length > 0) {
+        debugLog("Reusing existing active audio stream");
+        return true;
+      } else {
+        debugLog("Existing audio stream is inactive, requesting new stream");
+        releaseAudioStream();
       }
     }
     
-    (window as any).activeMicrophoneStream = stream;
-    console.log("Acquired and stored active microphone stream");
+    // Request a new stream
+    debugLog("Requesting audio stream");
+    const constraints = { audio: true, video: false };
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
     
-    // For iOS, we need to create an audio context to keep the stream active
-    const isIOS = isIOSDevice();
-    const isPWA = isPwaMode();
+    // Store the stream
+    activeAudioStream = stream;
     
-    if (isIOS && isPWA) {
-      console.log("iOS PWA detected, setting up audio context");
-      try {
-        if ((window as any).audioContext) {
-          try {
-            (window as any).audioContext.close();
-          } catch (e) {
-            // Ignore error
-          }
-        }
-        
-        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-        if (AudioContext) {
-          const audioCtx = new AudioContext();
-          const source = audioCtx.createMediaStreamSource(stream);
-          // Connect to a silent destination to keep active without audio output
-          const gain = audioCtx.createGain();
-          gain.gain.value = 0;
-          source.connect(gain);
-          gain.connect(audioCtx.destination);
-          (window as any).audioContext = audioCtx;
-          console.log("Created audio context to maintain stream");
-        }
-      } catch (err) {
-        console.error("Error creating audio context:", err);
-      }
+    // Log active tracks
+    const tracks = stream.getAudioTracks();
+    debugLog(`Obtained ${tracks.length} audio tracks`);
+    
+    // Verify we have active tracks
+    if (tracks.length === 0) {
+      debugLog("No audio tracks in stream, may indicate issues");
+      return false;
     }
     
+    debugLog("Audio stream successfully obtained");
     return true;
   } catch (error) {
-    console.error("Microphone permission error:", error);
+    debugLog(`Error getting audio stream: ${error}`);
     return false;
   }
 };
 
-/**
- * Closes any existing microphone streams
- */
+// Release any active audio stream
 export const releaseAudioStream = (): void => {
-  if ((window as any).audioContext) {
-    try {
-      (window as any).audioContext.close();
-      (window as any).audioContext = null;
-      console.log("Released audio context");
-    } catch (error) {
-      console.error("Error releasing audio context:", error);
-    }
+  if (activeAudioStream) {
+    debugLog("Releasing audio stream");
+    
+    activeAudioStream.getAudioTracks().forEach(track => {
+      track.stop();
+      debugLog(`Stopped audio track: ${track.label || 'unnamed'}`);
+    });
+    
+    activeAudioStream = null;
+    debugLog("Audio stream released");
   }
+};
+
+// Add a no-results timeout utility
+export const createNoResultsTimeout = (timeoutMs: number, callback: () => void): () => void => {
+  debugLog(`Creating no-results timeout for ${timeoutMs}ms`);
+  const timeoutId = setTimeout(() => {
+    debugLog("No-results timeout triggered");
+    callback();
+  }, timeoutMs);
   
-  if ((window as any).activeMicrophoneStream) {
-    try {
-      const stream = (window as any).activeMicrophoneStream;
-      const tracks = stream.getTracks();
-      
-      tracks.forEach((track: MediaStreamTrack) => {
-        track.stop();
-      });
-      
-      (window as any).activeMicrophoneStream = null;
-      console.log("Released active microphone stream");
-    } catch (error) {
-      console.error("Error releasing microphone stream:", error);
+  // Return a function to clear the timeout
+  return () => {
+    debugLog("No-results timeout cleared");
+    clearTimeout(timeoutId);
+  };
+};
+
+// Add WebAudio diagnostic utility
+export const diagnoseAudioContext = async (): Promise<boolean> => {
+  try {
+    debugLog("Initializing diagnostic audio context");
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    
+    if (!AudioContext) {
+      debugLog("WebAudio API not supported");
+      return false;
     }
+    
+    const audioContext = new AudioContext();
+    debugLog(`Audio context created, state: ${audioContext.state}`);
+    
+    // Attempt to resume the audio context if suspended
+    if (audioContext.state === 'suspended') {
+      try {
+        debugLog("Attempting to resume suspended audio context");
+        await audioContext.resume();
+        debugLog(`Audio context resumed, new state: ${audioContext.state}`);
+      } catch (resumeError) {
+        debugLog(`Failed to resume audio context: ${resumeError}`);
+      }
+    }
+    
+    // Create an oscillator as a simple audio source test
+    const oscillator = audioContext.createOscillator();
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+    
+    // Connect to a silent node to avoid actual sound
+    const gainNode = audioContext.createGain();
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime); // Silent
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    // Start briefly then stop
+    oscillator.start();
+    
+    // Check if successfully started
+    debugLog("Test oscillator started successfully");
+    
+    // Stop after a brief moment
+    setTimeout(() => {
+      oscillator.stop();
+      audioContext.close();
+      debugLog("Test audio context closed");
+    }, 100);
+    
+    return true;
+  } catch (error) {
+    debugLog(`Audio context diagnostic failed: ${error}`);
+    return false;
   }
 };
