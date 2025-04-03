@@ -1,3 +1,4 @@
+
 // Firebase initialization and configuration
 import { initializeApp } from 'firebase/app';
 import { getMessaging, isSupported, onMessage } from 'firebase/messaging';

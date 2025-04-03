@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { createDebugLogger } from '@/utils/debugUtils';
 
@@ -9,7 +8,8 @@ export const isIOSDevice = (): boolean => {
   if (typeof window === 'undefined') return false;
   
   const userAgent = window.navigator.userAgent.toLowerCase();
-  return /iphone|ipad|ipod|macintosh/.test(userAgent) && 'ontouchend' in document;
+  return /iphone|ipad|ipod/.test(userAgent) || 
+         (/macintosh/.test(userAgent) && 'ontouchend' in document);
 };
 
 // Check if running on Android device
@@ -174,10 +174,9 @@ export const testPWACompatibility = (): {
   };
 };
 
-
 // Get a timeout value adjusted for PWA
 export const getPwaAdjustedTimeout = (baseTimeout: number, isMobile = false): number => {
-  const isPWA = isPwaMode();
+  const isPWA = isPWAMode();
   
   // Increase timeouts in PWA mode and/or on mobile
   const multiplier = (isPWA && isMobile) ? 1.5 : 
@@ -338,57 +337,102 @@ export const testAudioContext = async (): Promise<boolean> => {
 };
 
 // Function to ensure an active audio stream is available
-export const ensureActiveAudioStream = async (): Promise<boolean> => {
-  try {
-    debugLog("Ensuring active audio stream");
-    
-    // Check if we already have active streams
-    if (activeStreams.length > 0) {
-      // Check if any stream is still active
-      for (const stream of activeStreams) {
-        const activeTracks = stream.getAudioTracks().filter(track => track.readyState === 'live');
-        
-        if (activeTracks.length > 0) {
-          debugLog("Using existing active audio stream");
-          return true;
-        }
-      }
-      
-      debugLog("No active tracks in existing streams, requesting new stream");
+export const ensureActiveAudioStream = async (stream: MediaStream | null): Promise<MediaStream | null> => {
+  // If we don't have a stream, try to get one
+  if (!stream) {
+    try {
+      return await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (error) {
+      console.error('Error getting audio stream:', error);
+      return null;
     }
-    
-    // Request a new stream
-    const constraints = { audio: true, video: false };
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    
-    // Store reference in PWA mode
-    if (isPwaMode()) {
-      activeStreams.push(stream);
-      debugLog(`New stream stored in PWA mode (total: ${activeStreams.length})`);
-      
-      // Clean up older streams if we have too many
-      if (activeStreams.length > 3) {
-        const oldStream = activeStreams.shift();
-        if (oldStream) {
-          oldStream.getTracks().forEach(track => track.stop());
-          debugLog("Released oldest stream to prevent memory issues");
-        }
-      }
-    }
-    
-    // Check if we got audio tracks
-    const audioTracks = stream.getAudioTracks();
-    debugLog(`Obtained ${audioTracks.length} audio tracks`);
-    
-    if (audioTracks.length === 0) {
-      debugLog("No audio tracks in new stream");
-      return false;
-    }
-    
-    return true;
-  } catch (error) {
-    debugLog(`Error ensuring audio stream: ${error}`);
-    return false;
   }
+
+  // Check if the stream is active
+  const audioTracks = stream.getAudioTracks();
+  if (audioTracks.length === 0 || !audioTracks[0].enabled) {
+    try {
+      // Stop the existing stream first
+      stream.getTracks().forEach(track => track.stop());
+      // Get a new stream
+      return await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (error) {
+      console.error('Error refreshing audio stream:', error);
+      return null;
+    }
+  }
+
+  // Stream is active, return it
+  return stream;
 };
 
+/**
+ * Creates and manages an audio context to keep audio processing active
+ * This helps prevent iOS from terminating the audio session
+ */
+export const createActiveAudioContext = (): { context: AudioContext, start: () => void, stop: () => void } => {
+  // Create audio context
+  const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+  const context = new AudioContext();
+  
+  // Create an oscillator node (silent)
+  const oscillator = context.createOscillator();
+  oscillator.type = 'sine';
+  oscillator.frequency.setValueAtTime(0, context.currentTime); // 0 Hz = silent
+  
+  // Create a gain node to control volume
+  const gainNode = context.createGain();
+  gainNode.gain.setValueAtTime(0, context.currentTime); // Set volume to 0
+  
+  // Connect oscillator to gain node and gain node to destination
+  oscillator.connect(gainNode);
+  gainNode.connect(context.destination);
+  
+  // Start functions
+  const start = () => {
+    if (context.state === 'suspended') {
+      context.resume();
+    }
+    oscillator.start();
+  };
+  
+  // Stop function
+  const stop = () => {
+    oscillator.stop();
+    context.suspend();
+  };
+  
+  return { context, start, stop };
+};
+
+/**
+ * Checks if the device needs special handling for audio
+ * @returns boolean indicating if the device needs special audio handling
+ */
+export const needsSpecialAudioHandling = (): boolean => {
+  return isIOSDevice() && isPWAMode();
+};
+
+/**
+ * Checks if the current environment is a PWA
+ */
+export const isPWA = (): boolean => {
+  return window.matchMedia('(display-mode: standalone)').matches || 
+         (window.navigator as any).standalone === true;
+};
+
+/**
+ * Checks if the current device is iOS
+ */
+export const isIOSDevice = (): boolean => {
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return /iphone|ipad|ipod/.test(userAgent) || 
+         (/macintosh/.test(userAgent) && 'ontouchend' in document);
+};
+
+/**
+ * Checks if the current device is a mobile device
+ */
+export const isMobileDevice = (): boolean => {
+  return isIOSDevice() || /android|webos|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
+};

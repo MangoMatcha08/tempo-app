@@ -17,28 +17,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster as SonnerToaster } from "sonner";
 
-const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <Dashboard />,
-  },
-  {
-    path: '/dashboard',
-    element: <Dashboard />,
-  },
-  {
-    path: '/schedule',
-    element: <Schedule />,
-  },
-  {
-    path: '/settings',
-    element: <Settings />,
-  },
-  {
-    path: '/test',
-    element: <TestPage />,
-  },
-  
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -64,6 +42,7 @@ function App() {
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/schedule" element={<Schedule />} />
                     <Route path="/settings" element={<Settings />} />
+                    <Route path="/test" element={<TestPage />} />
                     <Route path="/404" element={<NotFound />} />
                     <Route path="*" element={<Navigate to="/404" replace />} />
                   </Routes>
