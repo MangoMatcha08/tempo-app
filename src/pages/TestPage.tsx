@@ -1,9 +1,10 @@
+
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import PWATestComponent from '@/components/settings/PWATestComponent';
 import VoiceAndPWATestComponent from '@/components/settings/VoiceAndPWATestComponent';
-import NotificationTestComponent from '@/components/settings/notifications/NotificationTestComponent';
+import NotificationTestComponent from '@/hooks/NotificationTestComponent';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';

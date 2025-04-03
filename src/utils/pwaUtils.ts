@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { createDebugLogger } from '@/utils/debugUtils';
 
@@ -28,6 +29,9 @@ export const isPWAMode = (): boolean => {
          (window.navigator as any).standalone === true || 
          document.referrer.includes('android-app://');
 };
+
+// Alias for isPWAMode to maintain compatibility
+export const isPwaMode = isPWAMode;
 
 // Hook to detect PWA and device type
 export const usePWADetection = () => {
@@ -208,7 +212,7 @@ export const requestMicrophoneAccess = async (): Promise<boolean> => {
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     
     // Store reference to prevent garbage collection in PWA
-    if (isPwaMode()) {
+    if (isPWAMode()) {
       activeStreams.push(stream);
       debugLog(`Stream stored in PWA mode (total: ${activeStreams.length})`);
     }
@@ -232,7 +236,7 @@ export const requestMicrophoneAccess = async (): Promise<boolean> => {
 // Helper to release microphone streams
 export const releaseMicrophoneStreams = (): void => {
   // Only release non-PWA streams or when explicitly cleaning up
-  if (!isPwaMode() || activeStreams.length > 3) {
+  if (!isPWAMode() || activeStreams.length > 3) {
     debugLog(`Releasing ${activeStreams.length} microphone streams`);
     
     activeStreams.forEach(stream => {
@@ -248,7 +252,7 @@ export const releaseMicrophoneStreams = (): void => {
     
     activeStreams.length = 0;
     debugLog("All microphone streams released");
-  } else if (isPwaMode()) {
+  } else if (isPWAMode()) {
     debugLog(`Keeping ${activeStreams.length} streams in PWA mode`);
   }
 };
@@ -263,7 +267,7 @@ export const forceAudioPermissionCheck = async (): Promise<boolean> => {
     const tracks = stream.getAudioTracks();
     debugLog(`Got ${tracks.length} audio tracks for permission check`);
     
-    if (isPwaMode()) {
+    if (isPWAMode()) {
       activeStreams.push(stream);
       debugLog(`Stream stored in PWA mode (total: ${activeStreams.length})`);
       // Clean up older streams if we have too many
@@ -337,7 +341,7 @@ export const testAudioContext = async (): Promise<boolean> => {
 };
 
 // Function to ensure an active audio stream is available
-export const ensureActiveAudioStream = async (stream: MediaStream | null): Promise<MediaStream | null> => {
+export const ensureActiveAudioStream = async (stream?: MediaStream | null): Promise<MediaStream | null> => {
   // If we don't have a stream, try to get one
   if (!stream) {
     try {
@@ -419,15 +423,6 @@ export const needsSpecialAudioHandling = (): boolean => {
 export const isPWA = (): boolean => {
   return window.matchMedia('(display-mode: standalone)').matches || 
          (window.navigator as any).standalone === true;
-};
-
-/**
- * Checks if the current device is iOS
- */
-export const isIOSDevice = (): boolean => {
-  const userAgent = window.navigator.userAgent.toLowerCase();
-  return /iphone|ipad|ipod/.test(userAgent) || 
-         (/macintosh/.test(userAgent) && 'ontouchend' in document);
 };
 
 /**

@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import VoiceReminderConfirmView from "../VoiceReminderConfirmView";
@@ -25,7 +26,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
     title, setTitle,
     transcript,
     isProcessing,
-    view,
+    view, setView,
     processingResult,
     priority, setPriority,
     category, setCategory,

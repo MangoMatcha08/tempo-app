@@ -1,9 +1,10 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import useSpeechRecognition from "@/hooks/speech-recognition";
-import { isPwaMode, requestMicrophoneAccess, releaseMicrophoneStreams } from "@/utils/pwaUtils";
+import { isPWAMode, requestMicrophoneAccess, releaseMicrophoneStreams } from "@/utils/pwaUtils";
 import { createDebugLogger } from "@/utils/debugUtils";
 import VoiceRecordingButton from "./VoiceRecordingButton";
 import RecordingStatusText from "./RecordingStatusText";

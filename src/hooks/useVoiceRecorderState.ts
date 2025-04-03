@@ -1,9 +1,10 @@
+
 import { useState, useEffect, useRef } from "react";
 import { VoiceProcessingResult, ReminderPriority, ReminderCategory } from "@/types/reminderTypes";
 import { generateMeaningfulTitle } from "@/utils/voiceReminderUtils";
 import { processVoiceInput } from "@/services/nlp";
 import { useToast } from "@/hooks/use-toast";
-import { isPwaMode, getPwaAdjustedTimeout, isIOSDevice } from "@/utils/pwaUtils";
+import { isPWAMode, getPwaAdjustedTimeout, isIOSDevice } from "@/utils/pwaUtils";
 import { createDebugLogger } from "@/utils/debugUtils";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -33,7 +34,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   
   // Check if running as PWA and on iOS
   useEffect(() => {
-    const pwaStatus = isPwaMode();
+    const pwaStatus = isPWAMode();
     const iosStatus = isIOSDevice();
     setIsPWA(pwaStatus);
     setIsIOS(iosStatus);
@@ -291,6 +292,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     transcript,
     isProcessing,
     view,
+    setView,
     processingResult,
     priority,
     setPriority,
