@@ -1,3 +1,4 @@
+
 import { v4 as uuidv4 } from 'uuid';
 import { 
   Reminder, 
@@ -9,15 +10,16 @@ import {
 
 // Mock schedule for testing
 export const mockPeriods = [
-  { id: 'before-school', name: 'Before School', startTime: '7:30 AM', endTime: '8:00 AM' },
-  { id: 'period-1', name: '1st Period', startTime: '8:00 AM', endTime: '8:50 AM' },
-  { id: 'period-2', name: '2nd Period', startTime: '9:00 AM', endTime: '9:50 AM' },
-  { id: 'period-3', name: '3rd Period', startTime: '10:00 AM', endTime: '10:50 AM' },
-  { id: 'period-4', name: '4th Period', startTime: '11:00 AM', endTime: '11:50 AM' },
-  { id: 'lunch', name: 'Lunch', startTime: '12:00 PM', endTime: '12:30 PM' },
-  { id: 'period-5', name: '5th Period', startTime: '12:40 PM', endTime: '1:30 PM' },
-  { id: 'period-6', name: '6th Period', startTime: '1:40 PM', endTime: '2:30 PM' },
-  { id: 'after-school', name: 'After School', startTime: '2:30 PM', endTime: '4:00 PM' }
+  { id: 'before-school', name: 'Before School', startTime: '8:00 AM', endTime: '8:50 AM' },
+  { id: 'period-1', name: '1st Period', startTime: '8:50 AM', endTime: '9:50 AM' },
+  { id: 'break', name: 'Break', startTime: '9:50 AM', endTime: '10:05 AM' },
+  { id: 'period-2', name: '2nd Period', startTime: '10:08 AM', endTime: '11:08 AM' },
+  { id: 'period-3', name: '3rd Period', startTime: '11:11 AM', endTime: '12:11 PM' },
+  { id: 'period-4', name: '4th Period', startTime: '12:14 PM', endTime: '1:14 PM' },
+  { id: 'lunch', name: 'Lunch', startTime: '1:14 PM', endTime: '1:44 PM' },
+  { id: 'period-5', name: '5th Period', startTime: '1:47 PM', endTime: '2:47 PM' },
+  { id: 'period-6', name: '6th Period', startTime: '2:50 PM', endTime: '3:30 PM' },
+  { id: 'after-school', name: 'After School', startTime: '3:30 PM', endTime: '4:30 PM' }
 ];
 
 // Helper function to create a new reminder

@@ -1,264 +1,183 @@
 
-import { useEffect, useRef, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import VoiceReminderConfirmView from "../VoiceReminderConfirmView";
-import { createReminder } from "@/utils/reminderUtils";
-import { useToast } from "@/hooks/use-toast";
-import { Reminder } from "@/types/reminderTypes";
-import { useVoiceRecorderState } from "@/hooks/useVoiceRecorderState";
-import RefactoredVoiceRecorderView from "./RefactoredVoiceRecorderView";
-import ModalFooterActions from "./ModalFooterActions";
-import { createDebugLogger } from "@/utils/debugUtils";
-import { releaseMicrophoneStreams } from "@/utils/pwaUtils";
+import React, { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { processVoiceInput } from '@/services/nlp/processVoiceInput';
+import ModalFooterActions from './ModalFooterActions';
+import RefactoredVoiceRecorderView from './RefactoredVoiceRecorderView';
+import VoiceReminderConfirmView from '../VoiceReminderConfirmView';
+import { createDebugLogger } from '@/utils/debugUtils';
 
-// Set up debug logger
 const debugLog = createDebugLogger("VoiceRecorderModal");
 
-interface VoiceRecorderModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onReminderCreated?: (reminder: Reminder) => void;
+interface RefactoredVoiceRecorderModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (reminder: any) => Promise<any>;
+  onReminderCreated?: (reminder: any) => void;
 }
 
-const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceRecorderModalProps) => {
-  const { 
-    title, setTitle,
-    transcript,
-    isProcessing,
-    view, setView,
-    processingResult,
-    priority, setPriority,
-    category, setCategory,
-    periodId, setPeriod,
-    handleTranscriptComplete,
-    handleCancel,
-    handleGoBack,
-    resetState,
-    isPWA,
-    isIOS
-  } = useVoiceRecorderState(onOpenChange);
-  
-  const { toast } = useToast();
-  const dialogContentRef = useRef<HTMLDivElement>(null);
-  const lastOpenStateRef = useRef(open);
-  const transcriptProcessedRef = useRef(false);
-  const viewChangeTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // When modal opens, try to request microphone permission proactively
+const RefactoredVoiceRecorderModal: React.FC<RefactoredVoiceRecorderModalProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+  onReminderCreated
+}) => {
+  const [tab, setTab] = useState<'record' | 'confirm'>('record');
+  const [transcript, setTranscript] = useState<string>('');
+  const [processedResult, setProcessedResult] = useState<any>(null);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [title, setTitle] = useState<string>('');
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+
+  // Handle cleanup when modal closes
   useEffect(() => {
-    if (open && !lastOpenStateRef.current) {
-      debugLog("Voice modal opened, checking microphone access");
-      debugLog("Modal opened, resetting state");
-      resetState();
-      transcriptProcessedRef.current = false;
+    if (!isOpen) {
+      // Reset state when modal closes
+      setTranscript('');
+      setProcessedResult(null);
+      setIsProcessing(false);
+      setTitle('');
+      setTab('record');
+      setIsSaving(false);
+      setIsRecording(false);
     }
-    lastOpenStateRef.current = open;
-  }, [open, resetState]);
-  
-  // Scroll to the bottom when view changes to confirm
-  useEffect(() => {
-    if (view === "confirm" && dialogContentRef.current) {
-      debugLog("View changed to confirm, scrolling to bottom");
-      
-      // Use a slightly longer delay for iOS devices
-      const scrollDelay = isIOS ? 300 : 100;
-      
-      setTimeout(() => {
-        if (dialogContentRef.current) {
-          dialogContentRef.current.scrollTop = dialogContentRef.current.scrollHeight;
-          debugLog("Scrolled to bottom of dialog content");
-        }
-      }, scrollDelay);
-    }
-  }, [view, processingResult, isIOS]);
-  
-  // Debug logging for view state and PWA
-  useEffect(() => {
-    debugLog(`Current view: ${view}, transcript length: ${transcript ? transcript.length : 0}, isPWA: ${isPWA}, isIOS: ${isIOS}`);
-  }, [view, transcript, isPWA, isIOS]);
-  
-  // Enhanced debug logging for isProcessing state
-  useEffect(() => {
-    debugLog(`Processing state: ${isProcessing}, in view: ${view}`);
-  }, [isProcessing, view]);
-  
-  // Cleanup microphone stream when modal closes
-  useEffect(() => {
-    return () => {
-      releaseMicrophoneStreams();
-    };
-  }, []);
-  
-  // Enhanced transcript handler with better logging for PWA
-  const enhancedTranscriptHandler = (text: string) => {
-    debugLog(`Transcript complete called with text of length: ${text.length}`);
-    debugLog(`First 30 chars: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
-    
-    // Prevent multiple processing of the same transcript
-    if (transcriptProcessedRef.current) {
-      debugLog("Transcript already processed, ignoring duplicate");
+  }, [isOpen]);
+
+  // Process transcript when it's received
+  const handleTranscriptComplete = async (text: string) => {
+    if (!text.trim()) {
+      debugLog("Empty transcript, not processing");
       return;
     }
-    
-    transcriptProcessedRef.current = true;
-    
-    if (isPWA) {
-      debugLog("PWA mode detected, adding slight delay before processing");
-      setTimeout(() => {
-        handleTranscriptComplete(text);
-      }, isIOS ? 500 : 300);
-    } else {
-      handleTranscriptComplete(text);
+
+    setTranscript(text);
+    setIsProcessing(true);
+    debugLog(`Processing transcript: ${text}`);
+
+    try {
+      const result = processVoiceInput(text);
+      debugLog("NLP result:", result);
+      
+      // Set title based on generated reminder
+      if (result.reminder && result.reminder.title) {
+        setTitle(result.reminder.title);
+      }
+      
+      setProcessedResult(result);
+      setTab('confirm');
+    } catch (error) {
+      console.error("Error processing voice input:", error);
+      debugLog(`Error processing voice input: ${error}`);
+    } finally {
+      setIsProcessing(false);
     }
   };
-  
-  const handleSave = () => {
-    if (!transcript || !title) {
-      console.error("Cannot save: missing title or transcript");
-      return;
-    }
+
+  // Handle saving the reminder
+  const handleSaveReminder = async (reminderData: any) => {
+    if (isSaving) return;
+    
+    setIsSaving(true);
+    debugLog("Saving reminder:", reminderData);
     
     try {
-      debugLog(`Creating reminder with: ${JSON.stringify({
-        title,
-        priority,
-        category,
-        periodId: periodId === "none" ? undefined : periodId,
-        dueDate: processingResult?.reminder.dueDate
-      })}`);
+      const savedReminder = await onSave(reminderData);
+      debugLog("Reminder saved successfully:", savedReminder);
       
-      // Create reminder with the confirmed data
-      const reminderInput = {
-        title,
-        description: transcript,
-        priority,
-        category,
-        periodId: periodId === "none" ? undefined : periodId,
-        voiceTranscript: transcript,
-        checklist: processingResult?.reminder.checklist || [],
-        // Use the processed date if available
-        dueDate: processingResult?.reminder.dueDate || new Date(Date.now() + 24 * 60 * 60 * 1000) // Default to tomorrow
-      };
-      
-      const newReminder = createReminder(reminderInput);
-      debugLog(`Created reminder: ${newReminder.id}`);
-      
-      // Call the callback if provided
       if (onReminderCreated) {
-        debugLog("Calling onReminderCreated with new reminder");
-        onReminderCreated(newReminder);
-      } else {
-        console.warn("onReminderCreated callback is not provided");
+        onReminderCreated(savedReminder);
       }
       
-      toast({
-        title: "Reminder Created",
-        description: "Your voice reminder has been created successfully."
-      });
-      
-      // Reset and close
-      transcriptProcessedRef.current = false;
-      handleCancel();
+      onClose();
     } catch (error) {
-      console.error("Error saving voice reminder:", error);
-      
-      toast({
-        title: "Save Error",
-        description: "There was an error saving your reminder. Please try again.",
-        variant: "destructive"
-      });
+      console.error("Error saving reminder:", error);
+      debugLog(`Error saving reminder: ${error}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // Force view to confirm if we have a transcript but view is still record
-  useEffect(() => {
-    if (transcript && transcript.length > 0 && !isProcessing && view === "record" && processingResult) {
-      debugLog("Detected transcript with processing result but view is still record, forcing view change");
-      
-      if (viewChangeTimerRef.current) {
-        clearTimeout(viewChangeTimerRef.current);
-      }
-      
-      viewChangeTimerRef.current = setTimeout(() => {
-        if (view === "record") {
-          debugLog("Forcing view change to confirm");
-          // Force view to confirm
-          setView("confirm");
-        }
-        viewChangeTimerRef.current = null;
-      }, 1000);
-    }
-    
-    return () => {
-      if (viewChangeTimerRef.current) {
-        clearTimeout(viewChangeTimerRef.current);
-        viewChangeTimerRef.current = null;
-      }
-    };
-  }, [transcript, isProcessing, view, processingResult, setView]);
+  // Handle cancel
+  const handleCancel = () => {
+    onClose();
+  };
+
+  // Handle recording state changes
+  const handleRecordingStart = () => {
+    setIsRecording(true);
+  };
+
+  const handleRecordingStop = () => {
+    setIsRecording(false);
+  };
 
   return (
-    <Dialog 
-      open={open} 
-      onOpenChange={(newOpenState) => {
-        debugLog(`Dialog open state changing to: ${newOpenState}, current view: ${view}`);
-        // When closing the modal
-        if (!newOpenState && view === "confirm") {
-          // Show confirmation before closing if we're in confirm view
-          debugLog("Attempt to close dialog while in confirm view");
-          const shouldClose = window.confirm("Are you sure you want to discard this reminder?");
-          if (shouldClose) {
-            transcriptProcessedRef.current = false;
-            onOpenChange(false);
-          }
-        } else {
-          transcriptProcessedRef.current = false;
-          onOpenChange(newOpenState);
-        }
-      }}
-    >
-      <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto" ref={dialogContentRef}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>
-            {view === "confirm" ? "Confirm Your Reminder" : "Record Voice Reminder"}
-          </DialogTitle>
+          <DialogTitle>Voice Reminder</DialogTitle>
+          <DialogDescription>
+            Record a voice note to create a new reminder.
+          </DialogDescription>
         </DialogHeader>
         
-        <ScrollArea className="max-h-[calc(85vh-10rem)]">
-          {view === "confirm" ? (
-            <VoiceReminderConfirmView
-              title={title}
-              setTitle={setTitle}
-              transcript={transcript}
-              priority={priority}
-              setPriority={setPriority}
-              category={category}
-              setCategory={setCategory}
-              periodId={periodId}
-              setPeriodId={setPeriod}
-              processingResult={processingResult}
-              onSave={handleSave}
-              onCancel={handleCancel}
-              onGoBack={handleGoBack}
-            />
-          ) : (
+        <Tabs value={tab} onValueChange={(value) => setTab(value as 'record' | 'confirm')}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="record" disabled={isRecording}>
+              Record
+            </TabsTrigger>
+            <TabsTrigger 
+              value="confirm" 
+              disabled={!transcript || isProcessing || isRecording}
+            >
+              Confirm
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="record" className="space-y-4 py-4">
             <RefactoredVoiceRecorderView 
-              onTranscriptComplete={enhancedTranscriptHandler}
               isProcessing={isProcessing}
+              onTranscriptComplete={handleTranscriptComplete}
+              onRecordingStart={handleRecordingStart}
+              onRecordingStop={handleRecordingStop}
             />
-          )}
-        </ScrollArea>
+          </TabsContent>
+          
+          <TabsContent value="confirm" className="space-y-4 py-4">
+            {processedResult && (
+              <VoiceReminderConfirmView
+                transcript={transcript}
+                reminderInput={processedResult.reminder}
+                onSave={handleSaveReminder}
+                isSaving={isSaving}
+              />
+            )}
+          </TabsContent>
+        </Tabs>
         
-        <ModalFooterActions
-          view={view === "confirm" ? "confirm" : "record"}
-          onCancel={handleCancel}
-          onGoBack={handleGoBack}
-          onSave={handleSave}
-        />
+        <DialogFooter>
+          <ModalFooterActions 
+            onCancel={handleCancel}
+            isProcessing={isProcessing}
+            isSaving={isSaving}
+            hasTranscript={!!transcript}
+            currentTab={tab}
+            isRecording={isRecording}
+          />
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 };
 
-export default VoiceRecorderModal;
+export default RefactoredVoiceRecorderModal;
