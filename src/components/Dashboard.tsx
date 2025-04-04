@@ -5,6 +5,7 @@ import { useBatchOperations } from "@/hooks/reminders/use-batch-operations";
 import { useDashboardRefresh } from "@/hooks/reminders/use-dashboard-refresh";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardMain from "@/components/dashboard/DashboardMain";
+import { getUserFriendlyErrorMessage } from "@/lib/firebase/error-utils";
 
 const Dashboard = () => {
   const [hasError, setHasError] = useState(false);
@@ -42,9 +43,10 @@ const Dashboard = () => {
       setHasError(true);
       
       if (!loading && reminders.length === 0) {
+        const friendlyMessage = getUserFriendlyErrorMessage(reminderError);
         toast({
           title: "Error Loading Reminders",
-          description: "There was an issue retrieving your reminders. Please try refreshing.",
+          description: friendlyMessage,
           variant: "destructive",
         });
       }
@@ -78,6 +80,11 @@ const Dashboard = () => {
         return success;
       } catch (error) {
         console.error("Error refreshing reminders:", error);
+        toast({
+          title: "Refresh Failed",
+          description: getUserFriendlyErrorMessage(error),
+          variant: "destructive",
+        });
         return false;
       }
     },

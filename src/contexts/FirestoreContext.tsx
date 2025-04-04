@@ -4,6 +4,7 @@ import { Firestore } from 'firebase/firestore';
 import { firebaseApp, getFirestoreInstance } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { isPermissionError, isQuotaError, isIndexError } from '@/lib/firebase/error-utils';
 import { isMissingIndexError, getFirestoreIndexCreationUrl } from '@/lib/firebase/indexing';
 
 interface FirestoreContextType {
@@ -86,10 +87,7 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       console.error('Error initializing Firestore in context:', err);
       setError(err instanceof Error ? err : new Error('Unknown Firestore error'));
       
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      if (errorMessage.includes('permission-denied') || 
-          errorMessage.includes('not been used') || 
-          errorMessage.includes('disabled')) {
+      if (isPermissionError(err)) {
         console.warn('Firestore permissions issue detected');
         setHasFirestorePermissions(false);
         
@@ -108,7 +106,26 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             variant: "destructive"
           });
         }
-      } else if (isMissingIndexError(err)) {
+      } else if (isQuotaError(err)) {
+        console.warn('Firestore quota issue detected');
+        toast({
+          title: "Firebase Quota Exceeded",
+          description: "Using locally cached data. Some features may be limited.",
+          duration: 8000,
+          variant: "destructive"
+        });
+        
+        // Still try to initialize, we'll work with cached data
+        try {
+          const firestoreDb = getFirestoreInstance();
+          setDb(firestoreDb);
+          setIsReady(true);
+        } catch (e) {
+          // Critical error, can't even get instance
+          console.error('Failed to get Firestore instance after quota error:', e);
+        }
+        
+      } else if (isIndexError(err)) {
         console.warn('Firestore index issue detected');
         toast({
           title: "Firestore Index Required",
@@ -119,6 +136,7 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setDb(getFirestoreInstance());
       }
       
+      // Always try to get a backup instance even if we had an error
       try {
         const backupDb = getFirestoreInstance();
         setDb(backupDb);

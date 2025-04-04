@@ -1,6 +1,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Reminder } from "@/types/reminderTypes";
+import { isQuotaError } from "@/lib/firebase/error-utils";
 
 interface BatchOperationsProps {
   user: any;
@@ -116,10 +117,17 @@ export function useBatchOperations({
       console.log("Batch operations completed successfully");
     } catch (error) {
       console.error("Error processing batch operations:", error);
+      
+      // Handle quota errors specially
+      if (isQuotaError(error)) {
+        console.log("Quota exceeded during batch operation, will retry later");
+        // Don't clear operations, they will be retried
+        scheduleBatchOperations();
+      }
     } finally {
       setIsPending(false);
     }
-  }, [isPending, batchCompleteReminders, batchUpdateReminders, setReminders]);
+  }, [isPending, batchCompleteReminders, batchUpdateReminders, setReminders, scheduleBatchOperations]);
   
   // Cleanup function
   const cleanupBatchOperations = useCallback(() => {
