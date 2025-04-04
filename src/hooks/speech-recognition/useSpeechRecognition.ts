@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { UseSpeechRecognitionReturn } from './types';
 import { useSpeechRecognitionSetup } from './useSpeechRecognitionSetup';
 import { useTranscriptState } from './useTranscriptState';
@@ -14,6 +14,45 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   const [isListening, setIsListening] = useState<boolean>(false);
   const [restartAttempts, setRestartAttempts] = useState(0);
   const [isPwaEnvironment] = useState(() => isRunningAsPwa());
+  const isMountedRef = useRef(true);
+  const timeoutsRef = useRef<Array<NodeJS.Timeout>>([]);
+  
+  // Clean up function to clear all timeouts
+  const clearAllTimeouts = useCallback(() => {
+    timeoutsRef.current.forEach(timeoutId => {
+      clearTimeout(timeoutId);
+    });
+    timeoutsRef.current = [];
+  }, []);
+  
+  // Set mounted flag for cleanup
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      clearAllTimeouts();
+    };
+  }, [clearAllTimeouts]);
+  
+  // Helper to create safe timeouts that are tracked and cleaned up
+  const createSafeTimeout = useCallback((callback: () => void, delay: number) => {
+    if (!isMountedRef.current) return;
+    
+    const timeoutId = setTimeout(() => {
+      // Filter out this timeout from our tracking array
+      timeoutsRef.current = timeoutsRef.current.filter(id => id !== timeoutId);
+      
+      // Only execute callback if component is still mounted
+      if (isMountedRef.current) {
+        callback();
+      }
+    }, delay);
+    
+    // Track this timeout for potential cleanup
+    timeoutsRef.current.push(timeoutId);
+    
+    return timeoutId;
+  }, []);
   
   // Use separate hooks for managing recognition and transcript
   const { recognition, browserSupportsSpeechRecognition, isPwa } = useSpeechRecognitionSetup({
@@ -42,6 +81,9 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error, event);
+      
+      // Don't update state if component unmounted
+      if (!isMountedRef.current) return;
       
       // Map error types to user-friendly messages
       const errorMessages = {
@@ -84,7 +126,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
             console.log('Too many restart attempts, stopping recognition');
             
             // Clear error after a delay
-            setTimeout(() => {
+            createSafeTimeout(() => {
               setError(undefined);
               setRestartAttempts(0);
             }, 3000);
@@ -105,8 +147,8 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         const timeout = Math.min(1000 * (1 + restartAttempts), 5000);
         console.log(`Will attempt restart in ${timeout}ms (attempt ${restartAttempts + 1})`);
         
-        setTimeout(() => {
-          if (isListening) {
+        createSafeTimeout(() => {
+          if (isListening && isMountedRef.current) {
             try {
               recognition.start();
               // Increment restart attempts
@@ -134,19 +176,28 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     return () => {
       if (recognition) {
         try {
+          // Remove all event handlers first
+          recognition.onresult = null;
+          recognition.onerror = null;
+          recognition.onend = null;
+          
+          // Then stop recognition
           recognition.stop();
         } catch (err) {
           console.error('Error stopping recognition during cleanup:', err);
         }
       }
+      
+      // Clear any pending timeouts
+      clearAllTimeouts();
     };
-  }, [recognition, isListening, processSpeechResults, isPwaEnvironment, restartAttempts]);
+  }, [recognition, isListening, processSpeechResults, isPwaEnvironment, restartAttempts, createSafeTimeout, clearAllTimeouts]);
 
   /**
    * Starts the speech recognition process
    */
   const startListening = useCallback(() => {
-    if (!recognition) return;
+    if (!recognition || !isMountedRef.current) return;
     
     // Reset transcript and errors
     resetTranscriptState();
@@ -158,6 +209,9 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       recognition.start();
       console.log('Speech recognition started');
     } catch (err) {
+      // Only handle errors if component is still mounted
+      if (!isMountedRef.current) return;
+      
       // Handle the case where recognition is already started
       console.error('Recognition error on start:', err);
       
@@ -168,7 +222,10 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         const restartDelay = isPwaEnvironment ? 500 : 100;
         console.log(`Attempting restart with ${restartDelay}ms delay (isPwa: ${isPwaEnvironment})`);
         
-        setTimeout(() => {
+        createSafeTimeout(() => {
+          // Check mounted state before restarting
+          if (!isMountedRef.current) return;
+          
           try {
             recognition.start();
             console.log('Successfully restarted recognition after stop');
@@ -184,7 +241,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         setIsListening(false);
       }
     }
-  }, [recognition, resetTranscriptState, isPwaEnvironment]);
+  }, [recognition, resetTranscriptState, isPwaEnvironment, createSafeTimeout]);
 
   /**
    * Stops the speech recognition process
@@ -198,8 +255,28 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     try {
       // Reset restart attempts when explicitly stopping
       setRestartAttempts(0);
-      recognition.stop();
-      console.log('Speech recognition stopped');
+      
+      // First remove event handlers to prevent them from firing during stop
+      if (recognition.onend) {
+        const originalOnEnd = recognition.onend;
+        recognition.onend = null;
+        
+        // Stop the recognition
+        recognition.stop();
+        console.log('Speech recognition stopped');
+        
+        // Restore onend handler after a brief delay
+        if (isMountedRef.current) {
+          createSafeTimeout(() => {
+            if (recognition && isMountedRef.current) {
+              recognition.onend = originalOnEnd;
+            }
+          }, 100);
+        }
+      } else {
+        recognition.stop();
+        console.log('Speech recognition stopped');
+      }
     } catch (err) {
       console.error('Error stopping recognition:', err);
       
@@ -213,7 +290,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         }
       }
     }
-  }, [recognition, isPwaEnvironment]);
+  }, [recognition, isPwaEnvironment, createSafeTimeout]);
 
   // Add isPwa to return object for UI adaptation
   return {

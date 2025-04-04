@@ -22,6 +22,30 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) =
   const [recordingTime, setRecordingTime] = useState<number>(0);
   const [processingComplete, setProcessingComplete] = useState<boolean>(false);
   const finalTranscriptRef = useRef<string>('');
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const processTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef<boolean>(true);
+
+  // Set mounted state for cleanup
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      // Clean up any timers when unmounting
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      if (processTimeoutRef.current) {
+        clearTimeout(processTimeoutRef.current);
+        processTimeoutRef.current = null;
+      }
+      // Make sure speech recognition is stopped
+      if (isListening) {
+        stopListening();
+      }
+    };
+  }, [isListening, stopListening]);
 
   // Update the ref when transcript changes
   useEffect(() => {
@@ -32,18 +56,26 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) =
 
   // Handle recording timer
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     
     if (isListening) {
-      interval = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
+      timerRef.current = setInterval(() => {
+        if (isMountedRef.current) {
+          setRecordingTime(prev => prev + 1);
+        }
       }, 1000);
     } else {
       setRecordingTime(0);
     }
 
     return () => {
-      clearInterval(interval);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     };
   }, [isListening]);
 
@@ -72,9 +104,14 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) =
     if (currentTranscript && currentTranscript.trim()) {
       console.log("Processing transcript:", currentTranscript.trim());
       
+      // Clear any existing timeout
+      if (processTimeoutRef.current) {
+        clearTimeout(processTimeoutRef.current);
+      }
+      
       // Use a longer delay to ensure the full transcript is captured
-      setTimeout(() => {
-        if (!processingComplete) {
+      processTimeoutRef.current = setTimeout(() => {
+        if (isMountedRef.current && !processingComplete) {
           console.log("Sending final transcript:", currentTranscript.trim());
           setProcessingComplete(true);
           onTranscriptComplete(currentTranscript.trim());
@@ -84,6 +121,19 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) =
       console.log("Empty transcript detected - not proceeding to confirmation");
     }
   };
+
+  // Clean up on component unmount
+  useEffect(() => {
+    return () => {
+      // Additional cleanup to ensure all resources are released
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      if (processTimeoutRef.current) {
+        clearTimeout(processTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (!browserSupportsSpeechRecognition) {
     return (

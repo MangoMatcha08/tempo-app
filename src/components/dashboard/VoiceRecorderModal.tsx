@@ -41,6 +41,15 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   const { toast } = useToast();
   const dialogContentRef = useRef<HTMLDivElement>(null);
   const lastOpenStateRef = useRef(open);
+  const isMountedRef = useRef(true);
+  
+  // Set mounted flag on mount/unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   
   // When modal opens, try to request microphone permission proactively on mobile
   useEffect(() => {
@@ -57,7 +66,6 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
           })
           .catch(err => {
             console.log("Microphone permission not pre-granted:", err.name);
-            // We don't need to handle the error here, the VoiceRecorderView component will handle it
           });
       }
       
@@ -69,13 +77,19 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   
   // Scroll to the bottom when view changes to confirm
   useEffect(() => {
+    // Only update if component is still mounted
+    if (!isMountedRef.current) return;
+    
     if (view === "confirm" && dialogContentRef.current) {
       console.log("View changed to confirm, scrolling to bottom");
-      setTimeout(() => {
-        if (dialogContentRef.current) {
+      const timeoutId = setTimeout(() => {
+        if (dialogContentRef.current && isMountedRef.current) {
           dialogContentRef.current.scrollTop = dialogContentRef.current.scrollHeight;
         }
       }, 100);
+      
+      // Clean up timeout
+      return () => clearTimeout(timeoutId);
     }
   }, [view, processingResult]);
   
@@ -89,6 +103,9 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
       console.error("Cannot save: missing title or transcript");
       return;
     }
+    
+    // Don't proceed if component is unmounted
+    if (!isMountedRef.current) return;
     
     try {
       console.log("Creating reminder with:", {
@@ -116,7 +133,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
       console.log("Created reminder:", newReminder);
       
       // Call the callback if provided
-      if (onReminderCreated) {
+      if (onReminderCreated && isMountedRef.current) {
         console.log("Calling onReminderCreated with new reminder");
         onReminderCreated(newReminder);
       } else {
@@ -133,11 +150,14 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
     } catch (error) {
       console.error("Error saving voice reminder:", error);
       
-      toast({
-        title: "Save Error",
-        description: "There was an error saving your reminder. Please try again.",
-        variant: "destructive"
-      });
+      // Only show toast if component is still mounted
+      if (isMountedRef.current) {
+        toast({
+          title: "Save Error",
+          description: "There was an error saving your reminder. Please try again.",
+          variant: "destructive"
+        });
+      }
     }
   };
 

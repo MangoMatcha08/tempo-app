@@ -22,33 +22,53 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   
   const isConfirmingRef = useRef(false);
   const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true); // Track component mount state
+  
+  // Set isMountedRef to false when component unmounts
+  useEffect(() => {
+    isMountedRef.current = true;
+    
+    return () => {
+      isMountedRef.current = false;
+      
+      // Clean up any pending timers
+      if (transitionTimerRef.current) {
+        clearTimeout(transitionTimerRef.current);
+        transitionTimerRef.current = null;
+      }
+    };
+  }, []);
   
   const resetState = useCallback(() => {
     console.log("Reset state called, current view:", view, "viewState:", viewState);
     
     if (!isConfirmingRef.current || viewState === 'idle') {
+      // Clear any pending timers first
       if (transitionTimerRef.current) {
         clearTimeout(transitionTimerRef.current);
         transitionTimerRef.current = null;
       }
       
-      setTitle("");
-      setTranscript("");
-      setIsProcessing(false);
-      setView("record");
-      setProcessingResult(null);
-      setPriority(ReminderPriority.MEDIUM);
-      setCategory(ReminderCategory.TASK);
-      setPeriodId("none");
-      setViewState('idle');
-      isConfirmingRef.current = false;
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        setTitle("");
+        setTranscript("");
+        setIsProcessing(false);
+        setView("record");
+        setProcessingResult(null);
+        setPriority(ReminderPriority.MEDIUM);
+        setCategory(ReminderCategory.TASK);
+        setPeriodId("none");
+        setViewState('idle');
+        isConfirmingRef.current = false;
+      }
       
       console.log("State reset completed");
     }
   }, [view, viewState]);
   
   const transitionToConfirmView = useCallback(() => {
-    if (viewState === 'processing') {
+    if (viewState === 'processing' && isMountedRef.current) {
       console.log("Transitioning from processing to confirming");
       setViewState('confirming');
       setView('confirm');
@@ -57,8 +77,8 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   
   const handleTranscriptComplete = useCallback((text: string) => {
     console.log("Transcript complete called with:", text);
-    if (!text || !text.trim()) {
-      console.log("Empty transcript received, not processing");
+    if (!text || !text.trim() || !isMountedRef.current) {
+      console.log("Empty transcript received or component unmounted, not processing");
       return;
     }
     
@@ -72,6 +92,12 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       console.log("Processing voice input:", text);
       const result = processVoiceInput(text);
       console.log("NLP processing result:", result);
+      
+      // Check if component still mounted before continuing
+      if (!isMountedRef.current) {
+        console.log("Component unmounted during processing, aborting");
+        return;
+      }
       
       const generatedTitle = generateMeaningfulTitle(
         result.reminder.category || ReminderCategory.TASK, 
@@ -108,6 +134,10 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       setView('confirm');
     } catch (error) {
       console.error('Error processing voice input:', error);
+      
+      // Check if component still mounted before updating state
+      if (!isMountedRef.current) return;
+      
       setIsProcessing(false);
       isConfirmingRef.current = false;
       setViewState('idle');
@@ -135,6 +165,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     isConfirmingRef.current = false;
   }, []);
   
+  // Clean up timers when component unmounts
   useEffect(() => {
     return () => {
       if (transitionTimerRef.current) {
