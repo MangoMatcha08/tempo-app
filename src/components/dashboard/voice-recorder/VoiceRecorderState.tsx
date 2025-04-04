@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import useSpeechRecognition from "@/hooks/speech-recognition";
+import { useSpeechRecognition } from "@/hooks/speech-recognition";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useVoiceRecorderStateMachine } from "@/hooks/speech-recognition/useVoiceRecorderStateMachine";

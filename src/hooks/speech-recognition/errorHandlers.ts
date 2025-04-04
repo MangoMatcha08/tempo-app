@@ -16,6 +16,18 @@ export interface ErrorResponse {
   retry?: () => void;
 }
 
+// Context for error handling
+export interface ErrorHandlerContext {
+  isListening: boolean;
+  env: ReturnType<typeof detectEnvironment>;
+  recognitionRef: React.RefObject<SpeechRecognition>;
+  retryAttemptsRef: React.RefObject<number>;
+  createTimeout: (callback: () => void, delay: number) => number;
+  onError?: (message: string) => void;
+  onRecoveryStart?: () => void;
+  onRecoveryComplete?: () => void;
+}
+
 /**
  * Main error handler - routes to appropriate platform-specific handler
  * @param error The speech recognition error event
@@ -24,16 +36,7 @@ export interface ErrorResponse {
  */
 export const handleRecognitionError = (
   error: SpeechRecognitionErrorEvent,
-  context: {
-    isListening: boolean,
-    env: ReturnType<typeof detectEnvironment>,
-    recognitionRef: React.RefObject<SpeechRecognition>,
-    retryAttemptsRef: React.RefObject<number>,
-    createTimeout: (callback: () => void, delay: number) => number,
-    onError?: (message: string) => void,
-    onRecoveryStart?: () => void,
-    onRecoveryComplete?: () => void
-  }
+  context: ErrorHandlerContext
 ): ErrorResponse => {
   const { env, isListening } = context;
   
@@ -55,21 +58,12 @@ export const handleRecognitionError = (
  */
 const handleIOSPwaError = (
   error: SpeechRecognitionErrorEvent,
-  {
-    isListening,
-    env,
-    recognitionRef,
-    retryAttemptsRef,
-    createTimeout,
-    onError,
-    onRecoveryStart,
-    onRecoveryComplete
-  }
+  context: ErrorHandlerContext
 ): ErrorResponse => {
   // Get current recognition instance
-  const recognition = recognitionRef.current;
+  const recognition = context.recognitionRef.current;
   if (!recognition) {
-    if (onError) onError('Speech recognition not available');
+    if (context.onError) context.onError('Speech recognition not available');
     return {
       severity: 'high',
       message: 'Speech recognition not available',
@@ -83,44 +77,44 @@ const handleIOSPwaError = (
     case 'aborted':
     case 'service-not-allowed':
       // These errors are common in iOS PWA and can be recovered
-      if (retryAttemptsRef.current < 5) { // More retries for iOS
-        retryAttemptsRef.current++;
+      if (context.retryAttemptsRef.current < 5) { // More retries for iOS
+        context.retryAttemptsRef.current++;
         
         // Use a fixed but longer delay for iOS to let the browser recover
         const delay = 800;
         
-        console.log(`iOS PWA error: ${error.error}, recovery attempt ${retryAttemptsRef.current}`);
+        console.log(`iOS PWA error: ${error.error}, recovery attempt ${context.retryAttemptsRef.current}`);
         
         // Create retry function
         const retry = () => {
           try {
             // Alert that we're recovering
-            if (onRecoveryStart) onRecoveryStart();
+            if (context.onRecoveryStart) context.onRecoveryStart();
             
             // Complete reset of recognition
             recognition.abort(); // More forceful than stop
             
             // Wait longer before restart on iOS
-            createTimeout(() => {
+            context.createTimeout(() => {
               try {
-                if (isListening) {
+                if (context.isListening) {
                   recognition.start();
                   // Signal recovery complete
-                  if (onRecoveryComplete) onRecoveryComplete();
+                  if (context.onRecoveryComplete) context.onRecoveryComplete();
                 }
               } catch (innerErr) {
                 console.error('iOS restart failed:', innerErr);
-                if (onError) onError('Recognition failed to restart. Please try again.');
+                if (context.onError) context.onError('Recognition failed to restart. Please try again.');
               }
             }, 500);
           } catch (err) {
             console.error('iOS recovery attempt failed:', err);
-            if (onError) onError('Recognition error. Please try again.');
+            if (context.onError) context.onError('Recognition error. Please try again.');
           }
         };
         
         // Auto-retry for iOS PWA
-        createTimeout(retry, delay);
+        context.createTimeout(retry, delay);
         
         return {
           severity: 'medium',
@@ -131,7 +125,7 @@ const handleIOSPwaError = (
       }
       
       // Too many retries
-      if (onError) onError('Voice recognition stopped working. Please try again.');
+      if (context.onError) context.onError('Voice recognition stopped working. Please try again.');
       return {
         severity: 'high',
         message: 'Voice recognition stopped working. Please try again.',
@@ -139,7 +133,7 @@ const handleIOSPwaError = (
       };
       
     case 'not-allowed':
-      if (onError) onError('Microphone access was denied. Please enable microphone access in your settings.');
+      if (context.onError) context.onError('Microphone access was denied. Please enable microphone access in your settings.');
       return {
         severity: 'high',
         message: 'Microphone access was denied. Please enable microphone access in your settings.',
@@ -147,7 +141,7 @@ const handleIOSPwaError = (
       };
       
     case 'audio-capture':
-      if (onError) onError('No microphone was found or it is being used by another application.');
+      if (context.onError) context.onError('No microphone was found or it is being used by another application.');
       return {
         severity: 'high',
         message: 'No microphone was found or it is being used by another application.',
@@ -163,7 +157,7 @@ const handleIOSPwaError = (
       };
       
     default:
-      if (onError) onError(`Recognition error: ${error.error}`);
+      if (context.onError) context.onError(`Recognition error: ${error.error}`);
       return {
         severity: 'high',
         message: `Recognition error: ${error.error}`,
@@ -177,21 +171,12 @@ const handleIOSPwaError = (
  */
 const handlePwaError = (
   error: SpeechRecognitionErrorEvent,
-  {
-    isListening,
-    env,
-    recognitionRef,
-    retryAttemptsRef,
-    createTimeout,
-    onError,
-    onRecoveryStart,
-    onRecoveryComplete
-  }
+  context: ErrorHandlerContext
 ): ErrorResponse => {
   // Get current recognition instance
-  const recognition = recognitionRef.current;
+  const recognition = context.recognitionRef.current;
   if (!recognition) {
-    if (onError) onError('Speech recognition not available');
+    if (context.onError) context.onError('Speech recognition not available');
     return {
       severity: 'high',
       message: 'Speech recognition not available',
@@ -203,31 +188,31 @@ const handlePwaError = (
   switch (error.error) {
     case 'network':
       // Implement exponential backoff for network errors
-      if (retryAttemptsRef.current < env.recognitionConfig.maxRetries) {
-        retryAttemptsRef.current++;
-        const delay = env.recognitionConfig.baseRetryDelay * Math.pow(2, retryAttemptsRef.current);
+      if (context.retryAttemptsRef.current < context.env.config.maxRetries) {
+        context.retryAttemptsRef.current++;
+        const delay = context.env.config.baseRetryDelay * Math.pow(2, context.retryAttemptsRef.current);
         
-        console.log(`Network error, retrying in ${delay}ms (attempt ${retryAttemptsRef.current})`);
+        console.log(`Network error, retrying in ${delay}ms (attempt ${context.retryAttemptsRef.current})`);
         
         // Create retry function
         const retry = () => {
-          if (onRecoveryStart) onRecoveryStart();
+          if (context.onRecoveryStart) context.onRecoveryStart();
           
-          createTimeout(() => {
+          context.createTimeout(() => {
             try {
-              if (isListening) {
+              if (context.isListening) {
                 recognition.start();
-                if (onRecoveryComplete) onRecoveryComplete();
+                if (context.onRecoveryComplete) context.onRecoveryComplete();
               }
             } catch (err) {
               console.error('Failed to restart after network error:', err);
-              if (onError) onError('Network error. Please check your connection and try again.');
+              if (context.onError) context.onError('Network error. Please check your connection and try again.');
             }
           }, delay);
         };
         
         // Auto-retry
-        createTimeout(retry, 0);
+        context.createTimeout(retry, 0);
         
         return {
           severity: 'medium',
@@ -238,7 +223,7 @@ const handlePwaError = (
       }
       
       // Too many retries
-      if (onError) onError('Network issues prevented recording. Please try again later.');
+      if (context.onError) context.onError('Network issues prevented recording. Please try again later.');
       return {
         severity: 'high',
         message: 'Network issues prevented recording. Please try again later.',
@@ -246,7 +231,7 @@ const handlePwaError = (
       };
       
     case 'not-allowed':
-      if (onError) onError('Microphone access was denied. Please enable microphone access in your settings.');
+      if (context.onError) context.onError('Microphone access was denied. Please enable microphone access in your settings.');
       return {
         severity: 'high',
         message: 'Microphone access was denied. Please enable microphone access in your settings.',
@@ -254,7 +239,7 @@ const handlePwaError = (
       };
       
     case 'audio-capture':
-      if (onError) onError('No microphone was found or it is being used by another application.');
+      if (context.onError) context.onError('No microphone was found or it is being used by another application.');
       return {
         severity: 'high',
         message: 'No microphone was found or it is being used by another application.',
@@ -271,25 +256,25 @@ const handlePwaError = (
       
     case 'aborted':
       // Only handle if unexpected
-      if (isListening) {
+      if (context.isListening) {
         console.log('Unexpected abort, attempting to restart');
         
         const retry = () => {
-          if (onRecoveryStart) onRecoveryStart();
+          if (context.onRecoveryStart) context.onRecoveryStart();
           
-          createTimeout(() => {
+          context.createTimeout(() => {
             try {
               recognition.start();
-              if (onRecoveryComplete) onRecoveryComplete();
+              if (context.onRecoveryComplete) context.onRecoveryComplete();
             } catch (err) {
               console.error('Failed to restart after abort:', err);
-              if (onError) onError('Failed to restart. Please try again.');
+              if (context.onError) context.onError('Failed to restart. Please try again.');
             }
           }, 300);
         };
         
         // Auto-retry
-        createTimeout(retry, 0);
+        context.createTimeout(retry, 0);
         
         return {
           severity: 'medium',
@@ -306,7 +291,7 @@ const handlePwaError = (
       };
       
     default:
-      if (onError) onError(`Recognition error: ${error.error}`);
+      if (context.onError) context.onError(`Recognition error: ${error.error}`);
       return {
         severity: 'high',
         message: `Recognition error: ${error.error}`,
@@ -320,22 +305,13 @@ const handlePwaError = (
  */
 const handleStandardError = (
   error: SpeechRecognitionErrorEvent,
-  {
-    isListening,
-    env,
-    recognitionRef,
-    retryAttemptsRef,
-    createTimeout,
-    onError,
-    onRecoveryStart,
-    onRecoveryComplete
-  }
+  context: ErrorHandlerContext
 ): ErrorResponse => {
   // Similar to handlePwaError but with browser-specific optimizations
   // Get current recognition instance
-  const recognition = recognitionRef.current;
+  const recognition = context.recognitionRef.current;
   if (!recognition) {
-    if (onError) onError('Speech recognition not available');
+    if (context.onError) context.onError('Speech recognition not available');
     return {
       severity: 'high',
       message: 'Speech recognition not available',
@@ -346,7 +322,7 @@ const handleStandardError = (
   // Handle different error types - desktop browsers are generally more reliable
   switch (error.error) {
     case 'not-allowed':
-      if (onError) onError('Microphone access was denied. Please enable microphone access in your browser settings.');
+      if (context.onError) context.onError('Microphone access was denied. Please enable microphone access in your browser settings.');
       return {
         severity: 'high',
         message: 'Microphone access was denied. Please enable microphone access in your browser settings.',
@@ -354,7 +330,7 @@ const handleStandardError = (
       };
       
     case 'audio-capture':
-      if (onError) onError('No microphone was found or it is being used by another application.');
+      if (context.onError) context.onError('No microphone was found or it is being used by another application.');
       return {
         severity: 'high',
         message: 'No microphone was found or it is being used by another application.',
@@ -363,21 +339,21 @@ const handleStandardError = (
       
     case 'network':
       // Standard browsers generally recover better from network issues
-      if (retryAttemptsRef.current < env.recognitionConfig.maxRetries) {
-        retryAttemptsRef.current++;
+      if (context.retryAttemptsRef.current < context.env.config.maxRetries) {
+        context.retryAttemptsRef.current++;
         
         const retry = () => {
-          if (onRecoveryStart) onRecoveryStart();
+          if (context.onRecoveryStart) context.onRecoveryStart();
           
-          createTimeout(() => {
+          context.createTimeout(() => {
             try {
-              if (isListening) {
+              if (context.isListening) {
                 recognition.start();
-                if (onRecoveryComplete) onRecoveryComplete();
+                if (context.onRecoveryComplete) context.onRecoveryComplete();
               }
             } catch (err) {
               console.error('Failed to restart:', err);
-              if (onError) onError('Failed to restart recording.');
+              if (context.onError) context.onError('Failed to restart recording.');
             }
           }, 300);
         };
@@ -393,7 +369,7 @@ const handleStandardError = (
         };
       }
       
-      if (onError) onError('Network issues prevented recording. Please try again.');
+      if (context.onError) context.onError('Network issues prevented recording. Please try again.');
       return {
         severity: 'medium',
         message: 'Network issues prevented recording. Please try again.',
@@ -409,7 +385,7 @@ const handleStandardError = (
       };
       
     default:
-      if (onError) onError(`Recognition error: ${error.error}`);
+      if (context.onError) context.onError(`Recognition error: ${error.error}`);
       return {
         severity: 'medium',
         message: `Recognition error: ${error.error}`,

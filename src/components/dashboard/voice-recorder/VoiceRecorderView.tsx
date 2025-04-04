@@ -1,8 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, AlertCircle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import useSpeechRecognition from "@/hooks/speech-recognition";
+import { useSpeechRecognition } from "@/hooks/speech-recognition";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
