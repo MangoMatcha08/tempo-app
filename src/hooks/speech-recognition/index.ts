@@ -1,6 +1,10 @@
 
+/**
+ * Speech recognition module entry point
+ * Exports the main hook and relevant types
+ */
+
 import useSpeechRecognition from './useSpeechRecognition';
-export * from './types';
-export * from './environmentDetection';
-export * from './utils';
+export type { UseSpeechRecognitionReturn } from './types';
+
 export default useSpeechRecognition;

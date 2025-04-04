@@ -5,12 +5,12 @@ import { useTrackedTimeouts } from '@/hooks/use-tracked-timeouts';
 
 // Define all possible state types
 export type RecorderState = 
-  | { status: 'idle', transcript?: string }
-  | { status: 'requesting-permission', transcript?: string }
-  | { status: 'recording', transcript?: string }
+  | { status: 'idle' }
+  | { status: 'requesting-permission' }
+  | { status: 'recording' }
   | { status: 'processing', transcript: string }
-  | { status: 'confirming', result: VoiceProcessingResult, transcript: string }
-  | { status: 'error', message: string, transcript?: string };
+  | { status: 'confirming', result: VoiceProcessingResult }
+  | { status: 'error', message: string };
 
 // Define all possible events
 export type RecorderEvent =
@@ -21,7 +21,6 @@ export type RecorderEvent =
   | { type: 'RECOGNITION_ERROR', message: string }
   | { type: 'PROCESSING_COMPLETE', result: VoiceProcessingResult }
   | { type: 'PROCESSING_ERROR', message: string }
-  | { type: 'UPDATE_TRANSCRIPT', transcript: string }
   | { type: 'RESET' };
 
 // State machine reducer function
@@ -31,30 +30,28 @@ function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): Recor
   switch (state.status) {
     case 'idle':
       if (event.type === 'START_RECORDING') 
-        return { status: 'requesting-permission', transcript: state.transcript };
+        return { status: 'requesting-permission' };
       break;
       
     case 'requesting-permission':
       if (event.type === 'PERMISSION_GRANTED') 
-        return { status: 'recording', transcript: state.transcript };
+        return { status: 'recording' };
       if (event.type === 'PERMISSION_DENIED') 
-        return { status: 'error', message: 'Microphone access was denied', transcript: state.transcript };
+        return { status: 'error', message: 'Microphone access was denied' };
       break;
       
     case 'recording':
       if (event.type === 'STOP_RECORDING') 
         return { status: 'processing', transcript: event.transcript };
       if (event.type === 'RECOGNITION_ERROR') 
-        return { status: 'error', message: event.message, transcript: state.transcript };
-      if (event.type === 'UPDATE_TRANSCRIPT')
-        return { ...state, transcript: event.transcript };
+        return { status: 'error', message: event.message };
       break;
       
     case 'processing':
       if (event.type === 'PROCESSING_COMPLETE') 
-        return { status: 'confirming', result: event.result, transcript: state.transcript };
+        return { status: 'confirming', result: event.result };
       if (event.type === 'PROCESSING_ERROR') 
-        return { status: 'error', message: event.message, transcript: state.transcript };
+        return { status: 'error', message: event.message };
       break;
       
     case 'confirming':
@@ -91,10 +88,6 @@ export const useVoiceRecorderStateMachine = () => {
     
     stopRecording: useCallback((transcript: string) => {
       dispatch({ type: 'STOP_RECORDING', transcript });
-    }, []),
-    
-    updateTranscript: useCallback((transcript: string) => {
-      dispatch({ type: 'UPDATE_TRANSCRIPT', transcript });
     }, []),
     
     recognitionError: useCallback((message: string) => {

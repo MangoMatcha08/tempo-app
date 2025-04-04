@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, AlertCircle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -7,7 +7,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { getEnvironmentDescription } from "@/hooks/speech-recognition/environmentDetection";
-import { useTrackedTimeouts } from "@/hooks/use-tracked-timeouts";
 
 interface VoiceRecorderViewProps {
   onTranscriptComplete: (transcript: string) => void;
@@ -22,9 +21,6 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
   const [permissionState, setPermissionState] = useState<PermissionState | "unknown">("unknown");
   const isMobile = useIsMobile();
   const environment = getEnvironmentDescription();
-  const { createTimeout, clearAllTimeouts } = useTrackedTimeouts();
-  
-  const finalTranscriptRef = useRef<string>("");
   
   const {
     transcript,
@@ -35,16 +31,8 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     stopListening,
     resetTranscript,
     error,
-    isPwa,
-    environmentConfig
+    isPwa
   } = useSpeechRecognition();
-  
-  useEffect(() => {
-    if (transcript) {
-      finalTranscriptRef.current = transcript;
-      addDebugInfo(`Transcript updated: ${transcript.substring(0, 20)}${transcript.length > 20 ? '...' : ''}`);
-    }
-  }, [transcript]);
   
   const addDebugInfo = (info: string) => {
     setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${info}`]);
@@ -81,20 +69,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     if (isPwa) {
       addDebugInfo("Running in PWA mode - using adapted recognition strategy");
     }
-    
-    return () => {
-      clearAllTimeouts();
-      if (isRecording) {
-        const finalTranscript = finalTranscriptRef.current;
-        if (finalTranscript && !transcriptSent) {
-          addDebugInfo(`Capturing final transcript on unmount: ${finalTranscript.substring(0, 20)}...`);
-          onTranscriptComplete(finalTranscript);
-          setTranscriptSent(true);
-        }
-        stopListening();
-      }
-    };
-  }, [isPwa, isRecording, startListening, stopListening, resetTranscript, clearAllTimeouts, onTranscriptComplete, transcriptSent]);
+  }, []);
 
   const requestMicrophoneAccess = async () => {
     addDebugInfo("Requesting microphone access explicitly");
@@ -116,18 +91,13 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
       setIsRecording(false);
       stopListening();
       
-      createTimeout(() => {
-        const finalTranscript = finalTranscriptRef.current;
-        
-        if (finalTranscript && finalTranscript.trim()) {
-          addDebugInfo(`Sending transcript: "${finalTranscript.substring(0, 30)}${finalTranscript.length > 30 ? '...' : ''}"`);
-          setTranscriptSent(true);
-          onTranscriptComplete(finalTranscript);
-        } else {
-          addDebugInfo("No transcript to send");
-        }
-      }, 250);
-      
+      if (transcript.trim()) {
+        addDebugInfo(`Sending transcript: "${transcript.substring(0, 30)}${transcript.length > 30 ? '...' : ''}"`);
+        setTranscriptSent(true);
+        onTranscriptComplete(transcript);
+      } else {
+        addDebugInfo("No transcript to send");
+      }
       return;
     }
     
@@ -141,12 +111,11 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     
     setIsRecording(true);
     setTranscriptSent(false);
-    finalTranscriptRef.current = "";
     resetTranscript();
     
     if (isPwa) {
       addDebugInfo("PWA mode: adding pre-start delay");
-      createTimeout(() => {
+      setTimeout(() => {
         startListening();
         addDebugInfo("Started recording in PWA mode after delay");
       }, 100);
@@ -160,14 +129,9 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     addDebugInfo("Manual retry initiated");
     
     if (isRecording) {
-      const currentTranscript = finalTranscriptRef.current;
-      
       stopListening();
       
-      createTimeout(() => {
-        if (currentTranscript) {
-          finalTranscriptRef.current = currentTranscript;
-        }
+      setTimeout(() => {
         resetTranscript();
         startListening();
         addDebugInfo("Manually restarted recording");
@@ -175,7 +139,6 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     } else {
       setIsRecording(true);
       setTranscriptSent(false);
-      finalTranscriptRef.current = "";
       resetTranscript();
       startListening();
       addDebugInfo("Started new recording after manual retry");
@@ -183,23 +146,24 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
   };
 
   useEffect(() => {
-    let countdownTimer: number | undefined;
+    let timer: NodeJS.Timeout | null = null;
+    let countdownTimer: NodeJS.Timeout | null = null;
     
     if (isRecording) {
       const maxRecordingTime = isPwa ? 25 : 30;
       setCountdown(maxRecordingTime);
       
-      const recordingTimeoutId = createTimeout(() => {
+      timer = setTimeout(() => {
         if (isRecording) {
           addDebugInfo(`Auto-stopping after ${maxRecordingTime} seconds`);
           toggleRecording();
         }
       }, maxRecordingTime * 1000);
       
-      countdownTimer = window.setInterval(() => {
+      countdownTimer = setInterval(() => {
         setCountdown(prev => {
           if (prev <= 1) {
-            clearInterval(countdownTimer);
+            if (countdownTimer) clearInterval(countdownTimer);
             return 0;
           }
           return prev - 1;
@@ -208,24 +172,19 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     }
     
     return () => {
+      if (timer) clearTimeout(timer);
       if (countdownTimer) clearInterval(countdownTimer);
     };
-  }, [isRecording, isPwa, createTimeout, toggleRecording]);
+  }, [isRecording, isPwa]);
 
   useEffect(() => {
     return () => {
       if (isRecording) {
-        const finalTranscript = finalTranscriptRef.current;
-        if (finalTranscript && !transcriptSent) {
-          addDebugInfo(`Capturing final transcript on cleanup: ${finalTranscript.substring(0, 20)}...`);
-          onTranscriptComplete(finalTranscript);
-          setTranscriptSent(true);
-        }
         stopListening();
         addDebugInfo("Cleanup: stopped listening");
       }
     };
-  }, [isRecording, stopListening, onTranscriptComplete, transcriptSent]);
+  }, [isRecording, stopListening]);
 
   if (!browserSupportsSpeechRecognition) {
     return (
@@ -275,11 +234,6 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     );
   }
 
-  const envCapabilities = environmentConfig?.capabilities || { continuous: true, reliable: true };
-  const envDescription = environmentConfig?.description || environment;
-  const envPlatform = environmentConfig?.platform || 'Unknown';
-  const envBrowser = environmentConfig?.browser || 'Unknown';
-  
   return (
     <div className="space-y-4">
       <div className="text-center mb-6">
@@ -377,16 +331,14 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
               <div>Recording state: {isRecording ? "Recording" : "Stopped"}</div>
               <div>Is processing: {isProcessing ? "Yes" : "No"}</div>
               <div>Transcript sent: {transcriptSent ? "Yes" : "No"}</div>
-              <div>Current transcript length: {transcript?.length || 0} chars</div>
-              <div>Stored transcript length: {finalTranscriptRef.current?.length || 0} chars</div>
               <div>Permission state: {permissionState}</div>
               <div>Is mobile device: {isMobile ? "Yes" : "No"}</div>
               <div>Is PWA mode: {isPwa ? "Yes" : "No"}</div>
-              <div>Environment: {envDescription}</div>
-              <div>Platform: {envPlatform}</div>
-              <div>Browser: {envBrowser}</div>
-              <div>Continuous mode: {envCapabilities.continuous ? "Enabled" : "Disabled"}</div>
-              <div>Recognition reliability: {envCapabilities.reliable ? "High" : "Limited"}</div>
+              <div>Environment: {environment.description}</div>
+              <div>Platform: {environment.platform}</div>
+              <div>Browser: {environment.browser}</div>
+              <div>Continuous mode: {environment.capabilities.continuous ? "Enabled" : "Disabled"}</div>
+              <div>Recognition reliability: {environment.capabilities.reliable ? "High" : "Limited"}</div>
               <div>Log:</div>
               <ul className="ml-4 space-y-1">
                 {debugInfo.map((info, i) => (
