@@ -8,6 +8,7 @@ export type RecorderState =
   | { status: 'idle' }
   | { status: 'requesting-permission' }
   | { status: 'recording' }
+  | { status: 'recovering' } // Added this state for error recovery
   | { status: 'processing', transcript: string }
   | { status: 'confirming', result: VoiceProcessingResult }
   | { status: 'error', message: string };
@@ -18,6 +19,8 @@ export type RecorderEvent =
   | { type: 'PERMISSION_GRANTED' }
   | { type: 'PERMISSION_DENIED' }
   | { type: 'STOP_RECORDING', transcript: string }
+  | { type: 'RECOVERY_STARTED' } // Added for error recovery
+  | { type: 'RECOVERY_COMPLETED' } // Added for error recovery
   | { type: 'RECOGNITION_ERROR', message: string }
   | { type: 'PROCESSING_COMPLETE', result: VoiceProcessingResult }
   | { type: 'PROCESSING_ERROR', message: string }
@@ -45,6 +48,17 @@ function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): Recor
         return { status: 'processing', transcript: event.transcript };
       if (event.type === 'RECOGNITION_ERROR') 
         return { status: 'error', message: event.message };
+      if (event.type === 'RECOVERY_STARTED')
+        return { status: 'recovering' };
+      break;
+      
+    case 'recovering':
+      if (event.type === 'RECOVERY_COMPLETED')
+        return { status: 'recording' };
+      if (event.type === 'RECOGNITION_ERROR')
+        return { status: 'error', message: event.message };
+      if (event.type === 'STOP_RECORDING')
+        return { status: 'processing', transcript: event.transcript };
       break;
       
     case 'processing':
@@ -88,6 +102,14 @@ export const useVoiceRecorderStateMachine = () => {
     
     stopRecording: useCallback((transcript: string) => {
       dispatch({ type: 'STOP_RECORDING', transcript });
+    }, []),
+    
+    recoveryStarted: useCallback(() => {
+      dispatch({ type: 'RECOVERY_STARTED' });
+    }, []),
+    
+    recoveryCompleted: useCallback(() => {
+      dispatch({ type: 'RECOVERY_COMPLETED' });
     }, []),
     
     recognitionError: useCallback((message: string) => {

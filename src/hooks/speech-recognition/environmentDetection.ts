@@ -1,7 +1,10 @@
+
 /**
  * Enhanced environment detection for speech recognition
  * Identifies platform, mode (browser vs PWA), and sets appropriate configuration
  */
+
+import { RecognitionEnvironment } from './types';
 
 /**
  * Comprehensive environment detection for speech recognition

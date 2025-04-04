@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { detectEnvironment } from './environmentDetection';
 import { useTrackedTimeouts } from '../use-tracked-timeouts';
 import { RecognitionEnvironment } from './types';
+import { handleRecognitionError } from './errorHandlers';
 
 // Type for the enhanced speech recognition hook return value
 export interface UseEnhancedSpeechRecognitionReturn {
@@ -92,7 +93,32 @@ export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionRetu
         }
         
         // Set up base event handlers (detailed handlers added when recording starts)
-        recognition.onerror = handleRecognitionError;
+        recognition.onerror = (event) => {
+          // Use our enhanced error handler
+          handleRecognitionError(event, {
+            isListening,
+            env,
+            recognitionRef,
+            retryAttemptsRef,
+            createTimeout,
+            onError: (errorMessage) => {
+              if (isMounted()) {
+                setError(errorMessage);
+                setIsListening(false);
+              }
+            },
+            onRecoveryStart: () => {
+              if (isMounted()) {
+                setIsRecovering(true);
+              }
+            },
+            onRecoveryComplete: () => {
+              if (isMounted()) {
+                setIsRecovering(false);
+              }
+            }
+          });
+        };
       }
     } catch (err) {
       console.error('Error initializing speech recognition:', err);
@@ -110,166 +136,6 @@ export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionRetu
       }
     };
   }, []);
-  
-  /**
-   * Handle recognition errors with platform-specific strategies
-   */
-  const handleRecognitionError = useCallback((event: SpeechRecognitionErrorEvent) => {
-    console.error('Speech recognition error:', event.error, event);
-    
-    // Don't update state if component unmounted
-    if (!isMounted()) return;
-    
-    // Platform-specific error handling
-    if (env.isIOSPwa) {
-      // Special handling for iOS PWA errors
-      handleIOSPwaError(event);
-    } else {
-      // Generic error handling for other platforms
-      handleGenericError(event);
-    }
-  }, [env, isMounted]);
-  
-  /**
-   * Handle errors specifically for iOS PWA environment
-   */
-  const handleIOSPwaError = useCallback((event: SpeechRecognitionErrorEvent) => {
-    // iOS PWA specific error handling
-    switch (event.error) {
-      case 'network':
-      case 'aborted':
-      case 'service-not-allowed':
-        // These errors are common in iOS PWA and can be recovered
-        if (retryAttemptsRef.current < 5) { // More retries for iOS
-          retryAttemptsRef.current++;
-          
-          // Use a fixed but longer delay for iOS to let the browser recover
-          const delay = 800;
-          
-          console.log(`iOS PWA error: ${event.error}, recovery attempt ${retryAttemptsRef.current}`);
-          setIsRecovering(true);
-          
-          // For iOS, we do a complete reset and restart
-          createTimeout(() => {
-            try {
-              if (recognitionRef.current && isListening) {
-                // Complete reset of recognition
-                recognitionRef.current.abort(); // More forceful than stop
-                
-                // Wait longer before restart on iOS
-                createTimeout(() => {
-                  try {
-                    if (recognitionRef.current && isListening) {
-                      recognitionRef.current.start();
-                      setIsRecovering(false);
-                    }
-                  } catch (innerErr) {
-                    console.error('iOS restart failed:', innerErr);
-                    setError('Recognition failed to restart. Please try again.');
-                    setIsListening(false);
-                    setIsRecovering(false);
-                  }
-                }, 500);
-              }
-            } catch (err) {
-              console.error('iOS recovery attempt failed:', err);
-              setError('Recognition error. Please try again.');
-              setIsListening(false);
-              setIsRecovering(false);
-            }
-          }, delay);
-          
-          return;
-        }
-        break;
-        
-      case 'not-allowed':
-        setError('Microphone access was denied. Please enable microphone access in your browser settings.');
-        setIsListening(false);
-        return;
-        
-      case 'audio-capture':
-        setError('No microphone was found or it is being used by another application.');
-        setIsListening(false);
-        return;
-        
-      case 'no-speech':
-        // This is common and not a real error to show users
-        return;
-    }
-    
-    // For unhandled errors, set generic error message
-    setError(`Recognition error: ${event.error}`);
-    setIsListening(false);
-    setIsRecovering(false);
-  }, [createTimeout, isListening]);
-  
-  /**
-   * Handle recognition errors for standard platforms
-   */
-  const handleGenericError = useCallback((event: SpeechRecognitionErrorEvent) => {
-    switch (event.error) {
-      case 'not-allowed':
-        setError('Microphone access was denied. Please enable microphone access in your browser settings.');
-        setIsListening(false);
-        break;
-        
-      case 'audio-capture':
-        setError('No microphone was found or it is being used by another application.');
-        setIsListening(false);
-        break;
-        
-      case 'network':
-        // Implement exponential backoff for network errors
-        if (retryAttemptsRef.current < env.recognitionConfig.maxRetries) {
-          retryAttemptsRef.current++;
-          const delay = env.recognitionConfig.baseRetryDelay * Math.pow(2, retryAttemptsRef.current);
-          
-          console.log(`Network error, retrying in ${delay}ms (attempt ${retryAttemptsRef.current})`);
-          
-          createTimeout(() => {
-            try {
-              if (recognitionRef.current && isListening) {
-                recognitionRef.current.start();
-              }
-            } catch (err) {
-              console.error('Failed to restart after network error:', err);
-              setError('Network error. Please check your connection and try again.');
-              setIsListening(false);
-            }
-          }, delay);
-        } else {
-          setError('Network issues prevented recording. Please try again later.');
-          setIsListening(false);
-        }
-        break;
-        
-      case 'no-speech':
-        // This is common and not a real error
-        return;
-        
-      case 'aborted':
-        // Only handle if unexpected
-        if (isListening) {
-          console.log('Unexpected abort, attempting to restart');
-          createTimeout(() => {
-            try {
-              if (recognitionRef.current && isListening) {
-                recognitionRef.current.start();
-              }
-            } catch (err) {
-              console.error('Failed to restart after abort:', err);
-            }
-          }, 300);
-        }
-        return;
-        
-      default:
-        setError(`Recognition error: ${event.error}`);
-        setIsListening(false);
-        break;
-    }
-  }, [env, createTimeout, isListening]);
   
   /**
    * Start the speech recognition process with platform-specific optimizations

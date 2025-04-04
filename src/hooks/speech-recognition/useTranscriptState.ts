@@ -8,6 +8,7 @@ import { useState, useCallback, useRef } from 'react';
 export const useTranscriptState = () => {
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
+  const [isRecovering, setIsRecovering] = useState(false);
   const accumulatedTranscriptRef = useRef('');
   
   /**
@@ -32,6 +33,7 @@ export const useTranscriptState = () => {
   const resetTranscript = useCallback(() => {
     setTranscript('');
     setInterimTranscript('');
+    setIsRecovering(false);
     accumulatedTranscriptRef.current = '';
   }, []);
   
@@ -43,6 +45,20 @@ export const useTranscriptState = () => {
     if (additionalTranscript) {
       accumulatedTranscriptRef.current += ' ' + additionalTranscript;
     }
+  }, []);
+  
+  /**
+   * Mark beginning of recovery process
+   */
+  const startRecovery = useCallback(() => {
+    setIsRecovering(true);
+  }, []);
+  
+  /**
+   * Mark completion of recovery process
+   */
+  const completeRecovery = useCallback(() => {
+    setIsRecovering(false);
   }, []);
   
   /**
@@ -63,9 +79,12 @@ export const useTranscriptState = () => {
   return {
     transcript,
     interimTranscript,
+    isRecovering,
     updateTranscript,
     resetTranscript,
     accumulateTranscript,
+    startRecovery,
+    completeRecovery,
     getCompleteTranscript
   };
 };

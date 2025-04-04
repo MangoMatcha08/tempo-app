@@ -4,7 +4,7 @@
  * Main entry point for speech recognition functionality
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import useEnhancedSpeechRecognition from './useEnhancedSpeechRecognition';
 import { UseSpeechRecognitionReturn } from './types';
 
