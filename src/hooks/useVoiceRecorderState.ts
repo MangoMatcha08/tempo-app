@@ -99,24 +99,13 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       });
       
       console.log("Switching to confirmation view with result:", result);
-      
       setIsProcessing(false);
       
-      // Force immediate transition to confirm view instead of using setTimeout
-      console.log("Setting view to confirm immediately");
-      transitionToConfirmView();
-      
-      /* Comment out the setTimeout approach that was causing issues
-      if (transitionTimerRef.current) {
-        clearTimeout(transitionTimerRef.current);
-      }
-      
-      transitionTimerRef.current = setTimeout(() => {
-        console.log("Setting view to confirm");
-        transitionToConfirmView();
-        transitionTimerRef.current = null;
-      }, 300);
-      */
+      // Explicitly make the transition synchronous and direct
+      console.log("Setting view state to confirming directly");
+      setViewState('confirming');
+      console.log("Setting view to confirm directly");
+      setView('confirm');
     } catch (error) {
       console.error('Error processing voice input:', error);
       setIsProcessing(false);
@@ -129,7 +118,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         variant: "destructive"
       });
     }
-  }, [transitionToConfirmView, toast]);
+  }, [toast]);
   
   const handleCancel = useCallback(() => {
     console.log("Cancel called, current viewState:", viewState);
