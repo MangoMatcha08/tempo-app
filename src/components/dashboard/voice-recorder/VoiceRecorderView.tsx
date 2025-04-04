@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Mic, Square, AlertCircle } from "lucide-react";
+import { Mic, Square, AlertCircle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useSpeechRecognition from "@/hooks/speech-recognition";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -30,6 +30,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     stopListening,
     resetTranscript,
     error,
+    isPwa
   } = useSpeechRecognition();
   
   // Log debug info
@@ -68,6 +69,10 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     };
     
     checkMicPermission();
+    
+    if (isPwa) {
+      addDebugInfo("Running in PWA mode - using adapted recognition strategy");
+    }
   }, []);
 
   // Request microphone access explicitly
@@ -86,7 +91,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     }
   };
 
-  // Handle recording start/stop with permission handling
+  // Handle recording start/stop with permission handling and PWA-specific logic
   const toggleRecording = async () => {
     // If already recording, stop recording
     if (isRecording) {
@@ -117,8 +122,42 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     setIsRecording(true);
     setTranscriptSent(false);
     resetTranscript();
-    startListening();
-    addDebugInfo("Started recording with permission granted");
+    
+    // In PWA mode, add a slight delay before starting recognition
+    // This helps address timing issues in standalone mode
+    if (isPwa) {
+      addDebugInfo("PWA mode: adding pre-start delay");
+      setTimeout(() => {
+        startListening();
+        addDebugInfo("Started recording in PWA mode after delay");
+      }, 100);
+    } else {
+      startListening();
+      addDebugInfo("Started recording with permission granted");
+    }
+  };
+  
+  // Force retry function for PWA environments
+  const handleForceRetry = () => {
+    addDebugInfo("Manual retry initiated");
+    
+    if (isRecording) {
+      stopListening();
+      
+      // Add a small delay before restarting
+      setTimeout(() => {
+        resetTranscript();
+        startListening();
+        addDebugInfo("Manually restarted recording");
+      }, 500);
+    } else {
+      // Just start fresh
+      setIsRecording(true);
+      setTranscriptSent(false);
+      resetTranscript();
+      startListening();
+      addDebugInfo("Started new recording after manual retry");
+    }
   };
 
   // Auto-stop recording after 30 seconds if still active
@@ -127,14 +166,16 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     let countdownTimer: NodeJS.Timeout | null = null;
     
     if (isRecording) {
-      setCountdown(30);
+      // Shorter max recording time for PWA to avoid memory issues
+      const maxRecordingTime = isPwa ? 25 : 30;
+      setCountdown(maxRecordingTime);
       
       timer = setTimeout(() => {
         if (isRecording) {
-          addDebugInfo("Auto-stopping after 30 seconds");
+          addDebugInfo(`Auto-stopping after ${maxRecordingTime} seconds`);
           toggleRecording();
         }
-      }, 30000);
+      }, maxRecordingTime * 1000);
       
       countdownTimer = setInterval(() => {
         setCountdown(prev => {
@@ -151,7 +192,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
       if (timer) clearTimeout(timer);
       if (countdownTimer) clearInterval(countdownTimer);
     };
-  }, [isRecording]);
+  }, [isRecording, isPwa]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -175,6 +216,10 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
             Please try Chrome, Edge, or Safari on desktop for the best experience.
           </AlertDescription>
         </Alert>
+        
+        <p className="mt-4 text-sm text-gray-500">
+          You can still create reminders using the text input option.
+        </p>
       </div>
     );
   }
@@ -244,6 +289,24 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
             </div>
           )}
         </div>
+        
+        {/* PWA-specific retry button */}
+        {isPwa && isRecording && (
+          <div className="mt-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleForceRetry}
+              className="text-xs flex items-center gap-1"
+            >
+              <RefreshCw className="h-3 w-3" />
+              Restart Recording
+            </Button>
+            <p className="text-xs text-muted-foreground mt-1">
+              If no text appears, try restarting the recording
+            </p>
+          </div>
+        )}
       </div>
       
       <div className="border rounded-md p-3 bg-slate-50">
@@ -261,6 +324,24 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
         </ScrollArea>
       </div>
       
+      {/* Show error message if any */}
+      {error && (
+        <Alert variant="warning" className="text-sm">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Recognition Error</AlertTitle>
+          <AlertDescription>
+            {error}
+            {isPwa && (
+              <p className="text-xs mt-1">
+                PWA mode may have limited speech recognition capabilities.
+                {isRecording && " Try using the restart button if needed."}
+              </p>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {/* Technical debug info - only in development */}
       {process.env.NODE_ENV === 'development' && (
         <details className="mt-4 text-xs text-gray-500 border rounded p-2">
           <summary>Debug Info</summary>
@@ -272,6 +353,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
               <div>Transcript sent: {transcriptSent ? "Yes" : "No"}</div>
               <div>Permission state: {permissionState}</div>
               <div>Is mobile device: {isMobile ? "Yes" : "No"}</div>
+              <div>Is PWA mode: {isPwa ? "Yes" : "No"}</div>
               <div>Log:</div>
               <ul className="ml-4 space-y-1">
                 {debugInfo.map((info, i) => (
@@ -285,7 +367,12 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
       
       <div className="mt-3 text-sm text-center text-gray-500">
         <p>Speak clearly and naturally.</p>
-        <p>Recording will automatically stop after 30 seconds.</p>
+        <p>Recording will automatically stop after {isPwa ? 25 : 30} seconds.</p>
+        {isPwa && (
+          <p className="text-xs mt-1 text-amber-600">
+            Running in PWA mode: If recognition doesn't work, try closing and reopening the app.
+          </p>
+        )}
       </div>
     </div>
   );

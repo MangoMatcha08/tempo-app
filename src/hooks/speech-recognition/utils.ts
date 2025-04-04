@@ -1,8 +1,9 @@
+
 // Speech recognition utility functions
 // Browser compatibility helpers for Web Speech API
 
 /**
- * Creates a speech recognition instance with browser compatibility
+ * Creates a speech recognition instance with enhanced browser compatibility
  * @returns Speech recognition instance or null if not supported
  */
 export const createSpeechRecognition = (): any => {
@@ -27,16 +28,27 @@ export const createSpeechRecognition = (): any => {
 };
 
 /**
- * Checks if speech recognition is supported in the current browser
+ * Checks if speech recognition is supported in the current browser with enhanced testing
  * @returns boolean indicating if speech recognition is supported
  */
 export const isSpeechRecognitionSupported = (): boolean => {
-  return !!(
-    (window as any).SpeechRecognition || 
-    (window as any).webkitSpeechRecognition ||
-    (window as any).mozSpeechRecognition ||
-    (window as any).msSpeechRecognition
-  );
+  if (typeof window === 'undefined') return false;
+  
+  const SpeechRecognition = (window as any).SpeechRecognition || 
+                           (window as any).webkitSpeechRecognition ||
+                           (window as any).mozSpeechRecognition ||
+                           (window as any).msSpeechRecognition;
+  
+  if (!SpeechRecognition) return false;
+  
+  try {
+    // Test if we can actually create an instance
+    new SpeechRecognition();
+    return true;
+  } catch (e) {
+    console.error('Speech recognition not fully supported:', e);
+    return false;
+  }
 };
 
 /**
@@ -52,7 +64,7 @@ export const configureSpeechRecognition = (recognition: any, isMobile = false): 
   recognition.interimResults = true;  // Get results while the user is still speaking
   recognition.maxAlternatives = 1;    // Only return the most likely match
   
-  // Use shorter timeouts on mobile to save battery
+  // Use shorter timeouts on mobile to save battery and handle PWA constraints
   if (isMobile) {
     // Safari on iOS seems to have issues with long continuous sessions
     // so we set a shorter timeout and rely on restarting the session
@@ -68,6 +80,54 @@ export const configureSpeechRecognition = (recognition: any, isMobile = false): 
     console.warn('Failed to set speech recognition language, using default');
     recognition.lang = 'en-US';
   }
+};
+
+/**
+ * Implements retry logic with exponential backoff
+ * @param operation Function to retry
+ * @param maxRetries Maximum number of retries
+ * @param baseDelay Base delay in ms before exponential increase
+ * @returns Promise that resolves when operation succeeds or max retries reached
+ */
+export const retryWithBackoff = async (
+  operation: () => void,
+  maxRetries: number = 3,
+  baseDelay: number = 300
+): Promise<void> => {
+  let retries = 0;
+  
+  const attempt = async (): Promise<void> => {
+    try {
+      operation();
+      return;
+    } catch (error) {
+      if (retries >= maxRetries) {
+        console.error(`Failed after ${maxRetries} retries:`, error);
+        throw error;
+      }
+      
+      const delay = baseDelay * Math.pow(2, retries);
+      console.log(`Retry attempt ${retries + 1} after ${delay}ms`);
+      retries++;
+      
+      return new Promise(resolve => {
+        setTimeout(() => {
+          resolve(attempt());
+        }, delay);
+      });
+    }
+  };
+  
+  return attempt();
+};
+
+/**
+ * Helper to check if currently running in PWA mode
+ * @returns boolean indicating if the app is running as a PWA
+ */
+export const isRunningAsPwa = (): boolean => {
+  return window.matchMedia('(display-mode: standalone)').matches || 
+         (window.navigator as any).standalone === true;
 };
 
 /**
