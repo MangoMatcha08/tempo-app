@@ -117,4 +117,74 @@ describe('useTrackedTimeouts', () => {
     // Component should be unmounted
     expect(result.current.isMounted()).toBe(false);
   });
+  
+  it('should create and execute an interval', () => {
+    const callback = vi.fn();
+    const { result } = renderHook(() => useTrackedTimeouts());
+    
+    // Create an interval
+    act(() => {
+      result.current.createInterval(callback, 1000);
+    });
+    
+    // Callback should not have been called yet
+    expect(callback).not.toHaveBeenCalled();
+    
+    // Fast-forward time multiple intervals
+    act(() => {
+      vi.advanceTimersByTime(3500);
+    });
+    
+    // Callback should have been called multiple times (3 times at 1000, 2000, 3000 ms)
+    expect(callback).toHaveBeenCalledTimes(3);
+  });
+  
+  it('should not execute interval callback after unmount', () => {
+    const callback = vi.fn();
+    const { result, unmount } = renderHook(() => useTrackedTimeouts());
+    
+    // Create an interval
+    act(() => {
+      result.current.createInterval(callback, 1000);
+    });
+    
+    // Advance one interval and verify callback executed
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(callback).toHaveBeenCalledTimes(1);
+    
+    // Unmount the component
+    unmount();
+    
+    // Advance more time
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    
+    // Callback should not have been called again
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+  
+  it('should execute runIfMounted only when mounted', () => {
+    const callback = vi.fn();
+    const { result, unmount } = renderHook(() => useTrackedTimeouts());
+    
+    // Run when mounted - should execute
+    act(() => {
+      result.current.runIfMounted(callback);
+    });
+    expect(callback).toHaveBeenCalledTimes(1);
+    
+    // Unmount the component
+    unmount();
+    
+    // Try to run after unmounted - should not execute
+    act(() => {
+      result.current.runIfMounted(callback);
+    });
+    
+    // Callback should still only have been called once
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
 });
