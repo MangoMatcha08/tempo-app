@@ -1,6 +1,7 @@
 
 import { useReducer, useCallback } from 'react';
-import { VoiceProcessingResult } from '@/types/reminderTypes';
+import { ReminderPriority, ReminderCategory, VoiceProcessingResult } from '@/types/reminderTypes';
+import { useTrackedTimeouts } from '@/hooks/use-tracked-timeouts';
 
 // Define all possible state types
 export type RecorderState = 
@@ -67,102 +68,49 @@ function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): Recor
   return state;
 }
 
-/**
- * Custom hook that implements a state machine for voice recorder state management
- * Provides a more predictable state transition flow than multiple useState calls
- */
-export function useVoiceRecorderStateMachine() {
-  // Initialize with idle state
+export const useVoiceRecorderStateMachine = () => {
   const [state, dispatch] = useReducer(voiceRecorderReducer, { status: 'idle' });
+  const { createTimeout } = useTrackedTimeouts();
   
-  // Action creators wrapped in useCallback to maintain reference equality
-  const startRecording = useCallback(() => {
-    dispatch({ type: 'START_RECORDING' });
-  }, []);
-  
-  const permissionGranted = useCallback(() => {
-    dispatch({ type: 'PERMISSION_GRANTED' });
-  }, []);
-  
-  const permissionDenied = useCallback(() => {
-    dispatch({ type: 'PERMISSION_DENIED' });
-  }, []);
-  
-  const stopRecording = useCallback((transcript: string) => {
-    dispatch({ type: 'STOP_RECORDING', transcript });
-  }, []);
-  
-  const recognitionError = useCallback((message: string) => {
-    dispatch({ type: 'RECOGNITION_ERROR', message });
-  }, []);
-  
-  const processingComplete = useCallback((result: VoiceProcessingResult) => {
-    dispatch({ type: 'PROCESSING_COMPLETE', result });
-  }, []);
-  
-  const processingError = useCallback((message: string) => {
-    dispatch({ type: 'PROCESSING_ERROR', message });
-  }, []);
-  
-  const reset = useCallback(() => {
-    dispatch({ type: 'RESET' });
-  }, []);
-  
-  return {
-    state,
-    actions: {
-      startRecording,
-      permissionGranted,
-      permissionDenied,
-      stopRecording,
-      recognitionError,
-      processingComplete,
-      processingError,
-      reset
-    }
+  // Action creators with proper resource management
+  const actions = {
+    startRecording: useCallback(() => {
+      dispatch({ type: 'START_RECORDING' });
+    }, []),
+    
+    permissionGranted: useCallback(() => {
+      dispatch({ type: 'PERMISSION_GRANTED' });
+    }, []),
+    
+    permissionDenied: useCallback(() => {
+      dispatch({ type: 'PERMISSION_DENIED' });
+    }, []),
+    
+    stopRecording: useCallback((transcript: string) => {
+      dispatch({ type: 'STOP_RECORDING', transcript });
+    }, []),
+    
+    recognitionError: useCallback((message: string) => {
+      dispatch({ type: 'RECOGNITION_ERROR', message });
+    }, []),
+    
+    processingComplete: useCallback((result: VoiceProcessingResult) => {
+      dispatch({ type: 'PROCESSING_COMPLETE', result });
+    }, []),
+    
+    processingError: useCallback((message: string) => {
+      dispatch({ type: 'PROCESSING_ERROR', message });
+      
+      // Automatically reset after error displayed
+      createTimeout(() => {
+        dispatch({ type: 'RESET' });
+      }, 5000);
+    }, [createTimeout]),
+    
+    reset: useCallback(() => {
+      dispatch({ type: 'RESET' });
+    }, []),
   };
-}
-
-/**
- * Helper function to determine if the state machine view should be in "record" or "confirm" mode
- * Used for backward compatibility with the existing UI components
- */
-export function getViewModeFromState(state: RecorderState): "record" | "confirm" {
-  switch (state.status) {
-    case 'confirming':
-      return "confirm";
-    case 'idle':
-    case 'requesting-permission':
-    case 'recording':
-    case 'processing':
-    case 'error':
-    default:
-      return "record";
-  }
-}
-
-/**
- * Helper to check if the recorder is currently in a processing state
- */
-export function isProcessingState(state: RecorderState): boolean {
-  return state.status === 'processing';
-}
-
-/**
- * Creates an initial state representation based on existing component properties
- * Helps with gradual migration to the state machine
- */
-export function createInitialState(
-  isProcessing?: boolean, 
-  processingResult?: VoiceProcessingResult | null
-): RecorderState {
-  if (processingResult) {
-    return { status: 'confirming', result: processingResult };
-  }
   
-  if (isProcessing) {
-    return { status: 'processing', transcript: '' };
-  }
-  
-  return { status: 'idle' };
-}
+  return { state, actions };
+};
