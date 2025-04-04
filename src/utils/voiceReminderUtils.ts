@@ -1,4 +1,3 @@
-
 import { ReminderCategory } from "@/types/reminderTypes";
 
 // Generate a meaningful title based on category and content

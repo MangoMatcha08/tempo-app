@@ -139,7 +139,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
                          (window.navigator as any).standalone === true;
     
     setIsPWA(isStandalone);
-    debugLog("VoiceRecorderModal running as PWA:", isStandalone);
+    debugLog("VoiceRecorderModal running as PWA: " + isStandalone);
   }, []);
   
   useEffect(() => {
@@ -161,7 +161,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
             }
           })
           .catch(err => {
-            debugLog("Microphone permission not pre-granted:", err.name);
+            debugLog("Microphone permission not pre-granted: " + err.name);
           });
       }
       
@@ -183,11 +183,11 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   }, [view, processingResult]);
   
   useEffect(() => {
-    debugLog("Current view:", view, "transcript length:", transcript ? transcript.length : 0, "isPWA:", isPWA);
+    debugLog("Current view: " + view + ", transcript length: " + (transcript ? transcript.length : 0) + ", isPWA: " + isPWA);
   }, [view, transcript, isPWA]);
   
   useEffect(() => {
-    debugLog("Processing state:", isProcessing, "in view:", view);
+    debugLog("Processing state: " + isProcessing + " in view: " + view);
   }, [isProcessing, view]);
   
   useEffect(() => {
@@ -202,8 +202,8 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   }, []);
   
   const enhancedTranscriptHandler = (text: string) => {
-    debugLog(`Transcript complete called with text of length: ${text.length}`);
-    debugLog(`First 30 chars: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
+    debugLog("Transcript complete called with text of length: " + text.length);
+    debugLog("First 30 chars: \"" + text.substring(0, 30) + (text.length > 30 ? '...' : '') + "\"");
     
     if (isPWA) {
       debugLog("PWA mode detected, adding slight delay before processing");

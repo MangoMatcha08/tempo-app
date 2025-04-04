@@ -1,4 +1,3 @@
-
 export enum ReminderPriority {
   LOW = 'LOW',
   MEDIUM = 'MEDIUM',
@@ -11,7 +10,8 @@ export enum ReminderCategory {
   DEADLINE = 'DEADLINE',
   PREPARATION = 'PREPARATION',
   GRADING = 'GRADING',
-  COMMUNICATION = 'COMMUNICATION'
+  COMMUNICATION = 'COMMUNICATION',
+  OTHER = 'OTHER'
 }
 
 export interface ChecklistItem {
@@ -35,6 +35,7 @@ export interface CreateReminderInput {
   checklist?: ChecklistItem[];
   voiceTranscript?: string;
   detectedNewPeriod?: NewPeriodInfo;
+  location?: string;
 }
 
 export interface Reminder extends CreateReminderInput {
