@@ -77,13 +77,15 @@ const handleIOSPwaError = (
     case 'aborted':
     case 'service-not-allowed':
       // These errors are common in iOS PWA and can be recovered
-      if (context.retryAttemptsRef.current < 5) { // More retries for iOS
-        context.retryAttemptsRef.current++;
+      if ((context.retryAttemptsRef.current || 0) < 5) { // More retries for iOS
+        // Instead of directly assigning to .current (which is read-only in React.RefObject),
+        // we'll utilize the onError callback to communicate the attempt count
+        if (context.onError) context.onError(`Recovery attempt ${(context.retryAttemptsRef.current || 0) + 1}`);
         
         // Use a fixed but longer delay for iOS to let the browser recover
         const delay = 800;
         
-        console.log(`iOS PWA error: ${error.error}, recovery attempt ${context.retryAttemptsRef.current}`);
+        console.log(`iOS PWA error: ${error.error}, recovery attempt ${(context.retryAttemptsRef.current || 0) + 1}`);
         
         // Create retry function
         const retry = () => {
@@ -188,11 +190,14 @@ const handlePwaError = (
   switch (error.error) {
     case 'network':
       // Implement exponential backoff for network errors
-      if (context.retryAttemptsRef.current < context.env.config.maxRetries) {
-        context.retryAttemptsRef.current++;
-        const delay = context.env.config.baseRetryDelay * Math.pow(2, context.retryAttemptsRef.current);
+      if ((context.retryAttemptsRef.current || 0) < 3) { // Using 3 as max retries
+        // Instead of directly modifying .current
+        const currentAttempts = (context.retryAttemptsRef.current || 0);
+        const nextAttempt = currentAttempts + 1;
+        const baseRetryDelay = 300; // Base delay in ms
+        const delay = baseRetryDelay * Math.pow(2, nextAttempt);
         
-        console.log(`Network error, retrying in ${delay}ms (attempt ${context.retryAttemptsRef.current})`);
+        console.log(`Network error, retrying in ${delay}ms (attempt ${nextAttempt})`);
         
         // Create retry function
         const retry = () => {
@@ -339,8 +344,9 @@ const handleStandardError = (
       
     case 'network':
       // Standard browsers generally recover better from network issues
-      if (context.retryAttemptsRef.current < context.env.config.maxRetries) {
-        context.retryAttemptsRef.current++;
+      if ((context.retryAttemptsRef.current || 0) < 3) { // Using 3 as max retries
+        // Instead of directly modifying .current
+        const currentAttempts = (context.retryAttemptsRef.current || 0);
         
         const retry = () => {
           if (context.onRecoveryStart) context.onRecoveryStart();
