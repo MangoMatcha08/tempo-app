@@ -6,6 +6,8 @@ export interface EnvironmentConfig {
   browser: string;
   description: string;
   isIOSPwa: boolean;
+  isPwa: boolean; // Added for consistency 
+  isMobile: boolean; // Added for consistency
   capabilities: {
     continuous: boolean;
     reliable: boolean;
@@ -39,12 +41,16 @@ export const detectEnvironment = (): EnvironmentConfig => {
                   isEdge ? 'Edge' : 'Unknown';
   
   // Detect if running as PWA
-  const mode = window.matchMedia('(display-mode: standalone)').matches ||
-               window.navigator.standalone === true ? 'PWA' : 'Browser';
+  const isPwa = window.matchMedia('(display-mode: standalone)').matches || 
+                (navigator.standalone === true);
+  const mode = isPwa ? 'PWA' : 'Browser';
+  
+  // Mobile detection
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
   
   // iOS Safari has specific limitations
   const isIOS = platform === 'iOS';
-  const isIOSPwa = isIOS && mode === 'PWA';
+  const isIOSPwa = isIOS && isPwa;
   
   // Set capabilities based on environment
   let capabilities = {
@@ -74,6 +80,8 @@ export const detectEnvironment = (): EnvironmentConfig => {
     mode,
     browser,
     isIOSPwa,
+    isPwa,
+    isMobile,
     description,
     capabilities,
     recognitionConfig
@@ -82,5 +90,5 @@ export const detectEnvironment = (): EnvironmentConfig => {
 
 export const getEnvironmentDescription = (): string => {
   const env = detectEnvironment();
-  return `${env.platform} ${env.browser} ${env.mode} (${env.isIOSPwa ? 'iOS PWA Mode' : 'Standard Mode'})`;
+  return env.description;
 };

@@ -34,7 +34,8 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     stopListening,
     resetTranscript,
     error,
-    isPwa
+    isPwa,
+    environmentConfig
   } = useSpeechRecognition();
   
   const addDebugInfo = (info: string) => {
@@ -101,7 +102,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
       setIsRecording(false);
       stopListening();
       
-      if (transcript.trim()) {
+      if (transcript?.trim()) {
         addDebugInfo(`Sending transcript: "${transcript.substring(0, 30)}${transcript.length > 30 ? '...' : ''}"`);
         setTranscriptSent(true);
         onTranscriptComplete(transcript);
@@ -242,6 +243,12 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     );
   }
 
+  // Safe access to environment configuration
+  const envCapabilities = environmentConfig?.capabilities || { continuous: true, reliable: true };
+  const envDescription = environmentConfig?.description || environment;
+  const envPlatform = environmentConfig?.platform || 'Unknown';
+  const envBrowser = environmentConfig?.browser || 'Unknown';
+  
   return (
     <div className="space-y-4">
       <div className="text-center mb-6">
@@ -342,11 +349,11 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
               <div>Permission state: {permissionState}</div>
               <div>Is mobile device: {isMobile ? "Yes" : "No"}</div>
               <div>Is PWA mode: {isPwa ? "Yes" : "No"}</div>
-              <div>Environment: {environment.description}</div>
-              <div>Platform: {environment.platform}</div>
-              <div>Browser: {environment.browser}</div>
-              <div>Continuous mode: {environment.capabilities.continuous ? "Enabled" : "Disabled"}</div>
-              <div>Recognition reliability: {environment.capabilities.reliable ? "High" : "Limited"}</div>
+              <div>Environment: {envDescription}</div>
+              <div>Platform: {envPlatform}</div>
+              <div>Browser: {envBrowser}</div>
+              <div>Continuous mode: {envCapabilities.continuous ? "Enabled" : "Disabled"}</div>
+              <div>Recognition reliability: {envCapabilities.reliable ? "High" : "Limited"}</div>
               <div>Log:</div>
               <ul className="ml-4 space-y-1">
                 {debugInfo.map((info, i) => (
