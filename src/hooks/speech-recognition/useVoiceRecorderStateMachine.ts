@@ -7,10 +7,10 @@ import { useTrackedTimeouts } from '@/hooks/use-tracked-timeouts';
 export type RecorderState = 
   | { status: 'idle' }
   | { status: 'requesting-permission' }
-  | { status: 'recording' }
+  | { status: 'recording', transcript?: string }
   | { status: 'processing', transcript: string }
-  | { status: 'confirming', result: VoiceProcessingResult }
-  | { status: 'error', message: string };
+  | { status: 'confirming', result: VoiceProcessingResult, transcript: string }
+  | { status: 'error', message: string, transcript?: string };
 
 // Define all possible events
 export type RecorderEvent =
@@ -21,6 +21,7 @@ export type RecorderEvent =
   | { type: 'RECOGNITION_ERROR', message: string }
   | { type: 'PROCESSING_COMPLETE', result: VoiceProcessingResult }
   | { type: 'PROCESSING_ERROR', message: string }
+  | { type: 'UPDATE_TRANSCRIPT', transcript: string }
   | { type: 'RESET' };
 
 // State machine reducer function
@@ -44,14 +45,16 @@ function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): Recor
       if (event.type === 'STOP_RECORDING') 
         return { status: 'processing', transcript: event.transcript };
       if (event.type === 'RECOGNITION_ERROR') 
-        return { status: 'error', message: event.message };
+        return { status: 'error', message: event.message, transcript: state.transcript };
+      if (event.type === 'UPDATE_TRANSCRIPT')
+        return { ...state, transcript: event.transcript };
       break;
       
     case 'processing':
       if (event.type === 'PROCESSING_COMPLETE') 
-        return { status: 'confirming', result: event.result };
+        return { status: 'confirming', result: event.result, transcript: state.transcript };
       if (event.type === 'PROCESSING_ERROR') 
-        return { status: 'error', message: event.message };
+        return { status: 'error', message: event.message, transcript: state.transcript };
       break;
       
     case 'confirming':
@@ -88,6 +91,10 @@ export const useVoiceRecorderStateMachine = () => {
     
     stopRecording: useCallback((transcript: string) => {
       dispatch({ type: 'STOP_RECORDING', transcript });
+    }, []),
+    
+    updateTranscript: useCallback((transcript: string) => {
+      dispatch({ type: 'UPDATE_TRANSCRIPT', transcript });
     }, []),
     
     recognitionError: useCallback((message: string) => {

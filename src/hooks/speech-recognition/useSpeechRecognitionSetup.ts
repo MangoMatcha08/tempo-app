@@ -17,16 +17,16 @@ export const useSpeechRecognitionSetup = ({ onError, isListening, setIsListening
   // Set up speech recognition
   useEffect(() => {
     // Check if the browser supports SpeechRecognition
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     
-    if (!SpeechRecognition) {
+    if (!SpeechRecognitionAPI) {
       console.error('Speech recognition not supported by this browser');
       return;
     }
     
     try {
       // Create a new SpeechRecognition instance
-      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current = new SpeechRecognitionAPI();
       
       // Configure based on environment
       const recognition = recognitionRef.current;

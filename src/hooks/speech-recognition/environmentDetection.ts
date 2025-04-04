@@ -1,52 +1,86 @@
+// Keep existing imports
 
-/**
- * Enhanced environment detection for speech recognition
- * Identifies platform, mode (browser vs PWA), and sets appropriate configuration
- */
-export const detectEnvironment = () => {
-  // Check if running as installed PWA
-  const isPwa = window.matchMedia('(display-mode: standalone)').matches || 
-                (window.navigator as any).standalone === true;
+export interface EnvironmentConfig {
+  platform: string;
+  mode: string;
+  browser: string;
+  description: string;
+  isIOSPwa: boolean;
+  capabilities: {
+    continuous: boolean;
+    reliable: boolean;
+  };
+  recognitionConfig: {
+    continuous: boolean;
+    interimResults: boolean;
+    maxAlternatives: number;
+    restartDelay: number;
+  };
+}
+
+export const detectEnvironment = (): EnvironmentConfig => {
+  // Detect platform
+  const userAgent = navigator.userAgent || '';
+  const platform = /iPad|iPhone|iPod/.test(userAgent) ? 'iOS' :
+                   /Android/.test(userAgent) ? 'Android' :
+                   /Windows/.test(userAgent) ? 'Windows' :
+                   /Mac/.test(userAgent) ? 'MacOS' :
+                   /Linux/.test(userAgent) ? 'Linux' : 'Unknown';
   
-  // Check platform
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-  const isAndroid = /Android/.test(navigator.userAgent);
-  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  // Detect browser
+  const isChrome = /Chrome/.test(userAgent) && !/Edge|Edg/.test(userAgent);
+  const isFirefox = /Firefox/.test(userAgent);
+  const isSafari = /Safari/.test(userAgent) && !/Chrome/.test(userAgent);
+  const isEdge = /Edge|Edg/.test(userAgent);
   
-  // Configure recognition parameters based on environment
+  const browser = isChrome ? 'Chrome' :
+                  isFirefox ? 'Firefox' :
+                  isSafari ? 'Safari' :
+                  isEdge ? 'Edge' : 'Unknown';
+  
+  // Detect if running as PWA
+  const mode = window.matchMedia('(display-mode: standalone)').matches ||
+               window.navigator.standalone === true ? 'PWA' : 'Browser';
+  
+  // iOS Safari has specific limitations
+  const isIOS = platform === 'iOS';
+  const isIOSPwa = isIOS && mode === 'PWA';
+  
+  // Set capabilities based on environment
+  let capabilities = {
+    continuous: true,
+    reliable: true
+  };
+  
+  // iOS Safari doesn't support continuous recognition reliably
+  if (isIOS) {
+    capabilities.continuous = false;
+    capabilities.reliable = false;
+  }
+  
+  // Create a description of the environment
+  const description = `${platform} ${browser} ${mode}`;
+  
+  // Recognition configuration based on environment
+  const recognitionConfig = {
+    continuous: capabilities.continuous,
+    interimResults: true,
+    maxAlternatives: 1,
+    restartDelay: isIOS ? 500 : 300
+  };
+  
   return {
-    isPwa,
-    isIOS,
-    isAndroid,
-    isMobile: isIOS || isAndroid,
-    isIOSPwa: isPwa && isIOS,
-    isSafari,
-    recognitionConfig: {
-      continuous: !(isPwa && isIOS), // iOS PWA can't use continuous mode reliably
-      interimResults: true,
-      maxAlternatives: isIOS ? 3 : 1, // Get more alternatives on iOS for better accuracy
-      restartDelay: isPwa ? (isIOS ? 1000 : 800) : 300
-    }
+    platform,
+    mode,
+    browser,
+    isIOSPwa,
+    description,
+    capabilities,
+    recognitionConfig
   };
 };
 
-/**
- * Returns a human-readable description of the current environment
- * Useful for debugging
- */
-export const getEnvironmentDescription = () => {
+export const getEnvironmentDescription = (): string => {
   const env = detectEnvironment();
-  
-  return {
-    platform: env.isIOS ? 'iOS' : (env.isAndroid ? 'Android' : 'Desktop'),
-    mode: env.isPwa ? 'PWA' : 'Browser',
-    browser: env.isSafari ? 'Safari' : (navigator.userAgent.indexOf('Chrome') > -1 ? 'Chrome' : 'Other'),
-    description: `Running on ${env.isIOS ? 'iOS' : (env.isAndroid ? 'Android' : 'Desktop')} 
-                  in ${env.isPwa ? 'PWA' : 'Browser'} mode
-                  ${env.isIOSPwa ? '(iOS PWA - limited recognition capabilities)' : ''}`,
-    capabilities: {
-      continuous: !env.isIOSPwa,
-      reliable: !env.isIOSPwa
-    }
-  };
+  return `${env.platform} ${env.browser} ${env.mode} (${env.isIOSPwa ? 'iOS PWA Mode' : 'Standard Mode'})`;
 };

@@ -33,8 +33,16 @@ const VoiceRecorderState = ({ onTranscriptProcessed }: VoiceRecorderStateProps) 
     stopListening,
     resetTranscript,
     error,
-    isPwa
+    isPwa,
+    environmentConfig
   } = useSpeechRecognition();
+  
+  // Update transcript in state machine when it changes in speech recognition
+  useEffect(() => {
+    if (state.status === 'recording' && transcript && transcript !== '') {
+      actions.updateTranscript(transcript);
+    }
+  }, [transcript, state.status, actions]);
   
   // Handle permission checking
   useEffect(() => {
@@ -94,8 +102,9 @@ const VoiceRecorderState = ({ onTranscriptProcessed }: VoiceRecorderStateProps) 
       const recordingTimerId = createTimeout(() => {
         if (isListening) {
           stopListening();
-          if (transcript) {
-            actions.stopRecording(transcript);
+          const currentTranscript = state.transcript || transcript || '';
+          if (currentTranscript) {
+            actions.stopRecording(currentTranscript);
           } else {
             actions.recognitionError("No speech detected");
           }
@@ -117,7 +126,7 @@ const VoiceRecorderState = ({ onTranscriptProcessed }: VoiceRecorderStateProps) 
         clearInterval(countdownIntervalId);
       };
     }
-  }, [state.status, isListening, stopListening, transcript, actions, resetTranscript, createTimeout, isPwa]);
+  }, [state.status, isListening, stopListening, transcript, actions, resetTranscript, createTimeout, isPwa, state.transcript]);
   
   // Handle processing state
   useEffect(() => {
@@ -161,8 +170,9 @@ const VoiceRecorderState = ({ onTranscriptProcessed }: VoiceRecorderStateProps) 
   const handleToggleRecording = () => {
     if (state.status === 'recording') {
       stopListening();
-      if (transcript) {
-        actions.stopRecording(transcript);
+      const currentTranscript = state.transcript || transcript || '';
+      if (currentTranscript) {
+        actions.stopRecording(currentTranscript);
       } else {
         actions.reset(); // No transcript, just reset
       }
@@ -200,7 +210,7 @@ const VoiceRecorderState = ({ onTranscriptProcessed }: VoiceRecorderStateProps) 
         
         {isPwa && state.status === 'recording' && (
           <div className="mt-2 text-xs text-amber-600">
-            {environment.isIOSPwa ? "iOS PWA mode active - recording in short segments" : "PWA mode active"}
+            {environmentConfig && environmentConfig.isIOSPwa ? "iOS PWA mode active - recording in short segments" : "PWA mode active"}
           </div>
         )}
       </div>
