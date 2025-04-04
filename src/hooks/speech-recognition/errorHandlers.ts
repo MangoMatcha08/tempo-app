@@ -399,3 +399,51 @@ const handleStandardError = (
       };
   }
 };
+
+/**
+ * Process transcript with additional error handling
+ * @param transcript The transcript to process
+ * @param options Processing options and callbacks
+ */
+export const processTranscriptSafely = async (
+  transcript: string,
+  options: {
+    onError?: (message: string) => void;
+    onProcessingStart?: (transcript: string) => void;
+    onProcessingComplete?: (result: any) => void;
+  }
+) => {
+  const { onError, onProcessingStart, onProcessingComplete } = options;
+  
+  if (!transcript || transcript.trim().length === 0) {
+    if (onError) onError('No speech was detected. Please try again and speak clearly.');
+    return;
+  }
+  
+  try {
+    // Signal that processing has started
+    if (onProcessingStart) onProcessingStart(transcript);
+    
+    // Import and use the actual NLP processing
+    const { processVoiceInput } = await import('@/services/nlp');
+    
+    try {
+      // Process the transcript
+      const result = await processVoiceInput(transcript);
+      
+      // Signal processing complete with result
+      if (onProcessingComplete) onProcessingComplete(result);
+      return result;
+    } catch (error) {
+      console.error('Error processing transcript:', error);
+      
+      if (onError) onError('Error processing your voice input. Please try again.');
+      return null;
+    }
+  } catch (error) {
+    console.error('Error in transcript processing:', error);
+    
+    if (onError) onError('There was an error processing your speech. Please try again.');
+    return null;
+  }
+};

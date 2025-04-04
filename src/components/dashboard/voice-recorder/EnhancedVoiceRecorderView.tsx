@@ -1,0 +1,682 @@
+
+import React, { useState, useEffect, useReducer, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Mic, Square, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { useEnhancedSpeechRecognition } from "@/hooks/speech-recognition";
+import { useTrackedTimeouts } from "@/hooks/use-tracked-timeouts";
+import { processTranscriptSafely } from "@/hooks/speech-recognition/errorHandlers";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { getEnvironmentDescription } from "@/hooks/speech-recognition/environmentDetection";
+import { VoiceProcessingResult } from "@/types/reminderTypes";
+
+// Voice recorder state
+type RecorderState = 
+  | { status: 'idle' }
+  | { status: 'requesting-permission' }
+  | { status: 'recording' }
+  | { status: 'recovering' }
+  | { status: 'processing', transcript: string }
+  | { status: 'confirming', result: VoiceProcessingResult }
+  | { status: 'error', message: string };
+
+// Voice recorder events
+type RecorderEvent =
+  | { type: 'START_RECORDING' }
+  | { type: 'PERMISSION_GRANTED' }
+  | { type: 'PERMISSION_DENIED', message: string }
+  | { type: 'STOP_RECORDING', transcript: string }
+  | { type: 'RECOVERY_STARTED' }
+  | { type: 'RECOVERY_COMPLETED' }
+  | { type: 'RECOGNITION_ERROR', message: string }
+  | { type: 'PROCESSING_STARTED', transcript: string }
+  | { type: 'PROCESSING_COMPLETE', result: VoiceProcessingResult }
+  | { type: 'PROCESSING_ERROR', message: string }
+  | { type: 'RESET' };
+
+// State machine reducer
+function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): RecorderState {
+  console.log(`Voice recorder state transition: ${state.status} + ${event.type}`);
+  
+  switch (state.status) {
+    case 'idle':
+      if (event.type === 'START_RECORDING') 
+        return { status: 'requesting-permission' };
+      break;
+      
+    case 'requesting-permission':
+      if (event.type === 'PERMISSION_GRANTED') 
+        return { status: 'recording' };
+      if (event.type === 'PERMISSION_DENIED') 
+        return { status: 'error', message: event.message };
+      break;
+      
+    case 'recording':
+      if (event.type === 'STOP_RECORDING') 
+        return { status: 'processing', transcript: event.transcript };
+      if (event.type === 'RECOGNITION_ERROR') 
+        return { status: 'error', message: event.message };
+      if (event.type === 'RECOVERY_STARTED')
+        return { status: 'recovering' };
+      break;
+      
+    case 'recovering':
+      if (event.type === 'RECOVERY_COMPLETED')
+        return { status: 'recording' };
+      if (event.type === 'RECOGNITION_ERROR')
+        return { status: 'error', message: event.message };
+      if (event.type === 'STOP_RECORDING')
+        return { status: 'processing', transcript: event.transcript };
+      break;
+      
+    case 'processing':
+      if (event.type === 'PROCESSING_COMPLETE') 
+        return { status: 'confirming', result: event.result };
+      if (event.type === 'PROCESSING_ERROR') 
+        return { status: 'error', message: event.message };
+      break;
+      
+    case 'confirming':
+      if (event.type === 'RESET') 
+        return { status: 'idle' };
+      break;
+      
+    case 'error':
+      if (event.type === 'RESET') 
+        return { status: 'idle' };
+      break;
+  }
+  
+  return state;
+}
+
+interface VoiceRecorderViewProps {
+  onTranscriptComplete: (transcript: string) => void;
+  onResultComplete?: (result: VoiceProcessingResult) => void;
+  isProcessing: boolean;
+}
+
+const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({ 
+  onTranscriptComplete, 
+  onResultComplete,
+  isProcessing: externalProcessing 
+}) => {
+  // Use our enhanced speech recognition hook
+  const {
+    transcript,
+    interimTranscript,
+    isListening,
+    isRecovering: recognitionRecovering,
+    browserSupportsSpeechRecognition,
+    startListening,
+    stopListening,
+    resetTranscript,
+    getCompleteTranscript,
+    error: recognitionError,
+    environmentInfo
+  } = useEnhancedSpeechRecognition();
+  
+  // Get environment info
+  const environment = getEnvironmentDescription();
+  
+  // State machine for voice recorder
+  const [state, dispatch] = useReducer(voiceRecorderReducer, { status: 'idle' });
+  
+  // Local state
+  const [countdown, setCountdown] = useState<number>(0);
+  const [permissionState, setPermissionState] = useState<PermissionState | "unknown">("unknown");
+  const [debugInfo, setDebugInfo] = useState<string[]>([]);
+  const isMobile = useIsMobile();
+  
+  // References
+  const retryAttemptsRef = useRef<number>(0);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Resource management
+  const { 
+    createTimeout, 
+    clearTrackedTimeout, 
+    clearAllTimeouts,
+    runIfMounted 
+  } = useTrackedTimeouts();
+  
+  const addDebugInfo = (info: string) => {
+    setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${info}`]);
+  };
+  
+  // Check microphone permission on mount
+  useEffect(() => {
+    const checkMicPermission = async () => {
+      try {
+        if (navigator.permissions && navigator.permissions.query) {
+          const permissionResult = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+          setPermissionState(permissionResult.state);
+          
+          permissionResult.onchange = () => {
+            setPermissionState(permissionResult.state);
+            addDebugInfo(`Microphone permission changed to: ${permissionResult.state}`);
+            
+            if (permissionResult.state === 'granted' && state.status === 'requesting-permission') {
+              dispatch({ type: 'PERMISSION_GRANTED' });
+              startRecording();
+            } else if (permissionResult.state === 'denied' && state.status === 'requesting-permission') {
+              dispatch({ 
+                type: 'PERMISSION_DENIED', 
+                message: 'Microphone access was denied. Please enable microphone access in your browser settings.' 
+              });
+            }
+          };
+        } else {
+          setPermissionState("unknown");
+        }
+      } catch (err) {
+        console.error("Error checking microphone permission:", err);
+        setPermissionState("unknown");
+      }
+    };
+    
+    checkMicPermission();
+    
+    if (environmentInfo.isPwa) {
+      addDebugInfo("Running in PWA mode - using adapted recognition strategy");
+    }
+  }, []);
+  
+  // Reset state when component unmounts
+  useEffect(() => {
+    return () => {
+      clearAllTimeouts();
+      
+      if (isListening) {
+        stopListening();
+        addDebugInfo("Cleanup: stopped listening on unmount");
+      }
+      
+      if (recordingTimerRef.current) {
+        clearTimeout(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
+    };
+  }, [isListening, stopListening, clearAllTimeouts]);
+  
+  // Update local state when recognition state changes
+  useEffect(() => {
+    if (recognitionRecovering && state.status === 'recording') {
+      dispatch({ type: 'RECOVERY_STARTED' });
+      addDebugInfo("Recognition is recovering");
+    }
+  }, [recognitionRecovering, state.status]);
+  
+  // Update state when recognition error changes
+  useEffect(() => {
+    if (recognitionError && (state.status === 'recording' || state.status === 'recovering')) {
+      addDebugInfo(`Recognition error: ${recognitionError}`);
+      dispatch({ 
+        type: 'RECOGNITION_ERROR', 
+        message: recognitionError 
+      });
+    }
+  }, [recognitionError, state.status]);
+  
+  // Request microphone access
+  const requestMicrophoneAccess = async () => {
+    addDebugInfo("Requesting microphone access explicitly");
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      setPermissionState("granted");
+      addDebugInfo("Microphone access granted");
+      
+      if (state.status === 'requesting-permission') {
+        dispatch({ type: 'PERMISSION_GRANTED' });
+        startRecording();
+      }
+      
+      return true;
+    } catch (err) {
+      console.error("Error requesting microphone access:", err);
+      setPermissionState("denied");
+      addDebugInfo("Microphone access denied");
+      
+      dispatch({ 
+        type: 'PERMISSION_DENIED', 
+        message: 'Microphone access was denied. Please enable microphone access in your browser settings.' 
+      });
+      
+      return false;
+    }
+  };
+  
+  // Start recording function
+  const startRecording = () => {
+    addDebugInfo("Starting recording");
+    
+    // Reset state
+    resetTranscript();
+    retryAttemptsRef.current = 0;
+    
+    // Start listening
+    startListening();
+    
+    // Set up countdown timer
+    setupCountdown();
+  };
+  
+  // Setup countdown timer
+  const setupCountdown = () => {
+    // Maximum recording time (shorter for iOS PWA)
+    const maxRecordingTime = environmentInfo.isIOSPwa ? 25 : 30;
+    setCountdown(maxRecordingTime);
+    
+    // Set up auto-stop timer
+    if (recordingTimerRef.current) {
+      clearTimeout(recordingTimerRef.current);
+    }
+    
+    recordingTimerRef.current = setTimeout(() => {
+      if (state.status === 'recording' || state.status === 'recovering') {
+        addDebugInfo(`Auto-stopping after ${maxRecordingTime} seconds`);
+        handleStopRecording();
+      }
+    }, maxRecordingTime * 1000);
+    
+    // Set up countdown display timer
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+    }
+    
+    countdownTimerRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          if (countdownTimerRef.current) {
+            clearInterval(countdownTimerRef.current);
+            countdownTimerRef.current = null;
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+  
+  // Toggle recording function
+  const toggleRecording = async () => {
+    if (state.status === 'recording' || state.status === 'recovering') {
+      // Stop recording
+      handleStopRecording();
+      return;
+    }
+    
+    // Start recording flow
+    dispatch({ type: 'START_RECORDING' });
+    
+    // Check permission
+    if (permissionState === 'granted') {
+      dispatch({ type: 'PERMISSION_GRANTED' });
+      startRecording();
+    } else {
+      // Request permission
+      const permissionGranted = await requestMicrophoneAccess();
+      
+      if (!permissionGranted) {
+        // Permission denied - handled in requestMicrophoneAccess
+        addDebugInfo("Cannot start recording - microphone access not granted");
+      }
+    }
+  };
+  
+  // Stop recording function
+  const handleStopRecording = () => {
+    addDebugInfo("Stopping recording");
+    
+    // Stop listening
+    stopListening();
+    
+    // Clear timers
+    if (recordingTimerRef.current) {
+      clearTimeout(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    
+    // Get complete transcript (important for iOS PWA)
+    const finalTranscript = getCompleteTranscript();
+    
+    // Process the transcript
+    if (finalTranscript && finalTranscript.trim()) {
+      addDebugInfo(`Sending transcript: "${finalTranscript.substring(0, 30)}${finalTranscript.length > 30 ? '...' : ''}"`);
+      
+      // Start processing
+      dispatch({ type: 'STOP_RECORDING', transcript: finalTranscript });
+      
+      // Pass to parent component for processing
+      onTranscriptComplete(finalTranscript);
+      
+      // Also process locally for state management
+      processTranscriptSafely(finalTranscript, {
+        onError: (message) => {
+          addDebugInfo(`Processing error: ${message}`);
+          dispatch({ type: 'PROCESSING_ERROR', message });
+        },
+        onProcessingStart: (transcript) => {
+          addDebugInfo("Started processing transcript");
+          dispatch({ type: 'PROCESSING_STARTED', transcript });
+        },
+        onProcessingComplete: (result) => {
+          addDebugInfo("Successfully processed transcript");
+          dispatch({ type: 'PROCESSING_COMPLETE', result });
+          if (onResultComplete) {
+            onResultComplete(result);
+          }
+        }
+      });
+    } else {
+      addDebugInfo("No transcript to process");
+      dispatch({ 
+        type: 'RECOGNITION_ERROR', 
+        message: 'No speech was detected. Please try again and speak clearly.' 
+      });
+    }
+  };
+  
+  // Force retry function
+  const handleForceRetry = () => {
+    if (state.status !== 'recording' && state.status !== 'recovering') return;
+    
+    addDebugInfo("Manual retry initiated");
+    
+    // Stop recognition
+    stopListening();
+    
+    // Reset and restart
+    createTimeout(() => {
+      resetTranscript();
+      startListening();
+      addDebugInfo("Manually restarted recording");
+    }, environmentInfo.isIOSPwa ? 500 : 300);
+  };
+  
+  // Reset function
+  const handleReset = () => {
+    addDebugInfo("Resetting recorder state");
+    dispatch({ type: 'RESET' });
+    
+    if (isListening) {
+      stopListening();
+    }
+    
+    resetTranscript();
+    retryAttemptsRef.current = 0;
+    
+    if (recordingTimerRef.current) {
+      clearTimeout(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+  };
+  
+  // UI Components
+  const PlatformSpecificInstructions = () => {
+    if (environmentInfo.isIOSPwa) {
+      return (
+        <div className="text-xs text-amber-600 mt-1">
+          <AlertCircle className="h-3 w-3 inline mr-1" />
+          <span>
+            iOS recording mode: Speak clearly with pauses between sentences.
+            {(state.status === 'recording' || state.status === 'recovering') && 
+              " If no text appears, tap the restart button."}
+          </span>
+        </div>
+      );
+    }
+    
+    if (environmentInfo.isPwa && !environmentInfo.isIOS) {
+      return (
+        <div className="text-xs text-blue-600 mt-1">
+          <span>
+            Running in PWA mode. Speak naturally.
+          </span>
+        </div>
+      );
+    }
+    
+    return null;
+  };
+  
+  // Render browser not supported message
+  if (!browserSupportsSpeechRecognition) {
+    return (
+      <div className="text-center p-6">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Browser Not Supported</AlertTitle>
+          <AlertDescription>
+            Your browser does not support speech recognition.
+            Please try Chrome, Edge, or Safari on desktop for the best experience.
+          </AlertDescription>
+        </Alert>
+        
+        <p className="mt-4 text-sm text-gray-500">
+          You can still create reminders using the text input option.
+        </p>
+      </div>
+    );
+  }
+  
+  // Render permission denied message
+  if (permissionState === "denied" || (permissionState === "prompt" && isMobile)) {
+    return (
+      <div className="space-y-4">
+        <Alert variant={permissionState === "denied" ? "destructive" : "default"}>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Microphone Access Required</AlertTitle>
+          <AlertDescription>
+            {permissionState === "denied" 
+              ? "Microphone access was denied. Please enable microphone access in your browser settings and try again."
+              : "To record voice reminders, you need to grant microphone access."}
+          </AlertDescription>
+        </Alert>
+        
+        <div className="text-center">
+          <Button 
+            onClick={requestMicrophoneAccess}
+            className="bg-blue-500 hover:bg-blue-600 text-white"
+          >
+            Enable Microphone Access
+          </Button>
+        </div>
+      </div>
+    );
+  }
+  
+  // Main recorder view
+  return (
+    <div className="space-y-4">
+      <div className="text-center mb-6">
+        {/* Recording button */}
+        <div className="flex justify-center mb-4">
+          <Button
+            onClick={toggleRecording}
+            disabled={
+              state.status === 'processing' || 
+              state.status === 'confirming' || 
+              externalProcessing
+            }
+            size="lg"
+            className={cn(
+              "rounded-full h-16 w-16 p-0",
+              (state.status === 'recording' || state.status === 'recovering')
+                ? "bg-red-500 hover:bg-red-600 animate-pulse" 
+                : "bg-blue-500 hover:bg-blue-600"
+            )}
+            aria-label={
+              (state.status === 'recording' || state.status === 'recovering') 
+                ? "Stop recording" 
+                : "Start recording"
+            }
+          >
+            {(state.status === 'recording' || state.status === 'recovering') 
+              ? <Square className="h-6 w-6" /> 
+              : <Mic className="h-6 w-6" />
+            }
+          </Button>
+        </div>
+        
+        {/* Status display */}
+        <div className="text-sm">
+          {(state.status === 'recording' || state.status === 'recovering') ? (
+            <div className="text-red-500 font-semibold">
+              {state.status === 'recovering' 
+                ? "Reconnecting..." 
+                : `Recording... ${countdown}s`
+              }
+            </div>
+          ) : state.status === 'processing' ? (
+            <div className="text-green-500 font-semibold flex items-center justify-center">
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Processing your voice note...
+            </div>
+          ) : state.status === 'confirming' ? (
+            <div className="text-green-500 font-semibold">
+              Ready to save your voice note
+            </div>
+          ) : (
+            <div>
+              {permissionState === "granted" 
+                ? "Press to start recording" 
+                : "Press to request microphone access and start recording"}
+            </div>
+          )}
+        </div>
+        
+        {/* Platform-specific instructions */}
+        <PlatformSpecificInstructions />
+        
+        {/* Restart button for problematic platforms */}
+        {(environmentInfo.isIOSPwa || environmentInfo.isPwa) && 
+         (state.status === 'recording' || state.status === 'recovering') && (
+          <div className="mt-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleForceRetry}
+              className="text-xs flex items-center gap-1"
+              disabled={state.status === 'recovering'}
+            >
+              <RefreshCw className="h-3 w-3" />
+              Restart Recording
+            </Button>
+            
+            <p className="text-xs text-muted-foreground mt-1">
+              If no text appears, try restarting the recording
+            </p>
+          </div>
+        )}
+      </div>
+      
+      {/* Transcript display */}
+      <div className="border rounded-md p-3 bg-slate-50">
+        <h3 className="font-medium mb-2 text-sm">Your voice input:</h3>
+        <ScrollArea className="h-[100px] overflow-y-auto">
+          <div className="whitespace-pre-wrap overflow-hidden">
+            {state.status === 'processing' && state.transcript ? (
+              <p>{state.transcript}</p>
+            ) : state.status === 'confirming' && state.result ? (
+              <p>{state.result.reminder.description}</p>
+            ) : transcript ? (
+              <p>{transcript}</p>
+            ) : (
+              <p className="text-muted-foreground italic">
+                {interimTranscript || "Speak after pressing the record button..."}
+              </p>
+            )}
+          </div>
+        </ScrollArea>
+      </div>
+      
+      {/* Error display */}
+      {state.status === 'error' && (
+        <Alert 
+          variant="default" 
+          className="text-sm border-yellow-500 bg-yellow-50"
+        >
+          <AlertCircle className="h-4 w-4 text-yellow-600" />
+          <AlertTitle className="text-yellow-700">Recognition Error</AlertTitle>
+          <AlertDescription className="text-yellow-600">
+            {state.message}
+            {environmentInfo.isPwa && (
+              <p className="text-xs mt-1">
+                PWA mode may have limited speech recognition capabilities.
+                {(state.status === 'recording' || state.status === 'recovering') && 
+                  " Try using the restart button if needed."}
+              </p>
+            )}
+          </AlertDescription>
+          <div className="mt-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleReset}
+            >
+              Try Again
+            </Button>
+          </div>
+        </Alert>
+      )}
+      
+      {/* Debug info (only in development) */}
+      {process.env.NODE_ENV === 'development' && (
+        <details className="mt-4 text-xs text-gray-500 border rounded p-2">
+          <summary>Debug Info</summary>
+          <ScrollArea className="h-[100px] mt-2">
+            <div className="space-y-1">
+              <div>Recognition active: {isListening ? "Yes" : "No"}</div>
+              <div>Recording state: {state.status}</div>
+              <div>Is processing: {externalProcessing ? "Yes" : "No"}</div>
+              <div>Permission state: {permissionState}</div>
+              <div>Is mobile device: {isMobile ? "Yes" : "No"}</div>
+              <div>Is PWA mode: {environmentInfo.isPwa ? "Yes" : "No"}</div>
+              <div>Environment: {environment.description}</div>
+              <div>Platform: {environment.platform}</div>
+              <div>Browser: {environment.browser}</div>
+              <div>Log:</div>
+              <ul className="ml-4 space-y-1">
+                {debugInfo.map((info, i) => (
+                  <li key={i}>{info}</li>
+                ))}
+              </ul>
+            </div>
+          </ScrollArea>
+        </details>
+      )}
+      
+      {/* Instructions */}
+      <div className="mt-3 text-sm text-center text-gray-500">
+        <p>Speak clearly and naturally.</p>
+        <p>Recording will automatically stop after {environmentInfo.isIOSPwa ? 25 : 30} seconds.</p>
+        {environmentInfo.isPwa && (
+          <p className="text-xs mt-1 text-amber-600">
+            Running in PWA mode: If recognition doesn't work, try closing and reopening the app.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default EnhancedVoiceRecorderView;
