@@ -35,13 +35,8 @@ interface NotificationProviderProps {
 
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(defaultNotificationSettings);
-  const { permissionStatus, isRequesting, deviceInfo, requestPermission: requestNotificationPermission } = useNotificationPermission();
+  const { permissionGranted, isSupported, requestPermission } = useNotificationPermission();
   const { toast } = useToast();
-
-  // Convert permissionStatus to a boolean permissionGranted
-  const permissionGranted = permissionStatus === 'granted';
-  // Determine if notifications are supported
-  const isSupported = permissionStatus !== 'unsupported';
 
   // Initialize notification settings
   useEffect(() => {
@@ -79,12 +74,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       };
     }
   }, [toast]);
-
-  // Wrapper for requestPermission that returns boolean instead of string
-  const requestPermission = async (): Promise<boolean> => {
-    const result = await requestNotificationPermission();
-    return result === 'granted';
-  };
 
   // Wrapper for showNotification utility
   const handleShowNotification = (reminder: Reminder) => {

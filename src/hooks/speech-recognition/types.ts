@@ -1,19 +1,17 @@
 
 export interface UseSpeechRecognitionReturn {
   transcript: string;
-  interimTranscript: string;
+  interimTranscript?: string; // Add this property
   isListening: boolean;
-  startListening: () => Promise<void>;
+  startListening: () => void;
   stopListening: () => void;
   resetTranscript: () => void;
   browserSupportsSpeechRecognition: boolean;
   error?: string;
-  isPWA: boolean;
-  isMobile: boolean;
 }
 
-export interface SpeechRecognitionConfig {
-  onError?: (error: string) => void;
-  isListening?: boolean;
-  setIsListening?: (listening: boolean) => void;
+export interface UseSpeechRecognitionSetupProps {
+  onError: (error: string) => void;
+  isListening: boolean;
+  setIsListening: (listening: boolean) => void;
 }

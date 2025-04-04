@@ -1,187 +1,112 @@
-import { createDebugLogger } from '@/utils/debugUtils';
-
-const debugLog = createDebugLogger("SpeechRecognitionUtils");
-
-// Cached recognition instance
-let prewarmedRecognition: any = null;
+// Speech recognition utility functions
+// Browser compatibility helpers for Web Speech API
 
 /**
- * Check if device is running in PWA mode
+ * Creates a speech recognition instance with browser compatibility
+ * @returns Speech recognition instance or null if not supported
  */
-export const isPwaMode = (): boolean => {
-  return window.matchMedia('(display-mode: standalone)').matches || 
-         (window.navigator as any).standalone === true;
-};
-
-/**
- * Detect if the device is running iOS
- */
-export const isIOSDevice = (): boolean => {
-  const userAgent = window.navigator.userAgent.toLowerCase();
-  return /iphone|ipad|ipod|macintosh/.test(userAgent) && 'ontouchend' in document;
-};
-
-/**
- * Detect if the device is running Android
- */
-export const isAndroidDevice = (): boolean => {
-  const userAgent = window.navigator.userAgent.toLowerCase();
-  return /android/.test(userAgent);
-};
-
-/**
- * Detect if the device is a mobile device
- */
-export const isMobileDevice = (): boolean => {
-  return isIOSDevice() || isAndroidDevice() || /android|webos|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
-};
-
-/**
- * Pre-initialize a speech recognition instance to improve startup time
- */
-export function prewarmSpeechRecognition(): any {
-  if (prewarmedRecognition) {
-    return prewarmedRecognition;
+export const createSpeechRecognition = (): any => {
+  // Try to find the appropriate Speech Recognition constructor
+  const SpeechRecognition = (window as any).SpeechRecognition || 
+                           (window as any).webkitSpeechRecognition ||
+                           (window as any).mozSpeechRecognition ||
+                           (window as any).msSpeechRecognition;
+  
+  if (!SpeechRecognition) {
+    console.error('Speech recognition not supported in this browser');
+    return null;
   }
   
   try {
-    // Get the appropriate speech recognition constructor
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
-    if (!SpeechRecognition) {
-      debugLog("Speech recognition not supported in this browser");
-      return null;
-    }
-    
-    // Create a new recognition instance
     const recognition = new SpeechRecognition();
-    
-    // Configure common properties
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
-    recognition.lang = navigator.language || 'en-US';
-    
-    // Store for later use
-    prewarmedRecognition = recognition;
-    debugLog("Prewarmed recognition instance created");
-    
     return recognition;
   } catch (error) {
-    debugLog(`Error creating prewarmed recognition: ${error}`);
+    console.error('Error creating speech recognition instance:', error);
     return null;
   }
-}
+};
 
 /**
- * Get the prewarmed speech recognition instance
+ * Checks if speech recognition is supported in the current browser
+ * @returns boolean indicating if speech recognition is supported
  */
-export function getPrewarmedSpeechRecognition(): any {
-  return prewarmedRecognition;
-}
+export const isSpeechRecognitionSupported = (): boolean => {
+  return !!(
+    (window as any).SpeechRecognition || 
+    (window as any).webkitSpeechRecognition ||
+    (window as any).mozSpeechRecognition ||
+    (window as any).msSpeechRecognition
+  );
+};
 
 /**
- * Force an audio permission check to prepare for speech recognition
+ * Configure the speech recognition instance with appropriate settings
+ * @param recognition Speech recognition instance
+ * @param isMobile Whether the user is on a mobile device
  */
-export async function forceAudioPermissionCheck(): Promise<boolean> {
-  try {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      debugLog("MediaDevices API not supported");
-      return false;
-    }
-    
-    debugLog("Performing audio permission pre-check");
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    debugLog("Audio permission granted");
-    
-    // Release the stream after a short period
-    setTimeout(() => {
-      stream.getTracks().forEach(track => track.stop());
-      debugLog("Audio permission pre-check stream released");
-    }, 1000);
-    
-    return true;
-  } catch (error) {
-    debugLog(`Audio permission pre-check failed: ${error}`);
-    return false;
+export const configureSpeechRecognition = (recognition: any, isMobile = false): void => {
+  if (!recognition) return;
+
+  // Set recognition properties
+  recognition.continuous = true;      // Keep listening even if the user pauses
+  recognition.interimResults = true;  // Get results while the user is still speaking
+  recognition.maxAlternatives = 1;    // Only return the most likely match
+  
+  // Use shorter timeouts on mobile to save battery
+  if (isMobile) {
+    // Safari on iOS seems to have issues with long continuous sessions
+    // so we set a shorter timeout and rely on restarting the session
+    recognition.continuous = false;
   }
-}
+  
+  // Try to set the language based on browser language
+  try {
+    const preferredLanguage = navigator.language || 'en-US';
+    recognition.lang = preferredLanguage;
+    console.log(`Speech recognition language set to: ${preferredLanguage}`);
+  } catch (err) {
+    console.warn('Failed to set speech recognition language, using default');
+    recognition.lang = 'en-US';
+  }
+};
 
 /**
- * Request microphone access and return whether it was granted
+ * Helper to create a mock SpeechRecognitionEvent for testing
+ * @param transcript Text to include in the mock event
+ * @returns Mock SpeechRecognitionEvent
  */
-export async function requestMicrophoneAccess(): Promise<boolean> {
-  try {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      debugLog("MediaDevices API not supported");
-      return false;
-    }
-    
-    debugLog("Requesting microphone access");
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    debugLog("Microphone access granted");
-    
-    // Store the stream for later use
-    const existingStreams = (window as any).microphoneStreams || [];
-    existingStreams.push(stream);
-    (window as any).microphoneStreams = existingStreams;
-    
-    return true;
-  } catch (error) {
-    debugLog(`Microphone access request failed: ${error}`);
-    return false;
-  }
-}
+export const createMockSpeechEvent = (transcript: string): any => {
+  return {
+    resultIndex: 0,
+    results: [
+      [{ transcript, isFinal: true }]
+    ]
+  };
+};
 
 /**
- * Release all microphone streams
+ * Creates a debounced function that delays invoking func until after wait milliseconds
+ * @param func The function to debounce
+ * @param wait The number of milliseconds to delay
+ * @returns Debounced function
  */
-export function releaseMicrophoneStreams(): void {
-  try {
-    const streams = (window as any).microphoneStreams || [];
+export const debounce = <T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): ((...args: Parameters<T>) => void) => {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  
+  return function(this: any, ...args: Parameters<T>) {
+    const context = this;
     
-    streams.forEach((stream: MediaStream) => {
-      if (stream && stream.getTracks) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    });
+    const later = () => {
+      timeout = null;
+      func.apply(context, args);
+    };
     
-    (window as any).microphoneStreams = [];
-    debugLog("Released all microphone streams");
-  } catch (error) {
-    debugLog(`Error releasing microphone streams: ${error}`);
-  }
-}
-
-/**
- * Ensure there is an active audio stream
- */
-export async function ensureActiveAudioStream(fallbackStream: MediaStream | null): Promise<boolean> {
-  try {
-    // Check if we already have active streams
-    const existingStreams = (window as any).microphoneStreams || [];
-    
-    // Check if any of the existing streams are active
-    for (const stream of existingStreams) {
-      if (stream && stream.active && stream.getAudioTracks().some(track => track.readyState === "live")) {
-        debugLog("Found existing active audio stream");
-        return true;
-      }
+    if (timeout !== null) {
+      clearTimeout(timeout);
     }
-    
-    // If we have a fallback stream and it's active, use it
-    if (fallbackStream && fallbackStream.active && fallbackStream.getAudioTracks().some(track => track.readyState === "live")) {
-      debugLog("Using fallback audio stream");
-      existingStreams.push(fallbackStream);
-      (window as any).microphoneStreams = existingStreams;
-      return true;
-    }
-    
-    // Otherwise, request a new stream
-    debugLog("No active audio stream found, requesting new one");
-    return await requestMicrophoneAccess();
-  } catch (error) {
-    debugLog(`Error ensuring active audio stream: ${error}`);
-    return false;
-  }
-}
+    timeout = setTimeout(later, wait);
+  };
+};

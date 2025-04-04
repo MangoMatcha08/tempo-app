@@ -1,190 +1,154 @@
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import useSpeechRecognition from './speech-recognition';
-import { createDebugLogger } from '@/utils/debugUtils';
-import { UseSpeechRecognitionReturn } from './speech-recognition';
+import { useState, useEffect, useRef } from "react";
+import { VoiceProcessingResult, ReminderPriority, ReminderCategory } from "@/types/reminderTypes";
+import { generateMeaningfulTitle } from "@/utils/voiceReminderUtils";
+import { processVoiceInput } from "@/services/nlp";
+import { useToast } from "@/hooks/use-toast";
 
-const debugLog = createDebugLogger("useVoiceRecorderState");
-
-export type PermissionStatus = 'prompt' | 'granted' | 'denied' | 'loading' | 'unsupported';
-
-export const useVoiceRecorderState = () => {
-  const [title, setTitle] = useState<string>('');
-  const [transcript, setTranscript] = useState<string>('');
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [view, setView] = useState<'record' | 'confirm'>('record');
-  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('prompt');
-  const [isRecording, setIsRecording] = useState<boolean>(false);
-  const [hasRecorded, setHasRecorded] = useState<boolean>(false);
-  const [recordingTimeSeconds, setRecordingTimeSeconds] = useState<number>(0);
-  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string>('');
-  const [isDebugMode, setIsDebugMode] = useState<boolean>(false);
+export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
+  const [title, setTitle] = useState("");
+  const [transcript, setTranscript] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [view, setView] = useState<"record" | "confirm">("record");
+  const [processingResult, setProcessingResult] = useState<VoiceProcessingResult | null>(null);
+  const [priority, setPriority] = useState<ReminderPriority>(ReminderPriority.MEDIUM);
+  const [category, setCategory] = useState<ReminderCategory>(ReminderCategory.TASK);
+  const [periodId, setPeriodId] = useState<string>("none");
+  const { toast } = useToast();
   
-  // Record debug information
-  const [debugInfo, setDebugInfo] = useState<Record<string, any>>({
-    browser: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
-    speechRecognitionSupported: 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window,
-    mediaDevicesSupported: typeof navigator !== 'undefined' && !!navigator.mediaDevices,
-  });
+  // Ref to track if we're currently in the process of confirming a transcript
+  const isConfirmingRef = useRef(false);
+  const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Setup speech recognition
-  const { 
-    transcript: recognitionTranscript,
-    isListening,
-    startListening,
-    stopListening,
-    browserSupportsSpeechRecognition,
-  } = useSpeechRecognition();
-  
-  // Timer reference for recording duration
-  const timerRef = useRef<number | null>(null);
-  
-  // Update transcript when speech recognition changes
-  useEffect(() => {
-    if (recognitionTranscript) {
-      setTranscript(recognitionTranscript);
+  // Reset state when modal opens
+  const resetState = () => {
+    console.log("Reset state called, current view:", view);
+    if (!isConfirmingRef.current) {
+      setTitle("");
+      setTranscript("");
+      setIsProcessing(false);
+      setView("record");
+      setProcessingResult(null);
+      setPriority(ReminderPriority.MEDIUM);
+      setCategory(ReminderCategory.TASK);
+      setPeriodId("none");
+      
+      // Clear any pending timers
+      if (transitionTimerRef.current) {
+        clearTimeout(transitionTimerRef.current);
+        transitionTimerRef.current = null;
+      }
     }
-  }, [recognitionTranscript]);
+  };
   
-  // Update isRecording state when listening changes
-  useEffect(() => {
-    setIsRecording(isListening);
-  }, [isListening]);
-  
-  // Handle recording timer
-  useEffect(() => {
-    if (isRecording) {
-      setRecordingTimeSeconds(0);
-      timerRef.current = window.setInterval(() => {
-        setRecordingTimeSeconds(prev => prev + 1);
-      }, 1000);
-    } else if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
+  const handleTranscriptComplete = (text: string) => {
+    console.log("Transcript complete called with:", text);
+    if (!text || !text.trim()) {
+      console.log("Empty transcript received, not processing");
+      return;
     }
     
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, [isRecording]);
-  
-  // Check for microphone permission on mount
-  useEffect(() => {
-    const checkPermissions = async () => {
-      if (!browserSupportsSpeechRecognition) {
-        setPermissionStatus('unsupported');
-        setErrorMessage('Your browser does not support speech recognition.');
-        return;
+    // Set the confirming flag to prevent accidental resets
+    isConfirmingRef.current = true;
+    
+    setTranscript(text);
+    setIsProcessing(true);
+    
+    try {
+      console.log("Processing voice input:", text);
+      // Process the transcript with NLP
+      const result = processVoiceInput(text);
+      console.log("NLP processing result:", result);
+      
+      // Generate a better title based on category and content
+      const generatedTitle = generateMeaningfulTitle(
+        result.reminder.category || ReminderCategory.TASK, 
+        text
+      );
+      
+      // Set the processed data
+      setTitle(generatedTitle);
+      setPriority(result.reminder.priority || ReminderPriority.MEDIUM);
+      setCategory(result.reminder.category || ReminderCategory.TASK);
+      setPeriodId(result.reminder.periodId || "none");
+      
+      // Ensure we have a due date (default to tomorrow if not detected)
+      if (!result.reminder.dueDate) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(9, 0, 0, 0);
+        result.reminder.dueDate = tomorrow;
       }
       
-      try {
-        setPermissionStatus('loading');
-        const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-        
-        if (permissionStatus.state === 'granted') {
-          setPermissionStatus('granted');
-        } else if (permissionStatus.state === 'denied') {
-          setPermissionStatus('denied');
-        } else {
-          setPermissionStatus('prompt');
+      // Update the result with the default due date
+      setProcessingResult({
+        ...result,
+        reminder: {
+          ...result.reminder,
+          dueDate: result.reminder.dueDate
         }
-        
-        // Update on permission change
-        permissionStatus.onchange = () => {
-          setPermissionStatus(permissionStatus.state as PermissionStatus);
-        };
-      } catch (error) {
-        console.error('Error checking permission:', error);
-        // Most browsers don't support permission query for microphone, so we'll try to request it
-        setPermissionStatus('prompt');
+      });
+      
+      console.log("Switching to confirmation view with result:", result);
+      
+      // First finish processing, then switch to confirmation view
+      setIsProcessing(false);
+      
+      // Use setTimeout to ensure state updates properly between transitions
+      // Clear any existing timer first
+      if (transitionTimerRef.current) {
+        clearTimeout(transitionTimerRef.current);
+      }
+      
+      transitionTimerRef.current = setTimeout(() => {
+        console.log("Setting view to confirm");
+        setView("confirm");
+        transitionTimerRef.current = null;
+      }, 200);  // Increased timeout for more reliable state transitions
+    } catch (error) {
+      console.error('Error processing voice input:', error);
+      setIsProcessing(false);
+      isConfirmingRef.current = false;
+      
+      toast({
+        title: "Processing Error",
+        description: "There was an error processing your voice input. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleCancel = () => {
+    isConfirmingRef.current = false;
+    resetState();
+    onOpenChange(false);
+  };
+
+  const handleGoBack = () => {
+    setView("record");
+    isConfirmingRef.current = false;
+  };
+  
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current) {
+        clearTimeout(transitionTimerRef.current);
+        transitionTimerRef.current = null;
       }
     };
-    
-    checkPermissions();
-  }, [browserSupportsSpeechRecognition]);
+  }, []);
   
-  // Request microphone permission
-  const requestMicrophonePermission = async () => {
-    if (!browserSupportsSpeechRecognition) {
-      setPermissionStatus('unsupported');
-      setErrorMessage('Your browser does not support speech recognition.');
-      return false;
-    }
-    
-    try {
-      setPermissionStatus('loading');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      setAudioStream(stream);
-      setPermissionStatus('granted');
-      return true;
-    } catch (error) {
-      console.error('Error getting microphone permission:', error);
-      setPermissionStatus('denied');
-      setErrorMessage('Microphone access denied. Please enable it in your browser settings.');
-      return false;
-    }
-  };
-  
-  // Start recording
-  const startRecording = async () => {
-    debugLog('Starting recording...');
-    setErrorMessage('');
-    
-    if (permissionStatus !== 'granted') {
-      const granted = await requestMicrophonePermission();
-      if (!granted) return;
-    }
-    
-    try {
-      await startListening();
-      setIsRecording(true);
-      debugLog('Recording started successfully');
-    } catch (error) {
-      console.error('Error starting recording:', error);
-      setErrorMessage('Failed to start recording. Please try again.');
-    }
-  };
-  
-  // Stop recording
-  const stopRecording = () => {
-    debugLog('Stopping recording...');
-    try {
-      stopListening();
-      setIsRecording(false);
-      setHasRecorded(true);
-      debugLog('Recording stopped, transcript:', transcript);
-    } catch (error) {
-      console.error('Error stopping recording:', error);
-      setErrorMessage('Failed to stop recording. Please try again.');
-    }
-  };
-  
-  // Reset recording
-  const resetRecording = () => {
-    setTranscript('');
-    setHasRecorded(false);
-    setRecordingTimeSeconds(0);
-    setErrorMessage('');
-  };
-  
-  // Cancel recording
-  const cancelRecording = () => {
-    resetRecording();
-    // Cleanup audio stream
-    if (audioStream) {
-      audioStream.getTracks().forEach(track => track.stop());
-      setAudioStream(null);
-    }
-  };
-  
-  // Toggle debug mode
-  const toggleDebugMode = () => {
-    setIsDebugMode(prev => !prev);
-  };
+  // For debugging
+  useEffect(() => {
+    console.log("Voice recorder state changed:", {
+      view, 
+      isProcessing, 
+      hasTranscript: !!transcript,
+      hasResult: !!processingResult,
+      title
+    });
+  }, [view, transcript, isProcessing, processingResult, title]);
   
   return {
     title,
@@ -192,19 +156,16 @@ export const useVoiceRecorderState = () => {
     transcript,
     isProcessing,
     view,
-    setView,
-    permissionStatus,
-    isRecording,
-    hasRecorded,
-    recordingTimeSeconds,
-    errorMessage,
-    debugInfo,
-    isDebugMode,
-    toggleDebugMode,
-    requestMicrophonePermission,
-    startRecording,
-    stopRecording,
-    resetRecording,
-    cancelRecording
+    processingResult,
+    priority,
+    setPriority,
+    category,
+    setCategory,
+    periodId,
+    setPeriodId,
+    handleTranscriptComplete,
+    handleCancel,
+    handleGoBack,
+    resetState
   };
-};
+}

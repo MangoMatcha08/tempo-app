@@ -87,7 +87,24 @@ const TranscriptDisplay = ({
               </Badge>
             )}
             
-            {/* Remove the non-existent 'time' property references */}
+            {processingResult?.detectedEntities.time && (
+              <Badge variant="outline" className="flex gap-1 items-center bg-blue-50">
+                <Clock className="h-3 w-3" />
+                <span>Time: {format(processingResult.detectedEntities.time, 'h:mm a')}</span>
+              </Badge>
+            )}
+            
+            {processingResult?.detectedEntities.newPeriod && (
+              <Badge variant="outline" className="flex gap-1 items-center bg-blue-50">
+                <span>New Period: {processingResult.detectedEntities.newPeriod}</span>
+              </Badge>
+            )}
+            
+            {processingResult?.detectedEntities.checklist && processingResult.detectedEntities.checklist.length > 0 && (
+              <Badge variant="outline" className="flex gap-1 items-center">
+                <span>Checklist Items: {processingResult.detectedEntities.checklist.length}</span>
+              </Badge>
+            )}
           </div>
           
           <div className="text-xs text-muted-foreground mt-1">

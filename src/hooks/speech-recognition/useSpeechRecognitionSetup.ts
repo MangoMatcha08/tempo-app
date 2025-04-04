@@ -1,108 +1,78 @@
 
-import { useState, useEffect, useRef } from 'react';
-import { SpeechRecognitionConfig } from './types';
-import { createDebugLogger } from '@/utils/debugUtils';
-import { prewarmSpeechRecognition, getPrewarmedSpeechRecognition } from './utils';
+import { useState, useEffect } from 'react';
+import { 
+  createSpeechRecognition, 
+  configureSpeechRecognition,
+  isSpeechRecognitionSupported
+} from './utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
-const debugLog = createDebugLogger("SpeechRecognitionSetup");
+interface UseSpeechRecognitionSetupProps {
+  onError: (error: string | undefined) => void;
+  isListening: boolean;
+  setIsListening: (isListening: boolean) => void;
+}
 
-// Hook to set up and manage speech recognition instance
 export const useSpeechRecognitionSetup = ({
   onError,
   isListening,
   setIsListening
-}: SpeechRecognitionConfig) => {
+}: UseSpeechRecognitionSetupProps) => {
   const [recognition, setRecognition] = useState<any | null>(null);
   const [browserSupportsSpeechRecognition, setBrowserSupportsSpeechRecognition] = useState<boolean>(false);
-  
-  // Reference to track if we've already initialized
-  const hasInitializedRef = useRef<boolean>(false);
+  const isMobile = useIsMobile();
   
   // Initialize speech recognition
   useEffect(() => {
-    // Skip if already initialized
-    if (hasInitializedRef.current) return;
+    // Check browser support first
+    const isSupported = isSpeechRecognitionSupported();
+    setBrowserSupportsSpeechRecognition(isSupported);
     
-    // Check if the browser supports speech recognition
-    const isSpeechRecognitionSupported = 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
+    if (!isSupported) {
+      onError('Your browser does not support speech recognition.');
+      return;
+    }
     
-    if (isSpeechRecognitionSupported) {
-      debugLog("Speech recognition is supported in this browser");
+    // Create recognition instance with improved error handling
+    try {
+      const recognitionInstance = createSpeechRecognition();
       
-      try {
-        // Try to get a prewarmed instance first
-        let recognitionInstance = getPrewarmedSpeechRecognition();
+      if (recognitionInstance) {
+        // Configure with better settings for mobile
+        configureSpeechRecognition(recognitionInstance, isMobile);
         
-        // If no prewarmed instance, create a new one
-        if (!recognitionInstance) {
-          debugLog("No prewarmed instance found, creating new instance");
+        // Handle recognition end event with better restart logic
+        recognitionInstance.onend = () => {
+          console.log('Speech recognition ended, isListening:', isListening);
           
-          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-          recognitionInstance = new SpeechRecognition();
-          
-          // Configure recognition instance
-          recognitionInstance.continuous = true;
-          recognitionInstance.interimResults = true;
-          recognitionInstance.maxAlternatives = 1;
-          recognitionInstance.lang = navigator.language || 'en-US';
-        } else {
-          debugLog("Using prewarmed speech recognition instance");
-        }
-        
-        // Store the recognition instance
-        setRecognition(recognitionInstance);
-        setBrowserSupportsSpeechRecognition(true);
-        
-        // Set up error handler
-        recognitionInstance.onerror = (event: any) => {
-          debugLog(`Recognition error: ${event.error}`);
-          
-          // Only report critical errors
-          if (event.error !== 'no-speech') {
-            if (onError) onError(`Speech recognition error: ${event.error}`);
-            
-            // Update listening state for critical errors
-            if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-              if (setIsListening) setIsListening(false);
+          // Only restart if still supposed to be listening
+          if (isListening) {
+            console.log('Restarting speech recognition...');
+            try {
+              // Longer timeout on mobile to reduce battery usage
+              setTimeout(() => {
+                if (isListening) {
+                  recognitionInstance.start();
+                }
+              }, isMobile ? 300 : 100);
+            } catch (err) {
+              console.error('Error restarting recognition:', err);
+              onError('Failed to restart speech recognition. Please try again.');
+              setIsListening(false);
             }
           }
         };
         
-        // Set up end handler
-        recognitionInstance.onend = () => {
-          debugLog("Recognition ended");
-          
-          // Update listening state
-          if (setIsListening && isListening) {
-            setIsListening(false);
-          }
-        };
-        
-        debugLog("Speech recognition initialized successfully");
-      } catch (error) {
-        debugLog(`Error initializing speech recognition: ${error}`);
-        setBrowserSupportsSpeechRecognition(false);
-        if (onError) onError(`Failed to initialize speech recognition: ${error}`);
+        setRecognition(recognitionInstance);
+      } else {
+        onError('Failed to initialize speech recognition.');
       }
-    } else {
-      debugLog("Speech recognition is not supported in this browser");
-      setBrowserSupportsSpeechRecognition(false);
-      if (onError) onError('Your browser does not support speech recognition');
+    } catch (error) {
+      console.error('Error setting up speech recognition:', error);
+      onError('Failed to initialize speech recognition.');
     }
-    
-    // Mark as initialized
-    hasInitializedRef.current = true;
-    
-    // Prewarm a new instance for next time
-    prewarmSpeechRecognition();
-    
-    // Cleanup on unmount
-    return () => {
-      // Nothing to clean up for the recognition instance itself
-      // (it will be cleaned up when stopped)
-    };
-  }, [onError, isListening, setIsListening]);
-  
+  }, [onError, setIsListening, isMobile]);
+
   return {
     recognition,
     browserSupportsSpeechRecognition

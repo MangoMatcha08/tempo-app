@@ -8,23 +8,28 @@ import {
   ChecklistItem
 } from '../types/reminderTypes';
 
-// Mock schedule for testing
+// Mock periods for testing/demo
 export const mockPeriods = [
-  { id: 'before-school', name: 'Before School', startTime: '8:00 AM', endTime: '8:50 AM' },
-  { id: 'period-1', name: '1st Period', startTime: '8:50 AM', endTime: '9:50 AM' },
-  { id: 'break', name: 'Break', startTime: '9:50 AM', endTime: '10:05 AM' },
-  { id: 'period-2', name: '2nd Period', startTime: '10:08 AM', endTime: '11:08 AM' },
-  { id: 'period-3', name: '3rd Period', startTime: '11:11 AM', endTime: '12:11 PM' },
-  { id: 'period-4', name: '4th Period', startTime: '12:14 PM', endTime: '1:14 PM' },
-  { id: 'lunch', name: 'Lunch', startTime: '1:14 PM', endTime: '1:44 PM' },
-  { id: 'period-5', name: '5th Period', startTime: '1:47 PM', endTime: '2:47 PM' },
-  { id: 'period-6', name: '6th Period', startTime: '2:50 PM', endTime: '3:30 PM' },
-  { id: 'after-school', name: 'After School', startTime: '3:30 PM', endTime: '4:30 PM' }
+  { id: "p1", name: "Period 1", startTime: "8:00", endTime: "8:50" },
+  { id: "p2", name: "Period 2", startTime: "9:00", endTime: "9:50" },
+  { id: "p3", name: "Period 3", startTime: "10:00", endTime: "10:50" },
+  { id: "p4", name: "Lunch", startTime: "11:00", endTime: "11:45" },
+  { id: "p5", name: "Period 4", startTime: "12:00", endTime: "12:50" },
+  { id: "p6", name: "Planning", startTime: "13:00", endTime: "13:50" },
+  { id: "p7", name: "Period 5", startTime: "14:00", endTime: "14:50" },
+  { id: "p8", name: "Before School", startTime: "7:00", endTime: "8:00" },
+  { id: "p9", name: "After School", startTime: "15:00", endTime: "16:00" },
+  { id: "p10", name: "Prep Period", startTime: "13:00", endTime: "13:50" }
 ];
 
 // Helper function to create a new reminder
 export const createReminder = (input: CreateReminderInput): Reminder => {
   console.log("Creating reminder from input:", input);
+  
+  // Set default date to today if not provided
+  const now = new Date();
+  const today = new Date(now);
+  today.setHours(9, 0, 0, 0); // Set to 9:00 AM today as default
   
   // For proper ID generation
   const generateId = () => uuidv4();
@@ -35,7 +40,7 @@ export const createReminder = (input: CreateReminderInput): Reminder => {
     title: input.title,
     description: input.description || "",
     // Use exact detected date if available, otherwise use today
-    dueDate: input.dueDate ? new Date(input.dueDate) : new Date(),
+    dueDate: input.dueDate ? new Date(input.dueDate) : today,
     priority: input.priority || ReminderPriority.MEDIUM,
     completed: false,
     category: input.category,
@@ -49,39 +54,6 @@ export const createReminder = (input: CreateReminderInput): Reminder => {
       id: item.id || generateId()
     })) : undefined
   };
-  
-  // If we have a period ID, set the due date time based on the period's start time
-  if (input.periodId && input.periodId !== "none") {
-    const period = mockPeriods.find(p => p.id === input.periodId);
-    if (period && period.startTime) {
-      const dueDate = new Date(newReminder.dueDate);
-      
-      // Parse the start time (handle both 24-hour and 12-hour formats)
-      let [hours, minutes] = period.startTime.split(':').map(part => {
-        // Handle cases like "1:14" (convert to 13:14)
-        if (part.includes(":")) return part;
-        
-        const num = parseInt(part, 10);
-        // If it's a single-digit hour in the afternoon (1-9), convert to 24-hour format
-        if (num >= 1 && num <= 9 && period.startTime.indexOf(":") > 1) {
-          return (num + 12).toString();
-        }
-        return part;
-      });
-      
-      // Convert hours to number, handling 12-hour format
-      let hoursNum = parseInt(hours, 10);
-      if (hoursNum < 8 && period.startTime.indexOf(":") > 1) {
-        hoursNum += 12; // Convert afternoon hours to 24-hour format
-      }
-      
-      // Set the time on the due date
-      dueDate.setHours(hoursNum, parseInt(minutes, 10), 0, 0);
-      newReminder.dueDate = dueDate;
-      
-      console.log(`Set reminder time to period start time: ${dueDate.toLocaleTimeString()}`);
-    }
-  }
   
   console.log("Created reminder:", newReminder);
   return newReminder;
@@ -132,41 +104,4 @@ export const formatCategory = (category?: ReminderCategory | string): string => 
 // Helper function to generate a unique ID
 export const generateId = (): string => {
   return uuidv4();
-};
-
-// Helper function to get period by time
-export const getPeriodByTime = (time: Date): string | undefined => {
-  const hours = time.getHours();
-  const minutes = time.getMinutes();
-  const timeInMinutes = hours * 60 + minutes;
-  
-  for (const period of mockPeriods) {
-    // Parse start and end times
-    const [startHours, startMinutes] = period.startTime.split(':').map(part => {
-      const num = parseInt(part, 10);
-      // If it's a single-digit hour in the afternoon (1-9), convert to 24-hour format
-      if (num >= 1 && num <= 9 && period.startTime.indexOf(":") > 1) {
-        return num + 12;
-      }
-      return num;
-    });
-    
-    const [endHours, endMinutes] = period.endTime.split(':').map(part => {
-      const num = parseInt(part, 10);
-      // If it's a single-digit hour in the afternoon (1-9), convert to 24-hour format
-      if (num >= 1 && num <= 9 && period.endTime.indexOf(":") > 1) {
-        return num + 12;
-      }
-      return num;
-    });
-    
-    const startTimeInMinutes = startHours * 60 + startMinutes;
-    const endTimeInMinutes = endHours * 60 + endMinutes;
-    
-    if (timeInMinutes >= startTimeInMinutes && timeInMinutes < endTimeInMinutes) {
-      return period.id;
-    }
-  }
-  
-  return undefined;
 };

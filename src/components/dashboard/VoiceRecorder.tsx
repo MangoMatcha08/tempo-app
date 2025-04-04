@@ -3,42 +3,29 @@ import React, { useState, useEffect, useRef } from 'react';
 import useSpeechRecognition from '../../hooks/speech-recognition';
 import { Mic, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createDebugLogger } from '@/utils/debugUtils';
-
-const debugLog = createDebugLogger("VoiceRecorder");
 
 interface VoiceRecorderProps {
   onTranscriptComplete: (transcript: string) => void;
-  isProcessing?: boolean;
 }
 
-const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ 
-  onTranscriptComplete, 
-  isProcessing = false 
-}) => {
+const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) => {
   const {
     transcript,
-    interimTranscript,
     isListening,
     startListening,
     stopListening,
     resetTranscript,
     browserSupportsSpeechRecognition,
-    error,
-    isPWA,
-    isMobile
+    error
   } = useSpeechRecognition();
 
   const [recordingTime, setRecordingTime] = useState<number>(0);
   const [processingComplete, setProcessingComplete] = useState<boolean>(false);
   const finalTranscriptRef = useRef<string>('');
-  const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const stoppedRecordingRef = useRef<boolean>(false);
 
   // Update the ref when transcript changes
   useEffect(() => {
     if (transcript) {
-      debugLog(`Updating finalTranscriptRef: "${transcript.substring(0, 30)}${transcript.length > 30 ? '...' : ''}"`);
       finalTranscriptRef.current = transcript;
     }
   }, [transcript]);
@@ -52,62 +39,13 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         setRecordingTime(prev => prev + 1);
       }, 1000);
     } else {
-      // When recording stops, check if we have a transcript
-      if (recordingTime > 0 && !processingComplete) {
-        stoppedRecordingRef.current = true;
-        debugLog("Recording stopped, checking for transcript");
-        
-        // Get current transcript
-        const currentTranscript = finalTranscriptRef.current || transcript;
-        
-        if (currentTranscript && currentTranscript.trim()) {
-          debugLog(`Found transcript on recording stop: "${currentTranscript.substring(0, 30)}${currentTranscript.length > 30 ? '...' : ''}"`);
-          sendTranscriptAfterDelay(currentTranscript.trim());
-        } else {
-          debugLog("No transcript found on recording stop");
-        }
-      }
-      
       setRecordingTime(0);
     }
 
     return () => {
       clearInterval(interval);
     };
-  }, [isListening, recordingTime, transcript, processingComplete]);
-
-  // Send transcript after a delay to allow final processing
-  const sendTranscriptAfterDelay = (text: string) => {
-    // Clear any existing timeout
-    if (processingTimeoutRef.current) {
-      clearTimeout(processingTimeoutRef.current);
-    }
-    
-    debugLog(`Scheduling transcript processing: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
-    
-    // Set a timeout to process after a delay
-    // Use a longer delay for iOS/PWA to ensure all results are captured
-    const processingDelay = isMobile ? 
-      (isPWA ? 1500 : 1200) : 
-      (isPWA ? 1000 : 800);
-      
-    debugLog(`Using processing delay of ${processingDelay}ms (isPWA: ${isPWA}, isMobile: ${isMobile})`);
-    
-    processingTimeoutRef.current = setTimeout(() => {
-      // Double-check that we have content
-      const finalText = finalTranscriptRef.current || text;
-      
-      if (finalText && finalText.trim() && !processingComplete) {
-        debugLog(`Sending final transcript after delay: "${finalText.substring(0, 30)}${finalText.length > 30 ? '...' : ''}"`);
-        setProcessingComplete(true);
-        onTranscriptComplete(finalText.trim());
-      } else {
-        debugLog("No transcript available to send after delay");
-      }
-      
-      processingTimeoutRef.current = null;
-    }, processingDelay);
-  };
+  }, [isListening]);
 
   // Format time as MM:SS
   const formatTime = (seconds: number): string => {
@@ -116,76 +54,36 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  const handleStartRecording = async () => {
-    debugLog("Starting recording");
+  const handleStartRecording = () => {
     resetTranscript();
     setProcessingComplete(false);
     finalTranscriptRef.current = '';
-    stoppedRecordingRef.current = false;
-    
-    // Clear any existing processing timeout
-    if (processingTimeoutRef.current) {
-      clearTimeout(processingTimeoutRef.current);
-      processingTimeoutRef.current = null;
-    }
-    
-    await startListening();
+    startListening();
   };
 
   const handleStopRecording = () => {
-    debugLog("Stopping recording");
     stopListening();
-    stoppedRecordingRef.current = true;
     
     // Capture the current transcript immediately
     const currentTranscript = finalTranscriptRef.current || transcript;
-    debugLog(`Current transcript on stop: "${currentTranscript ? (currentTranscript.substring(0, 30) + (currentTranscript.length > 30 ? '...' : '')) : 'none'}"`);
+    console.log("Current transcript on stop:", currentTranscript);
     
     // Only process non-empty transcripts
     if (currentTranscript && currentTranscript.trim()) {
-      sendTranscriptAfterDelay(currentTranscript.trim());
-    } else {
-      debugLog("Empty transcript detected - not proceeding to confirmation");
+      console.log("Processing transcript:", currentTranscript.trim());
       
-      // Set a fallback timeout to check one last time for transcript
-      // (sometimes the final results come in right after stopping)
+      // Use a longer delay to ensure the full transcript is captured
       setTimeout(() => {
-        const lastChanceTranscript = finalTranscriptRef.current || transcript;
-        
-        if (lastChanceTranscript && lastChanceTranscript.trim() && !processingComplete) {
-          debugLog(`Last chance transcript found: "${lastChanceTranscript.substring(0, 30)}${lastChanceTranscript.length > 30 ? '...' : ''}"`);
-          sendTranscriptAfterDelay(lastChanceTranscript.trim());
-        } else {
-          debugLog("No transcript found even after last chance check");
+        if (!processingComplete) {
+          console.log("Sending final transcript:", currentTranscript.trim());
+          setProcessingComplete(true);
+          onTranscriptComplete(currentTranscript.trim());
         }
-      }, 1000);
+      }, 1500); // Increased delay for more reliable transcript capture
+    } else {
+      console.log("Empty transcript detected - not proceeding to confirmation");
     }
   };
-  
-  // Auto-stop after max recording time (30 seconds)
-  useEffect(() => {
-    if (recordingTime >= 30 && isListening) {
-      debugLog("Auto-stopping after reaching max recording time (30s)");
-      handleStopRecording();
-    }
-  }, [recordingTime, isListening]);
-  
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (processingTimeoutRef.current) {
-        clearTimeout(processingTimeoutRef.current);
-      }
-      if (isListening) {
-        stopListening();
-      }
-    };
-  }, [isListening, stopListening]);
-
-  // Add info about device state for debugging
-  useEffect(() => {
-    debugLog(`Device state: isPWA=${isPWA}, isMobile=${isMobile}, browserSupport=${browserSupportsSpeechRecognition}`);
-  }, [isPWA, isMobile, browserSupportsSpeechRecognition]);
 
   if (!browserSupportsSpeechRecognition) {
     return (
@@ -209,7 +107,6 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
             variant={isListening ? "destructive" : "default"}
             size="lg"
             className="rounded-full h-14 w-14 p-0"
-            disabled={processingComplete || isProcessing}
           >
             {isListening ? (
               <Square className="h-6 w-6" />
@@ -224,35 +121,17 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
             Recording... {recordingTime > 0 ? `(${formatTime(recordingTime)})` : ''}
           </p>
         )}
-        
-        {processingComplete && (
-          <p className="text-xs text-green-600 mt-4">
-            Processing transcript...
-          </p>
-        )}
-        
-        {isProcessing && (
-          <p className="text-xs text-blue-600 mt-4">
-            Analyzing your voice note...
-          </p>
-        )}
-        
-        {isPWA && (
-          <p className="text-xs text-blue-600 mt-2">
-            Running in PWA mode {isMobile ? "on mobile" : ""}
-          </p>
-        )}
       </div>
 
       {error && (
         <div className="text-red-500 text-sm p-2">{error}</div>
       )}
 
-      {(transcript || interimTranscript) && (
+      {transcript && (
         <div className="space-y-2">
           <h3 className="text-sm font-medium">Transcript</h3>
           <div className="p-3 bg-muted/30 rounded-md text-sm">
-            {transcript || interimTranscript || (isListening ? 'Listening...' : 'Press the button to start recording')}
+            {transcript || (isListening ? 'Listening...' : 'Press the button to start recording')}
           </div>
         </div>
       )}

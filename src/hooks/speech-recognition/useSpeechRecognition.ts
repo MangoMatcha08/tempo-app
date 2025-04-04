@@ -1,246 +1,163 @@
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { UseSpeechRecognitionReturn, SpeechRecognitionConfig } from './types';
-import { createDebugLogger } from '@/utils/debugUtils';
-import { 
-  isPwaMode, 
-  isIOSDevice, 
-  isMobileDevice,
-  prewarmSpeechRecognition
-} from './utils';
+import { useState, useEffect, useCallback } from 'react';
+import { UseSpeechRecognitionReturn } from './types';
+import { useSpeechRecognitionSetup } from './useSpeechRecognitionSetup';
 import { useTranscriptState } from './useTranscriptState';
 
-const debugLog = createDebugLogger("SpeechRecognition");
-
 /**
- * Custom hook for speech recognition
+ * Custom hook for speech recognition functionality
+ * @returns Object containing transcript and speech recognition control methods
  */
-const useSpeechRecognition = (
-  config?: SpeechRecognitionConfig
-): UseSpeechRecognitionReturn => {
-  // State
-  const [isListening, setIsListening] = useState<boolean>(false);
+const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   const [error, setError] = useState<string | undefined>(undefined);
-  const [browserSupportsSpeechRecognition, setBrowserSupportsSpeechRecognition] = useState<boolean>(false);
+  const [isListening, setIsListening] = useState<boolean>(false);
   
-  // Environment detection
-  const isPWA = isPwaMode();
-  const isIOS = isIOSDevice();
-  const isMobile = isMobileDevice();
+  // Use separate hooks for managing recognition and transcript
+  const { recognition, browserSupportsSpeechRecognition } = useSpeechRecognitionSetup({
+    onError: setError,
+    isListening,
+    setIsListening
+  });
   
-  // References
-  const recognition = useRef<any>(null);
-  const restartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { 
+    transcript, 
+    interimTranscript,
+    setTranscript, 
+    resetTranscriptState, 
+    processSpeechResults 
+  } = useTranscriptState();
   
-  // Setup transcript state
-  const transcriptState = useTranscriptState({ isPWA, isIOS });
-  
-  // Setup recognition instance
+  // Configure recognition event handlers
   useEffect(() => {
-    // Check if browser supports speech recognition
-    const isSpeechRecognitionSupported = 
-      'SpeechRecognition' in window || 
-      'webkitSpeechRecognition' in window;
+    if (!recognition) return;
     
-    if (isSpeechRecognitionSupported) {
-      try {
-        // Get appropriate constructor
-        const SpeechRecognition = 
-          window.SpeechRecognition || 
-          window.webkitSpeechRecognition;
+    recognition.onresult = (event: any) => {
+      processSpeechResults(event);
+    };
+    
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      
+      // Map error types to user-friendly messages
+      const errorMessages = {
+        'not-allowed': 'Microphone access was denied. Please enable microphone access in your browser settings.',
+        'audio-capture': 'No microphone was found or microphone is already in use.',
+        'network': 'Network error occurred. Please check your internet connection.',
+        'aborted': 'Speech recognition was aborted.',
+        'no-speech': 'No speech was detected. Please try speaking louder or check your microphone.',
+        'service-not-allowed': 'Speech recognition service not allowed. Try reloading the page.',
+      };
+      
+      // Don't stop listening on "no-speech" errors, just log them
+      if (event.error === 'no-speech') {
+        console.log('No speech detected, continuing to listen...');
+        return;
+      }
+      
+      // Handle permission errors specially
+      if (event.error === 'not-allowed') {
+        setError(errorMessages[event.error] || `Speech recognition error: ${event.error}`);
+        setIsListening(false);
+        return;
+      }
+      
+      // For network errors, try to restart recognition
+      if (event.error === 'network') {
+        console.log('Network error, attempting to restart recognition...');
+        setError(errorMessages[event.error] || `Speech recognition error: ${event.error}`);
         
-        // Create recognition instance
-        recognition.current = new SpeechRecognition();
-        
-        // Configure recognition
-        recognition.current.continuous = true;
-        recognition.current.interimResults = true;
-        recognition.current.lang = navigator.language || 'en-US';
-        
-        // Special handling for iOS PWA mode
-        if (isIOS && isPWA) {
-          recognition.current.continuous = false;
-          debugLog("Adjusted for iOS PWA: using non-continuous mode");
-        }
-        
-        // Set recognition event handlers
-        recognition.current.onresult = transcriptState.processSpeechResults;
-        
-        recognition.current.onerror = (event: any) => {
-          debugLog(`Recognition error: ${event.error}`);
-          
-          // Don't treat no-speech as a critical error
-          if (event.error === 'no-speech') return;
-          
-          if (config?.onError) {
-            config.onError(`Speech recognition error: ${event.error}`);
-          }
-          
-          setError(`Speech recognition error: ${event.error}`);
-          
-          // If permission is denied, update listening state
-          if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            if (config?.setIsListening) {
-              config.setIsListening(false);
-            } else {
+        setTimeout(() => {
+          if (isListening) {
+            try {
+              recognition.start();
+            } catch (err) {
+              console.error('Failed to restart after network error:', err);
+              setError(`Speech recognition network error. Please try again.`);
               setIsListening(false);
             }
           }
-        };
-        
-        recognition.current.onend = () => {
-          debugLog("Recognition ended");
-          
-          // Update listening state
-          if (config?.setIsListening) {
-            config.setIsListening(false);
-          } else {
-            setIsListening(false);
-          }
-          
-          // If still listening, attempt to restart
-          if (isListening) {
-            debugLog("Recognition ended but still listening, attempting restart");
-            
-            // Delay restart slightly
-            restartTimeoutRef.current = setTimeout(() => {
-              try {
-                recognition.current.start();
-                debugLog("Restarted recognition");
-              } catch (err) {
-                debugLog(`Failed to restart recognition: ${err}`);
-              }
-            }, 300);
-          }
-        };
-        
-        setBrowserSupportsSpeechRecognition(true);
-        debugLog("Speech recognition initialized successfully");
-        
-        // Prewarm for future use
-        prewarmSpeechRecognition();
-      } catch (err) {
-        console.error("Failed to initialize speech recognition:", err);
-        setBrowserSupportsSpeechRecognition(false);
-        setError(`Failed to initialize speech recognition: ${err}`);
+        }, 1000);
+        return;
       }
-    } else {
-      debugLog("Speech recognition not supported in this browser");
-      setBrowserSupportsSpeechRecognition(false);
-      setError('Your browser does not support speech recognition');
-    }
+      
+      // Set user-friendly error message
+      setError(errorMessages[event.error as keyof typeof errorMessages] || `Speech recognition error: ${event.error}`);
+      
+      // Stop listening for critical errors
+      if (['not-allowed', 'audio-capture', 'service-not-allowed'].includes(event.error)) {
+        setIsListening(false);
+      }
+    };
     
     // Cleanup
     return () => {
-      if (recognition.current) {
+      if (recognition) {
         try {
-          recognition.current.onresult = null;
-          recognition.current.onerror = null;
-          recognition.current.onend = null;
-          
-          if (isListening) {
-            recognition.current.stop();
-          }
+          recognition.stop();
         } catch (err) {
-          console.error("Error cleaning up speech recognition:", err);
+          console.error('Error stopping recognition during cleanup:', err);
         }
-      }
-      
-      if (restartTimeoutRef.current) {
-        clearTimeout(restartTimeoutRef.current);
       }
     };
-  }, []);
-  
-  // Method to start listening
-  const startListening = useCallback(async () => {
-    if (!recognition.current) {
-      setError('Speech recognition not available');
-      return;
-    }
+  }, [recognition, isListening, processSpeechResults]);
+
+  /**
+   * Starts the speech recognition process
+   */
+  const startListening = useCallback(() => {
+    if (!recognition) return;
     
+    // Reset transcript
+    resetTranscriptState();
+    setError(undefined);
+    
+    setIsListening(true);
     try {
-      debugLog("Starting speech recognition");
-      setError(undefined);
-      
-      // Reset transcript
-      transcriptState.resetTranscriptState();
-      
-      // Start recognition
-      recognition.current.start();
-      
-      // Update listening state
-      if (config?.setIsListening) {
-        config.setIsListening(true);
-      } else {
-        setIsListening(true);
-      }
-      
-      debugLog("Speech recognition started successfully");
+      recognition.start();
+      console.log('Speech recognition started');
     } catch (err) {
-      debugLog(`Error starting speech recognition: ${err}`);
+      // Handle the case where recognition is already started
+      console.error('Recognition error on start:', err);
       
-      // Handle "already started" error
-      if (err instanceof Error && err.message.includes('already started')) {
-        debugLog("Recognition already started");
-        
-        if (config?.setIsListening) {
-          config.setIsListening(true);
-        } else {
-          setIsListening(true);
-        }
-      } else {
-        setError(`Could not start speech recognition: ${err}`);
-      }
-    }
-  }, [config, transcriptState]);
-  
-  // Method to stop listening
-  const stopListening = useCallback(() => {
-    if (!recognition.current) return;
-    
-    try {
-      debugLog("Stopping speech recognition");
-      recognition.current.stop();
-      
-      // Update listening state
-      if (config?.setIsListening) {
-        config.setIsListening(false);
-      } else {
+      // Try to stop and restart if already started
+      try {
+        recognition.stop();
+        setTimeout(() => {
+          recognition.start();
+        }, 100);
+      } catch (stopErr) {
+        console.error('Failed to restart recognition:', stopErr);
+        setError('Failed to start speech recognition. Please try reloading the page.');
         setIsListening(false);
       }
-      
-      debugLog("Speech recognition stopped successfully");
+    }
+  }, [recognition, resetTranscriptState]);
+
+  /**
+   * Stops the speech recognition process
+   */
+  const stopListening = useCallback(() => {
+    if (!recognition) return;
+    
+    console.log('Stopping speech recognition');
+    setIsListening(false);
+    try {
+      recognition.stop();
+      console.log('Speech recognition stopped');
     } catch (err) {
-      debugLog(`Error stopping speech recognition: ${err}`);
-      setError(`Could not stop speech recognition: ${err}`);
+      console.error('Error stopping recognition:', err);
     }
-  }, [config]);
-  
-  // Method to reset transcript
-  const resetTranscript = useCallback(() => {
-    transcriptState.resetTranscriptState();
-  }, [transcriptState]);
-  
-  // Sync listening state with config
-  useEffect(() => {
-    if (config?.isListening !== undefined && isListening !== config.isListening) {
-      setIsListening(config.isListening);
-    }
-  }, [config?.isListening, isListening]);
-  
-  // Return the hook interface
+  }, [recognition]);
+
   return {
-    transcript: transcriptState.transcript,
-    interimTranscript: transcriptState.interimTranscript,
-    isListening: config?.isListening !== undefined ? config.isListening : isListening,
+    transcript,
+    interimTranscript,
+    isListening,
     startListening,
     stopListening,
-    resetTranscript,
+    resetTranscript: resetTranscriptState,
     browserSupportsSpeechRecognition,
-    error,
-    isPWA,
-    isMobile
+    error
   };
 };
 

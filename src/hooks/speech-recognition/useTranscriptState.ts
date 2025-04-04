@@ -1,83 +1,68 @@
 
 import { useState, useRef, useCallback } from 'react';
-import { createDebugLogger } from '@/utils/debugUtils';
+import { debounce } from './utils';
 
-const debugLog = createDebugLogger("TranscriptState");
-
-interface UseTranscriptStateProps {
-  isPWA: boolean;
-  isIOS: boolean;
-}
-
-export const useTranscriptState = ({ isPWA, isIOS }: UseTranscriptStateProps) => {
+export const useTranscriptState = () => {
   const [transcript, setTranscript] = useState<string>('');
   const [interimTranscript, setInterimTranscript] = useState<string>('');
   
-  // Refs to track transcript state between renders
+  // Use refs to store the current full transcript and interim results
   const finalTranscriptRef = useRef<string>('');
   const interimTranscriptRef = useRef<string>('');
   
-  // Reset transcript state
+  // Create a debounced update function
+  const debouncedSetTranscript = useCallback(
+    debounce((text: string) => {
+      setTranscript(text);
+    }, 50), // Reduced debounce time for more responsiveness
+    []
+  );
+
+  const processSpeechResults = useCallback((event: any) => {
+    // Process results to separate final from interim
+    let finalTranscript = finalTranscriptRef.current;
+    let interimTranscript = '';
+    
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcriptResult = event.results[i][0].transcript;
+      
+      if (event.results[i].isFinal) {
+        // Only add to final transcript if it's a final result
+        finalTranscript += ' ' + transcriptResult;
+      } else {
+        // Store interim results separately
+        interimTranscript += transcriptResult;
+      }
+    }
+    
+    // Update refs
+    finalTranscriptRef.current = finalTranscript.trim();
+    interimTranscriptRef.current = interimTranscript;
+    
+    // Update state with interim transcript
+    setInterimTranscript(interimTranscript);
+    
+    // Always update state with the most complete transcript
+    const fullTranscript = finalTranscriptRef.current
+      ? finalTranscriptRef.current
+      : interimTranscriptRef.current;
+    
+    if (fullTranscript) {
+      debouncedSetTranscript(fullTranscript);
+    }
+  }, [debouncedSetTranscript]);
+
   const resetTranscriptState = useCallback(() => {
     setTranscript('');
     setInterimTranscript('');
     finalTranscriptRef.current = '';
     interimTranscriptRef.current = '';
-    debugLog("Transcript state reset");
   }, []);
-  
-  // Process speech recognition results
-  const processSpeechResults = useCallback((event: any) => {
-    let finalTranscript = finalTranscriptRef.current;
-    let interimTranscript = '';
-    
-    // Process results
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const transcriptResult = event.results[i][0].transcript;
-      
-      if (event.results[i].isFinal) {
-        // Add to final transcript if result is final
-        finalTranscript += ' ' + transcriptResult;
-        debugLog(`Final result: "${transcriptResult}"`);
-      } else {
-        // Accumulate interim results
-        interimTranscript += transcriptResult;
-        debugLog(`Interim result: "${transcriptResult}"`);
-      }
-    }
-    
-    // Clean up and update refs
-    finalTranscriptRef.current = finalTranscript.trim();
-    interimTranscriptRef.current = interimTranscript.trim();
-    
-    // Special handling for iOS PWA mode
-    if (isPWA && isIOS) {
-      // Update state immediately to improve responsiveness
-      if (finalTranscript) {
-        setTranscript(finalTranscript);
-      }
-      if (interimTranscript) {
-        setInterimTranscript(interimTranscript);
-      }
-    } else {
-      // For other platforms, only update state if there's a change
-      if (finalTranscript !== transcript && finalTranscript) {
-        setTranscript(finalTranscript);
-      }
-      
-      if (interimTranscript !== interimTranscript && interimTranscript) {
-        setInterimTranscript(interimTranscript);
-      }
-    }
-  }, [transcript, interimTranscript, isPWA, isIOS]);
-  
+
   return {
     transcript,
     interimTranscript,
     setTranscript,
-    setInterimTranscript,
-    finalTranscriptRef,
-    interimTranscriptRef,
     resetTranscriptState,
     processSpeechResults
   };

@@ -1,23 +1,23 @@
 
-import { Reminder as BackendReminder, ReminderPriority } from "@/types/reminderTypes";
+import { Reminder as BackendReminder } from "@/types/reminderTypes";
 import { Reminder as UIReminder } from "@/types/reminder";
 
 /**
  * Ensures a priority value is one of the allowed string literal types
  */
-export const ensureValidPriority = (priority: string | any): ReminderPriority => {
-  if (priority === ReminderPriority.HIGH || priority === ReminderPriority.MEDIUM || priority === ReminderPriority.LOW) {
+export const ensureValidPriority = (priority: string | any): "high" | "medium" | "low" => {
+  if (priority === "high" || priority === "medium" || priority === "low") {
     return priority;
   } else if (typeof priority === "string") {
     // Convert any other string to the closest matching priority
     const priorityStr = priority.toLowerCase();
     if (priorityStr.includes("high") || priorityStr.includes("urgent")) {
-      return ReminderPriority.HIGH;
+      return "high";
     } else if (priorityStr.includes("low")) {
-      return ReminderPriority.LOW;
+      return "low";
     }
   }
-  return ReminderPriority.MEDIUM; // Default priority
+  return "medium"; // Default priority
 };
 
 /**
@@ -29,12 +29,9 @@ export const convertToUIReminder = (reminder: BackendReminder): UIReminder => {
     title: reminder.title,
     description: reminder.description || "",
     dueDate: reminder.dueDate,
-    priority: reminder.priority,
-    category: reminder.category,
+    priority: ensureValidPriority(reminder.priority),
     completed: reminder.completed || false,
-    completedAt: reminder.completedAt,
-    periodId: reminder.periodId,
-    location: reminder.location
+    completedAt: reminder.completedAt
   };
 };
 
@@ -47,12 +44,9 @@ export const convertToBackendReminder = (reminder: UIReminder): Omit<BackendRemi
     description: reminder.description || "",
     dueDate: reminder.dueDate,
     priority: reminder.priority,
-    category: reminder.category,
     completed: reminder.completed || false,
     completedAt: reminder.completedAt,
     createdAt: new Date(),
-    userId: "", // This will be filled in by the reminder operations
-    location: reminder.location,
-    periodId: reminder.periodId
+    userId: "" // This will be filled in by the reminder operations
   };
 };

@@ -1,26 +1,27 @@
+
 export enum ReminderPriority {
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH'
+  LOW = "low",
+  MEDIUM = "medium",
+  HIGH = "high"
 }
 
 export enum ReminderCategory {
-  TASK = 'TASK',
-  MEETING = 'MEETING',
-  DEADLINE = 'DEADLINE',
-  PREPARATION = 'PREPARATION',
-  GRADING = 'GRADING',
-  COMMUNICATION = 'COMMUNICATION',
-  OTHER = 'OTHER'
+  TASK = "task",
+  MEETING = "meeting",
+  DEADLINE = "deadline",
+  PREPARATION = "preparation",
+  GRADING = "grading",
+  COMMUNICATION = "communication",
+  OTHER = "other"
 }
 
 export interface ChecklistItem {
-  id?: string;
   text: string;
   isCompleted: boolean;
+  id?: string;
 }
 
-export interface NewPeriodInfo {
+export interface DetectedNewPeriod {
   name: string;
   isNew: boolean;
 }
@@ -28,21 +29,29 @@ export interface NewPeriodInfo {
 export interface CreateReminderInput {
   title: string;
   description: string;
-  priority: ReminderPriority;
-  category: ReminderCategory;
+  priority?: ReminderPriority;
+  category?: ReminderCategory;
   periodId?: string;
-  dueDate?: Date;
-  checklist?: ChecklistItem[];
   voiceTranscript?: string;
-  detectedNewPeriod?: NewPeriodInfo;
-  location?: string;
+  checklist?: ChecklistItem[];
+  detectedNewPeriod?: DetectedNewPeriod;
+  dueDate?: Date;
+  userId?: string;
 }
 
-export interface Reminder extends CreateReminderInput {
+export interface Reminder {
   id: string;
-  createdAt: Date;
-  completed: boolean;
+  title: string;
+  description: string;
+  dueDate: Date;
+  priority: ReminderPriority | string;
+  location?: string;
+  completed?: boolean;
   completedAt?: Date;
+  createdAt?: Date;
+  category?: ReminderCategory;
+  periodId?: string;
+  checklist?: ChecklistItem[];
   userId?: string;
 }
 
@@ -50,11 +59,12 @@ export interface VoiceProcessingResult {
   reminder: CreateReminderInput;
   confidence: number;
   detectedEntities: {
-    priority: ReminderPriority;
-    category: ReminderCategory;
+    priority?: ReminderPriority;
+    category?: ReminderCategory;
     period?: string;
-    date?: Date | null;
     newPeriod?: string;
     checklist?: string[];
+    date?: Date;
+    time?: Date;
   };
 }

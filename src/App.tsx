@@ -6,7 +6,6 @@ import Dashboard from "@/components/Dashboard";
 import Schedule from "@/pages/Schedule";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
-import TestPage from '@/pages/TestPage';
 import { AuthProvider } from "@/contexts/AuthContext";
 import { FirestoreProvider } from "@/contexts/FirestoreContext";
 import { ScheduleProvider } from "@/contexts/ScheduleContext";
@@ -42,7 +41,6 @@ function App() {
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/schedule" element={<Schedule />} />
                     <Route path="/settings" element={<Settings />} />
-                    <Route path="/test" element={<TestPage />} />
                     <Route path="/404" element={<NotFound />} />
                     <Route path="*" element={<Navigate to="/404" replace />} />
                   </Routes>

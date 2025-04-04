@@ -1,5 +1,6 @@
-// This file contains the implementation of a service worker for Firebase Cloud Messaging
-// It must be placed at the root of your app's public directory
+
+// Firebase Cloud Messaging service worker
+// This file must be placed at the root of your app's public directory
 
 importScripts('https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging-compat.js');
@@ -40,33 +41,18 @@ messaging.onBackgroundMessage((payload) => {
   const userId = payload.data?.userId || 'anonymous';
   console.log('[firebase-messaging-sw.js] Message intended for user:', userId);
   
-  // Extract reminder ID if available
-  const reminderId = payload.data?.reminderId || null;
-  
   // Customize notification here
-  const notificationTitle = payload.notification?.title || payload.data?.title || 'Tempo Reminder';
+  const notificationTitle = payload.notification.title || 'Tempo Reminder';
   const notificationOptions = {
-    body: payload.notification?.body || payload.data?.body || 'You have a new reminder',
+    body: payload.notification.body || 'You have a new reminder',
     icon: '/favicon.ico',
     badge: '/favicon.ico',
     data: {
       ...payload.data,
-      userId: userId,
-      reminderId: reminderId,
-      timestamp: new Date().getTime(),
-      url: '/dashboard'
+      userId: userId, // Include user ID in notification data
+      timestamp: new Date().getTime()
     },
-    tag: `tempo-notification-${userId}-${reminderId || Date.now()}`, // Ensure unique tag for each notification
-    actions: [
-      {
-        action: 'view',
-        title: 'View'
-      },
-      {
-        action: 'complete',
-        title: 'Mark Complete'
-      }
-    ]
+    tag: `tempo-notification-${userId}-${Date.now()}` // Ensure unique tag for each notification
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
@@ -76,22 +62,10 @@ messaging.onBackgroundMessage((payload) => {
 self.addEventListener('notificationclick', (event) => {
   console.log('[firebase-messaging-sw.js] Notification click: ', event);
   
-  // Close the notification
   event.notification.close();
   
-  // Get data from notification
+  // Get user ID from notification data
   const userId = event.notification.data?.userId || 'anonymous';
-  const reminderId = event.notification.data?.reminderId || null;
-  const action = event.action;
-  
-  // Handle different actions
-  let targetUrl = '/dashboard';
-  
-  if (action === 'view' && reminderId) {
-    targetUrl = `/dashboard?reminder=${reminderId}`;
-  } else if (action === 'complete' && reminderId) {
-    targetUrl = `/dashboard?reminder=${reminderId}&action=complete`;
-  }
   
   // This looks to see if the current is already open and focuses if it is
   event.waitUntil(
@@ -108,66 +82,8 @@ self.addEventListener('notificationclick', (event) => {
       }
       
       if (clients.openWindow) {
-        return clients.openWindow(targetUrl);
+        return clients.openWindow('/dashboard');
       }
     })
   );
-});
-
-// Handle push event directly
-self.addEventListener('push', (event) => {
-  console.log('[firebase-messaging-sw.js] Push received: ', event);
-  
-  if (event.data) {
-    try {
-      const data = event.data.json();
-      console.log('[firebase-messaging-sw.js] Push data: ', data);
-      
-      // Extract notification details
-      const title = data.notification?.title || data.data?.title || 'Tempo Reminder';
-      const body = data.notification?.body || data.data?.body || 'You have a new reminder';
-      const userId = data.data?.userId || 'anonymous';
-      const reminderId = data.data?.reminderId || null;
-      
-      // Show notification
-      const notificationOptions = {
-        body: body,
-        icon: '/favicon.ico',
-        badge: '/favicon.ico',
-        data: {
-          ...data.data,
-          userId: userId,
-          reminderId: reminderId,
-          timestamp: new Date().getTime(),
-          url: '/dashboard'
-        },
-        tag: `tempo-notification-${userId}-${reminderId || Date.now()}`,
-        actions: [
-          {
-            action: 'view',
-            title: 'View'
-          },
-          {
-            action: 'complete',
-            title: 'Mark Complete'
-          }
-        ]
-      };
-      
-      event.waitUntil(
-        self.registration.showNotification(title, notificationOptions)
-      );
-    } catch (error) {
-      console.error('[firebase-messaging-sw.js] Error processing push data: ', error);
-      
-      // Show a generic notification if we can't parse the data
-      event.waitUntil(
-        self.registration.showNotification('Tempo Reminder', {
-          body: 'You have a new notification',
-          icon: '/favicon.ico',
-          badge: '/favicon.ico'
-        })
-      );
-    }
-  }
 });

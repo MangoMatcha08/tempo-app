@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,7 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
   const [periodId, setPeriodId] = useState<string>("none");
   const { toast } = useToast();
   
+  // Reset form when modal opens
   useEffect(() => {
     if (open) {
       setTitle("");
@@ -64,17 +66,21 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
     }
     
     try {
+      // Get current time for comparison
       const now = new Date();
       let finalDueDate = dueDate || new Date();
       
+      // If a period is selected, check if we need to move to tomorrow
       if (periodId !== "none") {
         const selectedPeriod = mockPeriods.find(p => p.id === periodId);
         if (selectedPeriod && selectedPeriod.startTime) {
           const [hours, minutes] = selectedPeriod.startTime.split(':').map(Number);
           
+          // Create a date object for the period time today
           const periodTime = new Date(finalDueDate);
           periodTime.setHours(hours, minutes, 0, 0);
           
+          // If period time is earlier than current time and the date is today, move to tomorrow
           if (periodTime < now && 
               finalDueDate.getDate() === now.getDate() && 
               finalDueDate.getMonth() === now.getMonth() && 
@@ -86,6 +92,7 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
         }
       }
       
+      // Create a new reminder
       const newReminder = createReminder({
         title,
         description,
@@ -97,16 +104,19 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
       
       console.log("Created new quick reminder:", newReminder);
       
+      // Show success toast
       toast({
         title: "Reminder Created",
         description: `"${title}" has been added to your reminders.`
       });
       
+      // Convert backend reminder to UI reminder type before passing to callback
       if (onReminderCreated) {
         const uiReminder = convertToUIReminder(newReminder);
         onReminderCreated(uiReminder);
       }
       
+      // Close the modal
       onOpenChange(false);
     } catch (error) {
       console.error("Error creating reminder:", error);

@@ -1,18 +1,12 @@
 
-import { ReminderCategory, ReminderPriority } from "./reminderTypes";
-
 export interface Reminder {
   id: string;
   title: string;
   description: string;
   dueDate: Date;
-  priority: ReminderPriority;
-  category: ReminderCategory;
+  priority: "low" | "medium" | "high";
   location?: string;
   completed?: boolean;
   completedAt?: Date;
   createdAt?: Date;
-  periodId?: string;
-  checklist?: any[];
-  voiceTranscript?: string;
 }
