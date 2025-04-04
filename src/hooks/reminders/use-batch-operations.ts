@@ -1,5 +1,4 @@
 
-// Create this file if it doesn't exist or update it to fix the parameter mismatch
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Reminder } from "@/types/reminderTypes";
 
@@ -7,8 +6,15 @@ interface BatchOperationsProps {
   user: any;
   setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>;
   setTotalCount: React.Dispatch<React.SetStateAction<number>>;
-  batchCompleteReminders: (ids: string[], completed: boolean) => Promise<any>;
-  batchUpdateReminders: (reminders: Reminder[]) => Promise<any>;
+  batchCompleteReminders: (
+    ids: string[], 
+    completed: boolean, 
+    setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>
+  ) => Promise<boolean>;
+  batchUpdateReminders: (
+    reminders: Reminder[], 
+    setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>
+  ) => Promise<boolean>;
 }
 
 export function useBatchOperations({
@@ -88,7 +94,7 @@ export function useBatchOperations({
         // Process in chunks if needed
         for (let i = 0; i < completeIds.length; i += BATCH_SIZE) {
           const batch = completeIds.slice(i, i + BATCH_SIZE);
-          await batchCompleteReminders(batch, true);
+          await batchCompleteReminders(batch, true, setReminders);
         }
         
         // Clear processed IDs
@@ -100,7 +106,7 @@ export function useBatchOperations({
         // Process in chunks if needed
         for (let i = 0; i < updateReminders.length; i += BATCH_SIZE) {
           const batch = updateReminders.slice(i, i + BATCH_SIZE);
-          await batchUpdateReminders(batch);
+          await batchUpdateReminders(batch, setReminders);
         }
         
         // Clear processed reminders
@@ -113,7 +119,7 @@ export function useBatchOperations({
     } finally {
       setIsPending(false);
     }
-  }, [isPending, batchCompleteReminders, batchUpdateReminders]);
+  }, [isPending, batchCompleteReminders, batchUpdateReminders, setReminders]);
   
   // Cleanup function
   const cleanupBatchOperations = useCallback(() => {

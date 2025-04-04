@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useReminders } from "@/hooks/reminders/use-reminders";
 import { useToast } from "@/hooks/use-toast";
@@ -203,7 +202,7 @@ const Dashboard = () => {
       reminderStats={reminderStats}
       handleCompleteReminder={handleCompleteReminder}
       handleUndoComplete={handleUndoComplete}
-      addReminder={handleAddReminder}
+      addReminder={handleAddReminder || addReminder}
       updateReminder={updateReminder}
       loadMoreReminders={loadMoreReminders}
       refreshReminders={refreshReminders}
@@ -212,8 +211,8 @@ const Dashboard = () => {
       hasError={hasError}
       addToBatchComplete={addToBatchComplete}
       addToBatchUpdate={addToBatchUpdate}
-      deleteReminder={handleDeleteReminder}
-      batchDeleteReminders={handleBatchDeleteReminders}
+      deleteReminder={handleDeleteReminder || deleteReminder}
+      batchDeleteReminders={handleBatchDeleteReminders || batchDeleteReminders}
     />
   );
 };

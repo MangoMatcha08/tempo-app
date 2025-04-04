@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { convertToBackendReminder } from "@/utils/typeUtils";
 import DashboardModalHandler from "@/components/dashboard/DashboardModalHandler";
 import { useFirestore } from "@/contexts/FirestoreContext";
+import { Reminder } from "@/types/reminderTypes";
 
 interface DashboardMainProps {
   reminders: any[];
@@ -26,7 +27,7 @@ interface DashboardMainProps {
   totalCount: number;
   hasError: boolean;
   addToBatchComplete: (id: string) => void;
-  addToBatchUpdate: (reminder: any) => void;
+  addToBatchUpdate: (reminder: Reminder) => void;
   deleteReminder?: (id: string) => Promise<boolean>;
   batchDeleteReminders?: (ids: string[]) => Promise<boolean>;
 }

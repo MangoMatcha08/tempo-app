@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFirestore } from "@/contexts/FirestoreContext";
@@ -120,22 +121,22 @@ export function useReminders() {
   const batchCompleteReminders = useCallback((ids: string[], completed: boolean) => {
     console.log("Batch completing reminders:", ids, "completed:", completed);
     return batchCompleteRemindersBase(ids, completed, setReminders);
-  }, [batchCompleteRemindersBase]);
+  }, [batchCompleteRemindersBase, setReminders]);
   
   const batchAddReminders = useCallback((reminders: Omit<BackendReminder, 'id'>[]) => {
     console.log("Batch adding reminders:", reminders);
     return batchAddRemindersBase(reminders, setReminders, setTotalCount);
-  }, [batchAddRemindersBase, setTotalCount]);
+  }, [batchAddRemindersBase, setReminders, setTotalCount]);
   
   const batchUpdateReminders = useCallback((reminders: BackendReminder[]) => {
     console.log("Batch updating reminders:", reminders);
     return batchUpdateRemindersBase(reminders, setReminders);
-  }, [batchUpdateRemindersBase]);
+  }, [batchUpdateRemindersBase, setReminders]);
   
   const batchDeleteReminders = useCallback((ids: string[]) => {
     console.log("Batch deleting reminders:", ids);
     return batchDeleteRemindersBase(ids, setReminders, setTotalCount);
-  }, [batchDeleteRemindersBase, setTotalCount]);
+  }, [batchDeleteRemindersBase, setReminders, setTotalCount]);
   
   const refreshReminders = useCallback(async (): Promise<boolean> => {
     console.log("Refreshing reminders");
