@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Reminder } from "@/types/reminder";
 import { format } from "date-fns";
+import { ReminderPriority } from '@/types/reminderTypes';
 
 interface ReminderEditDialogProps {
   reminder: Reminder | null;
@@ -24,7 +25,7 @@ const ReminderEditDialog = ({
 }: ReminderEditDialogProps) => {
   const [title, setTitle] = useState(reminder?.title || '');
   const [description, setDescription] = useState(reminder?.description || '');
-  const [priority, setPriority] = useState<string>(reminder?.priority || 'medium');
+  const [priority, setPriority] = useState<ReminderPriority>(reminder?.priority || ReminderPriority.MEDIUM);
   const [location, setLocation] = useState(reminder?.location || '');
   const [dueDate, setDueDate] = useState(
     reminder?.dueDate 
@@ -61,7 +62,7 @@ const ReminderEditDialog = ({
       ...reminder,
       title,
       description,
-      priority: priority as "low" | "medium" | "high",
+      priority,
       location: location || undefined,
       dueDate: dueDateObj
     };
@@ -120,14 +121,14 @@ const ReminderEditDialog = ({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="priority">Priority</Label>
-            <Select value={priority} onValueChange={setPriority}>
+            <Select value={priority} onValueChange={(value) => setPriority(value as ReminderPriority)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select priority" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
+                <SelectItem value={ReminderPriority.LOW}>Low</SelectItem>
+                <SelectItem value={ReminderPriority.MEDIUM}>Medium</SelectItem>
+                <SelectItem value={ReminderPriority.HIGH}>High</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -6,23 +6,13 @@ import ReminderListItem from "./ReminderListItem";
 import { memo, useMemo, useState, useEffect } from "react";
 import { FixedSizeList as List } from 'react-window';
 import { useIsMobile } from '@/hooks/use-mobile';
-
-interface Reminder {
-  id: string;
-  title: string;
-  description: string;
-  dueDate: Date;
-  priority: "low" | "medium" | "high";
-  location?: string;
-  completed?: boolean;
-  createdAt?: Date;
-}
+import { UIReminder } from "@/types/reminderTypes";
 
 interface RemindersSectionProps {
-  urgentReminders: Reminder[];
-  upcomingReminders: Reminder[];
+  urgentReminders: UIReminder[];
+  upcomingReminders: UIReminder[];
   onCompleteReminder: (id: string) => void;
-  onEditReminder: (reminder: Reminder) => void;
+  onEditReminder: (reminder: UIReminder) => void;
 }
 
 // Row renderer for the virtualized list
@@ -32,9 +22,9 @@ const UpcomingRow = memo(({
   style 
 }: { 
   data: { 
-    items: Reminder[], 
+    items: UIReminder[], 
     onComplete: (id: string) => void,
-    onEdit: (reminder: Reminder) => void
+    onEdit: (reminder: UIReminder) => void
   }, 
   index: number, 
   style: React.CSSProperties 

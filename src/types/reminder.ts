@@ -1,11 +1,14 @@
 
-import { BaseReminder, ReminderPriority } from './reminderTypes';
+import { BaseReminder, ReminderPriority, ReminderCategory, ChecklistItem } from './reminderTypes';
 
 // For backward compatibility, maintain the same interface structure
 // but inherit from our BaseReminder to ensure consistency
 export interface Reminder extends BaseReminder {
-  // Any legacy-specific properties can be defined here
-  // but we're inheriting the core properties from BaseReminder
+  // Additional properties that may be needed for UI components
+  completedAt?: Date;
+  category?: ReminderCategory;
+  checklist?: ChecklistItem[];
+  location?: string;
 }
 
 // Re-export the enum for backward compatibility
