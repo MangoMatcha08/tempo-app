@@ -23,8 +23,12 @@ export interface RecognitionEnvironment {
   isIOS: boolean;
   isAndroid: boolean;
   isSafari: boolean;
+  isChrome: boolean;
+  isFirefox: boolean;
+  isEdge: boolean;
   isMobile: boolean;
   isIOSPwa: boolean;
+  userAgent: string;
   features: {
     hasSpeechRecognition: boolean;
     supportsInterimResults: boolean;

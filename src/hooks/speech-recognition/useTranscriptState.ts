@@ -1,69 +1,73 @@
 
-import { useState, useRef, useCallback } from 'react';
-import { debounce } from './utils';
+import { useState, useCallback, useRef } from 'react';
 
+/**
+ * Enhanced transcript state management hook
+ * Manages transcript state with platform-specific optimizations
+ */
 export const useTranscriptState = () => {
-  const [transcript, setTranscript] = useState<string>('');
-  const [interimTranscript, setInterimTranscript] = useState<string>('');
+  const [transcript, setTranscript] = useState('');
+  const [interimTranscript, setInterimTranscript] = useState('');
+  const accumulatedTranscriptRef = useRef('');
   
-  // Use refs to store the current full transcript and interim results
-  const finalTranscriptRef = useRef<string>('');
-  const interimTranscriptRef = useRef<string>('');
-  
-  // Create a debounced update function
-  const debouncedSetTranscript = useCallback(
-    debounce((text: string) => {
-      setTranscript(text);
-    }, 50), // Reduced debounce time for more responsiveness
-    []
-  );
-
-  const processSpeechResults = useCallback((event: any) => {
-    // Process results to separate final from interim
-    let finalTranscript = finalTranscriptRef.current;
-    let interimTranscript = '';
-    
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const transcriptResult = event.results[i][0].transcript;
-      
-      if (event.results[i].isFinal) {
-        // Only add to final transcript if it's a final result
-        finalTranscript += ' ' + transcriptResult;
-      } else {
-        // Store interim results separately
-        interimTranscript += transcriptResult;
-      }
+  /**
+   * Update the transcript with new content
+   * @param newFinalTranscript Final transcript to append
+   * @param newInterimTranscript Interim transcript to set
+   */
+  const updateTranscript = useCallback((newFinalTranscript: string, newInterimTranscript: string = '') => {
+    if (newFinalTranscript) {
+      setTranscript(prev => {
+        const updated = prev ? `${prev} ${newFinalTranscript}`.trim() : newFinalTranscript.trim();
+        return updated;
+      });
     }
     
-    // Update refs
-    finalTranscriptRef.current = finalTranscript.trim();
-    interimTranscriptRef.current = interimTranscript;
-    
-    // Update state with interim transcript
-    setInterimTranscript(interimTranscript);
-    
-    // Always update state with the most complete transcript
-    const fullTranscript = finalTranscriptRef.current
-      ? finalTranscriptRef.current
-      : interimTranscriptRef.current;
-    
-    if (fullTranscript) {
-      debouncedSetTranscript(fullTranscript);
-    }
-  }, [debouncedSetTranscript]);
-
-  const resetTranscriptState = useCallback(() => {
+    setInterimTranscript(newInterimTranscript);
+  }, []);
+  
+  /**
+   * Reset all transcript state
+   */
+  const resetTranscript = useCallback(() => {
     setTranscript('');
     setInterimTranscript('');
-    finalTranscriptRef.current = '';
-    interimTranscriptRef.current = '';
+    accumulatedTranscriptRef.current = '';
   }, []);
-
+  
+  /**
+   * Add transcript to accumulated storage (useful for iOS PWA)
+   * @param additionalTranscript Transcript to accumulate
+   */
+  const accumulateTranscript = useCallback((additionalTranscript: string) => {
+    if (additionalTranscript) {
+      accumulatedTranscriptRef.current += ' ' + additionalTranscript;
+    }
+  }, []);
+  
+  /**
+   * Get the complete transcript including any accumulated content
+   * @returns Complete transcript
+   */
+  const getCompleteTranscript = useCallback(() => {
+    const accumulated = accumulatedTranscriptRef.current.trim();
+    const current = transcript.trim();
+    
+    if (accumulated && current) {
+      return `${accumulated} ${current}`;
+    }
+    
+    return accumulated || current;
+  }, [transcript]);
+  
   return {
     transcript,
     interimTranscript,
-    setTranscript,
-    resetTranscriptState,
-    processSpeechResults
+    updateTranscript,
+    resetTranscript,
+    accumulateTranscript,
+    getCompleteTranscript
   };
 };
+
+export default useTranscriptState;
