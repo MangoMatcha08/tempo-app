@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { VoiceProcessingResult, ReminderPriority, ReminderCategory } from "@/types/reminderTypes";
 import { generateMeaningfulTitle } from "@/utils/voiceReminderUtils";
 import { processVoiceInput } from "@/services/nlp";
@@ -20,23 +19,18 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   const [viewState, setViewState] = useState<ViewState>('idle');
   const { toast } = useToast();
   
-  // Ref to track if we're currently in the process of confirming a transcript
   const isConfirmingRef = useRef(false);
   const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Reset state when modal opens
   const resetState = useCallback(() => {
     console.log("Reset state called, current view:", view, "viewState:", viewState);
     
-    // Only reset if we're not in the middle of confirming
     if (!isConfirmingRef.current || viewState === 'idle') {
-      // Clear any pending timers first
       if (transitionTimerRef.current) {
         clearTimeout(transitionTimerRef.current);
         transitionTimerRef.current = null;
       }
       
-      // Reset all state values
       setTitle("");
       setTranscript("");
       setIsProcessing(false);
@@ -52,9 +46,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     }
   }, [view, viewState]);
   
-  // More reliable transition between states
   const transitionToConfirmView = useCallback(() => {
-    // Only transition if we're in the processing state
     if (viewState === 'processing') {
       console.log("Transitioning from processing to confirming");
       setViewState('confirming');
@@ -69,7 +61,6 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       return;
     }
     
-    // Set the confirming flag to prevent accidental resets
     isConfirmingRef.current = true;
     
     setTranscript(text);
@@ -78,23 +69,19 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     
     try {
       console.log("Processing voice input:", text);
-      // Process the transcript with NLP
       const result = processVoiceInput(text);
       console.log("NLP processing result:", result);
       
-      // Generate a better title based on category and content
       const generatedTitle = generateMeaningfulTitle(
         result.reminder.category || ReminderCategory.TASK, 
         text
       );
       
-      // Set the processed data
       setTitle(generatedTitle);
       setPriority(result.reminder.priority || ReminderPriority.MEDIUM);
       setCategory(result.reminder.category || ReminderCategory.TASK);
       setPeriodId(result.reminder.periodId || "none");
       
-      // Ensure we have a due date (default to tomorrow if not detected)
       if (!result.reminder.dueDate) {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
@@ -102,7 +89,6 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         result.reminder.dueDate = tomorrow;
       }
       
-      // Update the result with the default due date
       setProcessingResult({
         ...result,
         reminder: {
@@ -113,11 +99,8 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       
       console.log("Switching to confirmation view with result:", result);
       
-      // First finish processing, then switch to confirmation view
       setIsProcessing(false);
       
-      // Use setTimeout to ensure state updates properly between transitions
-      // Clear any existing timer first
       if (transitionTimerRef.current) {
         clearTimeout(transitionTimerRef.current);
       }
@@ -126,7 +109,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         console.log("Setting view to confirm");
         transitionToConfirmView();
         transitionTimerRef.current = null;
-      }, 300);  // Increased timeout for more reliable state transitions
+      }, 300);
     } catch (error) {
       console.error('Error processing voice input:', error);
       setIsProcessing(false);
@@ -139,7 +122,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         variant: "destructive"
       });
     }
-  }, [transitionToConfirmView]);
+  }, [transitionToConfirmView, toast]);
   
   const handleCancel = useCallback(() => {
     console.log("Cancel called, current viewState:", viewState);
@@ -156,7 +139,6 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     isConfirmingRef.current = false;
   }, []);
   
-  // Clean up timer on unmount
   useEffect(() => {
     return () => {
       if (transitionTimerRef.current) {
@@ -166,7 +148,6 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     };
   }, []);
   
-  // For debugging
   useEffect(() => {
     console.log("Voice recorder state changed:", {
       view, 
