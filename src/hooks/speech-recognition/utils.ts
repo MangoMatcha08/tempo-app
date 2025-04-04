@@ -1,6 +1,8 @@
+
 // Speech recognition utility functions
 // Browser compatibility helpers for Web Speech API
 import { detectEnvironment } from './environmentDetection';
+import { RecognitionEnvironment } from './types';
 
 /**
  * Creates a speech recognition instance with enhanced browser compatibility
@@ -52,11 +54,10 @@ export const isSpeechRecognitionSupported = (): boolean => {
 };
 
 /**
- * Configure the speech recognition instance with appropriate settings
+ * Configure the speech recognition instance with environment-optimized settings
  * @param recognition Speech recognition instance
- * @param isMobile Whether the user is on a mobile device
  */
-export const configureSpeechRecognition = (recognition: any, isMobile = false): void => {
+export const configureSpeechRecognition = (recognition: any): void => {
   if (!recognition) return;
 
   // Get environment-specific configuration
@@ -134,17 +135,11 @@ export const isRunningAsPwa = (): boolean => {
 };
 
 /**
- * Helper to create a mock SpeechRecognitionEvent for testing
- * @param transcript Text to include in the mock event
- * @returns Mock SpeechRecognitionEvent
+ * Gets the full environment information for the current platform
+ * @returns RecognitionEnvironment object with detailed environment information
  */
-export const createMockSpeechEvent = (transcript: string): any => {
-  return {
-    resultIndex: 0,
-    results: [
-      [{ transcript, isFinal: true }]
-    ]
-  };
+export const getSpeechRecognitionEnvironment = (): RecognitionEnvironment => {
+  return detectEnvironment();
 };
 
 /**

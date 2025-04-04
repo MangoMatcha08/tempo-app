@@ -9,4 +9,37 @@ export interface UseSpeechRecognitionReturn {
   browserSupportsSpeechRecognition: boolean;
   error?: string;
   isPwa?: boolean;
+  environmentInfo?: {
+    isIOS: boolean;
+    isIOSPwa: boolean;
+    isMobile: boolean;
+    platform: string;
+    browser: string;
+  };
+}
+
+export interface RecognitionEnvironment {
+  isPwa: boolean;
+  isIOS: boolean;
+  isAndroid: boolean;
+  isSafari: boolean;
+  isMobile: boolean;
+  isIOSPwa: boolean;
+  features: {
+    hasSpeechRecognition: boolean;
+    supportsInterimResults: boolean;
+    supportsContinuous: boolean;
+    requiresPolling: boolean;
+    needsManualRestart: boolean;
+  };
+  recognitionConfig: {
+    continuous: boolean;
+    interimResults: boolean;
+    maxAlternatives: number;
+    restartDelay: number;
+    maxSessionDuration: number;
+    maxRetries: number;
+    baseRetryDelay: number;
+    enableManualRestart: boolean;
+  };
 }
