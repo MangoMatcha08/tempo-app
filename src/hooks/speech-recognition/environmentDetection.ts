@@ -1,18 +1,7 @@
-
 /**
  * Enhanced environment detection for speech recognition
  * Identifies platform, mode (browser vs PWA), and sets appropriate configuration
  */
-
-// Add TypeScript declarations for Web Speech API
-declare global {
-  interface Window {
-    SpeechRecognition?: new () => SpeechRecognition;
-    webkitSpeechRecognition?: new () => SpeechRecognition;
-    mozSpeechRecognition?: new () => SpeechRecognition;
-    msSpeechRecognition?: new () => SpeechRecognition;
-  }
-}
 
 /**
  * Comprehensive environment detection for speech recognition
