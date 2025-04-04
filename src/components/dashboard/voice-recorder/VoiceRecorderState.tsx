@@ -181,6 +181,9 @@ const VoiceRecorderState = ({ onTranscriptProcessed }: VoiceRecorderStateProps) 
     }
   };
   
+  // Safely check for iOS PWA mode
+  const isIOSPwa = environmentConfig?.isIOSPwa || false;
+  
   return (
     <div className="space-y-4">
       <div className="text-center mb-6">
@@ -210,7 +213,7 @@ const VoiceRecorderState = ({ onTranscriptProcessed }: VoiceRecorderStateProps) 
         
         {isPwa && state.status === 'recording' && (
           <div className="mt-2 text-xs text-amber-600">
-            {environmentConfig && environmentConfig.isIOSPwa ? "iOS PWA mode active - recording in short segments" : "PWA mode active"}
+            {isIOSPwa ? "iOS PWA mode active - recording in short segments" : "PWA mode active"}
           </div>
         )}
       </div>

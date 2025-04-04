@@ -5,8 +5,8 @@ import { useTrackedTimeouts } from '@/hooks/use-tracked-timeouts';
 
 // Define all possible state types
 export type RecorderState = 
-  | { status: 'idle' }
-  | { status: 'requesting-permission' }
+  | { status: 'idle', transcript?: string }
+  | { status: 'requesting-permission', transcript?: string }
   | { status: 'recording', transcript?: string }
   | { status: 'processing', transcript: string }
   | { status: 'confirming', result: VoiceProcessingResult, transcript: string }
@@ -31,14 +31,14 @@ function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): Recor
   switch (state.status) {
     case 'idle':
       if (event.type === 'START_RECORDING') 
-        return { status: 'requesting-permission' };
+        return { status: 'requesting-permission', transcript: state.transcript };
       break;
       
     case 'requesting-permission':
       if (event.type === 'PERMISSION_GRANTED') 
-        return { status: 'recording' };
+        return { status: 'recording', transcript: state.transcript };
       if (event.type === 'PERMISSION_DENIED') 
-        return { status: 'error', message: 'Microphone access was denied' };
+        return { status: 'error', message: 'Microphone access was denied', transcript: state.transcript };
       break;
       
     case 'recording':

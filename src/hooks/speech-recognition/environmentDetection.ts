@@ -42,7 +42,10 @@ export const detectEnvironment = (): EnvironmentConfig => {
   
   // Detect if running as PWA
   const isPwa = window.matchMedia('(display-mode: standalone)').matches || 
-                (navigator.standalone === true);
+                (typeof navigator !== 'undefined' && 
+                 'standalone' in navigator && 
+                 (navigator as any).standalone === true);
+                 
   const mode = isPwa ? 'PWA' : 'Browser';
   
   // Mobile detection

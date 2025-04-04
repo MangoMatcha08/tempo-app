@@ -3,7 +3,7 @@ import { UseSpeechRecognitionReturn } from './types';
 import { useSpeechRecognitionSetup } from './useSpeechRecognitionSetup';
 import { useTranscriptState } from './useTranscriptState';
 import { isRunningAsPwa } from './utils';
-import { detectEnvironment, EnvironmentConfig } from './environmentDetection';
+import { detectEnvironment } from './environmentDetection';
 import { useTrackedTimeouts } from '@/hooks/use-tracked-timeouts';
 
 /**
@@ -15,7 +15,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   const [isListening, setIsListening] = useState<boolean>(false);
   const [restartAttempts, setRestartAttempts] = useState(0);
   const [isPwaEnvironment] = useState(() => isRunningAsPwa());
-  const [environmentConfig] = useState<EnvironmentConfig>(() => detectEnvironment());
+  const [envConfig] = useState(() => detectEnvironment());
   const isMountedRef = useRef(true);
   const { createTimeout, clearAllTimeouts, clearTrackedTimeout } = useTrackedTimeouts();
   
@@ -213,7 +213,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     
     setIsListening(true);
     try {
-      if (environmentConfig?.isIOSPwa) {
+      if (envConfig?.isIOSPwa) {
         console.log("Using iOS PWA-specific recognition strategy");
         startIOSPwaRecording();
       } else {
@@ -235,7 +235,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
           if (!isMountedRef.current) return;
           
           try {
-            if (environmentConfig?.isIOSPwa) {
+            if (envConfig?.isIOSPwa) {
               startIOSPwaRecording();
             } else {
               recognition.start();
@@ -253,7 +253,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         setIsListening(false);
       }
     }
-  }, [recognition, resetTranscriptState, isPwaEnvironment, createTimeout, environmentConfig, startIOSPwaRecording]);
+  }, [recognition, resetTranscriptState, isPwaEnvironment, createTimeout, envConfig, startIOSPwaRecording]);
 
   const stopListening = useCallback(() => {
     if (!recognition) return;
@@ -306,7 +306,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     browserSupportsSpeechRecognition,
     error,
     isPwa: isPwaEnvironment,
-    environmentConfig
+    environmentConfig: envConfig
   };
 };
 
