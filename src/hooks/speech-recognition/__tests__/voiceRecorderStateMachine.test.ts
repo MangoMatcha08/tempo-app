@@ -2,6 +2,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { useVoiceRecorderStateMachine } from '../useVoiceRecorderStateMachine';
 import { vi, describe, it, expect } from 'vitest';
+import { ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
 
 describe('Voice Recorder State Machine', () => {
   it('should start in idle state', () => {
@@ -37,8 +38,8 @@ describe('Voice Recorder State Machine', () => {
         reminder: {
           title: 'Test reminder',
           description: 'Test transcript',
-          priority: 'MEDIUM',
-          category: 'TASK',
+          priority: ReminderPriority.MEDIUM,
+          category: ReminderCategory.TASK,
           periodId: undefined,
           dueDate: new Date(),
         },
