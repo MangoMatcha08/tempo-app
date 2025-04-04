@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useCallback } from 'react';
 import useSpeechRecognition from './speech-recognition';
 import { createDebugLogger } from '@/utils/debugUtils';

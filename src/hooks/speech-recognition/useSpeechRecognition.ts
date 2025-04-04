@@ -1,234 +1,74 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { isPWAMode, isIOSDevice, isMobileDevice } from '@/utils/pwaUtils';
+import { useTranscriptState } from './useTranscriptState';
+import { useSpeechRecognitionSetup } from './useSpeechRecognitionSetup';
 import { createDebugLogger } from '@/utils/debugUtils';
-import { isPWAMode } from '@/utils/pwaUtils';
-import { UseSpeechRecognitionReturn } from './types';
 
-const debugLog = createDebugLogger("SpeechRecognition");
+const debugLog = createDebugLogger("useSpeechRecognition");
 
-// Helper functions
-const isIOSDevice = (): boolean => {
-  const userAgent = window.navigator.userAgent.toLowerCase();
-  return /iphone|ipad|ipod|macintosh/.test(userAgent) && 'ontouchend' in document;
-};
-
-const isMobileDevice = (): boolean => {
-  const userAgent = window.navigator.userAgent.toLowerCase();
-  return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
-};
-
-// Debounce function to prevent rapid updates
-const debounce = (func: Function, wait: number) => {
-  let timeout: ReturnType<typeof setTimeout> | null = null;
-  
-  return (...args: any[]) => {
-    if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-};
-
-// Create a custom hook for speech recognition
+// Main hook for speech recognition
 const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
-  // State variables
-  const [transcript, setTranscript] = useState<string>('');
-  const [interimTranscript, setInterimTranscript] = useState<string>('');
-  const [isListening, setIsListening] = useState<boolean>(false);
-  const [error, setError] = useState<string | undefined>(undefined);
-  const [recognition, setRecognition] = useState<any | null>(null);
-  const [browserSupportsSpeechRecognition, setBrowserSupportsSpeechRecognition] = useState<boolean>(false);
-  
   // Environment detection
   const isPWA = isPWAMode();
   const isIOS = isIOSDevice();
   const isMobile = isMobileDevice();
   
-  // Refs for maintaining state between renders
-  const finalTranscriptRef = useRef<string>('');
-  const interimTranscriptRef = useRef<string>('');
+  debugLog(`Environment: isPWA=${isPWA}, isIOS=${isIOS}, isMobile=${isMobile}`);
+  
+  // State for speech recognition
+  const [isListening, setIsListening] = useState<boolean>(false);
+  const [error, setError] = useState<string | undefined>(undefined);
+  
+  // Transcript state management
+  const {
+    transcript,
+    interimTranscript,
+    resetTranscriptState,
+    processSpeechResults,
+    setTranscript
+  } = useTranscriptState({ isPWA, isIOS });
+  
+  // Speech recognition setup
+  const {
+    recognition,
+    browserSupportsSpeechRecognition
+  } = useSpeechRecognitionSetup({
+    onError: setError,
+    isListening,
+    setIsListening
+  });
+  
+  // State tracking refs
   const isRecognitionActiveRef = useRef<boolean>(false);
-  const restartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const recognitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Create a debounced update function
-  const debouncedSetTranscript = useCallback(
-    debounce((text: string) => {
-      setTranscript(text);
-    }, 300),
-    []
-  );
+  // Reset transcript
+  const resetTranscript = useCallback(() => {
+    resetTranscriptState();
+    debugLog("Transcript reset");
+  }, [resetTranscriptState]);
 
-  // Initialize speech recognition
-  useEffect(() => {
-    // Check if browser supports speech recognition
-    const windowObj = window as any;
-    if ('webkitSpeechRecognition' in windowObj || 'SpeechRecognition' in windowObj) {
-      // TypeScript doesn't recognize these browser-specific APIs
-      const SpeechRecognition = windowObj.SpeechRecognition || windowObj.webkitSpeechRecognition;
-      try {
-        const recognitionInstance = new SpeechRecognition();
-        
-        // Configure recognition
-        recognitionInstance.continuous = true;
-        recognitionInstance.interimResults = true;
-        recognitionInstance.lang = 'en-US';
-        
-        // Special handling for iOS in PWA mode
-        if (isIOS && isPWA) {
-          recognitionInstance.continuous = false;
-          debugLog("iOS PWA detected - using non-continuous mode");
-        }
-        
-        setRecognition(recognitionInstance);
-        setBrowserSupportsSpeechRecognition(true);
-        debugLog("Speech recognition initialized successfully");
-      } catch (err) {
-        setError(`Failed to initialize speech recognition: ${err}`);
-        setBrowserSupportsSpeechRecognition(false);
-        debugLog(`Error initializing speech recognition: ${err}`);
-      }
-    } else {
-      setError('Your browser does not support speech recognition.');
-      setBrowserSupportsSpeechRecognition(false);
-      debugLog("Browser does not support speech recognition");
-    }
-    
-    // Cleanup
-    return () => {
-      if (restartTimeoutRef.current) {
-        clearTimeout(restartTimeoutRef.current);
-      }
-    };
-  }, [isIOS, isPWA]);
-  
-  // Setup recognition event handlers
+  // Configure recognition result handler
   useEffect(() => {
     if (!recognition) return;
     
+    // Handle speech recognition results
     recognition.onresult = (event: any) => {
-      // Process results to separate final from interim
-      let finalTranscript = finalTranscriptRef.current;
-      let interimTranscript = '';
-      
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcriptResult = event.results[i][0].transcript;
-        
-        if (event.results[i].isFinal) {
-          // Only add to final transcript if it's a final result
-          finalTranscript += ' ' + transcriptResult;
-          debugLog(`Final result: "${transcriptResult}"`);
-        } else {
-          // Store interim results separately
-          interimTranscript += transcriptResult;
-          debugLog(`Interim result: "${transcriptResult}"`);
-        }
-      }
-      
-      // Update refs
-      finalTranscriptRef.current = finalTranscript.trim();
-      interimTranscriptRef.current = interimTranscript.trim();
-      
-      // Update state with debouncing
-      if (finalTranscript.trim()) {
-        debouncedSetTranscript(finalTranscript.trim());
-        setInterimTranscript('');
-      } else if (interimTranscript.trim()) {
-        setInterimTranscript(interimTranscript.trim());
-      }
-    };
-    
-    recognition.onerror = (event: any) => {
-      debugLog(`Speech recognition error: ${event.error}`);
-      
-      // Don't treat 'no-speech' as a critical error
-      if (event.error === 'no-speech') {
-        return;
-      }
-      
-      setError(`Speech recognition error: ${event.error}`);
-      
-      if (event.error === 'network') {
-        // For network errors, attempt restart after a delay
-        if (isListening && isRecognitionActiveRef.current) {
-          restartTimeoutRef.current = setTimeout(() => {
-            if (isRecognitionActiveRef.current) {
-              try {
-                debugLog("Attempting restart after network error");
-                recognition.start();
-              } catch (e) {
-                debugLog(`Error restarting after network error: ${e}`);
-              }
-            }
-          }, 2000);
-        }
-      }
-      
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        setIsListening(false);
-        isRecognitionActiveRef.current = false;
-      }
-    };
-    
-    recognition.onend = () => {
-      debugLog("Recognition ended");
-      
-      // If we're still supposed to be listening but recognition ended
-      if (isListening && isRecognitionActiveRef.current) {
-        // This is an unexpected stop, try to restart
-        debugLog("Unexpected end, attempting restart");
-        
-        // Give a small delay before attempting restart
-        restartTimeoutRef.current = setTimeout(() => {
-          if (isRecognitionActiveRef.current) {
-            try {
-              recognition.start();
-              debugLog("Successfully restarted recognition");
-            } catch (err) {
-              debugLog(`Failed to restart recognition: ${err}`);
-              // If restart fails, update state
-              setIsListening(false);
-              isRecognitionActiveRef.current = false;
-            }
-          }
-        }, 300);
-      } else {
-        // Normal end of recognition
-        setIsListening(false);
-        isRecognitionActiveRef.current = false;
-      }
+      debugLog(`Speech result event with ${event.results.length} results`);
+      processSpeechResults(event);
     };
     
     return () => {
-      // Remove event handlers
       if (recognition) {
         recognition.onresult = null;
-        recognition.onerror = null;
-        recognition.onend = null;
       }
     };
-  }, [recognition, isListening, debouncedSetTranscript]);
+  }, [recognition, processSpeechResults]);
 
-  // Request microphone permission and ensure it's ready
-  const ensureMicrophoneAccess = async (): Promise<boolean> => {
-    try {
-      debugLog("Requesting microphone access");
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // Keep the stream active for a short while to avoid permission issues
-      setTimeout(() => {
-        stream.getTracks().forEach(track => track.stop());
-        debugLog("Released temporary microphone stream");
-      }, 1000);
-      
-      return true;
-    } catch (err) {
-      debugLog(`Microphone access error: ${err}`);
-      setError(`Could not access microphone: ${err}`);
-      return false;
-    }
-  };
-
-  // Start listening function
+  // Start listening function with enhanced error handling
   const startListening = useCallback(async () => {
     if (!recognition) {
-      setError('Speech recognition not available');
+      setError("Speech recognition is not supported in this browser");
       return;
     }
     
@@ -239,47 +79,49 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     
     debugLog("Starting speech recognition");
     setError(undefined);
-    
-    // First ensure we have microphone access
-    const microphoneAvailable = await ensureMicrophoneAccess();
-    if (!microphoneAvailable) {
-      return;
-    }
+    resetTranscriptState();
     
     try {
-      // Reset transcripts
-      finalTranscriptRef.current = '';
-      interimTranscriptRef.current = '';
+      // Try to get microphone access first
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Update state
-      isRecognitionActiveRef.current = true;
+      // For iOS PWA, we keep the stream alive during recording
+      if (isPWA && isIOS) {
+        (window as any).microphoneStream = stream;
+        debugLog("iOS PWA: storing microphone stream");
+      } else {
+        // For other platforms, we can release it right away
+        setTimeout(() => {
+          stream.getTracks().forEach(track => track.stop());
+        }, 500);
+      }
       
       // Start recognition
+      isRecognitionActiveRef.current = true;
       recognition.start();
       setIsListening(true);
       debugLog("Recognition started successfully");
     } catch (err) {
       debugLog(`Error starting recognition: ${err}`);
       
-      // Handle "already started" error
+      // Special handling for "already started" error
       if (err instanceof Error && err.message.includes('already started')) {
         debugLog("Recognition was already started");
-        setIsListening(true);
         isRecognitionActiveRef.current = true;
+        setIsListening(true);
       } else {
         setError(`Could not start speech recognition: ${err}`);
-        setIsListening(false);
         isRecognitionActiveRef.current = false;
+        setIsListening(false);
       }
     }
-  }, [recognition, isListening]);
+  }, [recognition, isListening, resetTranscriptState, isPWA, isIOS]);
 
   // Stop listening function
   const stopListening = useCallback(() => {
     if (!recognition) return;
     
     debugLog("Stopping recognition");
-    
     isRecognitionActiveRef.current = false;
     
     try {
@@ -289,22 +131,44 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       debugLog(`Error stopping recognition: ${err}`);
     }
     
-    // Ensure we're showing the final transcript
-    if (finalTranscriptRef.current.trim()) {
-      setTranscript(finalTranscriptRef.current.trim());
+    // Release iOS PWA microphone stream if it exists
+    if (isPWA && isIOS && (window as any).microphoneStream) {
+      setTimeout(() => {
+        if ((window as any).microphoneStream) {
+          (window as any).microphoneStream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+          (window as any).microphoneStream = null;
+          debugLog("iOS PWA: released microphone stream");
+        }
+      }, 1000); // Give a second to process any final results
     }
     
     setIsListening(false);
-  }, [recognition]);
+  }, [recognition, isPWA, isIOS]);
 
-  // Reset transcript function
-  const resetTranscript = useCallback(() => {
-    setTranscript('');
-    setInterimTranscript('');
-    finalTranscriptRef.current = '';
-    interimTranscriptRef.current = '';
-    debugLog("Transcript reset");
-  }, []);
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (recognition && isListening) {
+        try {
+          recognition.stop();
+          debugLog("Recognition stopped during cleanup");
+        } catch (e) {
+          debugLog(`Error stopping recognition during cleanup: ${e}`);
+        }
+      }
+      
+      if (recognitionTimeoutRef.current) {
+        clearTimeout(recognitionTimeoutRef.current);
+      }
+      
+      // Release iOS PWA microphone stream if it exists
+      if ((window as any).microphoneStream) {
+        (window as any).microphoneStream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+        (window as any).microphoneStream = null;
+        debugLog("Released microphone stream during cleanup");
+      }
+    };
+  }, [recognition, isListening]);
 
   return {
     transcript,

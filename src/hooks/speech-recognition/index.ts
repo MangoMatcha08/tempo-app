@@ -10,3 +10,12 @@ import type { UseSpeechRecognitionReturn } from './types';
 export type { UseSpeechRecognitionReturn };
 export { useSpeechRecognition };
 export default useSpeechRecognition;
+
+// Export utility functions to support PWA and iOS functionality
+export { 
+  isPwaMode, 
+  isIOSDevice, 
+  prewarmSpeechRecognition, 
+  getPrewarmedSpeechRecognition, 
+  forceAudioPermissionCheck 
+} from './utils';

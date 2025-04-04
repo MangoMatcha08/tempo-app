@@ -87,7 +87,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) =
       (isPWA ? 1500 : 1200) : 
       (isPWA ? 1000 : 800);
       
-    debugLog(`Using processing delay of ${processingDelay}ms`);
+    debugLog(`Using processing delay of ${processingDelay}ms (isPWA: ${isPWA}, isMobile: ${isMobile})`);
     
     processingTimeoutRef.current = setTimeout(() => {
       // Double-check that we have content
@@ -178,6 +178,11 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) =
     };
   }, [isListening, stopListening]);
 
+  // Add info about device state for debugging
+  useEffect(() => {
+    debugLog(`Device state: isPWA=${isPWA}, isMobile=${isMobile}, browserSupport=${browserSupportsSpeechRecognition}`);
+  }, [isPWA, isMobile, browserSupportsSpeechRecognition]);
+
   if (!browserSupportsSpeechRecognition) {
     return (
       <div className="p-4 border border-red-300 bg-red-50 rounded-md text-red-800">
@@ -219,6 +224,12 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) =
         {processingComplete && (
           <p className="text-xs text-green-600 mt-4">
             Processing transcript...
+          </p>
+        )}
+        
+        {isPWA && (
+          <p className="text-xs text-blue-600 mt-2">
+            Running in PWA mode {isMobile ? "on mobile" : ""}
           </p>
         )}
       </div>

@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -187,7 +186,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   
   const enhancedTranscriptHandler = (text: string) => {
     console.log(`Transcript complete called with text of length: ${text.length}`);
-    console.log(`First 30 chars: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
+    console.log(`First 30 chars: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"}`);
     
     if (isPWA) {
       console.log("PWA mode detected, adding slight delay before processing");

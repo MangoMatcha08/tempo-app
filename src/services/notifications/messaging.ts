@@ -49,7 +49,7 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
     
     if (permission === 'granted') {
       try {
-        // Get token with explicit service worker registration
+        // Fix line 23 by correctly initializing the options for getToken
         const tokenOptions = {
           vapidKey,
           serviceWorkerRegistration: swRegistration

@@ -13,6 +13,64 @@ export const isPWAMode = (): boolean => {
 };
 
 /**
+ * Detects if the current device is an iOS device
+ */
+export const isIOSDevice = (): boolean => {
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return /iphone|ipad|ipod|macintosh/.test(userAgent) && 'ontouchend' in document;
+};
+
+/**
+ * Detects if the current device is a mobile device
+ */
+export const isMobileDevice = (): boolean => {
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+};
+
+/**
+ * React hook for PWA detection
+ */
+export const usePWADetection = () => {
+  const isPWA = isPWAMode();
+  const isIOS = isIOSDevice();
+  const isMobile = isMobileDevice();
+  
+  return { isPWA, isIOS, isMobile };
+};
+
+/**
+ * Tests PWA compatibility for the current browser
+ */
+export const testPWACompatibility = (): {
+  isPWA: boolean;
+  isIOS: boolean;
+  isMobile: boolean;
+  hasHomeScreenSupport: boolean;
+  hasNotificationSupport: boolean;
+} => {
+  const isPWA = isPWAMode();
+  const isIOS = isIOSDevice();
+  const isMobile = isMobileDevice();
+  
+  // Check for "Add to Home Screen" support
+  const hasHomeScreenSupport = 'BeforeInstallPromptEvent' in window || 
+                                isIOS || 
+                                /android/i.test(navigator.userAgent);
+  
+  // Check for notification support
+  const hasNotificationSupport = 'Notification' in window;
+  
+  return {
+    isPWA,
+    isIOS,
+    isMobile,
+    hasHomeScreenSupport,
+    hasNotificationSupport
+  };
+};
+
+/**
  * Forces a check for audio permission in PWA mode
  * This can help with iOS PWA issues where permission is needed
  * before any user interaction
