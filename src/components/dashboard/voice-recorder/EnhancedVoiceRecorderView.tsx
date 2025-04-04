@@ -180,7 +180,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     
     checkMicPermission();
     
-    if (environmentInfo.isPwa) {
+    if (environment.isPwa) {
       addDebugInfo("Running in PWA mode - using adapted recognition strategy");
     }
   }, []);
@@ -445,7 +445,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       );
     }
     
-    if (environmentInfo.isPwa && !environmentInfo.isIOS) {
+    if (environment.isPwa && !environmentInfo.isIOS) {
       return (
         <div className="text-xs text-blue-600 mt-1">
           <span>
@@ -568,7 +568,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         <PlatformSpecificInstructions />
         
         {/* Restart button for problematic platforms */}
-        {(environmentInfo.isIOSPwa || environmentInfo.isPwa) && 
+        {(environmentInfo.isIOSPwa || environment.isPwa) && 
          (state.status === 'recording' || state.status === 'recovering') && (
           <div className="mt-2">
             <Button 
@@ -619,7 +619,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
           <AlertTitle className="text-yellow-700">Recognition Error</AlertTitle>
           <AlertDescription className="text-yellow-600">
             {state.message}
-            {environmentInfo.isPwa && (
+            {environment.isPwa && (
               <p className="text-xs mt-1">
                 PWA mode may have limited speech recognition capabilities.
                 {(state.status === 'recording' || state.status === 'recovering') && 
@@ -650,7 +650,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
               <div>Is processing: {externalProcessing ? "Yes" : "No"}</div>
               <div>Permission state: {permissionState}</div>
               <div>Is mobile device: {isMobile ? "Yes" : "No"}</div>
-              <div>Is PWA mode: {environmentInfo.isPwa ? "Yes" : "No"}</div>
+              <div>Is PWA mode: {environment.isPwa ? "Yes" : "No"}</div>
               <div>Environment: {environment.description}</div>
               <div>Platform: {environment.platform}</div>
               <div>Browser: {environment.browser}</div>
@@ -669,7 +669,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       <div className="mt-3 text-sm text-center text-gray-500">
         <p>Speak clearly and naturally.</p>
         <p>Recording will automatically stop after {environmentInfo.isIOSPwa ? 25 : 30} seconds.</p>
-        {environmentInfo.isPwa && (
+        {environment.isPwa && (
           <p className="text-xs mt-1 text-amber-600">
             Running in PWA mode: If recognition doesn't work, try closing and reopening the app.
           </p>

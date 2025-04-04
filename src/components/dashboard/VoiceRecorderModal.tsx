@@ -18,10 +18,11 @@ import { VoiceProcessingResult } from "@/types/reminderTypes";
 interface VoiceRecorderModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (reminder: any) => void;
+  onSave?: (reminder: any) => void;
+  onReminderCreated?: (reminder: any) => Promise<void | boolean> | void;
 }
 
-const VoiceRecorderModal = ({ open, onOpenChange, onSave }: VoiceRecorderModalProps) => {
+const VoiceRecorderModal = ({ open, onOpenChange, onSave, onReminderCreated }: VoiceRecorderModalProps) => {
   const {
     title,
     setTitle,
@@ -59,8 +60,12 @@ const VoiceRecorderModal = ({ open, onOpenChange, onSave }: VoiceRecorderModalPr
         periodId,
       };
       
-      // Save the reminder
-      await onSave(reminder);
+      // Save the reminder using either callback
+      if (onReminderCreated) {
+        await onReminderCreated(reminder);
+      } else if (onSave) {
+        await onSave(reminder);
+      }
       
       toast({
         title: "Voice reminder created",

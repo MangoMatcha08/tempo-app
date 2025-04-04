@@ -124,6 +124,7 @@ export const getEnvironmentDescription = () => {
     platform: platformName,
     mode: modeDesc,
     browser: browserName,
+    isPwa: env.isPwa,
     description: `Running on ${platformName} in ${modeDesc} mode
                   ${env.isIOSPwa ? '(iOS PWA - limited recognition capabilities)' : ''}`,
     capabilities: {
