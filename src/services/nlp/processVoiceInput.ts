@@ -1,37 +1,29 @@
-import { VoiceProcessingResult, ReminderPriority, ReminderCategory, ChecklistItem } from '@/types/reminderTypes';
-import { mockPeriods } from '@/utils/reminderUtils';
-import { createDebugLogger } from '@/utils/debugUtils';
 
-const debugLog = createDebugLogger("NLP");
+import { VoiceProcessingResult, CreateReminderInput, ReminderPriority, ReminderCategory, ChecklistItem } from "@/types/reminderTypes";
+import { mockPeriods } from "@/utils/reminderUtils";
 
 // Helper function to detect priority from text
 const detectPriority = (text: string): ReminderPriority => {
   const lowercaseText = text.toLowerCase();
   
-  // High priority indicators
-  if (
-    lowercaseText.includes('urgent') || 
-    lowercaseText.includes('asap') || 
-    lowercaseText.includes('high priority') ||
-    lowercaseText.includes('important') ||
-    lowercaseText.includes('critical') ||
-    lowercaseText.includes('immediately')
-  ) {
+  // Check for high priority keywords
+  if (lowercaseText.includes('urgent') || 
+      lowercaseText.includes('asap') || 
+      lowercaseText.includes('important') || 
+      lowercaseText.includes('critical') || 
+      lowercaseText.includes('high priority')) {
     return ReminderPriority.HIGH;
   }
   
-  // Low priority indicators
-  if (
-    lowercaseText.includes('low priority') || 
-    lowercaseText.includes('whenever') || 
-    lowercaseText.includes('not urgent') ||
-    lowercaseText.includes('when you have time') ||
-    lowercaseText.includes('eventually')
-  ) {
+  // Check for low priority keywords
+  if (lowercaseText.includes('low priority') || 
+      lowercaseText.includes('whenever') || 
+      lowercaseText.includes('not urgent') ||
+      lowercaseText.includes('when you have time')) {
     return ReminderPriority.LOW;
   }
   
-  // Default to medium if no specific priority detected
+  // Default to medium priority
   return ReminderPriority.MEDIUM;
 };
 
@@ -39,335 +31,180 @@ const detectPriority = (text: string): ReminderPriority => {
 const detectCategory = (text: string): ReminderCategory => {
   const lowercaseText = text.toLowerCase();
   
-  if (lowercaseText.includes('meeting') || lowercaseText.includes('conference')) {
+  if (lowercaseText.includes('meeting') || lowercaseText.includes('appointment')) {
     return ReminderCategory.MEETING;
   }
   
-  if (lowercaseText.includes('deadline') || lowercaseText.includes('due')) {
+  if (lowercaseText.includes('deadline') || lowercaseText.includes('due date')) {
     return ReminderCategory.DEADLINE;
   }
   
-  if (lowercaseText.includes('prepare') || lowercaseText.includes('preparation') || lowercaseText.includes('lesson plan')) {
+  if (lowercaseText.includes('prepare') || lowercaseText.includes('preparation')) {
     return ReminderCategory.PREPARATION;
   }
   
-  if (lowercaseText.includes('grade') || lowercaseText.includes('grading') || lowercaseText.includes('assessment')) {
+  if (lowercaseText.includes('grade') || lowercaseText.includes('assessment')) {
     return ReminderCategory.GRADING;
   }
   
-  if (
-    lowercaseText.includes('email') || 
-    lowercaseText.includes('call') || 
-    lowercaseText.includes('contact') ||
-    lowercaseText.includes('parent') ||
-    lowercaseText.includes('message')
-  ) {
+  if (lowercaseText.includes('email') || 
+      lowercaseText.includes('call') || 
+      lowercaseText.includes('contact') ||
+      lowercaseText.includes('message')) {
     return ReminderCategory.COMMUNICATION;
   }
   
-  // Default to task if no specific category detected
+  // Default to task category
   return ReminderCategory.TASK;
 };
 
-// Helper function to detect period from text with improved robustness
-const detectPeriod = (text: string): { periodId?: string, isNewPeriod: boolean, periodName?: string } => {
+// Helper function to detect period from text
+const detectPeriod = (text: string): { periodId?: string, newPeriodName?: string } => {
   const lowercaseText = text.toLowerCase();
-  const result = { periodId: undefined as string | undefined, isNewPeriod: false, periodName: undefined as string | undefined };
   
-  // First check for exact matches with existing periods
+  // Check for specific period mentions
   for (const period of mockPeriods) {
     if (lowercaseText.includes(period.name.toLowerCase())) {
-      result.periodId = period.id;
-      return result;
+      return { periodId: period.id };
     }
   }
   
-  // Check for numeric period references (1st, 2nd, 3rd, 4th, etc.)
-  const periodRegex = /(\d+)(st|nd|rd|th)?\s*period|period\s*(\d+)/i;
+  // Check for period numbers (1st period, 2nd period, etc.)
+  const periodRegex = /(\d+)(?:st|nd|rd|th)?\s*period/i;
   const match = lowercaseText.match(periodRegex);
   
-  if (match) {
-    // Extract the period number
-    const periodNumber = match[1] || match[3];
-    if (periodNumber) {
-      // Convert to number and find matching period
-      const num = parseInt(periodNumber, 10);
-      
-      // Look for a period with this number in the name
-      const periodMatch = mockPeriods.find(p => 
-        p.name.toLowerCase().includes(`period ${num}`) || 
-        p.name.toLowerCase().includes(`period${num}`)
-      );
-      
-      if (periodMatch) {
-        result.periodId = periodMatch.id;
-        return result;
-      } else {
-        // This is a new period that doesn't exist in our list
-        result.isNewPeriod = true;
-        result.periodName = `Period ${num}`;
-        return result;
-      }
+  if (match && match[1]) {
+    const periodNumber = parseInt(match[1], 10);
+    const periodName = `Period ${periodNumber}`;
+    
+    // Check if this period exists in mockPeriods
+    const existingPeriod = mockPeriods.find(p => 
+      p.name.toLowerCase() === periodName.toLowerCase());
+    
+    if (existingPeriod) {
+      return { periodId: existingPeriod.id };
+    } else {
+      // This is a new period
+      return { newPeriodName: periodName };
     }
   }
   
-  // Check for special periods like lunch, planning, etc.
-  const specialPeriods = [
-    { keywords: ['lunch', 'noon'], name: 'Lunch' },
-    { keywords: ['planning', 'prep time', 'preparation time'], name: 'Planning' },
-    { keywords: ['after school', 'afterschool'], name: 'After School' },
-    { keywords: ['morning', 'before school', 'homeroom'], name: 'Morning' }
-  ];
+  // Check for lunch, planning, etc.
+  if (lowercaseText.includes('lunch')) {
+    return { newPeriodName: 'Lunch' };
+  }
   
-  for (const special of specialPeriods) {
-    for (const keyword of special.keywords) {
-      if (lowercaseText.includes(keyword)) {
-        // Look for a period with this name
-        const periodMatch = mockPeriods.find(p => 
-          p.name.toLowerCase().includes(special.name.toLowerCase())
-        );
-        
-        if (periodMatch) {
-          result.periodId = periodMatch.id;
-          return result;
-        } else {
-          // This is a new period that doesn't exist in our list
-          result.isNewPeriod = true;
-          result.periodName = special.name;
-          return result;
-        }
-      }
-    }
+  if (lowercaseText.includes('planning') || lowercaseText.includes('prep')) {
+    return { newPeriodName: 'Planning' };
   }
   
   // No period detected
-  return result;
+  return {};
 };
 
 // Helper function to extract checklist items from text
-const extractChecklistItems = (text: string): string[] => {
-  const items: string[] = [];
+const extractChecklist = (text: string): ChecklistItem[] => {
+  const items: ChecklistItem[] = [];
   
-  // Split by common list indicators
-  const lines = text.split(/\n|;|,/).map(line => line.trim());
+  // Split by common indicators
+  const lines = text.split(/[\n,.;]/).map(line => line.trim()).filter(line => line.length > 0);
   
   for (const line of lines) {
-    // Skip empty lines or very short fragments
-    if (line.length < 3) continue;
-    
-    // Check for list-like patterns
-    if (
-      line.startsWith('-') || 
-      line.startsWith('•') || 
-      line.match(/^\d+\./) ||
-      line.startsWith('*')
-    ) {
-      // Remove the list marker and add to items
-      const cleanItem = line.replace(/^[-•*\d.]+\s*/, '').trim();
-      if (cleanItem.length > 0) {
-        items.push(cleanItem);
+    // Check for bulleted items
+    if (line.startsWith('-') || line.startsWith('•') || line.match(/^\d+\./)) {
+      const itemText = line.replace(/^[-•\d.]+\s*/, '').trim();
+      if (itemText) {
+        items.push({ text: itemText, isCompleted: false });
       }
-    } else if (
-      line.toLowerCase().includes('remember to') || 
-      line.toLowerCase().includes('don\'t forget to') ||
-      line.toLowerCase().includes('need to')
-    ) {
-      items.push(line);
     }
   }
   
   return items;
 };
 
-// Function to detect date and time from natural language
-const detectDateTime = (text: string) => {
-  const result = {
-    detectedDate: null as Date | null,
-    confidence: 0.5
-  };
-  
-  const normalizedText = text.toLowerCase();
-  
-  // Check for today/tomorrow/specific days
-  if (normalizedText.includes('today')) {
-    result.detectedDate = new Date();
-    result.confidence = 0.8;
-  } else if (normalizedText.includes('tomorrow')) {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    result.detectedDate = tomorrow;
-    result.confidence = 0.8;
-  } else if (normalizedText.includes('monday') || normalizedText.includes('mon')) {
-    result.detectedDate = getNextDayOfWeek(1);
-    result.confidence = 0.7;
-  } else if (normalizedText.includes('tuesday') || normalizedText.includes('tue')) {
-    result.detectedDate = getNextDayOfWeek(2);
-    result.confidence = 0.7;
-  } else if (normalizedText.includes('wednesday') || normalizedText.includes('wed')) {
-    result.detectedDate = getNextDayOfWeek(3);
-    result.confidence = 0.7;
-  } else if (normalizedText.includes('thursday') || normalizedText.includes('thu')) {
-    result.detectedDate = getNextDayOfWeek(4);
-    result.confidence = 0.7;
-  } else if (normalizedText.includes('friday') || normalizedText.includes('fri')) {
-    result.detectedDate = getNextDayOfWeek(5);
-    result.confidence = 0.7;
-  } else if (normalizedText.includes('saturday') || normalizedText.includes('sat')) {
-    result.detectedDate = getNextDayOfWeek(6);
-    result.confidence = 0.7;
-  } else if (normalizedText.includes('sunday') || normalizedText.includes('sun')) {
-    result.detectedDate = getNextDayOfWeek(0);
-    result.confidence = 0.7;
-  } else if (normalizedText.includes('next week')) {
-    const nextWeek = new Date();
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    result.detectedDate = nextWeek;
-    result.confidence = 0.7;
-  }
-  
-  return result;
-};
-
-// Helper function to get the next occurrence of a day of the week
-function getNextDayOfWeek(dayOfWeek: number): Date {
+// Helper function to detect due date from text
+const detectDueDate = (text: string): Date | undefined => {
+  const lowercaseText = text.toLowerCase();
   const today = new Date();
-  const currentDayOfWeek = today.getDay();
   
-  // Calculate days until the next occurrence of the specified day
-  let daysUntilNextDay = dayOfWeek - currentDayOfWeek;
-  if (daysUntilNextDay <= 0) {
-    // If the day has already occurred this week, get next week's occurrence
-    daysUntilNextDay += 7;
+  // Check for today
+  if (lowercaseText.includes('today')) {
+    return today;
   }
   
-  const nextDay = new Date();
-  nextDay.setDate(today.getDate() + daysUntilNextDay);
-  return nextDay;
-}
-
-// Generate a meaningful title from the transcript
-const generateTitle = (transcript: string): string => {
-  // If transcript is empty, return a default title
-  if (!transcript.trim()) {
-    return "New Voice Reminder";
+  // Check for tomorrow
+  if (lowercaseText.includes('tomorrow')) {
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    return tomorrow;
   }
   
-  // Try to use the first sentence as the title
-  const firstSentence = transcript.split(/[.!?]/)[0].trim();
-  
-  // If the first sentence is too long, truncate it
-  if (firstSentence.length > 50) {
-    return firstSentence.substring(0, 47) + "...";
+  // Check for next week
+  if (lowercaseText.includes('next week')) {
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+    return nextWeek;
   }
   
-  return firstSentence;
+  // Default to tomorrow if no date detected
+  const defaultDate = new Date(today);
+  defaultDate.setDate(today.getDate() + 1);
+  return defaultDate;
 };
 
 // Main function to process voice input
-export const processVoiceInput = (transcript: string): VoiceProcessingResult => {
-  debugLog("Processing voice input:", transcript);
-  
+export const processVoiceInput = (text: string): VoiceProcessingResult => {
   // Detect priority
-  const priority = detectPriority(transcript);
+  const priority = detectPriority(text);
   
   // Detect category
-  const category = detectCategory(transcript);
-  
-  // Generate a title
-  const title = generateTitle(transcript);
+  const category = detectCategory(text);
   
   // Detect period
-  const periodResult = detectPeriod(transcript);
-  
-  // Detect date and time
-  const dateTimeResult = detectDateTime(transcript);
+  const periodResult = detectPeriod(text);
   
   // Extract checklist items
-  const checklistItemTexts = extractChecklistItems(transcript);
-  const checklistItems: ChecklistItem[] = checklistItemTexts.map(text => ({
-    text,
-    isCompleted: false,
-    id: Math.random().toString(36).substring(2, 9)
-  }));
+  const checklist = extractChecklist(text);
   
-  // Determine due date with fallback to today
-  let dueDate = new Date();
+  // Detect due date
+  const dueDate = detectDueDate(text);
   
-  // If we detected a date, use that
-  if (dateTimeResult.detectedDate) {
-    dueDate = dateTimeResult.detectedDate;
-  } else {
-    // Otherwise, set it to tomorrow if it's after 2pm
-    const now = new Date();
-    if (now.getHours() >= 14) {
-      dueDate.setDate(dueDate.getDate() + 1);
-    }
-  }
+  // Generate a title from the first words
+  const title = text.split(/[.!?]/)[0].trim().substring(0, 50);
   
-  // If we have a period ID, adjust the time based on that period
-  if (periodResult.periodId) {
-    const period = mockPeriods.find(p => p.id === periodResult.periodId);
-    if (period && period.startTime) {
-      // Parse time components
-      const timeParts = period.startTime.split(':');
-      const hourPart = timeParts[0];
-      const minutePart = timeParts[1].split(' ')[0];
-      
-      const hours = parseInt(hourPart, 10);
-      const minutes = parseInt(minutePart, 10);
-      
-      // Adjust for AM/PM if present
-      let adjustedHours = hours;
-      if (period.startTime.toLowerCase().includes('pm') && hours < 12) {
-        adjustedHours += 12;
-      } else if (period.startTime.toLowerCase().includes('am') && hours === 12) {
-        adjustedHours = 0;
-      }
-      
-      // Set the time on the due date
-      dueDate.setHours(adjustedHours, minutes, 0, 0);
-    }
-  }
-  
-  debugLog("Detection results:", {
-    priority,
-    category,
-    period: periodResult,
-    dueDate: dueDate.toISOString(),
-    checklistItems: checklistItems.length
-  });
-  
-  // Create the reminder input
-  const reminderInput = {
+  // Create reminder input object
+  const reminderInput: CreateReminderInput = {
     title,
-    description: transcript,
+    description: text,
     priority,
     category,
     periodId: periodResult.periodId,
     dueDate,
-    checklist: checklistItems,
-    voiceTranscript: transcript
+    checklist,
+    voiceTranscript: text
   };
   
-  // Add detected new period information if applicable
-  if (periodResult.isNewPeriod && periodResult.periodName) {
+  // Add detected new period if applicable
+  if (periodResult.newPeriodName) {
     reminderInput.detectedNewPeriod = {
-      name: periodResult.periodName,
+      name: periodResult.newPeriodName,
       isNew: true
     };
   }
   
-  // Return the processing result
-  return {
+  // Create the processing result
+  const result: VoiceProcessingResult = {
     reminder: reminderInput,
     confidence: 0.8,
     detectedEntities: {
       priority,
       category,
       period: periodResult.periodId,
-      date: dateTimeResult.detectedDate,
-      newPeriod: periodResult.isNewPeriod ? periodResult.periodName : undefined,
-      checklist: checklistItemTexts
+      date: dueDate,
+      newPeriod: periodResult.newPeriodName,
+      checklist: checklist.map(item => item.text)
     }
   };
+  
+  return result;
 };

@@ -6,6 +6,18 @@
 
 import useSpeechRecognition from './useSpeechRecognition';
 import type { UseSpeechRecognitionReturn } from './types';
+import { 
+  isPwaMode, 
+  isIOSDevice,
+  isAndroidDevice,
+  isMobileDevice,
+  prewarmSpeechRecognition, 
+  getPrewarmedSpeechRecognition, 
+  forceAudioPermissionCheck,
+  requestMicrophoneAccess,
+  releaseMicrophoneStreams,
+  ensureActiveAudioStream
+} from './utils';
 
 export type { UseSpeechRecognitionReturn };
 export { useSpeechRecognition };
@@ -19,5 +31,8 @@ export {
   isMobileDevice,
   prewarmSpeechRecognition, 
   getPrewarmedSpeechRecognition, 
-  forceAudioPermissionCheck 
-} from './utils';
+  forceAudioPermissionCheck,
+  requestMicrophoneAccess,
+  releaseMicrophoneStreams,
+  ensureActiveAudioStream
+};

@@ -7,12 +7,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { 
-  requestMicrophoneAccess, 
-  releaseMicrophoneStreams, 
-  isPWAMode, 
-  ensureActiveAudioStream, 
-  forceAudioPermissionCheck 
-} from "@/utils/pwaUtils";
+  isPwaMode, 
+  isIOSDevice,
+  forceAudioPermissionCheck,
+  requestMicrophoneAccess,
+  releaseMicrophoneStreams,
+  ensureActiveAudioStream
+} from "@/hooks/speech-recognition/utils";
 import { createDebugLogger } from "@/utils/debugUtils";
 
 const debugLog = createDebugLogger("VoiceRecorderView");
@@ -56,7 +57,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
   }, [recognitionError]);
   
   useEffect(() => {
-    const pwaStatus = isPWAMode();
+    const pwaStatus = isPwaMode();
     setIsPWA(pwaStatus);
     if (pwaStatus) {
       addDebugInfo("Running as PWA in standalone mode");

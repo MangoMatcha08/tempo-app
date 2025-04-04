@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -36,7 +35,6 @@ const useVoiceRecorderModalState = (onOpenChange: (open: boolean) => void) => {
   const [periodId, setPeriodId] = useState<string>("none");
   const { toast } = useToast();
   
-  // Reset state when modal opens
   const resetState = () => {
     setTitle("");
     setTranscript("");
@@ -53,24 +51,19 @@ const useVoiceRecorderModalState = (onOpenChange: (open: boolean) => void) => {
     setIsProcessing(true);
     
     try {
-      // Process the transcript with NLP
       debugLog(`Processing transcript: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
       const result = processVoiceInput(text);
       debugLog("NLP processing result:", result);
       
-      // Generate title from result or default to text snippet
       const generatedTitle = result.reminder.title || text.substring(0, 40) + (text.length > 40 ? "..." : "");
       setTitle(generatedTitle);
       
-      // Set detected priority, category and period
       setPriority(result.reminder.priority || ReminderPriority.MEDIUM);
       setCategory(result.reminder.category || ReminderCategory.TASK);
       setPeriodId(result.reminder.periodId || "none");
       
-      // Store the full processing result
       setProcessingResult(result);
       
-      // Switch to confirmation view
       setView("confirm");
       setIsProcessing(false);
       
@@ -86,8 +79,7 @@ const useVoiceRecorderModalState = (onOpenChange: (open: boolean) => void) => {
       
       toast({
         title: "Processing Error",
-        description: "There was an error processing your voice input. Please try again.",
-        variant: "destructive"
+        description: "There was an error processing your voice input. Please try again."
       });
     }
   };
@@ -270,8 +262,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
       
       toast({
         title: "Save Error",
-        description: "There was an error saving your reminder. Please try again.",
-        variant: "destructive"
+        description: "There was an error saving your reminder. Please try again."
       });
     }
   };

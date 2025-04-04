@@ -1,4 +1,3 @@
-
 import { createDebugLogger } from '@/utils/debugUtils';
 
 const debugLog = createDebugLogger("SpeechRecognitionUtils");
@@ -104,6 +103,85 @@ export async function forceAudioPermissionCheck(): Promise<boolean> {
     return true;
   } catch (error) {
     debugLog(`Audio permission pre-check failed: ${error}`);
+    return false;
+  }
+}
+
+/**
+ * Request microphone access and return whether it was granted
+ */
+export async function requestMicrophoneAccess(): Promise<boolean> {
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      debugLog("MediaDevices API not supported");
+      return false;
+    }
+    
+    debugLog("Requesting microphone access");
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    debugLog("Microphone access granted");
+    
+    // Store the stream for later use
+    const existingStreams = (window as any).microphoneStreams || [];
+    existingStreams.push(stream);
+    (window as any).microphoneStreams = existingStreams;
+    
+    return true;
+  } catch (error) {
+    debugLog(`Microphone access request failed: ${error}`);
+    return false;
+  }
+}
+
+/**
+ * Release all microphone streams
+ */
+export function releaseMicrophoneStreams(): void {
+  try {
+    const streams = (window as any).microphoneStreams || [];
+    
+    streams.forEach((stream: MediaStream) => {
+      if (stream && stream.getTracks) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    });
+    
+    (window as any).microphoneStreams = [];
+    debugLog("Released all microphone streams");
+  } catch (error) {
+    debugLog(`Error releasing microphone streams: ${error}`);
+  }
+}
+
+/**
+ * Ensure there is an active audio stream
+ */
+export async function ensureActiveAudioStream(fallbackStream: MediaStream | null): Promise<boolean> {
+  try {
+    // Check if we already have active streams
+    const existingStreams = (window as any).microphoneStreams || [];
+    
+    // Check if any of the existing streams are active
+    for (const stream of existingStreams) {
+      if (stream && stream.active && stream.getAudioTracks().some(track => track.readyState === "live")) {
+        debugLog("Found existing active audio stream");
+        return true;
+      }
+    }
+    
+    // If we have a fallback stream and it's active, use it
+    if (fallbackStream && fallbackStream.active && fallbackStream.getAudioTracks().some(track => track.readyState === "live")) {
+      debugLog("Using fallback audio stream");
+      existingStreams.push(fallbackStream);
+      (window as any).microphoneStreams = existingStreams;
+      return true;
+    }
+    
+    // Otherwise, request a new stream
+    debugLog("No active audio stream found, requesting new one");
+    return await requestMicrophoneAccess();
+  } catch (error) {
+    debugLog(`Error ensuring active audio stream: ${error}`);
     return false;
   }
 }

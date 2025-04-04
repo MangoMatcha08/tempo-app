@@ -4,7 +4,7 @@ import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { initializeFirebase, messaging, firestore, vapidKey } from './firebase';
 import { defaultNotificationSettings } from './types';
 import { createDebugLogger } from '@/utils/debugUtils';
-import { isIOSDevice, isPwaMode, isAndroidDevice } from '@/hooks/speech-recognition';
+import { isIOSDevice, isPwaMode, isAndroidDevice } from '@/hooks/speech-recognition/utils';
 
 const debugLog = createDebugLogger("MessagingService");
 
