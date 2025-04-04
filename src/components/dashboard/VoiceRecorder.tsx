@@ -9,9 +9,13 @@ const debugLog = createDebugLogger("VoiceRecorder");
 
 interface VoiceRecorderProps {
   onTranscriptComplete: (transcript: string) => void;
+  isProcessing?: boolean;
 }
 
-const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) => {
+const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ 
+  onTranscriptComplete, 
+  isProcessing = false 
+}) => {
   const {
     transcript,
     interimTranscript,
@@ -205,7 +209,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) =
             variant={isListening ? "destructive" : "default"}
             size="lg"
             className="rounded-full h-14 w-14 p-0"
-            disabled={processingComplete}
+            disabled={processingComplete || isProcessing}
           >
             {isListening ? (
               <Square className="h-6 w-6" />
@@ -224,6 +228,12 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscriptComplete }) =
         {processingComplete && (
           <p className="text-xs text-green-600 mt-4">
             Processing transcript...
+          </p>
+        )}
+        
+        {isProcessing && (
+          <p className="text-xs text-blue-600 mt-4">
+            Analyzing your voice note...
           </p>
         )}
         

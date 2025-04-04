@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -111,14 +112,14 @@ const RefactoredVoiceRecorderModal: React.FC<RefactoredVoiceRecorderModalProps> 
   };
 
   // Handle saving the reminder
-  const handleSaveReminder = async (reminderData: any) => {
-    if (isSaving) return;
+  const handleSaveReminder = async () => {
+    if (isSaving || !processedResult) return;
     
     setIsSaving(true);
-    debugLog("Saving reminder:", reminderData);
+    debugLog("Saving reminder:", processedResult.reminder);
     
     try {
-      const savedReminder = await onSave(reminderData);
+      const savedReminder = await onSave(processedResult.reminder);
       debugLog("Reminder saved successfully:", savedReminder);
       
       if (onReminderCreated) {
@@ -185,7 +186,7 @@ const RefactoredVoiceRecorderModal: React.FC<RefactoredVoiceRecorderModalProps> 
               <VoiceReminderConfirmView
                 transcript={transcript}
                 reminderInput={processedResult.reminder}
-                onSave={() => handleSaveReminder(processedResult.reminder)}
+                onSave={handleSaveReminder}
                 isSaving={isSaving}
               />
             )}

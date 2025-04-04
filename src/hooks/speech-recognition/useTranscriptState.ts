@@ -1,96 +1,84 @@
-import { useState, useCallback, useRef } from 'react';
+
+import { useState, useRef, useCallback } from 'react';
 import { createDebugLogger } from '@/utils/debugUtils';
 
 const debugLog = createDebugLogger("TranscriptState");
 
 interface UseTranscriptStateProps {
-  isPWA?: boolean;
-  isIOS?: boolean;
+  isPWA: boolean;
+  isIOS: boolean;
 }
 
-export interface UseTranscriptStateReturn {
-  transcript: string;
-  interimTranscript: string;
-  resetTranscriptState: () => void;
-  processSpeechResults: (event: any) => void;
-  setTranscript: (text: string) => void;
-}
-
-export const useTranscriptState = ({ isPWA, isIOS }: UseTranscriptStateProps): UseTranscriptStateReturn => {
+export const useTranscriptState = ({ isPWA, isIOS }: UseTranscriptStateProps) => {
   const [transcript, setTranscript] = useState<string>('');
   const [interimTranscript, setInterimTranscript] = useState<string>('');
-  const lastProcessedResultRef = useRef<string>('');
-  const duplicateCountRef = useRef<number>(0);
-
-  // Reset all transcript states
+  
+  // Refs to track transcript state between renders
+  const finalTranscriptRef = useRef<string>('');
+  const interimTranscriptRef = useRef<string>('');
+  
+  // Reset transcript state
   const resetTranscriptState = useCallback(() => {
     setTranscript('');
     setInterimTranscript('');
-    lastProcessedResultRef.current = '';
-    duplicateCountRef.current = 0;
+    finalTranscriptRef.current = '';
+    interimTranscriptRef.current = '';
     debugLog("Transcript state reset");
   }, []);
-
+  
   // Process speech recognition results
   const processSpeechResults = useCallback((event: any) => {
-    let interimText = '';
-    let finalText = '';
-
-    // Iterate through results and categorize as interim or final
-    for (let i = 0; i < event.results.length; i++) {
-      const result = event.results[i];
+    let finalTranscript = finalTranscriptRef.current;
+    let interimTranscript = '';
+    
+    // Process results
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcriptResult = event.results[i][0].transcript;
       
-      if (result.isFinal) {
-        // Check for repeated words (common issue in iOS)
-        const currentText = result[0].transcript.trim();
-        
-        // Skip if this is a duplicate of the last processed result
-        if (currentText === lastProcessedResultRef.current) {
-          duplicateCountRef.current++;
-          debugLog(`Skipping duplicate result #${duplicateCountRef.current}: "${currentText}"`);
-          continue;
-        }
-        
-        // Store this result to check for duplicates
-        lastProcessedResultRef.current = currentText;
-        duplicateCountRef.current = 0;
-        
-        finalText += currentText;
-        debugLog(`Final result [${i}]: "${currentText}"`);
+      if (event.results[i].isFinal) {
+        // Add to final transcript if result is final
+        finalTranscript += ' ' + transcriptResult;
+        debugLog(`Final result: "${transcriptResult}"`);
       } else {
-        interimText += result[0].transcript;
-        debugLog(`Interim result [${i}]: "${result[0].transcript}"`);
+        // Accumulate interim results
+        interimTranscript += transcriptResult;
+        debugLog(`Interim result: "${transcriptResult}"`);
       }
     }
-
-    // Update interim transcript if needed
-    if (interimText !== interimTranscript) {
-      setInterimTranscript(interimText);
-    }
-
-    // If we have final text, append it to the transcript
-    if (finalText) {
-      setTranscript(prev => {
-        // Add a space only if we already have content
-        const separator = prev.length > 0 ? ' ' : '';
-        const newTranscript = prev + separator + finalText.trim();
-        const trimmedTranscript = newTranscript.trim();
-        debugLog(`Updated transcript: "${trimmedTranscript.substring(0, 30)}${trimmedTranscript.length > 30 ? '...' : ''}"`);
-        return trimmedTranscript;
-      });
+    
+    // Clean up and update refs
+    finalTranscriptRef.current = finalTranscript.trim();
+    interimTranscriptRef.current = interimTranscript.trim();
+    
+    // Special handling for iOS PWA mode
+    if (isPWA && isIOS) {
+      // Update state immediately to improve responsiveness
+      if (finalTranscript) {
+        setTranscript(finalTranscript);
+      }
+      if (interimTranscript) {
+        setInterimTranscript(interimTranscript);
+      }
+    } else {
+      // For other platforms, only update state if there's a change
+      if (finalTranscript !== transcript && finalTranscript) {
+        setTranscript(finalTranscript);
+      }
       
-      // Apple devices sometimes don't clear interim transcript automatically
-      if (isIOS) {
-        setInterimTranscript('');
+      if (interimTranscript !== interimTranscript && interimTranscript) {
+        setInterimTranscript(interimTranscript);
       }
     }
-  }, [interimTranscript, isIOS]);
-
+  }, [transcript, interimTranscript, isPWA, isIOS]);
+  
   return {
     transcript,
     interimTranscript,
+    setTranscript,
+    setInterimTranscript,
+    finalTranscriptRef,
+    interimTranscriptRef,
     resetTranscriptState,
-    processSpeechResults,
-    setTranscript
+    processSpeechResults
   };
 };

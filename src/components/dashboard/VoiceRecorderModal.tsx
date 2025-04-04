@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -13,7 +14,10 @@ import { useToast } from "@/hooks/use-toast";
 import { Reminder, ReminderPriority, ReminderCategory } from "@/types/reminderTypes";
 import VoiceRecorderView from "./voice-recorder/VoiceRecorderView";
 import ModalFooterActions from "./voice-recorder/ModalFooterActions";
-import { isPWAMode } from "@/utils/pwaUtils";
+import { processVoiceInput } from "@/services/nlp";
+import { createDebugLogger } from "@/utils/debugUtils";
+
+const debugLog = createDebugLogger("VoiceRecorderModal");
 
 interface VoiceRecorderModalProps {
   open: boolean;
@@ -31,7 +35,8 @@ const useVoiceRecorderModalState = (onOpenChange: (open: boolean) => void) => {
   const [category, setCategory] = useState<ReminderCategory>(ReminderCategory.TASK);
   const [periodId, setPeriodId] = useState<string>("none");
   const { toast } = useToast();
-
+  
+  // Reset state when modal opens
   const resetState = () => {
     setTitle("");
     setTranscript("");
@@ -42,17 +47,39 @@ const useVoiceRecorderModalState = (onOpenChange: (open: boolean) => void) => {
     setCategory(ReminderCategory.TASK);
     setPeriodId("none");
   };
-
+  
   const handleTranscriptComplete = (text: string) => {
     setTranscript(text);
     setIsProcessing(true);
     
     try {
-      const generatedTitle = text.substring(0, 40) + (text.length > 40 ? "..." : "");
+      // Process the transcript with NLP
+      debugLog(`Processing transcript: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
+      const result = processVoiceInput(text);
+      debugLog("NLP processing result:", result);
+      
+      // Generate title from result or default to text snippet
+      const generatedTitle = result.reminder.title || text.substring(0, 40) + (text.length > 40 ? "..." : "");
       setTitle(generatedTitle);
       
+      // Set detected priority, category and period
+      setPriority(result.reminder.priority || ReminderPriority.MEDIUM);
+      setCategory(result.reminder.category || ReminderCategory.TASK);
+      setPeriodId(result.reminder.periodId || "none");
+      
+      // Store the full processing result
+      setProcessingResult(result);
+      
+      // Switch to confirmation view
       setView("confirm");
       setIsProcessing(false);
+      
+      debugLog("Switched to confirmation view with detected properties", {
+        title: generatedTitle,
+        priority: result.reminder.priority,
+        category: result.reminder.category,
+        periodId: result.reminder.periodId
+      });
     } catch (error) {
       console.error('Error processing voice input:', error);
       setIsProcessing(false);
@@ -64,7 +91,7 @@ const useVoiceRecorderModalState = (onOpenChange: (open: boolean) => void) => {
       });
     }
   };
-
+  
   const handleCancel = () => {
     resetState();
     onOpenChange(false);
@@ -73,14 +100,13 @@ const useVoiceRecorderModalState = (onOpenChange: (open: boolean) => void) => {
   const handleGoBack = () => {
     setView("record");
   };
-
+  
   return {
     title,
     setTitle,
     transcript,
     isProcessing,
     view,
-    setView,
     processingResult,
     priority,
     setPriority,
@@ -117,38 +143,37 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   const [isPWA, setIsPWA] = useState(false);
   
   useEffect(() => {
-    const isStandalone = 
-      window.matchMedia('(display-mode: standalone)').matches || 
-      isPWAMode();
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                         (window.navigator as any).standalone === true;
     
     setIsPWA(isStandalone);
-    console.log("VoiceRecorderModal running as PWA:", isStandalone);
+    debugLog("VoiceRecorderModal running as PWA:", isStandalone);
   }, []);
   
   useEffect(() => {
     if (open && !lastOpenStateRef.current) {
-      console.log("Voice modal opened, checking microphone access");
+      debugLog("Voice modal opened, checking microphone access");
       
       const shouldPreRequest = isPWA || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
       if (shouldPreRequest && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        console.log("Pre-checking microphone permission");
+        debugLog("Pre-checking microphone permission");
         navigator.mediaDevices.getUserMedia({ audio: true })
           .then((stream) => {
-            console.log("Microphone permission pre-granted");
+            debugLog("Microphone permission pre-granted");
             if (isPWA) {
               (window as any).microphoneStream = stream;
-              console.log("Stored microphone stream for PWA");
+              debugLog("Stored microphone stream for PWA");
             } else {
               stream.getTracks().forEach(track => track.stop());
             }
           })
           .catch(err => {
-            console.log("Microphone permission not pre-granted:", err.name);
+            debugLog("Microphone permission not pre-granted:", err.name);
           });
       }
       
-      console.log("Modal opened, resetting state");
+      debugLog("Modal opened, resetting state");
       resetState();
     }
     lastOpenStateRef.current = open;
@@ -156,7 +181,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   
   useEffect(() => {
     if (view === "confirm" && dialogContentRef.current) {
-      console.log("View changed to confirm, scrolling to bottom");
+      debugLog("View changed to confirm, scrolling to bottom");
       setTimeout(() => {
         if (dialogContentRef.current) {
           dialogContentRef.current.scrollTop = dialogContentRef.current.scrollHeight;
@@ -166,11 +191,11 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
   }, [view, processingResult]);
   
   useEffect(() => {
-    console.log("Current view:", view, "transcript length:", transcript ? transcript.length : 0, "isPWA:", isPWA);
+    debugLog("Current view:", view, "transcript length:", transcript ? transcript.length : 0, "isPWA:", isPWA);
   }, [view, transcript, isPWA]);
   
   useEffect(() => {
-    console.log("Processing state:", isProcessing, "in view:", view);
+    debugLog("Processing state:", isProcessing, "in view:", view);
   }, [isProcessing, view]);
   
   useEffect(() => {
@@ -179,17 +204,17 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
         const tracks = (window as any).microphoneStream.getTracks();
         tracks.forEach((track: MediaStreamTrack) => track.stop());
         (window as any).microphoneStream = null;
-        console.log("Microphone stream released on modal close");
+        debugLog("Microphone stream released on modal close");
       }
     };
   }, []);
   
   const enhancedTranscriptHandler = (text: string) => {
-    console.log(`Transcript complete called with text of length: ${text.length}`);
-    console.log(`First 30 chars: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"}`);
+    debugLog(`Transcript complete called with text of length: ${text.length}`);
+    debugLog(`First 30 chars: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
     
     if (isPWA) {
-      console.log("PWA mode detected, adding slight delay before processing");
+      debugLog("PWA mode detected, adding slight delay before processing");
       setTimeout(() => {
         handleTranscriptComplete(text);
       }, 200);
@@ -205,7 +230,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
     }
     
     try {
-      console.log("Creating reminder with:", {
+      debugLog("Creating reminder with:", {
         title,
         priority,
         category,
@@ -225,10 +250,10 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
       };
       
       const newReminder = createReminder(reminderInput);
-      console.log("Created reminder:", newReminder);
+      debugLog("Created reminder:", newReminder);
       
       if (onReminderCreated) {
-        console.log("Calling onReminderCreated with new reminder");
+        debugLog("Calling onReminderCreated with new reminder");
         onReminderCreated(newReminder);
       } else {
         console.warn("onReminderCreated callback is not provided");
@@ -255,7 +280,7 @@ const VoiceRecorderModal = ({ open, onOpenChange, onReminderCreated }: VoiceReco
     <Dialog 
       open={open} 
       onOpenChange={(newOpenState) => {
-        console.log("Dialog open state changing to:", newOpenState, "current view:", view);
+        debugLog("Dialog open state changing to:", newOpenState, "current view:", view);
         if (!newOpenState && view === "confirm") {
           const shouldClose = window.confirm("Are you sure you want to discard this reminder?");
           if (shouldClose) {

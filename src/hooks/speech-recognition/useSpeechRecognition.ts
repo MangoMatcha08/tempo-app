@@ -1,15 +1,17 @@
+
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { isPWAMode, isIOSDevice, isMobileDevice } from '@/utils/pwaUtils';
+import { isPwaMode, isIOSDevice, isMobileDevice } from './utils';
 import { useTranscriptState } from './useTranscriptState';
 import { useSpeechRecognitionSetup } from './useSpeechRecognitionSetup';
 import { createDebugLogger } from '@/utils/debugUtils';
+import { UseSpeechRecognitionReturn } from './types';
 
 const debugLog = createDebugLogger("useSpeechRecognition");
 
 // Main hook for speech recognition
 const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   // Environment detection
-  const isPWA = isPWAMode();
+  const isPWA = isPwaMode();
   const isIOS = isIOSDevice();
   const isMobile = isMobileDevice();
   

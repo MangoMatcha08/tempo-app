@@ -11,3 +11,9 @@ export interface UseSpeechRecognitionReturn {
   isPWA: boolean;
   isMobile: boolean;
 }
+
+export interface SpeechRecognitionConfig {
+  onError?: (error: string) => void;
+  isListening?: boolean;
+  setIsListening?: (listening: boolean) => void;
+}

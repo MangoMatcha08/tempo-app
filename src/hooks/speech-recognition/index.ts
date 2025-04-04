@@ -14,7 +14,9 @@ export default useSpeechRecognition;
 // Export utility functions to support PWA and iOS functionality
 export { 
   isPwaMode, 
-  isIOSDevice, 
+  isIOSDevice,
+  isAndroidDevice,
+  isMobileDevice,
   prewarmSpeechRecognition, 
   getPrewarmedSpeechRecognition, 
   forceAudioPermissionCheck 

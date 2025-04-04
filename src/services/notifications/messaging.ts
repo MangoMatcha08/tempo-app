@@ -1,8 +1,10 @@
+
 import { getToken, onMessage } from 'firebase/messaging';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
-import { initializeFirebase, messaging, firestore, vapidKey, isIOSDevice, isAndroidDevice, isPWAMode } from './firebase';
+import { initializeFirebase, messaging, firestore, vapidKey } from './firebase';
 import { defaultNotificationSettings } from './types';
 import { createDebugLogger } from '@/utils/debugUtils';
+import { isIOSDevice, isPwaMode, isAndroidDevice } from '@/hooks/speech-recognition';
 
 const debugLog = createDebugLogger("MessagingService");
 
@@ -19,7 +21,7 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
     
     // Check if we're on a mobile device
     const isMobile = isIOSDevice() || isAndroidDevice();
-    const isPWA = isPWAMode();
+    const isPWA = isPwaMode();
     debugLog('Is mobile device:', isMobile, 'Is PWA:', isPWA, 'Is iOS:', isIOSDevice(), 'Is Android:', isAndroidDevice());
     
     // Get service worker registration
@@ -49,7 +51,7 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
     
     if (permission === 'granted') {
       try {
-        // Fix line 23 by correctly initializing the options for getToken
+        // Fix by correctly initializing the options for getToken
         const tokenOptions = {
           vapidKey,
           serviceWorkerRegistration: swRegistration
@@ -74,7 +76,7 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
         debugLog(`Error getting FCM token: ${tokenError}`);
         
         // For iOS PWA, we might need to use a different approach
-        if (isIOSDevice() && isPWAMode()) {
+        if (isIOSDevice() && isPwaMode()) {
           debugLog('iOS PWA detected, using alternative notification approach');
           
           // For iOS PWA, we'll use the native Notification API directly

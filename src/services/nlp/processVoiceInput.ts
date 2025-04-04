@@ -1,42 +1,271 @@
-import { VoiceProcessingResult, CreateReminderInput, ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
-import { detectPriority } from './detectPriority';
-import { detectCategory } from './detectCategory';
-import { detectPeriod } from './detectPeriod';
-import { extractChecklistItems } from './extractChecklistItems';
-import { detectDateTime } from './detectDateTime';
-import { mockPeriods, getPeriodByTime } from '@/utils/reminderUtils';
-import { generateMeaningfulTitle } from '@/utils/voiceReminderUtils';
+import { VoiceProcessingResult, ReminderPriority, ReminderCategory, ChecklistItem } from '@/types/reminderTypes';
+import { mockPeriods } from '@/utils/reminderUtils';
+import { createDebugLogger } from '@/utils/debugUtils';
 
-// This function handles moving from a period ID to a due date with the proper time
-const setPeriodBasedDueDate = (periodId: string | undefined, inputDate: Date): Date => {
-  if (!periodId) return inputDate;
+const debugLog = createDebugLogger("NLP");
+
+// Helper function to detect priority from text
+const detectPriority = (text: string): ReminderPriority => {
+  const lowercaseText = text.toLowerCase();
   
-  const selectedPeriod = mockPeriods.find(p => p.id === periodId);
-  if (!selectedPeriod || !selectedPeriod.startTime) return inputDate;
-  
-  // Parse the start time with AM/PM
-  const startTimeStr = selectedPeriod.startTime;
-  const startParts = startTimeStr.split(' ');
-  const [startHour, startMin] = startParts[0].split(':').map(Number);
-  const startPeriod = startParts[1]; // 'AM' or 'PM'
-  
-  // Convert to 24-hour format
-  let hour24 = startHour;
-  if (startPeriod === 'PM' && startHour !== 12) {
-    hour24 += 12;
-  } else if (startPeriod === 'AM' && startHour === 12) {
-    hour24 = 0;
+  // High priority indicators
+  if (
+    lowercaseText.includes('urgent') || 
+    lowercaseText.includes('asap') || 
+    lowercaseText.includes('high priority') ||
+    lowercaseText.includes('important') ||
+    lowercaseText.includes('critical') ||
+    lowercaseText.includes('immediately')
+  ) {
+    return ReminderPriority.HIGH;
   }
   
-  // Create a new date object with the correct time
-  const dueDate = new Date(inputDate);
-  dueDate.setHours(hour24, startMin, 0, 0);
-  return dueDate;
+  // Low priority indicators
+  if (
+    lowercaseText.includes('low priority') || 
+    lowercaseText.includes('whenever') || 
+    lowercaseText.includes('not urgent') ||
+    lowercaseText.includes('when you have time') ||
+    lowercaseText.includes('eventually')
+  ) {
+    return ReminderPriority.LOW;
+  }
+  
+  // Default to medium if no specific priority detected
+  return ReminderPriority.MEDIUM;
+};
+
+// Helper function to detect category from text
+const detectCategory = (text: string): ReminderCategory => {
+  const lowercaseText = text.toLowerCase();
+  
+  if (lowercaseText.includes('meeting') || lowercaseText.includes('conference')) {
+    return ReminderCategory.MEETING;
+  }
+  
+  if (lowercaseText.includes('deadline') || lowercaseText.includes('due')) {
+    return ReminderCategory.DEADLINE;
+  }
+  
+  if (lowercaseText.includes('prepare') || lowercaseText.includes('preparation') || lowercaseText.includes('lesson plan')) {
+    return ReminderCategory.PREPARATION;
+  }
+  
+  if (lowercaseText.includes('grade') || lowercaseText.includes('grading') || lowercaseText.includes('assessment')) {
+    return ReminderCategory.GRADING;
+  }
+  
+  if (
+    lowercaseText.includes('email') || 
+    lowercaseText.includes('call') || 
+    lowercaseText.includes('contact') ||
+    lowercaseText.includes('parent') ||
+    lowercaseText.includes('message')
+  ) {
+    return ReminderCategory.COMMUNICATION;
+  }
+  
+  // Default to task if no specific category detected
+  return ReminderCategory.TASK;
+};
+
+// Helper function to detect period from text with improved robustness
+const detectPeriod = (text: string): { periodId?: string, isNewPeriod: boolean, periodName?: string } => {
+  const lowercaseText = text.toLowerCase();
+  const result = { periodId: undefined as string | undefined, isNewPeriod: false, periodName: undefined as string | undefined };
+  
+  // First check for exact matches with existing periods
+  for (const period of mockPeriods) {
+    if (lowercaseText.includes(period.name.toLowerCase())) {
+      result.periodId = period.id;
+      return result;
+    }
+  }
+  
+  // Check for numeric period references (1st, 2nd, 3rd, 4th, etc.)
+  const periodRegex = /(\d+)(st|nd|rd|th)?\s*period|period\s*(\d+)/i;
+  const match = lowercaseText.match(periodRegex);
+  
+  if (match) {
+    // Extract the period number
+    const periodNumber = match[1] || match[3];
+    if (periodNumber) {
+      // Convert to number and find matching period
+      const num = parseInt(periodNumber, 10);
+      
+      // Look for a period with this number in the name
+      const periodMatch = mockPeriods.find(p => 
+        p.name.toLowerCase().includes(`period ${num}`) || 
+        p.name.toLowerCase().includes(`period${num}`)
+      );
+      
+      if (periodMatch) {
+        result.periodId = periodMatch.id;
+        return result;
+      } else {
+        // This is a new period that doesn't exist in our list
+        result.isNewPeriod = true;
+        result.periodName = `Period ${num}`;
+        return result;
+      }
+    }
+  }
+  
+  // Check for special periods like lunch, planning, etc.
+  const specialPeriods = [
+    { keywords: ['lunch', 'noon'], name: 'Lunch' },
+    { keywords: ['planning', 'prep time', 'preparation time'], name: 'Planning' },
+    { keywords: ['after school', 'afterschool'], name: 'After School' },
+    { keywords: ['morning', 'before school', 'homeroom'], name: 'Morning' }
+  ];
+  
+  for (const special of specialPeriods) {
+    for (const keyword of special.keywords) {
+      if (lowercaseText.includes(keyword)) {
+        // Look for a period with this name
+        const periodMatch = mockPeriods.find(p => 
+          p.name.toLowerCase().includes(special.name.toLowerCase())
+        );
+        
+        if (periodMatch) {
+          result.periodId = periodMatch.id;
+          return result;
+        } else {
+          // This is a new period that doesn't exist in our list
+          result.isNewPeriod = true;
+          result.periodName = special.name;
+          return result;
+        }
+      }
+    }
+  }
+  
+  // No period detected
+  return result;
+};
+
+// Helper function to extract checklist items from text
+const extractChecklistItems = (text: string): string[] => {
+  const items: string[] = [];
+  
+  // Split by common list indicators
+  const lines = text.split(/\n|;|,/).map(line => line.trim());
+  
+  for (const line of lines) {
+    // Skip empty lines or very short fragments
+    if (line.length < 3) continue;
+    
+    // Check for list-like patterns
+    if (
+      line.startsWith('-') || 
+      line.startsWith('•') || 
+      line.match(/^\d+\./) ||
+      line.startsWith('*')
+    ) {
+      // Remove the list marker and add to items
+      const cleanItem = line.replace(/^[-•*\d.]+\s*/, '').trim();
+      if (cleanItem.length > 0) {
+        items.push(cleanItem);
+      }
+    } else if (
+      line.toLowerCase().includes('remember to') || 
+      line.toLowerCase().includes('don\'t forget to') ||
+      line.toLowerCase().includes('need to')
+    ) {
+      items.push(line);
+    }
+  }
+  
+  return items;
+};
+
+// Function to detect date and time from natural language
+const detectDateTime = (text: string) => {
+  const result = {
+    detectedDate: null as Date | null,
+    confidence: 0.5
+  };
+  
+  const normalizedText = text.toLowerCase();
+  
+  // Check for today/tomorrow/specific days
+  if (normalizedText.includes('today')) {
+    result.detectedDate = new Date();
+    result.confidence = 0.8;
+  } else if (normalizedText.includes('tomorrow')) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    result.detectedDate = tomorrow;
+    result.confidence = 0.8;
+  } else if (normalizedText.includes('monday') || normalizedText.includes('mon')) {
+    result.detectedDate = getNextDayOfWeek(1);
+    result.confidence = 0.7;
+  } else if (normalizedText.includes('tuesday') || normalizedText.includes('tue')) {
+    result.detectedDate = getNextDayOfWeek(2);
+    result.confidence = 0.7;
+  } else if (normalizedText.includes('wednesday') || normalizedText.includes('wed')) {
+    result.detectedDate = getNextDayOfWeek(3);
+    result.confidence = 0.7;
+  } else if (normalizedText.includes('thursday') || normalizedText.includes('thu')) {
+    result.detectedDate = getNextDayOfWeek(4);
+    result.confidence = 0.7;
+  } else if (normalizedText.includes('friday') || normalizedText.includes('fri')) {
+    result.detectedDate = getNextDayOfWeek(5);
+    result.confidence = 0.7;
+  } else if (normalizedText.includes('saturday') || normalizedText.includes('sat')) {
+    result.detectedDate = getNextDayOfWeek(6);
+    result.confidence = 0.7;
+  } else if (normalizedText.includes('sunday') || normalizedText.includes('sun')) {
+    result.detectedDate = getNextDayOfWeek(0);
+    result.confidence = 0.7;
+  } else if (normalizedText.includes('next week')) {
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    result.detectedDate = nextWeek;
+    result.confidence = 0.7;
+  }
+  
+  return result;
+};
+
+// Helper function to get the next occurrence of a day of the week
+function getNextDayOfWeek(dayOfWeek: number): Date {
+  const today = new Date();
+  const currentDayOfWeek = today.getDay();
+  
+  // Calculate days until the next occurrence of the specified day
+  let daysUntilNextDay = dayOfWeek - currentDayOfWeek;
+  if (daysUntilNextDay <= 0) {
+    // If the day has already occurred this week, get next week's occurrence
+    daysUntilNextDay += 7;
+  }
+  
+  const nextDay = new Date();
+  nextDay.setDate(today.getDate() + daysUntilNextDay);
+  return nextDay;
+}
+
+// Generate a meaningful title from the transcript
+const generateTitle = (transcript: string): string => {
+  // If transcript is empty, return a default title
+  if (!transcript.trim()) {
+    return "New Voice Reminder";
+  }
+  
+  // Try to use the first sentence as the title
+  const firstSentence = transcript.split(/[.!?]/)[0].trim();
+  
+  // If the first sentence is too long, truncate it
+  if (firstSentence.length > 50) {
+    return firstSentence.substring(0, 47) + "...";
+  }
+  
+  return firstSentence;
 };
 
 // Main function to process voice input
 export const processVoiceInput = (transcript: string): VoiceProcessingResult => {
-  console.log('Processing voice input:', transcript);
+  debugLog("Processing voice input:", transcript);
   
   // Detect priority
   const priority = detectPriority(transcript);
@@ -44,167 +273,81 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
   // Detect category
   const category = detectCategory(transcript);
   
-  // Generate a meaningful title based on the transcript and detected category
-  const title = generateMeaningfulTitle(category, transcript);
+  // Generate a title
+  const title = generateTitle(transcript);
   
   // Detect period
   const periodResult = detectPeriod(transcript);
-  console.log('Period detection result:', periodResult);
   
   // Detect date and time
   const dateTimeResult = detectDateTime(transcript);
-  console.log('Date/time detection result:', dateTimeResult);
   
-  // Extract potential checklist items
-  const checklistItems = extractChecklistItems(transcript);
+  // Extract checklist items
+  const checklistItemTexts = extractChecklistItems(transcript);
+  const checklistItems: ChecklistItem[] = checklistItemTexts.map(text => ({
+    text,
+    isCompleted: false,
+    id: Math.random().toString(36).substring(2, 9)
+  }));
   
-  // Determine the correct period for the reminder
-  // Period detected in transcript takes priority over date-based period
-  const finalPeriodId = periodResult.periodId || dateTimeResult.periodId;
+  // Determine due date with fallback to today
+  let dueDate = new Date();
   
-  // Find "Before School" period for default time
-  const beforeSchoolPeriod = mockPeriods.find(p => 
-    p.name.toLowerCase().includes('before school')
-  );
+  // If we detected a date, use that
+  if (dateTimeResult.detectedDate) {
+    dueDate = dateTimeResult.detectedDate;
+  } else {
+    // Otherwise, set it to tomorrow if it's after 2pm
+    const now = new Date();
+    if (now.getHours() >= 14) {
+      dueDate.setDate(dueDate.getDate() + 1);
+    }
+  }
   
-  // Current date and time for comparison
-  const now = new Date();
+  // If we have a period ID, adjust the time based on that period
+  if (periodResult.periodId) {
+    const period = mockPeriods.find(p => p.id === periodResult.periodId);
+    if (period && period.startTime) {
+      // Parse time components
+      const timeParts = period.startTime.split(':');
+      const hourPart = timeParts[0];
+      const minutePart = timeParts[1].split(' ')[0];
+      
+      const hours = parseInt(hourPart, 10);
+      const minutes = parseInt(minutePart, 10);
+      
+      // Adjust for AM/PM if present
+      let adjustedHours = hours;
+      if (period.startTime.toLowerCase().includes('pm') && hours < 12) {
+        adjustedHours += 12;
+      } else if (period.startTime.toLowerCase().includes('am') && hours === 12) {
+        adjustedHours = 0;
+      }
+      
+      // Set the time on the due date
+      dueDate.setHours(adjustedHours, minutes, 0, 0);
+    }
+  }
+  
+  debugLog("Detection results:", {
+    priority,
+    category,
+    period: periodResult,
+    dueDate: dueDate.toISOString(),
+    checklistItems: checklistItems.length
+  });
   
   // Create the reminder input
-  const reminderInput: CreateReminderInput = {
+  const reminderInput = {
     title,
     description: transcript,
     priority,
     category,
-    periodId: finalPeriodId || (beforeSchoolPeriod ? beforeSchoolPeriod.id : undefined),
-    voiceTranscript: transcript,
-    checklist: checklistItems.map(text => ({
-      text,
-      isCompleted: false
-    })),
-    dueDate: new Date() // Default to today
+    periodId: periodResult.periodId,
+    dueDate,
+    checklist: checklistItems,
+    voiceTranscript: transcript
   };
-  
-  // Add detected date if available - CRITICAL for correct date handling
-  if (dateTimeResult.detectedDate) {
-    reminderInput.dueDate = dateTimeResult.detectedDate;
-    console.log('Setting due date from detected date:', reminderInput.dueDate);
-    
-    // If we also detected a specific time, combine them
-    if (dateTimeResult.detectedTime) {
-      const dueDate = new Date(dateTimeResult.detectedDate);
-      dueDate.setHours(
-        dateTimeResult.detectedTime.getHours(),
-        dateTimeResult.detectedTime.getMinutes(),
-        0,
-        0
-      );
-      reminderInput.dueDate = dueDate;
-      console.log('Updated due date with time:', reminderInput.dueDate);
-    } 
-    // If no specific time but we have a period ID, use that period's start time
-    else if (finalPeriodId) {
-      const selectedPeriod = mockPeriods.find(p => p.id === finalPeriodId);
-      if (selectedPeriod && selectedPeriod.startTime) {
-        const dueDate = new Date(dateTimeResult.detectedDate);
-        
-        // Parse the start time (handle both 24-hour and 12-hour formats)
-        let [hours, minutes] = selectedPeriod.startTime.split(':').map(part => {
-          // Handle cases like "1:14" (convert to 13:14)
-          if (part.includes(":")) return part;
-          
-          const num = parseInt(part, 10);
-          // If it's a single-digit hour in the afternoon (1-9), convert to 24-hour format
-          if (num >= 1 && num <= 9 && selectedPeriod.startTime.indexOf(":") > 1) {
-            return (num + 12).toString();
-          }
-          return part;
-        });
-        
-        // Convert hours to number, handling 12-hour format
-        let hoursNum = parseInt(hours, 10);
-        if (hoursNum < 8 && selectedPeriod.startTime.indexOf(":") > 1) {
-          hoursNum += 12; // Convert afternoon hours to 24-hour format
-        }
-        
-        dueDate.setHours(hoursNum, parseInt(minutes, 10), 0, 0);
-        reminderInput.dueDate = dueDate;
-        console.log('Updated due date with period start time:', reminderInput.dueDate);
-      }
-    }
-    // Otherwise use before school time as default
-    else if (beforeSchoolPeriod && beforeSchoolPeriod.startTime) {
-      const dueDate = new Date(dateTimeResult.detectedDate);
-      const [hours, minutes] = beforeSchoolPeriod.startTime.split(':').map(Number);
-      dueDate.setHours(hours, minutes, 0, 0);
-      reminderInput.dueDate = dueDate;
-      console.log('Updated due date with before school time:', reminderInput.dueDate);
-    }
-  } else {
-    // No date was explicitly detected, use today or tomorrow
-    // Check if we need to move to tomorrow based on selected period/time
-    if (finalPeriodId) {
-      const selectedPeriod = mockPeriods.find(p => p.id === finalPeriodId);
-      if (selectedPeriod && selectedPeriod.startTime) {
-        // Parse the start time (handle both 24-hour and 12-hour formats)
-        let [hours, minutes] = selectedPeriod.startTime.split(':').map(part => {
-          // Handle cases like "1:14" (convert to 13:14)
-          if (part.includes(":")) return part;
-          
-          const num = parseInt(part, 10);
-          // If it's a single-digit hour in the afternoon (1-9), convert to 24-hour format
-          if (num >= 1 && num <= 9 && selectedPeriod.startTime.indexOf(":") > 1) {
-            return (num + 12).toString();
-          }
-          return part;
-        });
-        
-        // Convert hours to number, handling 12-hour format
-        let hoursNum = parseInt(hours, 10);
-        if (hoursNum < 8 && selectedPeriod.startTime.indexOf(":") > 1) {
-          hoursNum += 12; // Convert afternoon hours to 24-hour format
-        }
-        
-        // Create a date object for the period time today
-        const periodTime = new Date();
-        periodTime.setHours(hoursNum, parseInt(minutes, 10), 0, 0);
-        
-        // If period time is earlier than current time, move to tomorrow
-        if (periodTime < now) {
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          tomorrow.setHours(hoursNum, parseInt(minutes, 10), 0, 0);
-          reminderInput.dueDate = tomorrow;
-          console.log('Period time already passed today, setting due date to tomorrow:', reminderInput.dueDate);
-        } else {
-          const today = new Date();
-          today.setHours(hoursNum, parseInt(minutes, 10), 0, 0);
-          reminderInput.dueDate = today;
-          console.log('Setting due date to today with period time:', reminderInput.dueDate);
-        }
-      }
-    } else if (beforeSchoolPeriod && beforeSchoolPeriod.startTime) {
-      const [hours, minutes] = beforeSchoolPeriod.startTime.split(':').map(Number);
-      
-      // Create a date object for the before school time today
-      const beforeSchoolTime = new Date();
-      beforeSchoolTime.setHours(hours, minutes, 0, 0);
-      
-      // If before school time is earlier than current time, move to tomorrow
-      if (beforeSchoolTime < now) {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(hours, minutes, 0, 0);
-        reminderInput.dueDate = tomorrow;
-        console.log('Before school time already passed today, setting due date to tomorrow:', reminderInput.dueDate);
-      } else {
-        const today = new Date();
-        today.setHours(hours, minutes, 0, 0);
-        reminderInput.dueDate = today;
-        console.log('Setting due date to today with before school time:', reminderInput.dueDate);
-      }
-    }
-  }
   
   // Add detected new period information if applicable
   if (periodResult.isNewPeriod && periodResult.periodName) {
@@ -217,15 +360,14 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
   // Return the processing result
   return {
     reminder: reminderInput,
-    confidence: Math.max(0.8, dateTimeResult.confidence),
+    confidence: 0.8,
     detectedEntities: {
       priority,
       category,
-      period: finalPeriodId || (beforeSchoolPeriod ? beforeSchoolPeriod.id : undefined),
+      period: periodResult.periodId,
       date: dateTimeResult.detectedDate,
-      time: dateTimeResult.detectedTime,
       newPeriod: periodResult.isNewPeriod ? periodResult.periodName : undefined,
-      checklist: checklistItems
+      checklist: checklistItemTexts
     }
   };
 };

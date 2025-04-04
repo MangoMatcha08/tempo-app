@@ -23,6 +23,21 @@ export const isIOSDevice = (): boolean => {
 };
 
 /**
+ * Detect if the device is running Android
+ */
+export const isAndroidDevice = (): boolean => {
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return /android/.test(userAgent);
+};
+
+/**
+ * Detect if the device is a mobile device
+ */
+export const isMobileDevice = (): boolean => {
+  return isIOSDevice() || isAndroidDevice() || /android|webos|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
+};
+
+/**
  * Pre-initialize a speech recognition instance to improve startup time
  */
 export function prewarmSpeechRecognition(): any {
