@@ -4,6 +4,7 @@ import { UseSpeechRecognitionReturn } from './types';
 import { useSpeechRecognitionSetup } from './useSpeechRecognitionSetup';
 import { useTranscriptState } from './useTranscriptState';
 import { isRunningAsPwa } from './utils';
+import { useTrackedTimeouts } from '@/hooks/use-tracked-timeouts';
 
 /**
  * Custom hook for speech recognition functionality
@@ -15,15 +16,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
   const [restartAttempts, setRestartAttempts] = useState(0);
   const [isPwaEnvironment] = useState(() => isRunningAsPwa());
   const isMountedRef = useRef(true);
-  const timeoutsRef = useRef<Array<NodeJS.Timeout>>([]);
-  
-  // Clean up function to clear all timeouts
-  const clearAllTimeouts = useCallback(() => {
-    timeoutsRef.current.forEach(timeoutId => {
-      clearTimeout(timeoutId);
-    });
-    timeoutsRef.current = [];
-  }, []);
+  const { createTimeout, clearAllTimeouts, clearTrackedTimeout } = useTrackedTimeouts();
   
   // Set mounted flag for cleanup
   useEffect(() => {
@@ -34,28 +27,13 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     };
   }, [clearAllTimeouts]);
   
-  // Helper to create safe timeouts that are tracked and cleaned up
-  const createSafeTimeout = useCallback((callback: () => void, delay: number) => {
-    if (!isMountedRef.current) return;
-    
-    const timeoutId = setTimeout(() => {
-      // Filter out this timeout from our tracking array
-      timeoutsRef.current = timeoutsRef.current.filter(id => id !== timeoutId);
-      
-      // Only execute callback if component is still mounted
-      if (isMountedRef.current) {
-        callback();
-      }
-    }, delay);
-    
-    // Track this timeout for potential cleanup
-    timeoutsRef.current.push(timeoutId);
-    
-    return timeoutId;
-  }, []);
-  
   // Use separate hooks for managing recognition and transcript
-  const { recognition, browserSupportsSpeechRecognition, isPwa } = useSpeechRecognitionSetup({
+  const { 
+    recognition, 
+    browserSupportsSpeechRecognition, 
+    isPwa,
+    environmentConfig 
+  } = useSpeechRecognitionSetup({
     onError: setError,
     isListening,
     setIsListening
@@ -126,7 +104,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
             console.log('Too many restart attempts, stopping recognition');
             
             // Clear error after a delay
-            createSafeTimeout(() => {
+            createTimeout(() => {
               setError(undefined);
               setRestartAttempts(0);
             }, 3000);
@@ -147,7 +125,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         const timeout = Math.min(1000 * (1 + restartAttempts), 5000);
         console.log(`Will attempt restart in ${timeout}ms (attempt ${restartAttempts + 1})`);
         
-        createSafeTimeout(() => {
+        createTimeout(() => {
           if (isListening && isMountedRef.current) {
             try {
               recognition.start();
@@ -191,7 +169,71 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
       // Clear any pending timeouts
       clearAllTimeouts();
     };
-  }, [recognition, isListening, processSpeechResults, isPwaEnvironment, restartAttempts, createSafeTimeout, clearAllTimeouts]);
+  }, [recognition, isListening, processSpeechResults, isPwaEnvironment, restartAttempts, createTimeout, clearAllTimeouts]);
+
+  // Special handling for iOS PWA environments
+  const startIOSPwaRecording = useCallback(() => {
+    if (!recognition || !isMountedRef.current) return false;
+    
+    console.log("Starting iOS PWA specialized recording strategy");
+    
+    // iOS PWA needs shorter sessions with manual restarts
+    const maxSessionLength = 8000; // 8 seconds
+    let accumulatedTranscript = '';
+    let sessionTimeoutId: number | undefined;
+    
+    // Configure for iOS limitations
+    recognition.continuous = false; // Must be false on iOS
+    
+    // Create function for iOS session management
+    const manageIOSSession = () => {
+      if (!isMountedRef.current || !isListening) return;
+      
+      try {
+        recognition.start();
+        console.log('Started iOS PWA recognition session');
+        
+        // Schedule end of session before iOS might kill it
+        sessionTimeoutId = createTimeout(() => {
+          if (isListening && isMountedRef.current) {
+            try {
+              // Save current transcript
+              accumulatedTranscript += ' ' + transcript;
+              
+              // Stop current session
+              recognition.stop();
+              console.log('iOS session stopped, preparing to restart');
+              
+              // Wait briefly, then start a new session
+              createTimeout(() => {
+                if (isListening && isMountedRef.current) {
+                  manageIOSSession();
+                }
+              }, 300);
+            } catch (err) {
+              console.error('Error during iOS session switch:', err);
+              
+              // Try to recover
+              if (isListening && isMountedRef.current) {
+                createTimeout(manageIOSSession, 1000);
+              }
+            }
+          }
+        }, maxSessionLength);
+      } catch (err) {
+        console.error('Error in iOS PWA session:', err);
+        
+        // Try to recover after a delay
+        if (isListening && isMountedRef.current) {
+          createTimeout(manageIOSSession, 1500);
+        }
+      }
+    };
+    
+    // Start initial session
+    manageIOSSession();
+    return true;
+  }, [recognition, transcript, isListening, createTimeout]);
 
   /**
    * Starts the speech recognition process
@@ -206,7 +248,15 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     
     setIsListening(true);
     try {
-      recognition.start();
+      // Special handling for iOS PWA
+      if (environmentConfig?.isIOSPwa) {
+        console.log("Using iOS PWA-specific recognition strategy");
+        startIOSPwaRecording();
+      } else {
+        // Standard recognition start
+        recognition.start();
+      }
+      
       console.log('Speech recognition started');
     } catch (err) {
       // Only handle errors if component is still mounted
@@ -222,12 +272,16 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         const restartDelay = isPwaEnvironment ? 500 : 100;
         console.log(`Attempting restart with ${restartDelay}ms delay (isPwa: ${isPwaEnvironment})`);
         
-        createSafeTimeout(() => {
+        createTimeout(() => {
           // Check mounted state before restarting
           if (!isMountedRef.current) return;
           
           try {
-            recognition.start();
+            if (environmentConfig?.isIOSPwa) {
+              startIOSPwaRecording();
+            } else {
+              recognition.start();
+            }
             console.log('Successfully restarted recognition after stop');
           } catch (innerErr) {
             console.error('Inner restart error:', innerErr);
@@ -241,7 +295,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         setIsListening(false);
       }
     }
-  }, [recognition, resetTranscriptState, isPwaEnvironment, createSafeTimeout]);
+  }, [recognition, resetTranscriptState, isPwaEnvironment, createTimeout, environmentConfig, startIOSPwaRecording]);
 
   /**
    * Stops the speech recognition process
@@ -267,7 +321,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         
         // Restore onend handler after a brief delay
         if (isMountedRef.current) {
-          createSafeTimeout(() => {
+          createTimeout(() => {
             if (recognition && isMountedRef.current) {
               recognition.onend = originalOnEnd;
             }
@@ -290,7 +344,7 @@ const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         }
       }
     }
-  }, [recognition, isPwaEnvironment, createSafeTimeout]);
+  }, [recognition, isPwaEnvironment, createTimeout]);
 
   // Add isPwa to return object for UI adaptation
   return {

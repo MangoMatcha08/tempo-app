@@ -9,6 +9,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useVoiceRecorderStateMachine } from "@/hooks/speech-recognition/useVoiceRecorderStateMachine";
 import { processVoiceInput } from "@/services/nlp";
 import { useTrackedTimeouts } from "@/hooks/use-tracked-timeouts";
+import { getEnvironmentDescription } from "@/hooks/speech-recognition/environmentDetection";
 
 interface VoiceRecorderStateProps {
   onTranscriptProcessed: (result: any) => void;
@@ -21,6 +22,7 @@ const VoiceRecorderState = ({ onTranscriptProcessed }: VoiceRecorderStateProps) 
   const { state, actions } = useVoiceRecorderStateMachine();
   const [countdown, setCountdown] = useState(0);
   const { createTimeout, clearAllTimeouts } = useTrackedTimeouts();
+  const environment = getEnvironmentDescription();
   
   const {
     transcript,
@@ -30,7 +32,8 @@ const VoiceRecorderState = ({ onTranscriptProcessed }: VoiceRecorderStateProps) 
     startListening,
     stopListening,
     resetTranscript,
-    error
+    error,
+    isPwa
   } = useSpeechRecognition();
   
   // Handle permission checking
@@ -57,6 +60,10 @@ const VoiceRecorderState = ({ onTranscriptProcessed }: VoiceRecorderStateProps) 
                   actions.permissionDenied();
                 });
             }
+          })
+          .catch(err => {
+            console.error("Error querying permissions:", err);
+            actions.permissionDenied();
           });
       } else {
         // Older browsers - just try to start and handle errors
@@ -81,22 +88,25 @@ const VoiceRecorderState = ({ onTranscriptProcessed }: VoiceRecorderStateProps) 
     if (state.status === 'recording') {
       resetTranscript();
       // Set timer for max recording duration
-      const maxRecordingTime = 30;
+      const maxRecordingTime = isPwa ? 25 : 30;
       setCountdown(maxRecordingTime);
       
-      const countdownInterval = setInterval(() => {
+      const recordingTimerId = createTimeout(() => {
+        if (isListening) {
+          stopListening();
+          if (transcript) {
+            actions.stopRecording(transcript);
+          } else {
+            actions.recognitionError("No speech detected");
+          }
+        }
+      }, maxRecordingTime * 1000);
+      
+      // Set up countdown timer
+      const countdownIntervalId = window.setInterval(() => {
         setCountdown(prev => {
           if (prev <= 1) {
-            clearInterval(countdownInterval);
-            // Auto-stop after max duration
-            if (isListening) {
-              stopListening();
-              if (transcript) {
-                actions.stopRecording(transcript);
-              } else {
-                actions.recognitionError("No speech detected");
-              }
-            }
+            clearInterval(countdownIntervalId);
             return 0;
           }
           return prev - 1;
@@ -104,14 +114,14 @@ const VoiceRecorderState = ({ onTranscriptProcessed }: VoiceRecorderStateProps) 
       }, 1000);
       
       return () => {
-        clearInterval(countdownInterval);
+        clearInterval(countdownIntervalId);
       };
     }
-  }, [state.status, isListening, stopListening, transcript, actions, resetTranscript]);
+  }, [state.status, isListening, stopListening, transcript, actions, resetTranscript, createTimeout, isPwa]);
   
   // Handle processing state
   useEffect(() => {
-    if (state.status === 'processing') {
+    if (state.status === 'processing' && state.transcript) {
       // Process the transcript
       try {
         const result = processVoiceInput(state.transcript);
@@ -120,10 +130,11 @@ const VoiceRecorderState = ({ onTranscriptProcessed }: VoiceRecorderStateProps) 
           onTranscriptProcessed(result);
         }, 1000); // Simulate processing time
       } catch (err) {
+        console.error("Error processing voice input:", err);
         actions.processingError("Failed to process voice input");
       }
     }
-  }, [state.status, actions, createTimeout, onTranscriptProcessed]);
+  }, [state.status, state.transcript, actions, createTimeout, onTranscriptProcessed]);
   
   // Clean up on unmount
   useEffect(() => {
@@ -186,6 +197,12 @@ const VoiceRecorderState = ({ onTranscriptProcessed }: VoiceRecorderStateProps) 
           {state.status === 'confirming' && "Recording processed! Confirm your reminder."}
           {state.status === 'error' && <div className="text-red-500">{state.message}</div>}
         </div>
+        
+        {isPwa && state.status === 'recording' && (
+          <div className="mt-2 text-xs text-amber-600">
+            {environment.isIOSPwa ? "iOS PWA mode active - recording in short segments" : "PWA mode active"}
+          </div>
+        )}
       </div>
       
       <div className="border rounded-md p-3 bg-slate-50">
@@ -195,7 +212,7 @@ const VoiceRecorderState = ({ onTranscriptProcessed }: VoiceRecorderStateProps) 
             {state.status === 'recording' ? (
               <p>{transcript || interimTranscript || "Speak now..."}</p>
             ) : state.status === 'processing' || state.status === 'confirming' ? (
-              <p>{state.status === 'processing' ? state.transcript : (state.result.reminder.description || "")}</p>
+              <p>{state.status === 'processing' ? state.transcript : (state.result?.reminder?.description || "")}</p>
             ) : (
               <p className="text-muted-foreground italic">
                 {error || "Speak after pressing the record button..."}

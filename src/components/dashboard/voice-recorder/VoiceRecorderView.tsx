@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, AlertCircle, RefreshCw } from "lucide-react";
@@ -7,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { getEnvironmentDescription } from "@/hooks/speech-recognition/environmentDetection";
+import { useTrackedTimeouts } from "@/hooks/use-tracked-timeouts";
 
 interface VoiceRecorderViewProps {
   onTranscriptComplete: (transcript: string) => void;
@@ -21,6 +23,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
   const [permissionState, setPermissionState] = useState<PermissionState | "unknown">("unknown");
   const isMobile = useIsMobile();
   const environment = getEnvironmentDescription();
+  const { createTimeout, clearAllTimeouts } = useTrackedTimeouts();
   
   const {
     transcript,
@@ -69,7 +72,14 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     if (isPwa) {
       addDebugInfo("Running in PWA mode - using adapted recognition strategy");
     }
-  }, []);
+    
+    return () => {
+      clearAllTimeouts();
+      if (isRecording) {
+        stopListening();
+      }
+    };
+  }, [isPwa, isRecording, startListening, stopListening, resetTranscript, clearAllTimeouts]);
 
   const requestMicrophoneAccess = async () => {
     addDebugInfo("Requesting microphone access explicitly");
@@ -115,7 +125,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     
     if (isPwa) {
       addDebugInfo("PWA mode: adding pre-start delay");
-      setTimeout(() => {
+      createTimeout(() => {
         startListening();
         addDebugInfo("Started recording in PWA mode after delay");
       }, 100);
@@ -131,7 +141,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     if (isRecording) {
       stopListening();
       
-      setTimeout(() => {
+      createTimeout(() => {
         resetTranscript();
         startListening();
         addDebugInfo("Manually restarted recording");
@@ -146,24 +156,23 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
   };
 
   useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
-    let countdownTimer: NodeJS.Timeout | null = null;
+    let countdownTimer: number | undefined;
     
     if (isRecording) {
       const maxRecordingTime = isPwa ? 25 : 30;
       setCountdown(maxRecordingTime);
       
-      timer = setTimeout(() => {
+      const recordingTimeoutId = createTimeout(() => {
         if (isRecording) {
           addDebugInfo(`Auto-stopping after ${maxRecordingTime} seconds`);
           toggleRecording();
         }
       }, maxRecordingTime * 1000);
       
-      countdownTimer = setInterval(() => {
+      countdownTimer = window.setInterval(() => {
         setCountdown(prev => {
           if (prev <= 1) {
-            if (countdownTimer) clearInterval(countdownTimer);
+            clearInterval(countdownTimer);
             return 0;
           }
           return prev - 1;
@@ -172,10 +181,9 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     }
     
     return () => {
-      if (timer) clearTimeout(timer);
       if (countdownTimer) clearInterval(countdownTimer);
     };
-  }, [isRecording, isPwa]);
+  }, [isRecording, isPwa, createTimeout]);
 
   useEffect(() => {
     return () => {

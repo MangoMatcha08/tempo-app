@@ -1,178 +1,105 @@
 
-import { useState, useEffect, useRef } from 'react';
-import { 
-  createSpeechRecognition, 
-  configureSpeechRecognition,
-  isSpeechRecognitionSupported,
-  retryWithBackoff
-} from './utils';
+import { useRef, useEffect, useMemo } from 'react';
+import { isRunningAsPwa } from './utils';
 import { detectEnvironment } from './environmentDetection';
-import { useIsMobile } from '@/hooks/use-mobile';
 
-interface UseSpeechRecognitionSetupProps {
+interface SetupOptions {
   onError: (error: string | undefined) => void;
   isListening: boolean;
   setIsListening: (isListening: boolean) => void;
 }
 
-export const useSpeechRecognitionSetup = ({
-  onError,
-  isListening,
-  setIsListening
-}: UseSpeechRecognitionSetupProps) => {
-  const [recognition, setRecognition] = useState<any | null>(null);
-  const [browserSupportsSpeechRecognition, setBrowserSupportsSpeechRecognition] = useState<boolean>(false);
-  const isMobile = useIsMobile();
-  const environment = detectEnvironment();
-  const { isPwa, isIOSPwa } = environment;
-  const timeoutsRef = useRef<NodeJS.Timeout[]>([]);
-  const isMountedRef = useRef(true);
+export const useSpeechRecognitionSetup = ({ onError, isListening, setIsListening }: SetupOptions) => {
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const environmentConfig = useMemo(() => detectEnvironment(), []);
+  const isPwa = useMemo(() => isRunningAsPwa(), []);
   
-  // Clean up function to clear all timeouts
-  const clearTimeouts = () => {
-    timeoutsRef.current.forEach(timeoutId => {
-      clearTimeout(timeoutId);
-    });
-    timeoutsRef.current = [];
-  };
-  
-  // Set mounted flag for cleanup
+  // Set up speech recognition
   useEffect(() => {
-    isMountedRef.current = true;
+    // Check if the browser supports SpeechRecognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
-    return () => {
-      isMountedRef.current = false;
-      clearTimeouts();
-    };
-  }, []);
-  
-  // Helper to create safe timeouts that are tracked and cleaned up
-  const createSafeTimeout = (callback: () => void, delay: number) => {
-    const timeoutId = setTimeout(() => {
-      // Remove from tracking array
-      timeoutsRef.current = timeoutsRef.current.filter(id => id !== timeoutId);
-      
-      // Only call if component is mounted
-      if (isMountedRef.current) {
-        callback();
-      }
-    }, delay);
-    
-    // Add to tracking array
-    timeoutsRef.current.push(timeoutId);
-    return timeoutId;
-  };
-  
-  // Initialize speech recognition
-  useEffect(() => {
-    // Check browser support first
-    const isSupported = isSpeechRecognitionSupported();
-    setBrowserSupportsSpeechRecognition(isSupported);
-    
-    if (!isSupported) {
-      onError('Your browser does not support speech recognition.');
+    if (!SpeechRecognition) {
+      console.error('Speech recognition not supported by this browser');
       return;
     }
     
-    // Create recognition instance with improved error handling
     try {
-      const recognitionInstance = createSpeechRecognition();
+      // Create a new SpeechRecognition instance
+      recognitionRef.current = new SpeechRecognition();
       
-      if (recognitionInstance) {
-        // Configure with better settings based on environment
-        configureSpeechRecognition(recognitionInstance, isMobile);
-        
-        // Handle recognition end event with better restart logic
-        recognitionInstance.onend = () => {
-          console.log('Speech recognition ended, isListening:', isListening);
-          
-          // Only restart if still supposed to be listening and component is mounted
-          if (isListening && isMountedRef.current) {
-            console.log('Restarting speech recognition...');
-            try {
-              // Use environment-specific delay
-              const timeoutDuration = environment.recognitionConfig.restartDelay;
-              
-              console.log(`Using ${timeoutDuration}ms timeout before restart (isPwa: ${isPwa}, isIOSPwa: ${isIOSPwa})`);
-              
-              // Use the safe timeout implementation
-              createSafeTimeout(() => {
-                // Double-check that we're still listening and mounted
-                if (isListening && isMountedRef.current) {
-                  try {
-                    recognitionInstance.start();
-                    console.log('Successfully restarted speech recognition');
-                  } catch (startErr) {
-                    console.error('Error on scheduled restart:', startErr);
-                    
-                    // Use retry with backoff for PWA environments
-                    if (isMountedRef.current) {
-                      retryWithBackoff(
-                        () => recognitionInstance.start(),
-                        isIOSPwa ? 3 : (isPwa ? 5 : 3),  // Fewer retries for iOS PWA
-                        isIOSPwa ? 800 : (isPwa ? 500 : 300)  // Longer base delay for iOS PWA
-                      ).catch(backoffErr => {
-                        // Only update state if still mounted
-                        if (isMountedRef.current) {
-                          console.error('All retries failed:', backoffErr);
-                          onError('Failed to restart speech recognition after multiple attempts. Please try again.');
-                          setIsListening(false);
-                        }
-                      });
-                    }
-                  }
-                } else {
-                  console.log('No longer listening or component unmounted, skipping restart');
-                }
-              }, timeoutDuration);
-            } catch (err) {
-              console.error('Error scheduling recognition restart:', err);
-              
-              // Only update if still mounted
-              if (isMountedRef.current) {
-                onError('Failed to restart speech recognition. Please try again.');
-                setIsListening(false);
-              }
-            }
-          } else {
-            console.log('Not restarting speech recognition as isListening is false or component unmounted');
-          }
-        };
-        
-        setRecognition(recognitionInstance);
-      } else {
-        onError('Failed to initialize speech recognition.');
+      // Configure based on environment
+      const recognition = recognitionRef.current;
+      
+      // Set recognition parameters based on environment configuration
+      recognition.continuous = environmentConfig.recognitionConfig.continuous;
+      recognition.interimResults = environmentConfig.recognitionConfig.interimResults;
+      recognition.maxAlternatives = environmentConfig.recognitionConfig.maxAlternatives;
+      
+      // Set language based on browser preference or fallback to English
+      try {
+        recognition.lang = navigator.language || 'en-US';
+      } catch (err) {
+        recognition.lang = 'en-US';
       }
+      
+      // Configure onend behavior
+      recognition.onend = () => {
+        console.log('SpeechRecognition ended');
+        
+        // Only auto-restart if we're still supposed to be listening 
+        // and not in iOS PWA (which has specialized handling)
+        if (isListening && !environmentConfig.isIOSPwa) {
+          console.log('Auto-restarting recognition...');
+          
+          try {
+            const restartDelay = environmentConfig.recognitionConfig.restartDelay;
+            setTimeout(() => {
+              if (isListening) {
+                try {
+                  recognition.start();
+                  console.log('Recognition restarted');
+                } catch (startErr) {
+                  console.error('Failed to restart recognition:', startErr);
+                  setIsListening(false);
+                  onError('Failed to restart recognition');
+                }
+              }
+            }, restartDelay);
+          } catch (err) {
+            console.error('Error in recognition onend handler:', err);
+            setIsListening(false);
+          }
+        } else if (!isListening) {
+          console.log('Recognition ended and not restarting (isListening=false)');
+        }
+      };
     } catch (error) {
-      console.error('Error setting up speech recognition:', error);
-      onError('Failed to initialize speech recognition.');
+      console.error('Error initializing speech recognition:', error);
+      onError('Speech recognition failed to initialize');
     }
     
-    // Cleanup function
     return () => {
-      clearTimeouts();
-      
-      if (recognition) {
+      // Cleanup when component unmounts
+      if (recognitionRef.current && isListening) {
         try {
-          console.log('Cleaning up speech recognition');
-          // Remove all event listeners first
-          if (recognition.onresult) recognition.onresult = null;
-          if (recognition.onerror) recognition.onerror = null;
-          if (recognition.onend) recognition.onend = null;
-          
-          recognition.abort();  // More forceful than stop()
+          console.log('Stopping recognition during cleanup');
+          recognitionRef.current.stop();
         } catch (err) {
-          console.error('Error during speech recognition cleanup:', err);
+          console.error('Error stopping recognition during cleanup:', err);
         }
       }
     };
-  }, [onError, setIsListening, isMobile, isPwa]);
-
+  }, [onError, environmentConfig, isListening, setIsListening, isPwa]);
+  
+  const browserSupportsSpeechRecognition = Boolean(
+    window.SpeechRecognition || window.webkitSpeechRecognition
+  );
+  
   return {
-    recognition,
+    recognition: recognitionRef.current,
     browserSupportsSpeechRecognition,
     isPwa,
-    isIOSPwa,
-    environment
+    environmentConfig
   };
 };
