@@ -1,6 +1,7 @@
 
-import { renderHook, act } from '@testing-library/react-hooks';
+import { renderHook, act } from '@testing-library/react';
 import { useVoiceRecorderStateMachine } from '../useVoiceRecorderStateMachine';
+import { vi, describe, it, expect } from 'vitest';
 
 describe('Voice Recorder State Machine', () => {
   it('should start in idle state', () => {
