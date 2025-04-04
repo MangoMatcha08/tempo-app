@@ -4,6 +4,16 @@
  * Identifies platform, mode (browser vs PWA), and sets appropriate configuration
  */
 
+// Add TypeScript declarations for Web Speech API
+declare global {
+  interface Window {
+    SpeechRecognition?: new () => SpeechRecognition;
+    webkitSpeechRecognition?: new () => SpeechRecognition;
+    mozSpeechRecognition?: new () => SpeechRecognition;
+    msSpeechRecognition?: new () => SpeechRecognition;
+  }
+}
+
 /**
  * Comprehensive environment detection for speech recognition
  * Detects platform, PWA status, browser type, and available speech features
@@ -31,9 +41,9 @@ export const detectEnvironment = () => {
 
   // Feature detection for Speech Recognition API
   const SpeechRecognition = window.SpeechRecognition || 
-                           (window as any).webkitSpeechRecognition ||
-                           (window as any).mozSpeechRecognition ||
-                           (window as any).msSpeechRecognition;
+                           window.webkitSpeechRecognition ||
+                           window.mozSpeechRecognition ||
+                           window.msSpeechRecognition;
   
   const hasSpeechRecognition = !!SpeechRecognition;
   

@@ -80,7 +80,7 @@ export const useSpeechRecognitionSetup = ({
       
       if (recognitionInstance) {
         // Configure with better settings based on environment
-        configureSpeechRecognition(recognitionInstance, isMobile);
+        configureSpeechRecognition(recognitionInstance);
         
         // Handle recognition end event with better restart logic
         recognitionInstance.onend = () => {
