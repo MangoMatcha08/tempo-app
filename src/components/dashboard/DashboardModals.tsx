@@ -1,14 +1,14 @@
 
 import QuickReminderModal from "@/components/dashboard/QuickReminderModal";
 import VoiceRecorderModal from "@/components/dashboard/VoiceRecorderModal";
-import { Reminder } from "@/types/reminderTypes";
+import { UIReminder } from "@/types/reminderTypes";
 
 interface DashboardModalsProps {
   showQuickReminderModal: boolean;
   setShowQuickReminderModal: (show: boolean) => void;
   showVoiceRecorderModal: boolean;
   setShowVoiceRecorderModal: (show: boolean) => void;
-  onReminderCreated?: (reminder: Reminder) => void;
+  onReminderCreated?: (reminder: UIReminder) => void;
 }
 
 const DashboardModals = ({

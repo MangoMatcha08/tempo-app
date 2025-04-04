@@ -15,6 +15,43 @@ export enum ReminderCategory {
   OTHER = "other"
 }
 
+/**
+ * Base reminder interface with properties common to all contexts
+ */
+export interface BaseReminder {
+  id: string;
+  title: string;
+  description: string;
+  dueDate: Date;
+  priority: ReminderPriority;
+  completed?: boolean;
+  location?: string;
+}
+
+/**
+ * Database reminder with storage-specific fields
+ */
+export interface DatabaseReminder extends BaseReminder {
+  userId?: string;
+  completedAt?: Date;
+  createdAt?: Date;
+  category?: ReminderCategory;
+  periodId?: string;
+  checklist?: ChecklistItem[];
+}
+
+/**
+ * UI-specific reminder with presentation-specific fields
+ */
+export interface UIReminder extends BaseReminder {
+  timeRemaining?: string;
+  formattedDate?: string;
+  completedTimeAgo?: string;
+  completedAt?: Date;
+  category?: ReminderCategory;
+  checklist?: ChecklistItem[];
+}
+
 export interface ChecklistItem {
   text: string;
   isCompleted: boolean;
@@ -39,21 +76,8 @@ export interface CreateReminderInput {
   userId?: string;
 }
 
-export interface Reminder {
-  id: string;
-  title: string;
-  description: string;
-  dueDate: Date;
-  priority: ReminderPriority | string;
-  location?: string;
-  completed?: boolean;
-  completedAt?: Date;
-  createdAt?: Date;
-  category?: ReminderCategory;
-  periodId?: string;
-  checklist?: ChecklistItem[];
-  userId?: string;
-}
+// For backward compatibility and to avoid breaking existing code
+export type Reminder = DatabaseReminder;
 
 export interface VoiceProcessingResult {
   reminder: CreateReminderInput;

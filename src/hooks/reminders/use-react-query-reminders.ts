@@ -1,4 +1,3 @@
-
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { 
   collection, query, where, orderBy, limit, 
@@ -9,7 +8,7 @@ import {
 import { useFirestore } from '@/contexts/FirestoreContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState, useCallback } from 'react';
-import { Reminder } from '@/types/reminderTypes';
+import { DatabaseReminder, Reminder } from '@/types/reminderTypes';
 
 // Constants
 const BATCH_SIZE = 10;
@@ -18,7 +17,7 @@ const REMINDER_COLLECTION = 'reminders';
 /**
  * Converts Firestore data to a Reminder object
  */
-const convertToReminder = (doc: DocumentData): Reminder => {
+const convertToReminder = (doc: DocumentData): DatabaseReminder => {
   const data = doc.data();
   
   return {
@@ -29,7 +28,6 @@ const convertToReminder = (doc: DocumentData): Reminder => {
       ? data.dueDate.toDate() 
       : new Date(data.dueDate),
     priority: data.priority,
-    location: data.location,
     completed: data.completed || false,
     completedAt: data.completedAt instanceof Timestamp 
       ? data.completedAt.toDate() 
@@ -102,7 +100,7 @@ export function useReactQueryReminders() {
         }
         
         const querySnapshot = await getDocs(q);
-        const reminders: Reminder[] = [];
+        const reminders: DatabaseReminder[] = [];
         
         querySnapshot.forEach((doc) => {
           reminders.push(convertToReminder(doc));

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,19 +7,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-
-interface Reminder {
-  id: string;
-  title: string;
-  description: string;
-  dueDate: Date;
-  priority: "low" | "medium" | "high";
-  completedAt?: Date;
-  completed?: boolean;
-}
+import { UIReminder } from "@/types/reminderTypes";
 
 interface CompletedRemindersSectionProps {
-  reminders: Reminder[];
+  reminders: UIReminder[];
   onUndoComplete: (id: string) => void;
   onClearAllCompleted?: () => void;
   onClearCompleted?: (id: string) => void;

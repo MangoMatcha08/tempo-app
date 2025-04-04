@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import CurrentPeriodIndicator from "@/components/dashboard/CurrentPeriodIndicator";
 import QuickActionsBar from "@/components/dashboard/QuickActionsBar";
@@ -6,18 +5,14 @@ import RemindersSection from "@/components/dashboard/RemindersSection";
 import ProgressVisualization from "@/components/dashboard/ProgressVisualization";
 import CompletedRemindersSection from "@/components/dashboard/CompletedRemindersSection";
 import ReminderEditDialog from "@/components/dashboard/ReminderEditDialog";
-import { Reminder } from "@/types/reminder";
+import { UIReminder } from "@/types/reminderTypes";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import ReminderLoadingState from "./ReminderLoadingState";
 import { Button } from "@/components/ui/button";
 
 // Define extended reminder type with UI-specific properties
-export interface UIEnhancedReminder extends Reminder {
-  timeRemaining?: string;
-  formattedDate?: string;
-  completedTimeAgo?: string;
-}
+export type UIEnhancedReminder = UIReminder;
 
 interface DashboardContentProps {
   urgentReminders: UIEnhancedReminder[];
@@ -27,7 +22,7 @@ interface DashboardContentProps {
   onUndoComplete: (id: string) => void;
   onNewReminder: () => void;
   onNewVoiceNote: () => void;
-  onUpdateReminder: (reminder: Reminder) => void;
+  onUpdateReminder: (reminder: UIEnhancedReminder) => void;
   onClearAllCompleted?: () => void;
   onClearCompleted?: (id: string) => void;
   isLoading: boolean;
@@ -58,15 +53,15 @@ const DashboardContent = ({
   onLoadMore,
   isRefreshing = false
 }: DashboardContentProps) => {
-  const [selectedReminder, setSelectedReminder] = useState<Reminder | null>(null);
+  const [selectedReminder, setSelectedReminder] = useState<UIEnhancedReminder | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
-  const handleEditReminder = (reminder: Reminder) => {
+  const handleEditReminder = (reminder: UIEnhancedReminder) => {
     setSelectedReminder(reminder);
     setEditDialogOpen(true);
   };
 
-  const handleSaveReminder = (updatedReminder: Reminder) => {
+  const handleSaveReminder = (updatedReminder: UIEnhancedReminder) => {
     onUpdateReminder(updatedReminder);
     setSelectedReminder(null);
     setEditDialogOpen(false);

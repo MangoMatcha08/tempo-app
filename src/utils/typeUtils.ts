@@ -1,29 +1,29 @@
 
-import { Reminder as BackendReminder } from "@/types/reminderTypes";
+import { DatabaseReminder, ReminderPriority } from "@/types/reminderTypes";
 import { Reminder as UIReminder } from "@/types/reminder";
 
 /**
- * Ensures a priority value is one of the allowed string literal types
+ * Ensures a priority value is one of the allowed enum values
  */
-export const ensureValidPriority = (priority: string | any): "high" | "medium" | "low" => {
-  if (priority === "high" || priority === "medium" || priority === "low") {
+export const ensureValidPriority = (priority: string | any): ReminderPriority => {
+  if (priority === ReminderPriority.HIGH || priority === ReminderPriority.MEDIUM || priority === ReminderPriority.LOW) {
     return priority;
   } else if (typeof priority === "string") {
     // Convert any other string to the closest matching priority
     const priorityStr = priority.toLowerCase();
     if (priorityStr.includes("high") || priorityStr.includes("urgent")) {
-      return "high";
+      return ReminderPriority.HIGH;
     } else if (priorityStr.includes("low")) {
-      return "low";
+      return ReminderPriority.LOW;
     }
   }
-  return "medium"; // Default priority
+  return ReminderPriority.MEDIUM; // Default priority
 };
 
 /**
  * Converts a backend reminder to UI reminder format
  */
-export const convertToUIReminder = (reminder: BackendReminder): UIReminder => {
+export const convertToUIReminder = (reminder: DatabaseReminder): UIReminder => {
   return {
     id: reminder.id,
     title: reminder.title,
@@ -31,14 +31,16 @@ export const convertToUIReminder = (reminder: BackendReminder): UIReminder => {
     dueDate: reminder.dueDate,
     priority: ensureValidPriority(reminder.priority),
     completed: reminder.completed || false,
-    completedAt: reminder.completedAt
+    completedAt: reminder.completedAt,
+    category: reminder.category,
+    checklist: reminder.checklist
   };
 };
 
 /**
  * Converts a UI reminder to backend reminder format
  */
-export const convertToBackendReminder = (reminder: UIReminder): Omit<BackendReminder, "id"> => {
+export const convertToBackendReminder = (reminder: UIReminder): Omit<DatabaseReminder, "id"> => {
   return {
     title: reminder.title,
     description: reminder.description || "",
@@ -47,6 +49,8 @@ export const convertToBackendReminder = (reminder: UIReminder): Omit<BackendRemi
     completed: reminder.completed || false,
     completedAt: reminder.completedAt,
     createdAt: new Date(),
-    userId: "" // This will be filled in by the reminder operations
+    userId: "", // This will be filled in by the reminder operations
+    category: reminder.category,
+    checklist: reminder.checklist
   };
 };

@@ -2,15 +2,15 @@
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Reminder } from '@/types/reminder';
+import { UIReminder } from '@/types/reminderTypes';
 import { Button } from '@/components/ui/button';
 import { Check, Clock, CalendarIcon } from 'lucide-react';
 import { formatTimeWithPeriod, getPriorityColorClass } from '@/utils/timeUtils';
 
 interface ReminderCardProps {
-  reminder: Reminder;
+  reminder: UIReminder;
   onComplete?: (id: string) => void;
-  onEdit?: (reminder: Reminder) => void;
+  onEdit?: (reminder: UIReminder) => void;
 }
 
 const ReminderCard: React.FC<ReminderCardProps> = ({ reminder, onComplete, onEdit }) => {

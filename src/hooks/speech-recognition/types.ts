@@ -1,7 +1,7 @@
 
 export interface UseSpeechRecognitionReturn {
   transcript: string;
-  interimTranscript?: string; // Add this property
+  interimTranscript?: string;
   isListening: boolean;
   startListening: () => void;
   stopListening: () => void;
