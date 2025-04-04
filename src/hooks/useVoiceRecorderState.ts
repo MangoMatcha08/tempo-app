@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { VoiceProcessingResult, ReminderPriority, ReminderCategory } from "@/types/reminderTypes";
 import { generateMeaningfulTitle } from "@/utils/voiceReminderUtils";
@@ -101,6 +102,11 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       
       setIsProcessing(false);
       
+      // Force immediate transition to confirm view instead of using setTimeout
+      console.log("Setting view to confirm immediately");
+      transitionToConfirmView();
+      
+      /* Comment out the setTimeout approach that was causing issues
       if (transitionTimerRef.current) {
         clearTimeout(transitionTimerRef.current);
       }
@@ -110,6 +116,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         transitionToConfirmView();
         transitionTimerRef.current = null;
       }, 300);
+      */
     } catch (error) {
       console.error('Error processing voice input:', error);
       setIsProcessing(false);
