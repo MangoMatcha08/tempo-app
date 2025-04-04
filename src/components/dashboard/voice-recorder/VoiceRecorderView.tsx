@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, AlertCircle, RefreshCw } from "lucide-react";
@@ -7,6 +6,7 @@ import useSpeechRecognition from "@/hooks/speech-recognition";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { getEnvironmentDescription } from "@/hooks/speech-recognition/environmentDetection";
 
 interface VoiceRecorderViewProps {
   onTranscriptComplete: (transcript: string) => void;
@@ -20,6 +20,7 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
   const [debugInfo, setDebugInfo] = useState<string[]>([]);
   const [permissionState, setPermissionState] = useState<PermissionState | "unknown">("unknown");
   const isMobile = useIsMobile();
+  const environment = getEnvironmentDescription();
   
   const {
     transcript,
@@ -333,6 +334,11 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
               <div>Permission state: {permissionState}</div>
               <div>Is mobile device: {isMobile ? "Yes" : "No"}</div>
               <div>Is PWA mode: {isPwa ? "Yes" : "No"}</div>
+              <div>Environment: {environment.description}</div>
+              <div>Platform: {environment.platform}</div>
+              <div>Browser: {environment.browser}</div>
+              <div>Continuous mode: {environment.capabilities.continuous ? "Enabled" : "Disabled"}</div>
+              <div>Recognition reliability: {environment.capabilities.reliable ? "High" : "Limited"}</div>
               <div>Log:</div>
               <ul className="ml-4 space-y-1">
                 {debugInfo.map((info, i) => (

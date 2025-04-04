@@ -4,9 +4,9 @@ import {
   createSpeechRecognition, 
   configureSpeechRecognition,
   isSpeechRecognitionSupported,
-  retryWithBackoff,
-  isRunningAsPwa
+  retryWithBackoff
 } from './utils';
+import { detectEnvironment } from './environmentDetection';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface UseSpeechRecognitionSetupProps {
@@ -23,7 +23,8 @@ export const useSpeechRecognitionSetup = ({
   const [recognition, setRecognition] = useState<any | null>(null);
   const [browserSupportsSpeechRecognition, setBrowserSupportsSpeechRecognition] = useState<boolean>(false);
   const isMobile = useIsMobile();
-  const isPwa = isRunningAsPwa();
+  const environment = detectEnvironment();
+  const { isPwa, isIOSPwa } = environment;
   const timeoutsRef = useRef<NodeJS.Timeout[]>([]);
   const isMountedRef = useRef(true);
   
@@ -78,7 +79,7 @@ export const useSpeechRecognitionSetup = ({
       const recognitionInstance = createSpeechRecognition();
       
       if (recognitionInstance) {
-        // Configure with better settings for mobile/PWA
+        // Configure with better settings based on environment
         configureSpeechRecognition(recognitionInstance, isMobile);
         
         // Handle recognition end event with better restart logic
@@ -89,11 +90,10 @@ export const useSpeechRecognitionSetup = ({
           if (isListening && isMountedRef.current) {
             console.log('Restarting speech recognition...');
             try {
-              // Longer timeout on mobile/PWA to reduce battery usage and address timing issues
-              // PWA environments need even more time to recover between recognition sessions
-              const timeoutDuration = isPwa ? 800 : (isMobile ? 500 : 150);
+              // Use environment-specific delay
+              const timeoutDuration = environment.recognitionConfig.restartDelay;
               
-              console.log(`Using ${timeoutDuration}ms timeout before restart (isPwa: ${isPwa}, isMobile: ${isMobile})`);
+              console.log(`Using ${timeoutDuration}ms timeout before restart (isPwa: ${isPwa}, isIOSPwa: ${isIOSPwa})`);
               
               // Use the safe timeout implementation
               createSafeTimeout(() => {
@@ -109,8 +109,8 @@ export const useSpeechRecognitionSetup = ({
                     if (isMountedRef.current) {
                       retryWithBackoff(
                         () => recognitionInstance.start(),
-                        isPwa ? 5 : 3,  // More retries for PWA
-                        isPwa ? 500 : 300  // Longer base delay for PWA
+                        isIOSPwa ? 3 : (isPwa ? 5 : 3),  // Fewer retries for iOS PWA
+                        isIOSPwa ? 800 : (isPwa ? 500 : 300)  // Longer base delay for iOS PWA
                       ).catch(backoffErr => {
                         // Only update state if still mounted
                         if (isMountedRef.current) {
@@ -171,6 +171,8 @@ export const useSpeechRecognitionSetup = ({
   return {
     recognition,
     browserSupportsSpeechRecognition,
-    isPwa
+    isPwa,
+    isIOSPwa,
+    environment
   };
 };

@@ -1,6 +1,6 @@
-
 // Speech recognition utility functions
 // Browser compatibility helpers for Web Speech API
+import { detectEnvironment } from './environmentDetection';
 
 /**
  * Creates a speech recognition instance with enhanced browser compatibility
@@ -59,17 +59,20 @@ export const isSpeechRecognitionSupported = (): boolean => {
 export const configureSpeechRecognition = (recognition: any, isMobile = false): void => {
   if (!recognition) return;
 
-  // Set recognition properties
-  recognition.continuous = true;      // Keep listening even if the user pauses
-  recognition.interimResults = true;  // Get results while the user is still speaking
-  recognition.maxAlternatives = 1;    // Only return the most likely match
+  // Get environment-specific configuration
+  const env = detectEnvironment();
+  const config = env.recognitionConfig;
   
-  // Use shorter timeouts on mobile to save battery and handle PWA constraints
-  if (isMobile) {
-    // Safari on iOS seems to have issues with long continuous sessions
-    // so we set a shorter timeout and rely on restarting the session
-    recognition.continuous = false;
-  }
+  // Apply configuration
+  recognition.continuous = config.continuous;
+  recognition.interimResults = config.interimResults;
+  recognition.maxAlternatives = config.maxAlternatives;
+  
+  // Log configuration for debugging
+  console.log('Speech recognition configured for:', 
+              env.isIOSPwa ? 'iOS PWA' : 
+              (env.isPwa ? 'PWA' : 
+              (env.isMobile ? 'Mobile browser' : 'Desktop browser')));
   
   // Try to set the language based on browser language
   try {
@@ -126,8 +129,8 @@ export const retryWithBackoff = async (
  * @returns boolean indicating if the app is running as a PWA
  */
 export const isRunningAsPwa = (): boolean => {
-  return window.matchMedia('(display-mode: standalone)').matches || 
-         (window.navigator as any).standalone === true;
+  const env = detectEnvironment();
+  return env.isPwa;
 };
 
 /**
