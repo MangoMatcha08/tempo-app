@@ -3,131 +3,99 @@
  * Utility functions for handling Firebase errors
  */
 
-// Check if an error is related to Firestore quota limits
-export const isQuotaError = (err: any): boolean => {
-  if (!err) return false;
-  
-  const errorMessage = typeof err === 'string' 
-    ? err 
-    : err.message || String(err);
-    
-  return (
-    errorMessage.includes('quota') && 
-    errorMessage.includes('exceeded')
-  );
-};
-
-// Check for permission denied errors
+/**
+ * Check if an error is related to Firestore permissions
+ */
 export const isPermissionError = (err: any): boolean => {
   if (!err) return false;
   
   const errorMessage = typeof err === 'string' 
     ? err 
-    : err.message || String(err);
+    : err.message || err.code || String(err);
     
   return (
     errorMessage.includes('permission-denied') || 
-    errorMessage.includes('not been used') || 
-    errorMessage.includes('disabled')
+    errorMessage.includes('not been used') ||
+    errorMessage.includes('disabled') ||
+    errorMessage.includes('requires valid authentication')
   );
 };
 
-// Check for index-related errors
+/**
+ * Check if an error is related to quota limits
+ */
+export const isQuotaError = (err: any): boolean => {
+  if (!err) return false;
+  
+  const errorMessage = typeof err === 'string' 
+    ? err 
+    : err.message || err.code || String(err);
+    
+  return (
+    errorMessage.includes('quota') && 
+    errorMessage.includes('exceeded') ||
+    errorMessage.includes('resource-exhausted') ||
+    errorMessage.includes('limit reached')
+  );
+};
+
+/**
+ * Check if an error is related to missing indexes
+ */
 export const isIndexError = (err: any): boolean => {
   if (!err) return false;
   
   const errorMessage = typeof err === 'string' 
     ? err 
-    : err.message || String(err);
+    : err.message || err.code || String(err);
     
   return (
-    (errorMessage.includes('index') && errorMessage.includes('required')) || 
-    (errorMessage.includes('index') && errorMessage.includes('requires')) ||
-    errorMessage.includes('9 FAILED_PRECONDITION') ||
     errorMessage.includes('missing index') ||
-    (errorMessage.includes('FAILED_PRECONDITION') && errorMessage.includes('index'))
+    errorMessage.includes('no matching index')
   );
 };
 
-// Check for network connectivity errors
-export const isNetworkError = (err: any): boolean => {
-  if (!err) return false;
-  
-  const errorMessage = typeof err === 'string' 
-    ? err 
-    : err.message || String(err);
-    
-  return (
-    errorMessage.includes('network') || 
-    errorMessage.includes('offline') ||
-    errorMessage.includes('connection') ||
-    errorMessage.includes('Failed to fetch') ||
-    errorMessage.includes('UNAVAILABLE')
-  );
-};
-
-// Check for authentication errors
-export const isAuthError = (err: any): boolean => {
-  if (!err) return false;
-  
-  const errorMessage = typeof err === 'string' 
-    ? err 
-    : err.message || String(err);
-    
-  return (
-    errorMessage.includes('auth/') || 
-    errorMessage.includes('unauthenticated') ||
-    errorMessage.includes('unauthorized') ||
-    errorMessage.includes('UNAUTHENTICATED')
-  );
-};
-
-// Extract user-friendly error message from Firebase error
+/**
+ * Get a user-friendly error message for common Firebase errors
+ */
 export const getUserFriendlyErrorMessage = (err: any): string => {
-  if (!err) return "An unknown error occurred";
+  if (!err) return "An unknown error occurred.";
   
+  // Extract error message
   const errorMessage = typeof err === 'string' 
     ? err 
-    : err.message || String(err);
-  
-  if (isQuotaError(err)) {
-    return "Firebase quota limit exceeded. Please try again later.";
-  }
-  
+    : err.message || err.code || String(err);
+    
+  // Handle permission errors
   if (isPermissionError(err)) {
-    return "You don't have permission to perform this action.";
+    return "You don't have permission to access this data. Please check your account settings.";
   }
   
+  // Handle quota errors
+  if (isQuotaError(err)) {
+    return "The service is temporarily unavailable due to high demand. Your data will be available from cache. Please try again later.";
+  }
+  
+  // Handle index errors
   if (isIndexError(err)) {
-    return "Database index is required for this operation.";
+    return "There was a database configuration issue. We're working on optimizing your queries.";
   }
   
-  if (isNetworkError(err)) {
-    return "Network connection issue. Please check your internet connection.";
+  // Handle network errors
+  if (
+    errorMessage.includes('network') ||
+    errorMessage.includes('failed to fetch') ||
+    errorMessage.includes('connection') ||
+    errorMessage.includes('offline')
+  ) {
+    return "Network error. Please check your internet connection and try again.";
   }
   
-  if (isAuthError(err)) {
-    if (errorMessage.includes('auth/user-not-found')) {
-      return "User not found. Please check your email or sign up.";
-    }
-    if (errorMessage.includes('auth/wrong-password')) {
-      return "Incorrect password. Please try again.";
-    }
-    if (errorMessage.includes('auth/email-already-in-use')) {
-      return "Email already in use. Please use a different email or sign in.";
-    }
-    if (errorMessage.includes('auth/invalid-email')) {
-      return "Invalid email format. Please enter a valid email.";
-    }
-    if (errorMessage.includes('auth/weak-password')) {
-      return "Password is too weak. Please use a stronger password.";
-    }
-    if (errorMessage.includes('auth/requires-recent-login')) {
-      return "This action requires recent authentication. Please sign in again.";
-    }
-    return "Authentication error. Please sign in again.";
+  // Handle timeout errors
+  if (errorMessage.includes('timeout') || errorMessage.includes('timed out')) {
+    return "The operation timed out. Please try again later.";
   }
   
-  // Default error message
-  return "An error occurred. Please try again later.";
+  // Fallback error message
+  return "There was an issue retrieving your data. Please try refreshing.";
 };

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, AlertCircle, RefreshCw } from "lucide-react";
@@ -302,7 +303,10 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
       </div>
       
       {error && (
-        <Alert variant="default" className="text-sm border-yellow-500 bg-yellow-50">
+        <Alert 
+          variant="default" 
+          className="text-sm border-yellow-500 bg-yellow-50"
+        >
           <AlertCircle className="h-4 w-4 text-yellow-600" />
           <AlertTitle className="text-yellow-700">Recognition Error</AlertTitle>
           <AlertDescription className="text-yellow-600">
