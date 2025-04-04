@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, AlertCircle, RefreshCw } from "lucide-react";
@@ -33,12 +32,10 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     isPwa
   } = useSpeechRecognition();
   
-  // Log debug info
   const addDebugInfo = (info: string) => {
     setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${info}`]);
   };
 
-  // Check microphone permission on component mount
   useEffect(() => {
     const checkMicPermission = async () => {
       try {
@@ -46,12 +43,10 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
           const permissionResult = await navigator.permissions.query({ name: 'microphone' as PermissionName });
           setPermissionState(permissionResult.state);
           
-          // Listen for permission changes
           permissionResult.onchange = () => {
             setPermissionState(permissionResult.state);
             addDebugInfo(`Microphone permission changed to: ${permissionResult.state}`);
             
-            // If permission was just granted and we're recording, restart recording
             if (permissionResult.state === 'granted' && isRecording) {
               resetTranscript();
               startListening();
@@ -59,7 +54,6 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
             }
           };
         } else {
-          // For browsers that don't support the permissions API
           setPermissionState("unknown");
         }
       } catch (err) {
@@ -75,7 +69,6 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     }
   }, []);
 
-  // Request microphone access explicitly
   const requestMicrophoneAccess = async () => {
     addDebugInfo("Requesting microphone access explicitly");
     try {
@@ -91,14 +84,11 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     }
   };
 
-  // Handle recording start/stop with permission handling and PWA-specific logic
   const toggleRecording = async () => {
-    // If already recording, stop recording
     if (isRecording) {
       setIsRecording(false);
       stopListening();
       
-      // Only send transcript if we have content
       if (transcript.trim()) {
         addDebugInfo(`Sending transcript: "${transcript.substring(0, 30)}${transcript.length > 30 ? '...' : ''}"`);
         setTranscriptSent(true);
@@ -109,7 +99,6 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
       return;
     }
     
-    // Starting a new recording - handle permissions first
     if (permissionState !== "granted") {
       const permissionGranted = await requestMicrophoneAccess();
       if (!permissionGranted) {
@@ -118,13 +107,10 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
       }
     }
     
-    // Permission is granted, start recording
     setIsRecording(true);
     setTranscriptSent(false);
     resetTranscript();
     
-    // In PWA mode, add a slight delay before starting recognition
-    // This helps address timing issues in standalone mode
     if (isPwa) {
       addDebugInfo("PWA mode: adding pre-start delay");
       setTimeout(() => {
@@ -136,22 +122,19 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
       addDebugInfo("Started recording with permission granted");
     }
   };
-  
-  // Force retry function for PWA environments
+
   const handleForceRetry = () => {
     addDebugInfo("Manual retry initiated");
     
     if (isRecording) {
       stopListening();
       
-      // Add a small delay before restarting
       setTimeout(() => {
         resetTranscript();
         startListening();
         addDebugInfo("Manually restarted recording");
       }, 500);
     } else {
-      // Just start fresh
       setIsRecording(true);
       setTranscriptSent(false);
       resetTranscript();
@@ -160,13 +143,11 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     }
   };
 
-  // Auto-stop recording after 30 seconds if still active
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
     let countdownTimer: NodeJS.Timeout | null = null;
     
     if (isRecording) {
-      // Shorter max recording time for PWA to avoid memory issues
       const maxRecordingTime = isPwa ? 25 : 30;
       setCountdown(maxRecordingTime);
       
@@ -194,7 +175,6 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     };
   }, [isRecording, isPwa]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (isRecording) {
@@ -204,7 +184,6 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     };
   }, [isRecording, stopListening]);
 
-  // If browser doesn't support speech recognition
   if (!browserSupportsSpeechRecognition) {
     return (
       <div className="text-center p-6">
@@ -224,7 +203,6 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
     );
   }
 
-  // Special UI for when permission is denied or prompt is needed (especially on mobile)
   if (permissionState === "denied" || (permissionState === "prompt" && isMobile)) {
     return (
       <div className="space-y-4">
@@ -290,7 +268,6 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
           )}
         </div>
         
-        {/* PWA-specific retry button */}
         {isPwa && isRecording && (
           <div className="mt-2">
             <Button 
@@ -324,12 +301,11 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
         </ScrollArea>
       </div>
       
-      {/* Show error message if any */}
       {error && (
-        <Alert variant="warning" className="text-sm">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Recognition Error</AlertTitle>
-          <AlertDescription>
+        <Alert variant="default" className="text-sm border-yellow-500 bg-yellow-50">
+          <AlertCircle className="h-4 w-4 text-yellow-600" />
+          <AlertTitle className="text-yellow-700">Recognition Error</AlertTitle>
+          <AlertDescription className="text-yellow-600">
             {error}
             {isPwa && (
               <p className="text-xs mt-1">
@@ -341,7 +317,6 @@ const VoiceRecorderView = ({ onTranscriptComplete, isProcessing }: VoiceRecorder
         </Alert>
       )}
       
-      {/* Technical debug info - only in development */}
       {process.env.NODE_ENV === 'development' && (
         <details className="mt-4 text-xs text-gray-500 border rounded p-2">
           <summary>Debug Info</summary>
