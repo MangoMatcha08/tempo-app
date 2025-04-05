@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useReducer, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
@@ -12,7 +11,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { getEnvironmentDescription } from "@/hooks/speech-recognition/environmentDetection";
 import { VoiceProcessingResult } from "@/types/reminderTypes";
 
-// Voice recorder state
 type RecorderState = 
   | { status: 'idle' }
   | { status: 'requesting-permission' }
@@ -22,7 +20,6 @@ type RecorderState =
   | { status: 'confirming', result: VoiceProcessingResult }
   | { status: 'error', message: string };
 
-// Voice recorder events
 type RecorderEvent =
   | { type: 'START_RECORDING' }
   | { type: 'PERMISSION_GRANTED' }
@@ -36,7 +33,6 @@ type RecorderEvent =
   | { type: 'PROCESSING_ERROR', message: string }
   | { type: 'RESET' };
 
-// State machine reducer
 function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): RecorderState {
   console.log(`Voice recorder state transition: ${state.status} + ${event.type}`);
   
@@ -103,7 +99,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   onResultComplete,
   isProcessing: externalProcessing 
 }) => {
-  // Use our enhanced speech recognition hook
   const {
     transcript,
     interimTranscript,
@@ -118,24 +113,19 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     environmentInfo
   } = useEnhancedSpeechRecognition();
   
-  // Get environment info
   const environment = getEnvironmentDescription();
   
-  // State machine for voice recorder
   const [state, dispatch] = useReducer(voiceRecorderReducer, { status: 'idle' });
   
-  // Local state
   const [countdown, setCountdown] = useState<number>(0);
   const [permissionState, setPermissionState] = useState<PermissionState | "unknown">("unknown");
   const [debugInfo, setDebugInfo] = useState<string[]>([]);
   const isMobile = useIsMobile();
   
-  // References
   const retryAttemptsRef = useRef<number>(0);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Resource management
   const { 
     createTimeout, 
     clearTrackedTimeout, 
@@ -147,7 +137,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${info}`]);
   };
   
-  // Check microphone permission on mount
   useEffect(() => {
     const checkMicPermission = async () => {
       try {
@@ -185,7 +174,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }
   }, []);
   
-  // Reset state when component unmounts
   useEffect(() => {
     return () => {
       clearAllTimeouts();
@@ -207,7 +195,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     };
   }, [isListening, stopListening, clearAllTimeouts]);
   
-  // Update local state when recognition state changes
   useEffect(() => {
     if (recognitionRecovering && state.status === 'recording') {
       dispatch({ type: 'RECOVERY_STARTED' });
@@ -215,7 +202,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }
   }, [recognitionRecovering, state.status]);
   
-  // Update state when recognition error changes
   useEffect(() => {
     if (recognitionError && (state.status === 'recording' || state.status === 'recovering')) {
       addDebugInfo(`Recognition error: ${recognitionError}`);
@@ -226,7 +212,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }
   }, [recognitionError, state.status]);
   
-  // Request microphone access
   const requestMicrophoneAccess = async () => {
     addDebugInfo("Requesting microphone access explicitly");
     try {
@@ -254,28 +239,21 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }
   };
   
-  // Start recording function
   const startRecording = () => {
     addDebugInfo("Starting recording");
     
-    // Reset state
     resetTranscript();
     retryAttemptsRef.current = 0;
     
-    // Start listening
     startListening();
     
-    // Set up countdown timer
     setupCountdown();
   };
   
-  // Setup countdown timer
   const setupCountdown = () => {
-    // Maximum recording time (shorter for iOS PWA)
     const maxRecordingTime = environmentInfo.isIOSPwa ? 25 : 30;
     setCountdown(maxRecordingTime);
     
-    // Set up auto-stop timer
     if (recordingTimerRef.current) {
       clearTimeout(recordingTimerRef.current);
     }
@@ -287,7 +265,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       }
     }, maxRecordingTime * 1000);
     
-    // Set up countdown display timer
     if (countdownTimerRef.current) {
       clearInterval(countdownTimerRef.current);
     }
@@ -306,40 +283,31 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }, 1000);
   };
   
-  // Toggle recording function
   const toggleRecording = async () => {
     if (state.status === 'recording' || state.status === 'recovering') {
-      // Stop recording
       handleStopRecording();
       return;
     }
     
-    // Start recording flow
     dispatch({ type: 'START_RECORDING' });
     
-    // Check permission
     if (permissionState === 'granted') {
       dispatch({ type: 'PERMISSION_GRANTED' });
       startRecording();
     } else {
-      // Request permission
       const permissionGranted = await requestMicrophoneAccess();
       
       if (!permissionGranted) {
-        // Permission denied - handled in requestMicrophoneAccess
         addDebugInfo("Cannot start recording - microphone access not granted");
       }
     }
   };
   
-  // Stop recording function
   const handleStopRecording = () => {
     addDebugInfo("Stopping recording");
     
-    // Stop listening
     stopListening();
     
-    // Clear timers
     if (recordingTimerRef.current) {
       clearTimeout(recordingTimerRef.current);
       recordingTimerRef.current = null;
@@ -350,20 +318,15 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       countdownTimerRef.current = null;
     }
     
-    // Get complete transcript (important for iOS PWA)
     const finalTranscript = getCompleteTranscript();
     
-    // Process the transcript
     if (finalTranscript && finalTranscript.trim()) {
       addDebugInfo(`Sending transcript: "${finalTranscript.substring(0, 30)}${finalTranscript.length > 30 ? '...' : ''}"`);
       
-      // Start processing
       dispatch({ type: 'STOP_RECORDING', transcript: finalTranscript });
       
-      // Pass to parent component for processing
       onTranscriptComplete(finalTranscript);
       
-      // Also process locally for state management
       processTranscriptSafely(finalTranscript, {
         onError: (message) => {
           addDebugInfo(`Processing error: ${message}`);
@@ -390,16 +353,13 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }
   };
   
-  // Force retry function
   const handleForceRetry = () => {
     if (state.status !== 'recording' && state.status !== 'recovering') return;
     
     addDebugInfo("Manual retry initiated");
     
-    // Stop recognition
     stopListening();
     
-    // Reset and restart
     createTimeout(() => {
       resetTranscript();
       startListening();
@@ -407,7 +367,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }, environmentInfo.isIOSPwa ? 500 : 300);
   };
   
-  // Reset function
   const handleReset = () => {
     addDebugInfo("Resetting recorder state");
     dispatch({ type: 'RESET' });
@@ -430,7 +389,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }
   };
   
-  // UI Components
   const PlatformSpecificInstructions = () => {
     if (environmentInfo.isIOSPwa) {
       return (
@@ -458,7 +416,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     return null;
   };
   
-  // Render browser not supported message
   if (!browserSupportsSpeechRecognition) {
     return (
       <div className="text-center p-6">
@@ -478,7 +435,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     );
   }
   
-  // Render permission denied message
   if (permissionState === "denied" || (permissionState === "prompt" && isMobile)) {
     return (
       <div className="space-y-4">
@@ -504,11 +460,9 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     );
   }
   
-  // Main recorder view
   return (
     <div className="space-y-4">
       <div className="text-center mb-6">
-        {/* Recording button */}
         <div className="flex justify-center mb-4">
           <Button
             onClick={toggleRecording}
@@ -537,7 +491,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
           </Button>
         </div>
         
-        {/* Status display */}
         <div className="text-sm">
           {(state.status === 'recording' || state.status === 'recovering') ? (
             <div className="text-red-500 font-semibold">
@@ -564,11 +517,9 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
           )}
         </div>
         
-        {/* Platform-specific instructions */}
         <PlatformSpecificInstructions />
         
-        {/* Restart button for problematic platforms */}
-        {(environmentInfo.isIOSPwa || environment.isPwa) && 
+        {(environmentInfo.isIOSPwa || environmentInfo.isPwa) && 
          (state.status === 'recording' || state.status === 'recovering') && (
           <div className="mt-2">
             <Button 
@@ -589,7 +540,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         )}
       </div>
       
-      {/* Transcript display */}
       <div className="border rounded-md p-3 bg-slate-50">
         <h3 className="font-medium mb-2 text-sm">Your voice input:</h3>
         <ScrollArea className="h-[100px] overflow-y-auto">
@@ -609,7 +559,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         </ScrollArea>
       </div>
       
-      {/* Error display */}
       {state.status === 'error' && (
         <Alert 
           variant="default" 
@@ -619,11 +568,10 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
           <AlertTitle className="text-yellow-700">Recognition Error</AlertTitle>
           <AlertDescription className="text-yellow-600">
             {state.message}
-            {environment.isPwa && (
+            {environmentInfo.isPwa && (
               <p className="text-xs mt-1">
                 PWA mode may have limited speech recognition capabilities.
-                {(state.status === 'recording' || state.status === 'recovering') && 
-                  " Try using the restart button if needed."}
+                Try using the restart button if needed.
               </p>
             )}
           </AlertDescription>
@@ -639,7 +587,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         </Alert>
       )}
       
-      {/* Debug info (only in development) */}
       {process.env.NODE_ENV === 'development' && (
         <details className="mt-4 text-xs text-gray-500 border rounded p-2">
           <summary>Debug Info</summary>
@@ -665,11 +612,10 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         </details>
       )}
       
-      {/* Instructions */}
       <div className="mt-3 text-sm text-center text-gray-500">
         <p>Speak clearly and naturally.</p>
         <p>Recording will automatically stop after {environmentInfo.isIOSPwa ? 25 : 30} seconds.</p>
-        {environment.isPwa && (
+        {environmentInfo.isPwa && (
           <p className="text-xs mt-1 text-amber-600">
             Running in PWA mode: If recognition doesn't work, try closing and reopening the app.
           </p>
