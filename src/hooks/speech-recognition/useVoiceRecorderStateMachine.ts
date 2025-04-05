@@ -82,11 +82,45 @@ function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): Recor
   return state;
 }
 
-export const useVoiceRecorderStateMachine = () => {
+export interface VoiceRecorderEnvironment {
+  isPwa: boolean;
+  isIOS: boolean;
+  isIOSPwa: boolean;
+  isSafari: boolean;
+  isMobile: boolean;
+}
+
+export const useVoiceRecorderStateMachine = (environment?: VoiceRecorderEnvironment) => {
   const [state, dispatch] = useReducer(voiceRecorderReducer, { status: 'idle' });
-  const { createTimeout } = useTrackedTimeouts();
+  const { createTimeout, clearTimeouts } = useTrackedTimeouts();
+
+  // Default environment if not provided
+  const env: VoiceRecorderEnvironment = environment || {
+    isPwa: false,
+    isIOS: false,
+    isIOSPwa: false,
+    isSafari: false,
+    isMobile: false
+  };
+
+  // Helper to apply platform-specific delays  
+  const applyPlatformDelay = useCallback((callback: () => void, baseDelay: number = 0) => {
+    // iOS PWA needs longer delays for reliable state transitions
+    const delayMs = env.isIOSPwa ? baseDelay + 200 : 
+                   (env.isPwa ? baseDelay + 100 : 
+                   (env.isMobile ? baseDelay + 50 : baseDelay));
+    
+    if (delayMs > 0) {
+      console.log(`[StateMachine] Applying platform delay of ${delayMs}ms (isPwa: ${env.isPwa}, isIOSPwa: ${env.isIOSPwa})`);
+      return createTimeout(callback, delayMs);
+    } else {
+      // Execute immediately if no delay needed
+      callback();
+      return null;
+    }
+  }, [env.isPwa, env.isIOSPwa, env.isMobile, createTimeout]);
   
-  // Action creators with proper resource management
+  // Action creators with proper resource management and platform-specific handling
   const actions = {
     startRecording: useCallback(() => {
       dispatch({ type: 'START_RECORDING' });
@@ -117,21 +151,29 @@ export const useVoiceRecorderStateMachine = () => {
     }, []),
     
     processingComplete: useCallback((result: VoiceProcessingResult) => {
-      dispatch({ type: 'PROCESSING_COMPLETE', result });
-    }, []),
+      // Use platform-specific delay for the transition to confirming state
+      // This helps prevent UI glitches especially in PWA environments
+      applyPlatformDelay(() => {
+        console.log('[StateMachine] Dispatching PROCESSING_COMPLETE after platform delay');
+        dispatch({ type: 'PROCESSING_COMPLETE', result });
+      }, env.isIOSPwa ? 300 : 100);
+    }, [applyPlatformDelay, env.isIOSPwa]),
     
     processingError: useCallback((message: string) => {
       dispatch({ type: 'PROCESSING_ERROR', message });
       
       // Automatically reset after error displayed
       createTimeout(() => {
+        console.log('[StateMachine] Auto-resetting after error');
         dispatch({ type: 'RESET' });
       }, 5000);
     }, [createTimeout]),
     
     reset: useCallback(() => {
+      // Clear any pending timeouts first
+      clearTimeouts();
       dispatch({ type: 'RESET' });
-    }, []),
+    }, [clearTimeouts]),
   };
   
   return { state, actions };
