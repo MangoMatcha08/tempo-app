@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { VoiceProcessingResult, ReminderPriority, ReminderCategory } from "@/types/reminderTypes";
 import { generateMeaningfulTitle } from "@/utils/voiceReminderUtils";
@@ -20,6 +19,58 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   const [viewState, setViewState] = useState<ViewState>('idle');
   const { toast } = useToast();
   
+  // Logging system
+  const debugLogsRef = useRef<Array<{
+    timestamp: number;
+    message: string;
+    data?: any;
+  }>>([]);
+  
+  // Helper function for logging with timestamps
+  const logDebug = useCallback((message: string, data?: any) => {
+    const log = {
+      timestamp: Date.now(),
+      message,
+      data
+    };
+    
+    console.log(`[VoiceRecorder ${new Date().toISOString().slice(11, 23)}]`, message, data || '');
+    debugLogsRef.current.push(log);
+    
+    // Keep log size manageable (last 100 entries)
+    if (debugLogsRef.current.length > 100) {
+      debugLogsRef.current.shift();
+    }
+  }, []);
+  
+  // Log environment information once
+  useEffect(() => {
+    // Detect environment
+    const userAgent = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
+    const isPwa = window.matchMedia('(display-mode: standalone)').matches || 
+                 (window.navigator as any).standalone === true;
+    const isIOSPwa = isPwa && isIOS;
+    
+    logDebug('Environment initialized', { 
+      isPwa, 
+      isIOS, 
+      isIOSPwa,
+      userAgent: userAgent.substring(0, 100),
+      screenWidth: window.innerWidth,
+      platform: navigator.platform,
+      viewportHeight: window.innerHeight
+    });
+    
+    logDebug('Initial state', {
+      view,
+      viewState,
+      isProcessing,
+      hasTranscript: Boolean(transcript),
+      hasResult: Boolean(processingResult)
+    });
+  }, [logDebug, view, viewState, isProcessing, transcript, processingResult]);
+  
   const isConfirmingRef = useRef(false);
   const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true); // Track component mount state
@@ -27,6 +78,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   // Set isMountedRef to false when component unmounts
   useEffect(() => {
     isMountedRef.current = true;
+    logDebug('Component mounted');
     
     return () => {
       isMountedRef.current = false;
@@ -35,18 +87,25 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       if (transitionTimerRef.current) {
         clearTimeout(transitionTimerRef.current);
         transitionTimerRef.current = null;
+        logDebug('Unmount: cleared transition timer');
       }
+      
+      logDebug('Component unmounted');
+      
+      // Dump full debug log to console on unmount for easier debugging
+      console.table(debugLogsRef.current);
     };
-  }, []);
+  }, [logDebug]);
   
   const resetState = useCallback(() => {
-    console.log("Reset state called, current view:", view, "viewState:", viewState);
+    logDebug("Reset state called", { currentView: view, currentViewState: viewState });
     
     if (!isConfirmingRef.current || viewState === 'idle') {
       // Clear any pending timers first
       if (transitionTimerRef.current) {
         clearTimeout(transitionTimerRef.current);
         transitionTimerRef.current = null;
+        logDebug('Reset: cleared transition timer');
       }
       
       // Only update state if component is still mounted
@@ -61,41 +120,58 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         setPeriodId("none");
         setViewState('idle');
         isConfirmingRef.current = false;
+        
+        logDebug('State reset completed');
+      } else {
+        logDebug('Reset requested but component is unmounted');
       }
-      
-      console.log("State reset completed");
+    } else {
+      logDebug('Reset suppressed - currently confirming', { isConfirmingRef: isConfirmingRef.current });
     }
-  }, [view, viewState]);
+  }, [view, viewState, logDebug]);
   
   const transitionToConfirmView = useCallback(() => {
     if (viewState === 'processing' && isMountedRef.current) {
-      console.log("Transitioning from processing to confirming");
+      logDebug("Transitioning from processing to confirming");
       setViewState('confirming');
       setView('confirm');
+    } else {
+      logDebug("Transition blocked", { viewState, isMounted: isMountedRef.current });
     }
-  }, [viewState]);
+  }, [viewState, logDebug]);
   
   const handleTranscriptComplete = useCallback((text: string) => {
-    console.log("Transcript complete called with:", text);
+    logDebug("Transcript complete called", { textLength: text?.length || 0, textPreview: text?.substring(0, 20) });
+    
     if (!text || !text.trim() || !isMountedRef.current) {
-      console.log("Empty transcript received or component unmounted, not processing");
+      logDebug("Empty transcript received or component unmounted, not processing", { 
+        isEmpty: !text || !text.trim(), 
+        isMounted: isMountedRef.current 
+      });
       return;
     }
     
     isConfirmingRef.current = true;
+    logDebug('Setting isConfirmingRef to true');
     
     setTranscript(text);
     setIsProcessing(true);
     setViewState('processing');
+    logDebug('State updated to processing', { newTranscriptLength: text.length });
     
     try {
-      console.log("Processing voice input:", text);
+      logDebug("Processing voice input", { textPreview: text.substring(0, 30) });
       const result = processVoiceInput(text);
-      console.log("NLP processing result:", result);
+      logDebug("NLP processing result", { 
+        category: result.reminder.category,
+        priority: result.reminder.priority,
+        hasDate: Boolean(result.reminder.dueDate),
+        confidence: result.confidence
+      });
       
       // Check if component still mounted before continuing
       if (!isMountedRef.current) {
-        console.log("Component unmounted during processing, aborting");
+        logDebug("Component unmounted during processing, aborting");
         return;
       }
       
@@ -103,6 +179,8 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         result.reminder.category || ReminderCategory.TASK, 
         text
       );
+      
+      logDebug("Generated title", { title: generatedTitle });
       
       setTitle(generatedTitle);
       setPriority(result.reminder.priority || ReminderPriority.MEDIUM);
@@ -114,6 +192,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         tomorrow.setDate(tomorrow.getDate() + 1);
         tomorrow.setHours(9, 0, 0, 0);
         result.reminder.dueDate = tomorrow;
+        logDebug("Added default due date", { dueDate: tomorrow });
       }
       
       setProcessingResult({
@@ -124,23 +203,47 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         }
       });
       
-      console.log("Switching to confirmation view with result:", result);
+      logDebug("Switching to confirmation view with result", { 
+        hasResult: true,
+        title: generatedTitle,
+        category: result.reminder.category,
+        priority: result.reminder.priority
+      });
+      
       setIsProcessing(false);
       
       // Explicitly make the transition synchronous and direct
-      console.log("Setting view state to confirming directly");
+      logDebug("Setting view state to confirming directly");
       setViewState('confirming');
-      console.log("Setting view to confirm directly");
+      
+      logDebug("Setting view to confirm directly");
       setView('confirm');
+      
+      // Add a verification log after a small delay to ensure state was updated
+      setTimeout(() => {
+        logDebug("Verification - state after transition", {
+          view: 'confirm', // This is what we expect
+          viewState: 'confirming', // This is what we expect
+          isProcessing: false, // This is what we expect
+          hasResult: Boolean(result),
+          title: generatedTitle
+        });
+      }, 100);
+      
     } catch (error) {
       console.error('Error processing voice input:', error);
+      logDebug('Error processing voice input', { error });
       
       // Check if component still mounted before updating state
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current) {
+        logDebug('Component unmounted during error handling');
+        return;
+      }
       
       setIsProcessing(false);
       isConfirmingRef.current = false;
       setViewState('idle');
+      logDebug('Reset state after error');
       
       toast({
         title: "Processing Error",
@@ -148,22 +251,22 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
         variant: "destructive"
       });
     }
-  }, [toast]);
+  }, [toast, logDebug]);
   
   const handleCancel = useCallback(() => {
-    console.log("Cancel called, current viewState:", viewState);
+    logDebug("Cancel called", { currentViewState: viewState });
     isConfirmingRef.current = false;
     setViewState('idle');
     resetState();
     onOpenChange(false);
-  }, [resetState, onOpenChange, viewState]);
+  }, [resetState, onOpenChange, viewState, logDebug]);
 
   const handleGoBack = useCallback(() => {
-    console.log("Go back called, resetting to recording view");
+    logDebug("Go back called, resetting to recording view");
     setView("record");
     setViewState('idle');
     isConfirmingRef.current = false;
-  }, []);
+  }, [logDebug]);
   
   // Clean up timers when component unmounts
   useEffect(() => {
@@ -171,12 +274,14 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       if (transitionTimerRef.current) {
         clearTimeout(transitionTimerRef.current);
         transitionTimerRef.current = null;
+        logDebug('Cleanup: cleared transition timer on unmount');
       }
     };
-  }, []);
+  }, [logDebug]);
   
+  // Log state changes
   useEffect(() => {
-    console.log("Voice recorder state changed:", {
+    logDebug("Voice recorder state changed", {
       view, 
       viewState,
       isProcessing, 
@@ -184,7 +289,7 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
       hasResult: !!processingResult,
       title
     });
-  }, [view, transcript, isProcessing, processingResult, title, viewState]);
+  }, [view, transcript, isProcessing, processingResult, title, viewState, logDebug]);
   
   return {
     title,
@@ -202,6 +307,8 @@ export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
     handleTranscriptComplete,
     handleCancel,
     handleGoBack,
-    resetState
+    resetState,
+    debugLogs: debugLogsRef.current, // Expose debug logs for potential UI debugging
+    getDebugLogsAsString: () => JSON.stringify(debugLogsRef.current, null, 2) // Helper method for getting full debug logs
   };
 }
