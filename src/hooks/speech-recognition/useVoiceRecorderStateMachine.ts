@@ -92,7 +92,7 @@ export interface VoiceRecorderEnvironment {
 
 export const useVoiceRecorderStateMachine = (environment?: VoiceRecorderEnvironment) => {
   const [state, dispatch] = useReducer(voiceRecorderReducer, { status: 'idle' });
-  const { createTimeout, clearTimeouts } = useTrackedTimeouts();
+  const { createTimeout, clearAllTimeouts } = useTrackedTimeouts();
 
   // Default environment if not provided
   const env: VoiceRecorderEnvironment = environment || {
@@ -171,9 +171,9 @@ export const useVoiceRecorderStateMachine = (environment?: VoiceRecorderEnvironm
     
     reset: useCallback(() => {
       // Clear any pending timeouts first
-      clearTimeouts();
+      clearAllTimeouts();
       dispatch({ type: 'RESET' });
-    }, [clearTimeouts]),
+    }, [clearAllTimeouts]),
   };
   
   return { state, actions };
