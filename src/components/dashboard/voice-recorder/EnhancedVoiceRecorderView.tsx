@@ -33,6 +33,10 @@ type RecorderEvent =
   | { type: 'PROCESSING_ERROR', message: string }
   | { type: 'RESET' };
 
+function isRecordingOrRecovering(state: RecorderState): boolean {
+  return state.status === 'recording' || state.status === 'recovering';
+}
+
 function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): RecorderState {
   console.log(`Voice recorder state transition: ${state.status} + ${event.type}`);
   
@@ -306,14 +310,14 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   }, [recognitionRecovering, state.status]);
   
   useEffect(() => {
-    if (recognitionError && (state.status === 'recording' || state.status === 'recovering')) {
+    if (recognitionError && isRecordingOrRecovering(state)) {
       addDebugInfo(`Recognition error: ${recognitionError}`);
       dispatch({ 
         type: 'RECOGNITION_ERROR', 
         message: recognitionError 
       });
     }
-  }, [recognitionError, state.status]);
+  }, [recognitionError, state]);
   
   const requestMicrophoneAccess = async () => {
     addDebugInfo("Requesting microphone access explicitly");
@@ -540,7 +544,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
           <AlertCircle className="h-3 w-3 inline mr-1" />
           <span>
             iOS PWA recording mode: Speak clearly with pauses between sentences.
-            {(['recording', 'recovering'].includes(state.status)) && 
+            {isRecordingOrRecovering(state) && 
               " If no text appears, tap the restart button."}
           </span>
         </div>
@@ -699,17 +703,17 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
             size="lg"
             className={cn(
               "rounded-full h-16 w-16 p-0",
-              (['recording', 'recovering'].includes(state.status))
+              isRecordingOrRecovering(state)
                 ? "bg-red-500 hover:bg-red-600 animate-pulse" 
                 : "bg-blue-500 hover:bg-blue-600"
             )}
             aria-label={
-              (['recording', 'recovering'].includes(state.status))
+              isRecordingOrRecovering(state)
                 ? "Stop recording" 
                 : "Start recording"
             }
           >
-            {(['recording', 'recovering'].includes(state.status)) 
+            {isRecordingOrRecovering(state)
               ? <Square className="h-6 w-6" /> 
               : <Mic className="h-6 w-6" />
             }
@@ -717,7 +721,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         </div>
         
         <div className="text-sm">
-          {(['recording', 'recovering'].includes(state.status)) ? (
+          {isRecordingOrRecovering(state) ? (
             <div className="text-red-500 font-semibold">
               {state.status === 'recovering' 
                 ? "Reconnecting..." 
@@ -745,7 +749,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         <PlatformSpecificInstructions />
         
         {(environmentInfo.isIOSPwa || environmentInfo.isPwa) && 
-         (['recording', 'recovering'].includes(state.status)) && (
+         isRecordingOrRecovering(state) && (
           <div className="mt-2">
             <Button 
               variant="outline" 
