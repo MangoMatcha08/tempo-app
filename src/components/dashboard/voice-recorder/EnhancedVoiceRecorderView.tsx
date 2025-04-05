@@ -391,7 +391,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   };
   
   const toggleRecording = async () => {
-    if (state.status === 'recording' || state.status === 'recovering') {
+    if (isRecordingOrRecovering(state)) {
       handleStopRecording();
       return;
     }
@@ -486,7 +486,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   };
   
   const handleForceRetry = () => {
-    if (state.status !== 'recording' && state.status !== 'recovering') return;
+    if (!isRecordingOrRecovering(state)) return;
     
     addDebugInfo("Manual retry initiated");
     
