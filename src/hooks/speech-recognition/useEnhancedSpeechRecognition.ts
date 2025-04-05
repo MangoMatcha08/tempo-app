@@ -22,6 +22,7 @@ export interface UseEnhancedSpeechRecognitionReturn {
     isIOS: boolean;
     isIOSPwa: boolean;
     isMobile: boolean;
+    isPwa: boolean; // Added this property
     platform: string;
     browser: string;
   };
@@ -344,6 +345,7 @@ export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionRetu
       isIOS: env.isIOS,
       isIOSPwa: env.isIOSPwa,
       isMobile: env.isMobile,
+      isPwa: env.isPwa, // Added this property to include it in the environmentInfo
       platform: env.isIOS ? 'iOS' : (env.isAndroid ? 'Android' : 'Desktop'),
       browser: env.isSafari ? 'Safari' : 
                (env.isChrome ? 'Chrome' : 

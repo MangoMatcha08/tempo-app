@@ -13,6 +13,7 @@ export interface UseSpeechRecognitionReturn {
     isIOS: boolean;
     isIOSPwa: boolean;
     isMobile: boolean;
+    isPwa: boolean; // Added this property
     platform: string;
     browser: string;
   };
