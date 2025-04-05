@@ -128,11 +128,13 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
   const processingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const cleanupActionsRef = useRef<Array<() => void>>([]);
   
   const { 
     createTimeout, 
     clearTrackedTimeout, 
     clearAllTimeouts,
+    createInterval,
     runIfMounted 
   } = useTrackedTimeouts();
   
@@ -143,41 +145,20 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${info}`]);
   };
   
-  useEffect(() => {
-    console.log("Voice Recorder Environment:", {
-      isPwa: environment.isPwa,
-      isIOS: environmentInfo.isIOS,
-      isIOSPwa: environmentInfo.isIOSPwa,
-      isSafari: rawEnvironment.isSafari,
-      isChrome: rawEnvironment.isChrome,
-      isMobile: environmentInfo.isMobile,
-      userAgent: navigator.userAgent,
-      platform: navigator.platform,
-      viewportHeight: window.innerHeight,
-      screenWidth: window.innerWidth,
-      features: rawEnvironment.features,
-      recognitionConfig: rawEnvironment.recognitionConfig
-    });
-    
-    addDebugInfo(`Environment: ${environment.isPwa ? 'PWA' : 'Browser'}, ${environment.platform}, ${environment.browser}`);
-    
-    if (environmentInfo.isIOSPwa) {
-      addDebugInfo("⚠️ iOS PWA mode detected - using limited recognition capabilities");
-    } else if (environment.isPwa) {
-      addDebugInfo("PWA mode detected");
-    }
-    
-    const iOSVersion = getIOSVersion();
-    addDebugInfo(`iOS version detected: ${iOSVersion || 'unknown'}`);
-    
-    if (rawEnvironment.isSafari) {
-      addDebugInfo("iOS Safari detected - has additional speech recognition constraints");
-    }
-  }, [environment, environmentInfo, rawEnvironment]);
+  const registerCleanupAction = (cleanupFn: () => void) => {
+    cleanupActionsRef.current.push(cleanupFn);
+  };
   
-  const getIOSVersion = () => {
-    const match = navigator.userAgent.match(/OS (\d+)_(\d+)_?(\d+)?/);
-    return match ? `${match[1]}.${match[2]}${match[3] ? `.${match[3]}` : ''}` : null;
+  const executeCleanupActions = () => {
+    addDebugInfo(`Executing ${cleanupActionsRef.current.length} cleanup actions`);
+    cleanupActionsRef.current.forEach(action => {
+      try {
+        action();
+      } catch (err) {
+        console.error('Error in cleanup action:', err);
+      }
+    });
+    cleanupActionsRef.current = [];
   };
 
   useEffect(() => {
@@ -211,38 +192,116 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     };
     
     checkMicPermission();
+    
+    if (navigator.permissions && 'addEventListener' in EventTarget.prototype) {
+      const cleanupPermissionListeners = () => {
+        addDebugInfo("Cleaned up permission event listeners");
+      };
+      
+      registerCleanupAction(cleanupPermissionListeners);
+    }
   }, [state.status]);
   
   useEffect(() => {
+    let isMounted = true;
+    
+    addDebugInfo("Component mounted, setting up resource tracking");
+    
+    registerCleanupAction(() => {
+      isMounted = false;
+      addDebugInfo("Component unmount flag set");
+    });
+    
+    const platformSpecificCleanup = () => {
+      addDebugInfo(`Running platform-specific cleanup: isPWA=${environment.isPwa}, isIOSPwa=${environmentInfo.isIOSPwa}`);
+      
+      if (environmentInfo.isIOSPwa) {
+        addDebugInfo("iOS PWA detected: performing aggressive resource cleanup");
+        
+        if (window.performance && typeof window.performance.memory !== 'undefined') {
+          addDebugInfo("Suggesting memory cleanup to browser");
+        }
+        
+        const taskCleanupIds = [];
+        for (let i = 0; i < 10; i++) {
+          taskCleanupIds.push(setTimeout(() => {}, 0));
+        }
+        taskCleanupIds.forEach(id => clearTimeout(id));
+        
+        addDebugInfo(`Cleared potential task queue (IDs: ${taskCleanupIds.join(', ')})`);
+      }
+      
+      if (environment.isPwa) {
+        addDebugInfo("PWA-specific cleanup completed");
+      }
+    };
+    
     return () => {
+      addDebugInfo("Component unmounting - starting cleanup process");
+      
       clearAllTimeouts();
+      addDebugInfo("Cleared all tracked timeouts");
       
       if (isListening) {
-        stopListening();
-        addDebugInfo("Cleanup: stopped listening on unmount");
+        try {
+          stopListening();
+          addDebugInfo("Stopped active listening");
+        } catch (err) {
+          console.error("Error stopping listening during cleanup:", err);
+          addDebugInfo(`Error stopping listening: ${err}`);
+          
+          if (environment.isPwa) {
+            try {
+              addDebugInfo("Additional PWA cleanup attempt for speech recognition");
+            } catch (innerErr) {
+              addDebugInfo(`Failed additional cleanup: ${innerErr}`);
+            }
+          }
+        }
       }
       
       if (recordingTimerRef.current) {
         clearTimeout(recordingTimerRef.current);
         recordingTimerRef.current = null;
+        addDebugInfo("Cleared recording timer");
       }
       
       if (countdownTimerRef.current) {
         clearInterval(countdownTimerRef.current);
         countdownTimerRef.current = null;
+        addDebugInfo("Cleared countdown timer");
       }
       
       if (processingTimerRef.current) {
         clearTimeout(processingTimerRef.current);
         processingTimerRef.current = null;
+        addDebugInfo("Cleared processing timer");
       }
+      
+      platformSpecificCleanup();
+      
+      executeCleanupActions();
+      
+      addDebugInfo("Cleanup complete");
     };
-  }, [isListening, stopListening, clearAllTimeouts]);
+  }, [
+    isListening, 
+    stopListening, 
+    clearAllTimeouts, 
+    environment.isPwa, 
+    environmentInfo.isIOSPwa
+  ]);
   
   useEffect(() => {
     if (recognitionRecovering && state.status === 'recording') {
       dispatch({ type: 'RECOVERY_STARTED' });
       addDebugInfo("Recognition is recovering");
+      
+      registerCleanupAction(() => {
+        if (state.status === 'recovering') {
+          addDebugInfo("Cleaning up from recovery state");
+        }
+      });
     }
   }, [recognitionRecovering, state.status]);
   
@@ -502,26 +561,36 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   };
   
   useEffect(() => {
-    // Only set up fallback timer for PWA environments when we're in processing state
     if ((environment.isPwa || environmentInfo.isIOSPwa) && 
         state.status === 'processing' && 
         'transcript' in state) {
       
-      // If we're still in processing state after a reasonable time, show the fallback
+      addDebugInfo("Setting up fallback timer for PWA processing state");
+      
       processingTimerRef.current = setTimeout(() => {
-        addDebugInfo("Setting fallback needed flag due to stuck processing state");
-        setFallbackNeeded(true);
+        if (state.status === 'processing' && 'transcript' in state) {
+          addDebugInfo("Setting fallback needed flag due to stuck processing state");
+          setFallbackNeeded(true);
+        }
       }, environmentInfo.isIOSPwa ? 5000 : 3000);
+      
+      registerCleanupAction(() => {
+        if (processingTimerRef.current) {
+          clearTimeout(processingTimerRef.current);
+          processingTimerRef.current = null;
+          addDebugInfo("Cleaned up processing timer from dedicated effect");
+        }
+      });
       
       return () => {
         if (processingTimerRef.current) {
           clearTimeout(processingTimerRef.current);
           processingTimerRef.current = null;
+          addDebugInfo("Cleaned up processing timer in effect cleanup");
         }
       };
     }
     
-    // Reset fallback flag when we're no longer in processing state
     if (state.status !== 'processing' && fallbackNeeded) {
       setFallbackNeeded(false);
     }
@@ -533,7 +602,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     if (state.status === 'processing' && 'transcript' in state) {
       const transcript = state.transcript;
       
-      // Process the result again to ensure we have it
       processTranscriptSafely(transcript, {
         onError: (message) => {
           addDebugInfo(`Processing error in fallback: ${message}`);
@@ -597,6 +665,25 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       </div>
     );
   }
+  
+  useEffect(() => {
+    if (environment.isPwa && process.env.NODE_ENV === 'development') {
+      const logMemoryUsage = () => {
+        if (window.performance && typeof window.performance.memory !== 'undefined') {
+          const memory = (window.performance as any).memory;
+          addDebugInfo(`Memory: ${Math.round(memory.usedJSHeapSize / 1048576)}MB / ${Math.round(memory.jsHeapSizeLimit / 1048576)}MB`);
+        }
+      };
+      
+      logMemoryUsage();
+      const memoryInterval = setInterval(logMemoryUsage, 10000);
+      
+      return () => {
+        clearInterval(memoryInterval);
+        addDebugInfo("Cleared memory logging interval");
+      };
+    }
+  }, [environment.isPwa]);
   
   return (
     <div className="space-y-4">

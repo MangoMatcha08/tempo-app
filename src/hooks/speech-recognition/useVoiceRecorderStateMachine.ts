@@ -1,5 +1,5 @@
 
-import { useReducer, useCallback } from 'react';
+import { useReducer, useCallback, useRef } from 'react';
 import { ReminderPriority, ReminderCategory, VoiceProcessingResult } from '@/types/reminderTypes';
 import { useTrackedTimeouts } from '@/hooks/use-tracked-timeouts';
 
@@ -8,7 +8,7 @@ export type RecorderState =
   | { status: 'idle' }
   | { status: 'requesting-permission' }
   | { status: 'recording' }
-  | { status: 'recovering' } // Added this state for error recovery
+  | { status: 'recovering' } 
   | { status: 'processing', transcript: string }
   | { status: 'confirming', result: VoiceProcessingResult }
   | { status: 'error', message: string };
@@ -19,8 +19,8 @@ export type RecorderEvent =
   | { type: 'PERMISSION_GRANTED' }
   | { type: 'PERMISSION_DENIED' }
   | { type: 'STOP_RECORDING', transcript: string }
-  | { type: 'RECOVERY_STARTED' } // Added for error recovery
-  | { type: 'RECOVERY_COMPLETED' } // Added for error recovery
+  | { type: 'RECOVERY_STARTED' } 
+  | { type: 'RECOVERY_COMPLETED' } 
   | { type: 'RECOGNITION_ERROR', message: string }
   | { type: 'PROCESSING_COMPLETE', result: VoiceProcessingResult }
   | { type: 'PROCESSING_ERROR', message: string }
@@ -93,7 +93,10 @@ export interface VoiceRecorderEnvironment {
 export const useVoiceRecorderStateMachine = (environment?: VoiceRecorderEnvironment) => {
   const [state, dispatch] = useReducer(voiceRecorderReducer, { status: 'idle' });
   const { createTimeout, clearAllTimeouts } = useTrackedTimeouts();
-
+  
+  // Track cleanup actions for better resource management
+  const cleanupActionsRef = useRef<Array<() => void>>([]);
+  
   // Default environment if not provided
   const env: VoiceRecorderEnvironment = environment || {
     isPwa: false,
@@ -102,6 +105,14 @@ export const useVoiceRecorderStateMachine = (environment?: VoiceRecorderEnvironm
     isSafari: false,
     isMobile: false
   };
+  
+  // Helper to register cleanup actions
+  const registerCleanupAction = useCallback((cleanupFn: () => void) => {
+    cleanupActionsRef.current.push(cleanupFn);
+    return () => {
+      cleanupActionsRef.current = cleanupActionsRef.current.filter(fn => fn !== cleanupFn);
+    };
+  }, []);
 
   // Helper to apply platform-specific delays  
   const applyPlatformDelay = useCallback((callback: () => void, baseDelay: number = 0) => {
@@ -112,13 +123,21 @@ export const useVoiceRecorderStateMachine = (environment?: VoiceRecorderEnvironm
     
     if (delayMs > 0) {
       console.log(`[StateMachine] Applying platform delay of ${delayMs}ms (isPwa: ${env.isPwa}, isIOSPwa: ${env.isIOSPwa})`);
-      return createTimeout(callback, delayMs);
+      const timeoutId = createTimeout(callback, delayMs);
+      
+      // Register cleanup for this timeout
+      registerCleanupAction(() => {
+        clearAllTimeouts(); // This will also clear our specific timeout
+        console.log(`[StateMachine] Cleaned up platform delay timeout`);
+      });
+      
+      return timeoutId;
     } else {
       // Execute immediately if no delay needed
       callback();
       return null;
     }
-  }, [env.isPwa, env.isIOSPwa, env.isMobile, createTimeout]);
+  }, [env.isPwa, env.isIOSPwa, env.isMobile, createTimeout, registerCleanupAction, clearAllTimeouts]);
   
   // Action creators with proper resource management and platform-specific handling
   const actions = {
@@ -173,9 +192,25 @@ export const useVoiceRecorderStateMachine = (environment?: VoiceRecorderEnvironm
     reset: useCallback(() => {
       // Clear any pending timeouts first
       clearAllTimeouts();
+      
+      // Execute all registered cleanup actions
+      cleanupActionsRef.current.forEach(action => {
+        try {
+          action();
+        } catch (err) {
+          console.error('Error in cleanup action:', err);
+        }
+      });
+      cleanupActionsRef.current = [];
+      
       dispatch({ type: 'RESET' });
+      console.log('[StateMachine] Reset complete with full cleanup');
     }, [clearAllTimeouts]),
   };
   
-  return { state, actions };
+  return { 
+    state, 
+    actions,
+    registerCleanupAction
+  };
 };
