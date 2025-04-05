@@ -218,7 +218,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       if (environmentInfo.isIOSPwa) {
         addDebugInfo("iOS PWA detected: performing aggressive resource cleanup");
         
-        if (window.performance && typeof window.performance.memory !== 'undefined') {
+        if (window.performance && typeof (window.performance as any).memory !== 'undefined') {
           addDebugInfo("Suggesting memory cleanup to browser");
         }
         
@@ -293,7 +293,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   ]);
   
   useEffect(() => {
-    if (recognitionRecovering && state.status === 'recording') {
+    if (state.status === 'recording' && recognitionRecovering) {
       dispatch({ type: 'RECOVERY_STARTED' });
       addDebugInfo("Recognition is recovering");
       
@@ -540,7 +540,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
           <AlertCircle className="h-3 w-3 inline mr-1" />
           <span>
             iOS PWA recording mode: Speak clearly with pauses between sentences.
-            {(state.status === 'recording' || state.status === 'recovering') && 
+            {(['recording', 'recovering'].includes(state.status)) && 
               " If no text appears, tap the restart button."}
           </span>
         </div>
@@ -669,7 +669,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   useEffect(() => {
     if (environment.isPwa && process.env.NODE_ENV === 'development') {
       const logMemoryUsage = () => {
-        if (window.performance && typeof window.performance.memory !== 'undefined') {
+        if (window.performance && typeof (window.performance as any).memory !== 'undefined') {
           const memory = (window.performance as any).memory;
           addDebugInfo(`Memory: ${Math.round(memory.usedJSHeapSize / 1048576)}MB / ${Math.round(memory.jsHeapSizeLimit / 1048576)}MB`);
         }
@@ -699,17 +699,17 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
             size="lg"
             className={cn(
               "rounded-full h-16 w-16 p-0",
-              (state.status === 'recording' || state.status === 'recovering')
+              (['recording', 'recovering'].includes(state.status))
                 ? "bg-red-500 hover:bg-red-600 animate-pulse" 
                 : "bg-blue-500 hover:bg-blue-600"
             )}
             aria-label={
-              (state.status === 'recording' || state.status === 'recovering') 
+              (['recording', 'recovering'].includes(state.status))
                 ? "Stop recording" 
                 : "Start recording"
             }
           >
-            {(state.status === 'recording' || state.status === 'recovering') 
+            {(['recording', 'recovering'].includes(state.status)) 
               ? <Square className="h-6 w-6" /> 
               : <Mic className="h-6 w-6" />
             }
@@ -717,7 +717,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         </div>
         
         <div className="text-sm">
-          {(state.status === 'recording' || state.status === 'recovering') ? (
+          {(['recording', 'recovering'].includes(state.status)) ? (
             <div className="text-red-500 font-semibold">
               {state.status === 'recovering' 
                 ? "Reconnecting..." 
@@ -745,7 +745,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         <PlatformSpecificInstructions />
         
         {(environmentInfo.isIOSPwa || environmentInfo.isPwa) && 
-         (state.status === 'recording' || state.status === 'recovering') && (
+         (['recording', 'recovering'].includes(state.status)) && (
           <div className="mt-2">
             <Button 
               variant="outline" 
