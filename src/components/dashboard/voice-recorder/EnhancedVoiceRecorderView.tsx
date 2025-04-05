@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useReducer, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Mic, Square, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
+import { Mic, Square, AlertCircle, RefreshCw, Loader2, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -127,6 +127,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   const retryAttemptsRef = useRef<number>(0);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const processingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   const { 
     createTimeout, 
@@ -134,6 +135,9 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     clearAllTimeouts,
     runIfMounted 
   } = useTrackedTimeouts();
+  
+  const [processingResult, setProcessingResult] = useState<VoiceProcessingResult | null>(null);
+  const [fallbackNeeded, setFallbackNeeded] = useState(false);
   
   const addDebugInfo = (info: string) => {
     setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${info}`]);
@@ -226,6 +230,11 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       if (countdownTimerRef.current) {
         clearInterval(countdownTimerRef.current);
         countdownTimerRef.current = null;
+      }
+      
+      if (processingTimerRef.current) {
+        clearTimeout(processingTimerRef.current);
+        processingTimerRef.current = null;
       }
     };
   }, [isListening, stopListening, clearAllTimeouts]);
@@ -492,6 +501,59 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     return null;
   };
   
+  useEffect(() => {
+    // Only set up fallback timer for PWA environments when we're in processing state
+    if ((environment.isPwa || environmentInfo.isIOSPwa) && 
+        state.status === 'processing' && 
+        'transcript' in state) {
+      
+      // If we're still in processing state after a reasonable time, show the fallback
+      processingTimerRef.current = setTimeout(() => {
+        addDebugInfo("Setting fallback needed flag due to stuck processing state");
+        setFallbackNeeded(true);
+      }, environmentInfo.isIOSPwa ? 5000 : 3000);
+      
+      return () => {
+        if (processingTimerRef.current) {
+          clearTimeout(processingTimerRef.current);
+          processingTimerRef.current = null;
+        }
+      };
+    }
+    
+    // Reset fallback flag when we're no longer in processing state
+    if (state.status !== 'processing' && fallbackNeeded) {
+      setFallbackNeeded(false);
+    }
+  }, [state.status, environment.isPwa, environmentInfo.isIOSPwa, fallbackNeeded]);
+  
+  const handleManualContinue = () => {
+    addDebugInfo("Manual continue triggered by user");
+    
+    if (state.status === 'processing' && 'transcript' in state) {
+      const transcript = state.transcript;
+      
+      // Process the result again to ensure we have it
+      processTranscriptSafely(transcript, {
+        onError: (message) => {
+          addDebugInfo(`Processing error in fallback: ${message}`);
+          dispatch({ type: 'PROCESSING_ERROR', message });
+        },
+        onProcessingStart: (transcript) => {
+          addDebugInfo("Started processing transcript in fallback");
+        },
+        onProcessingComplete: (result) => {
+          addDebugInfo("Successfully processed transcript in fallback");
+          setProcessingResult(result);
+          dispatch({ type: 'PROCESSING_COMPLETE', result });
+          if (onResultComplete) {
+            onResultComplete(result);
+          }
+        }
+      });
+    }
+  };
+  
   if (!browserSupportsSpeechRecognition) {
     return (
       <div className="text-center p-6">
@@ -634,6 +696,34 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
           </div>
         </ScrollArea>
       </div>
+      
+      {(environment.isPwa || environmentInfo.isIOSPwa) && 
+       state.status === 'processing' && 
+       'transcript' in state &&
+       fallbackNeeded && (
+        <div className="border-2 border-amber-400 bg-amber-50 rounded-md p-4 mt-3 animate-fade-in">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertCircle className="h-5 w-5 text-amber-500" />
+            <h3 className="font-medium text-amber-700">
+              {environmentInfo.isIOSPwa ? "iOS PWA Mode" : "PWA Mode"} - Continue Manually
+            </h3>
+          </div>
+          
+          <p className="text-sm text-amber-700 mb-3">
+            It seems the automatic process is taking longer than expected.
+            You can continue manually to review your voice note.
+          </p>
+          
+          <div className="flex justify-center">
+            <Button 
+              onClick={handleManualContinue} 
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+            >
+              Continue to Review <ArrowRight className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
       
       {state.status === 'error' && 'message' in state && (
         <Alert 
