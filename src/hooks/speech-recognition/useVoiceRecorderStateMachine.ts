@@ -165,10 +165,9 @@ export const useVoiceRecorderStateMachine = (environment?: VoiceRecorderEnvironm
       // Automatically reset after error displayed
       createTimeout(() => {
         console.log('[StateMachine] Auto-resetting after error');
-        clearAllTimeouts();
         dispatch({ type: 'RESET' });
       }, 5000);
-    }, [createTimeout, clearAllTimeouts]),
+    }, [createTimeout]),
     
     reset: useCallback(() => {
       // Clear any pending timeouts first
