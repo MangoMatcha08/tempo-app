@@ -661,6 +661,47 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         </Alert>
       )}
       
+      {(checkStatus(state.status, 'processing') || checkStatus(state.status, 'confirming')) && environmentInfo.isPwa && (
+        <div className="mt-4 p-3 border border-amber-200 bg-amber-50 rounded-md">
+          <h3 className="font-medium text-amber-800">Voice Processing Status</h3>
+          <p className="text-sm text-amber-700 mt-1">
+            {checkStatus(state.status, 'processing')
+              ? "Processing your voice input... This may take a moment."
+              : "Voice processing complete. If the confirmation screen doesn't appear automatically, please use the buttons below."}
+          </p>
+          
+          {/* Show progress if processing */}
+          {checkStatus(state.status, 'processing') && (
+            <div className="mt-2 relative pt-1">
+              <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-amber-200">
+                <div className="w-full animate-pulse bg-amber-500"></div>
+              </div>
+            </div>
+          )}
+          
+          {/* Show manual buttons if we're stuck in confirmation state */}
+          {checkStatus(state.status, 'confirming') && (
+            <div className="mt-2 flex space-x-2">
+              <Button 
+                onClick={() => onResultComplete && processingResult && onResultComplete(processingResult)}
+                className="flex-1"
+                size="sm"
+              >
+                Use Results
+              </Button>
+              <Button 
+                onClick={() => dispatch({ type: 'RESET' })}
+                className="flex-1"
+                variant="outline"
+                size="sm"
+              >
+                Start Over
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+      
       {process.env.NODE_ENV === 'development' && (
         <details className="mt-4 text-xs text-gray-500 border rounded p-2">
           <summary>Debug Info</summary>
