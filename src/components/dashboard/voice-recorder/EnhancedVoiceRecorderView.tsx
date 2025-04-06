@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useReducer, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, AlertCircle, RefreshCw, Loader2, ArrowRight } from "lucide-react";
@@ -899,4 +898,3 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
 };
 
 export default EnhancedVoiceRecorderView;
-
