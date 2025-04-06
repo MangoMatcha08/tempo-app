@@ -1,94 +1,48 @@
+import { Reminder } from './reminder';
 
 export enum ReminderPriority {
-  LOW = "low",
+  HIGH = "high",
   MEDIUM = "medium",
-  HIGH = "high"
+  LOW = "low"
 }
 
 export enum ReminderCategory {
-  TASK = "task",
-  MEETING = "meeting",
-  DEADLINE = "deadline",
-  PREPARATION = "preparation",
-  GRADING = "grading",
-  COMMUNICATION = "communication",
+  WORK = "work",
+  PERSONAL = "personal",
+  HEALTH = "health",
+  SHOPPING = "shopping",
   OTHER = "other"
 }
 
-/**
- * Base reminder interface with properties common to all contexts
- */
-export interface BaseReminder {
+export type DatabaseReminder = {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   dueDate: Date;
   priority: ReminderPriority;
   completed?: boolean;
+  completedAt?: Date;
+  createdAt: Date;
+  userId: string;
   location?: string;
-}
+};
 
-/**
- * Database reminder with storage-specific fields
- */
-export interface DatabaseReminder extends BaseReminder {
-  userId?: string;
-  completedAt?: Date;
-  createdAt?: Date;
-  category?: ReminderCategory;
-  periodId?: string;
-  checklist?: ChecklistItem[];
-}
+export type VoiceProcessingResult = {
+  reminder: Partial<Reminder>;
+  confidence?: number;
+  detectedEntities?: Array<{
+    entity: string;
+    type: string;
+    confidence: number;
+  }>;
+};
 
-/**
- * UI-specific reminder with presentation-specific fields
- */
-export interface UIReminder extends BaseReminder {
-  timeRemaining?: string;
-  formattedDate?: string;
-  completedTimeAgo?: string;
-  completedAt?: Date;
-  category?: ReminderCategory;
-  checklist?: ChecklistItem[];
-}
-
-export interface ChecklistItem {
-  text: string;
-  isCompleted: boolean;
-  id?: string;
-}
-
-export interface DetectedNewPeriod {
-  name: string;
-  isNew: boolean;
-}
-
-export interface CreateReminderInput {
-  title: string;
-  description: string;
-  priority?: ReminderPriority;
-  category?: ReminderCategory;
-  periodId?: string;
-  voiceTranscript?: string;
-  checklist?: ChecklistItem[];
-  detectedNewPeriod?: DetectedNewPeriod;
-  dueDate?: Date;
-  userId?: string;
-}
-
-// For backward compatibility and to avoid breaking existing code
-export type Reminder = DatabaseReminder;
-
-export interface VoiceProcessingResult {
-  reminder: CreateReminderInput;
-  confidence: number;
-  detectedEntities: {
-    priority?: ReminderPriority;
-    category?: ReminderCategory;
-    period?: string;
-    newPeriod?: string;
-    checklist?: string[];
-    date?: Date;
-    time?: Date;
-  };
-}
+// Recorder state type for voice recognition state machine
+export type RecorderState = 
+  | { status: 'idle' }
+  | { status: 'requesting-permission' }
+  | { status: 'recording' }
+  | { status: 'recovering' }
+  | { status: 'processing', transcript: string }
+  | { status: 'confirming', result: VoiceProcessingResult }
+  | { status: 'error', message: string };

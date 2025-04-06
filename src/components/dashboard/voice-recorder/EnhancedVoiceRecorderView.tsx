@@ -9,16 +9,13 @@ import { useTrackedTimeouts } from "@/hooks/use-tracked-timeouts";
 import { processTranscriptSafely } from "@/hooks/speech-recognition/errorHandlers";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getEnvironmentDescription, detectEnvironment } from "@/hooks/speech-recognition/environmentDetection";
-import { VoiceProcessingResult } from "@/types/reminderTypes";
-
-type RecorderState = 
-  | { status: 'idle' }
-  | { status: 'requesting-permission' }
-  | { status: 'recording' }
-  | { status: 'recovering' }
-  | { status: 'processing', transcript: string }
-  | { status: 'confirming', result: VoiceProcessingResult }
-  | { status: 'error', message: string };
+import { VoiceProcessingResult, RecorderState } from "@/types/reminderTypes";
+import { 
+  isRecordingOrRecovering, 
+  isProcessingState, 
+  isConfirmingState, 
+  isErrorState 
+} from "@/hooks/speech-recognition/typeGuards";
 
 type RecorderEvent =
   | { type: 'START_RECORDING' }
@@ -32,26 +29,6 @@ type RecorderEvent =
   | { type: 'PROCESSING_COMPLETE', result: VoiceProcessingResult }
   | { type: 'PROCESSING_ERROR', message: string }
   | { type: 'RESET' };
-
-// Type guard function to check if state is in recording or recovering status
-function isRecordingOrRecovering(state: RecorderState): boolean {
-  return state.status === 'recording' || state.status === 'recovering';
-}
-
-// Type guard for processing state
-function isProcessingState(state: RecorderState): state is { status: 'processing', transcript: string } {
-  return state.status === 'processing';
-}
-
-// Type guard for confirming state
-function isConfirmingState(state: RecorderState): state is { status: 'confirming', result: VoiceProcessingResult } {
-  return state.status === 'confirming';
-}
-
-// Type guard for error state
-function isErrorState(state: RecorderState): state is { status: 'error', message: string } {
-  return state.status === 'error';
-}
 
 function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): RecorderState {
   console.log(`Voice recorder state transition: ${state.status} + ${event.type}`);
