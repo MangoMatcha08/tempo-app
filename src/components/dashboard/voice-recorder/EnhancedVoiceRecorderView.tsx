@@ -290,7 +290,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   ]);
   
   useEffect(() => {
-    if (state.status === 'recording' && recognitionRecovering) {
+    if (isRecordingOrRecovering(state)) {
       dispatch({ type: 'RECOVERY_STARTED' });
       addDebugInfo("Recognition is recovering");
       

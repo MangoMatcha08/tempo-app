@@ -1,44 +1,27 @@
 
-import { RecorderState, VoiceProcessingResult } from "@/types/reminderTypes";
+import { RecorderState } from "@/types/reminderTypes";
 
-/**
- * Type guard function to check if state is recording or recovering
- */
-export function isRecordingOrRecovering(state: RecorderState): boolean {
-  return state.status === 'recording' || state.status === 'recovering';
-}
+// Type guards for the RecorderState discriminated union
+export const isRecordingState = (state: RecorderState): state is { status: 'recording' } => 
+  state.status === 'recording';
 
-/**
- * Type guard for processing state
- */
-export function isProcessingState(state: RecorderState): state is { status: 'processing', transcript: string } {
-  return state.status === 'processing';
-}
+export const isRecoveringState = (state: RecorderState): state is { status: 'recovering' } => 
+  state.status === 'recovering';
 
-/**
- * Type guard for confirming state
- */
-export function isConfirmingState(state: RecorderState): state is { status: 'confirming', result: VoiceProcessingResult } {
-  return state.status === 'confirming';
-}
+export const isRecordingOrRecovering = (state: RecorderState): boolean => 
+  state.status === 'recording' || state.status === 'recovering';
 
-/**
- * Type guard for error state
- */
-export function isErrorState(state: RecorderState): state is { status: 'error', message: string } {
-  return state.status === 'error';
-}
+export const isProcessingState = (state: RecorderState): state is { status: 'processing', transcript: string } => 
+  state.status === 'processing';
 
-/**
- * Type guard for idle state
- */
-export function isIdleState(state: RecorderState): state is { status: 'idle' } {
-  return state.status === 'idle';
-}
+export const isConfirmingState = (state: RecorderState): state is { status: 'confirming', result: any } => 
+  state.status === 'confirming';
 
-/**
- * Type guard for requesting permission state
- */
-export function isRequestingPermissionState(state: RecorderState): state is { status: 'requesting-permission' } {
-  return state.status === 'requesting-permission';
-}
+export const isErrorState = (state: RecorderState): state is { status: 'error', message: string } => 
+  state.status === 'error';
+
+export const isIdleState = (state: RecorderState): state is { status: 'idle' } => 
+  state.status === 'idle';
+
+export const isRequestingPermissionState = (state: RecorderState): state is { status: 'requesting-permission' } => 
+  state.status === 'requesting-permission';
