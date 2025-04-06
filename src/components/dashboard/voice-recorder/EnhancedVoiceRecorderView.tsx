@@ -10,7 +10,13 @@ import { processTranscriptSafely } from "@/hooks/speech-recognition/errorHandler
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getEnvironmentDescription, detectEnvironment } from "@/hooks/speech-recognition/environmentDetection";
 import { VoiceProcessingResult } from "@/types/reminderTypes";
-import { checkStatus, hasStatus } from "@/hooks/speech-recognition/statusUtils";
+
+function checkStatus(currentStatus: any, expectedStatus: string | string[]): boolean {
+  if (Array.isArray(expectedStatus)) {
+    return expectedStatus.includes(String(currentStatus));
+  }
+  return String(currentStatus) === expectedStatus;
+}
 
 type RecorderState = 
   | { status: 'idle' }
@@ -37,53 +43,45 @@ type RecorderEvent =
 function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): RecorderState {
   console.log(`Voice recorder state transition: ${state.status} + ${event.type}`);
   
-  switch (state.status) {
-    case 'idle':
-      if (event.type === 'START_RECORDING') 
-        return { status: 'requesting-permission' };
-      break;
-      
-    case 'requesting-permission':
-      if (event.type === 'PERMISSION_GRANTED') 
-        return { status: 'recording' };
-      if (event.type === 'PERMISSION_DENIED') 
-        return { status: 'error', message: event.message };
-      break;
-      
-    case 'recording':
-      if (event.type === 'STOP_RECORDING') 
-        return { status: 'processing', transcript: event.transcript };
-      if (event.type === 'RECOGNITION_ERROR') 
-        return { status: 'error', message: event.message };
-      if (event.type === 'RECOVERY_STARTED')
-        return { status: 'recovering' };
-      break;
-      
-    case 'recovering':
-      if (event.type === 'RECOVERY_COMPLETED')
-        return { status: 'recording' };
-      if (event.type === 'RECOGNITION_ERROR')
-        return { status: 'error', message: event.message };
-      if (event.type === 'STOP_RECORDING')
-        return { status: 'processing', transcript: event.transcript };
-      break;
-      
-    case 'processing':
-      if (event.type === 'PROCESSING_COMPLETE') 
-        return { status: 'confirming', result: event.result };
-      if (event.type === 'PROCESSING_ERROR') 
-        return { status: 'error', message: event.message };
-      break;
-      
-    case 'confirming':
-      if (event.type === 'RESET') 
-        return { status: 'idle' };
-      break;
-      
-    case 'error':
-      if (event.type === 'RESET') 
-        return { status: 'idle' };
-      break;
+  if (checkStatus(state.status, 'idle')) {
+    if (event.type === 'START_RECORDING') 
+      return { status: 'requesting-permission' };
+  }
+  else if (checkStatus(state.status, 'requesting-permission')) {
+    if (event.type === 'PERMISSION_GRANTED') 
+      return { status: 'recording' };
+    if (event.type === 'PERMISSION_DENIED') 
+      return { status: 'error', message: event.message };
+  }
+  else if (checkStatus(state.status, 'recording')) {
+    if (event.type === 'STOP_RECORDING') 
+      return { status: 'processing', transcript: event.transcript };
+    if (event.type === 'RECOGNITION_ERROR') 
+      return { status: 'error', message: event.message };
+    if (event.type === 'RECOVERY_STARTED')
+      return { status: 'recovering' };
+  }
+  else if (checkStatus(state.status, 'recovering')) {
+    if (event.type === 'RECOVERY_COMPLETED')
+      return { status: 'recording' };
+    if (event.type === 'RECOGNITION_ERROR')
+      return { status: 'error', message: event.message };
+    if (event.type === 'STOP_RECORDING')
+      return { status: 'processing', transcript: event.transcript };
+  }
+  else if (checkStatus(state.status, 'processing')) {
+    if (event.type === 'PROCESSING_COMPLETE') 
+      return { status: 'confirming', result: event.result };
+    if (event.type === 'PROCESSING_ERROR') 
+      return { status: 'error', message: event.message };
+  }
+  else if (checkStatus(state.status, 'confirming')) {
+    if (event.type === 'RESET') 
+      return { status: 'idle' };
+  }
+  else if (checkStatus(state.status, 'error')) {
+    if (event.type === 'RESET') 
+      return { status: 'idle' };
   }
   
   return state;
@@ -188,10 +186,10 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
             setPermissionState(permissionResult.state);
             addDebugInfo(`Microphone permission changed to: ${permissionResult.state}`);
             
-            if (permissionResult.state === 'granted' && state.status === 'requesting-permission') {
+            if (permissionResult.state === 'granted' && checkStatus(state.status, 'requesting-permission')) {
               dispatch({ type: 'PERMISSION_GRANTED' });
               startRecording();
-            } else if (permissionResult.state === 'denied' && state.status === 'requesting-permission') {
+            } else if (permissionResult.state === 'denied' && checkStatus(state.status, 'requesting-permission')) {
               dispatch({ 
                 type: 'PERMISSION_DENIED', 
                 message: 'Microphone access was denied. Please enable microphone access in your browser settings.' 
@@ -232,14 +230,14 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   }, [isListening, stopListening, clearAllTimeouts]);
   
   useEffect(() => {
-    if (recognitionRecovering && state.status === 'recording') {
+    if (recognitionRecovering && checkStatus(state.status, 'recording')) {
       dispatch({ type: 'RECOVERY_STARTED' });
       addDebugInfo("Recognition is recovering");
     }
   }, [recognitionRecovering, state.status]);
   
   useEffect(() => {
-    if (recognitionError && hasStatus(state, ['recording', 'recovering'])) {
+    if (recognitionError && checkStatus(state.status, ['recording', 'recovering'])) {
       addDebugInfo(`Recognition error: ${recognitionError}`);
       dispatch({ 
         type: 'RECOGNITION_ERROR', 
@@ -255,7 +253,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       setPermissionState("granted");
       addDebugInfo("Microphone access granted");
       
-      if (state.status === 'requesting-permission') {
+      if (checkStatus(state.status, 'requesting-permission')) {
         dispatch({ type: 'PERMISSION_GRANTED' });
         startRecording();
       }
@@ -295,7 +293,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }
     
     recordingTimerRef.current = setTimeout(() => {
-      if (state.status === 'recording' || state.status === 'recovering') {
+      if (checkStatus(state.status, 'recording') || checkStatus(state.status, 'recovering')) {
         addDebugInfo(`Auto-stopping after ${maxRecordingTime} seconds`);
         handleStopRecording();
       }
@@ -320,7 +318,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   };
   
   const toggleRecording = async () => {
-    if (state.status === 'recording' || state.status === 'recovering') {
+    if (checkStatus(state.status, ['recording', 'recovering'])) {
       handleStopRecording();
       return;
     }
@@ -415,7 +413,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   };
   
   const handleForceRetry = () => {
-    if (!hasStatus(state, ['recording', 'recovering'])) return;
+    if (!checkStatus(state.status, ['recording', 'recovering'])) return;
     
     addDebugInfo("Manual retry initiated");
     
@@ -473,7 +471,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
           <AlertCircle className="h-3 w-3 inline mr-1" />
           <span>
             iOS PWA recording mode: Speak clearly with pauses between sentences.
-            {hasStatus(state, ['recording', 'recovering']) && 
+            {checkStatus(state.status, ['recording', 'recovering']) && 
               " If no text appears, tap the restart button."}
           </span>
         </div>
@@ -544,23 +542,23 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
           <Button
             onClick={toggleRecording}
             disabled={
-              hasStatus(state, ['processing', 'confirming']) || 
+              checkStatus(state.status, ['processing', 'confirming']) || 
               externalProcessing
             }
             size="lg"
             className={cn(
               "rounded-full h-16 w-16 p-0",
-              hasStatus(state, ['recording', 'recovering'])
+              checkStatus(state.status, ['recording', 'recovering'])
                 ? "bg-red-500 hover:bg-red-600 animate-pulse" 
                 : "bg-blue-500 hover:bg-blue-600"
             )}
             aria-label={
-              hasStatus(state, ['recording', 'recovering']) 
+              checkStatus(state.status, ['recording', 'recovering']) 
                 ? "Stop recording" 
                 : "Start recording"
             }
           >
-            {hasStatus(state, ['recording', 'recovering']) 
+            {checkStatus(state.status, ['recording', 'recovering']) 
               ? <Square className="h-6 w-6" /> 
               : <Mic className="h-6 w-6" />
             }
@@ -568,19 +566,19 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         </div>
         
         <div className="text-sm">
-          {hasStatus(state, ['recording', 'recovering']) ? (
+          {checkStatus(state.status, ['recording', 'recovering']) ? (
             <div className="text-red-500 font-semibold">
-              {state.status === 'recovering' 
+              {checkStatus(state.status, 'recovering')
                 ? "Reconnecting..." 
                 : `Recording... ${countdown}s`
               }
             </div>
-          ) : state.status === 'processing' ? (
+          ) : checkStatus(state.status, 'processing') ? (
             <div className="text-green-500 font-semibold flex items-center justify-center">
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Processing your voice note...
             </div>
-          ) : state.status === 'confirming' ? (
+          ) : checkStatus(state.status, 'confirming') ? (
             <div className="text-green-500 font-semibold">
               Ready to save your voice note
             </div>
@@ -596,14 +594,14 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         <PlatformSpecificInstructions />
         
         {(environmentInfo.isIOSPwa || environmentInfo.isPwa) && 
-         hasStatus(state, ['recording', 'recovering']) && (
+         checkStatus(state.status, ['recording', 'recovering']) && (
           <div className="mt-2">
             <Button 
               variant="outline" 
               size="sm" 
               onClick={handleForceRetry}
               className="text-xs flex items-center gap-1"
-              disabled={state.status === 'recovering'}
+              disabled={checkStatus(state.status, 'recovering')}
             >
               <RefreshCw className="h-3 w-3" />
               Restart Recording
@@ -620,9 +618,9 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         <h3 className="font-medium mb-2 text-sm">Your voice input:</h3>
         <ScrollArea className="h-[100px] overflow-y-auto">
           <div className="whitespace-pre-wrap overflow-hidden">
-            {state.status === 'processing' && 'transcript' in state ? (
+            {checkStatus(state.status, 'processing') && 'transcript' in state ? (
               <p>{state.transcript}</p>
-            ) : state.status === 'confirming' && 'result' in state ? (
+            ) : checkStatus(state.status, 'confirming') && 'result' in state ? (
               <p>{state.result.reminder.description}</p>
             ) : transcript ? (
               <p>{transcript}</p>
@@ -635,7 +633,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         </ScrollArea>
       </div>
       
-      {state.status === 'error' && 'message' in state && (
+      {checkStatus(state.status, 'error') && 'message' in state && (
         <Alert 
           variant="default" 
           className="text-sm border-yellow-500 bg-yellow-50"
