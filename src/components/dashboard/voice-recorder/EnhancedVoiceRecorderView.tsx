@@ -10,6 +10,7 @@ import { processTranscriptSafely } from "@/hooks/speech-recognition/errorHandler
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getEnvironmentDescription, detectEnvironment } from "@/hooks/speech-recognition/environmentDetection";
 import { VoiceProcessingResult } from "@/types/reminderTypes";
+import { checkStatus, hasStatus } from "@/hooks/speech-recognition/statusUtils";
 
 type RecorderState = 
   | { status: 'idle' }
@@ -238,7 +239,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   }, [recognitionRecovering, state.status]);
   
   useEffect(() => {
-    if (recognitionError && (state.status === 'recording' || state.status === 'recovering')) {
+    if (recognitionError && hasStatus(state, ['recording', 'recovering'])) {
       addDebugInfo(`Recognition error: ${recognitionError}`);
       dispatch({ 
         type: 'RECOGNITION_ERROR', 
@@ -414,7 +415,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   };
   
   const handleForceRetry = () => {
-    if (state.status !== 'recording' && state.status !== 'recovering') return;
+    if (!hasStatus(state, ['recording', 'recovering'])) return;
     
     addDebugInfo("Manual retry initiated");
     
@@ -472,7 +473,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
           <AlertCircle className="h-3 w-3 inline mr-1" />
           <span>
             iOS PWA recording mode: Speak clearly with pauses between sentences.
-            {(state.status === 'recording' || state.status === 'recovering') && 
+            {hasStatus(state, ['recording', 'recovering']) && 
               " If no text appears, tap the restart button."}
           </span>
         </div>
@@ -543,24 +544,23 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
           <Button
             onClick={toggleRecording}
             disabled={
-              state.status === 'processing' || 
-              state.status === 'confirming' || 
+              hasStatus(state, ['processing', 'confirming']) || 
               externalProcessing
             }
             size="lg"
             className={cn(
               "rounded-full h-16 w-16 p-0",
-              (state.status === 'recording' || state.status === 'recovering')
+              hasStatus(state, ['recording', 'recovering'])
                 ? "bg-red-500 hover:bg-red-600 animate-pulse" 
                 : "bg-blue-500 hover:bg-blue-600"
             )}
             aria-label={
-              (state.status === 'recording' || state.status === 'recovering') 
+              hasStatus(state, ['recording', 'recovering']) 
                 ? "Stop recording" 
                 : "Start recording"
             }
           >
-            {(state.status === 'recording' || state.status === 'recovering') 
+            {hasStatus(state, ['recording', 'recovering']) 
               ? <Square className="h-6 w-6" /> 
               : <Mic className="h-6 w-6" />
             }
@@ -568,7 +568,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         </div>
         
         <div className="text-sm">
-          {(state.status === 'recording' || state.status === 'recovering') ? (
+          {hasStatus(state, ['recording', 'recovering']) ? (
             <div className="text-red-500 font-semibold">
               {state.status === 'recovering' 
                 ? "Reconnecting..." 
@@ -596,7 +596,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         <PlatformSpecificInstructions />
         
         {(environmentInfo.isIOSPwa || environmentInfo.isPwa) && 
-         (state.status === 'recording' || state.status === 'recovering') && (
+         hasStatus(state, ['recording', 'recovering']) && (
           <div className="mt-2">
             <Button 
               variant="outline" 

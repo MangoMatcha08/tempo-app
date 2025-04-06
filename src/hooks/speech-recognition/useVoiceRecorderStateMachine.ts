@@ -2,6 +2,7 @@
 import { useReducer, useCallback } from 'react';
 import { ReminderPriority, ReminderCategory, VoiceProcessingResult } from '@/types/reminderTypes';
 import { useTrackedTimeouts } from '@/hooks/use-tracked-timeouts';
+import { hasStatus } from './statusUtils';
 
 // Define all possible state types
 export type RecorderState = 
