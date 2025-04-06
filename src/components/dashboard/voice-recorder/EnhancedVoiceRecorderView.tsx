@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useReducer, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, AlertCircle, RefreshCw, Loader2, ArrowRight } from "lucide-react";
@@ -33,8 +34,24 @@ type RecorderEvent =
   | { type: 'PROCESSING_ERROR', message: string }
   | { type: 'RESET' };
 
+// Type guard function to check if state is in recording or recovering status
 function isRecordingOrRecovering(state: RecorderState): boolean {
   return state.status === 'recording' || state.status === 'recovering';
+}
+
+// Type guard for processing state
+function isProcessingState(state: RecorderState): state is { status: 'processing', transcript: string } {
+  return state.status === 'processing';
+}
+
+// Type guard for confirming state
+function isConfirmingState(state: RecorderState): state is { status: 'confirming', result: VoiceProcessingResult } {
+  return state.status === 'confirming';
+}
+
+// Type guard for error state
+function isErrorState(state: RecorderState): state is { status: 'error', message: string } {
+  return state.status === 'error';
 }
 
 function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): RecorderState {
@@ -366,7 +383,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }
     
     recordingTimerRef.current = setTimeout(() => {
-      if (state.status === 'recording' || state.status === 'recovering') {
+      if (isRecordingOrRecovering(state)) {
         addDebugInfo(`Auto-stopping after ${maxRecordingTime} seconds`);
         handleStopRecording();
       }
@@ -566,13 +583,12 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   
   useEffect(() => {
     if ((environment.isPwa || environmentInfo.isIOSPwa) && 
-        state.status === 'processing' && 
-        'transcript' in state) {
+        isProcessingState(state)) {
       
       addDebugInfo("Setting up fallback timer for PWA processing state");
       
       processingTimerRef.current = setTimeout(() => {
-        if (state.status === 'processing' && 'transcript' in state) {
+        if (isProcessingState(state)) {
           addDebugInfo("Setting fallback needed flag due to stuck processing state");
           setFallbackNeeded(true);
         }
@@ -603,7 +619,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   const handleManualContinue = () => {
     addDebugInfo("Manual continue triggered by user");
     
-    if (state.status === 'processing' && 'transcript' in state) {
+    if (isProcessingState(state)) {
       const transcript = state.transcript;
       
       processTranscriptSafely(transcript, {
@@ -773,9 +789,9 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         <h3 className="font-medium mb-2 text-sm">Your voice input:</h3>
         <ScrollArea className="h-[100px] overflow-y-auto">
           <div className="whitespace-pre-wrap overflow-hidden">
-            {state.status === 'processing' && 'transcript' in state ? (
+            {isProcessingState(state) ? (
               <p>{state.transcript}</p>
-            ) : state.status === 'confirming' && 'result' in state ? (
+            ) : isConfirmingState(state) ? (
               <p>{state.result.reminder.description}</p>
             ) : transcript ? (
               <p>{transcript}</p>
@@ -789,8 +805,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       </div>
       
       {(environment.isPwa || environmentInfo.isIOSPwa) && 
-       state.status === 'processing' && 
-       'transcript' in state &&
+       isProcessingState(state) &&
        fallbackNeeded && (
         <div className="border-2 border-amber-400 bg-amber-50 rounded-md p-4 mt-3 animate-fade-in">
           <div className="flex items-center gap-2 mb-2">
@@ -816,7 +831,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         </div>
       )}
       
-      {state.status === 'error' && 'message' in state && (
+      {isErrorState(state) && (
         <Alert 
           variant="default" 
           className="text-sm border-yellow-500 bg-yellow-50"
@@ -884,3 +899,4 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
 };
 
 export default EnhancedVoiceRecorderView;
+
