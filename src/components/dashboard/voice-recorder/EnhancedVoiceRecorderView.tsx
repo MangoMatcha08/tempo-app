@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useReducer, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, AlertCircle, RefreshCw, Loader2, ArrowRight } from "lucide-react";
@@ -32,6 +33,11 @@ type RecorderEvent =
   | { type: 'PROCESSING_COMPLETE', result: VoiceProcessingResult }
   | { type: 'PROCESSING_ERROR', message: string }
   | { type: 'RESET' };
+
+// Type guard for recording/recovering states
+const isRecordingOrRecovering = (status: RecorderState['status']): boolean => {
+  return status === 'recording' || status === 'recovering';
+};
 
 function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): RecorderState {
   console.log(`Voice recorder state transition: ${state.status} + ${event.type}`);
@@ -141,6 +147,15 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   const [processingResult, setProcessingResult] = useState<VoiceProcessingResult | null>(null);
   const [fallbackNeeded, setFallbackNeeded] = useState(false);
   
+  // Define memory logging function outside of conditional code
+  const logMemoryUsage = () => {
+    if (window.performance && typeof (window.performance as any).memory !== 'undefined') {
+      const memory = (window.performance as any).memory;
+      addDebugInfo(`Memory: ${Math.round(memory.usedJSHeapSize / 1048576)}MB / ${Math.round(memory.jsHeapSizeLimit / 1048576)}MB`);
+    }
+  };
+  
+  // Always define these functions at the component top level
   const addDebugInfo = (info: string) => {
     setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${info}`]);
   };
@@ -218,7 +233,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       if (environmentInfo.isIOSPwa) {
         addDebugInfo("iOS PWA detected: performing aggressive resource cleanup");
         
-        if (window.performance && typeof window.performance.memory !== 'undefined') {
+        if (window.performance && typeof (window.performance as any).memory !== 'undefined') {
           addDebugInfo("Suggesting memory cleanup to browser");
         }
         
@@ -315,6 +330,60 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }
   }, [recognitionError, state.status]);
   
+  // Effects for memory logging (always declared, conditionally executed)
+  useEffect(() => {
+    if (environment.isPwa && process.env.NODE_ENV === 'development') {
+      logMemoryUsage();
+      const memoryInterval = setInterval(logMemoryUsage, 10000);
+      
+      return () => {
+        clearInterval(memoryInterval);
+        addDebugInfo("Cleared memory logging interval");
+      };
+    }
+    // This is an empty useEffect when not in PWA dev mode
+    return undefined;
+  }, [environment.isPwa]);
+  
+  useEffect(() => {
+    if ((environment.isPwa || environmentInfo.isIOSPwa) && 
+        state.status === 'processing' && 
+        'transcript' in state) {
+      
+      addDebugInfo("Setting up fallback timer for PWA processing state");
+      
+      processingTimerRef.current = setTimeout(() => {
+        if (state.status === 'processing' && 'transcript' in state) {
+          addDebugInfo("Setting fallback needed flag due to stuck processing state");
+          setFallbackNeeded(true);
+        }
+      }, environmentInfo.isIOSPwa ? 5000 : 3000);
+      
+      registerCleanupAction(() => {
+        if (processingTimerRef.current) {
+          clearTimeout(processingTimerRef.current);
+          processingTimerRef.current = null;
+          addDebugInfo("Cleaned up processing timer from dedicated effect");
+        }
+      });
+      
+      return () => {
+        if (processingTimerRef.current) {
+          clearTimeout(processingTimerRef.current);
+          processingTimerRef.current = null;
+          addDebugInfo("Cleaned up processing timer in effect cleanup");
+        }
+      };
+    }
+    
+    if (state.status !== 'processing' && fallbackNeeded) {
+      setFallbackNeeded(false);
+    }
+    
+    // Always return a cleanup function even when conditions aren't met
+    return () => {};
+  }, [state.status, environment.isPwa, environmentInfo.isIOSPwa, fallbackNeeded]);
+  
   const requestMicrophoneAccess = async () => {
     addDebugInfo("Requesting microphone access explicitly");
     try {
@@ -362,7 +431,8 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }
     
     recordingTimerRef.current = setTimeout(() => {
-      if (state.status === 'recording' || state.status === 'recovering') {
+      // Use our type guard function instead of direct comparison
+      if (isRecordingOrRecovering(state.status)) {
         addDebugInfo(`Auto-stopping after ${maxRecordingTime} seconds`);
         handleStopRecording();
       }
@@ -387,7 +457,8 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   };
   
   const toggleRecording = async () => {
-    if (state.status === 'recording' || state.status === 'recovering') {
+    // Use our type guard function instead of direct comparison
+    if (isRecordingOrRecovering(state.status)) {
       handleStopRecording();
       return;
     }
@@ -482,7 +553,8 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   };
   
   const handleForceRetry = () => {
-    if (state.status !== 'recording' && state.status !== 'recovering') return;
+    // Use our type guard function instead of direct comparison
+    if (!isRecordingOrRecovering(state.status)) return;
     
     addDebugInfo("Manual retry initiated");
     
@@ -533,69 +605,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }
   };
   
-  const PlatformSpecificInstructions = () => {
-    if (environmentInfo.isIOSPwa) {
-      return (
-        <div className="text-xs text-amber-600 mt-1">
-          <AlertCircle className="h-3 w-3 inline mr-1" />
-          <span>
-            iOS PWA recording mode: Speak clearly with pauses between sentences.
-            {(state.status === 'recording' || state.status === 'recovering') && 
-              " If no text appears, tap the restart button."}
-          </span>
-        </div>
-      );
-    }
-    
-    if (environment.isPwa && !environmentInfo.isIOS) {
-      return (
-        <div className="text-xs text-blue-600 mt-1">
-          <span>
-            Running in PWA mode. Speak naturally.
-          </span>
-        </div>
-      );
-    }
-    
-    return null;
-  };
-  
-  useEffect(() => {
-    if ((environment.isPwa || environmentInfo.isIOSPwa) && 
-        state.status === 'processing' && 
-        'transcript' in state) {
-      
-      addDebugInfo("Setting up fallback timer for PWA processing state");
-      
-      processingTimerRef.current = setTimeout(() => {
-        if (state.status === 'processing' && 'transcript' in state) {
-          addDebugInfo("Setting fallback needed flag due to stuck processing state");
-          setFallbackNeeded(true);
-        }
-      }, environmentInfo.isIOSPwa ? 5000 : 3000);
-      
-      registerCleanupAction(() => {
-        if (processingTimerRef.current) {
-          clearTimeout(processingTimerRef.current);
-          processingTimerRef.current = null;
-          addDebugInfo("Cleaned up processing timer from dedicated effect");
-        }
-      });
-      
-      return () => {
-        if (processingTimerRef.current) {
-          clearTimeout(processingTimerRef.current);
-          processingTimerRef.current = null;
-          addDebugInfo("Cleaned up processing timer in effect cleanup");
-        }
-      };
-    }
-    
-    if (state.status !== 'processing' && fallbackNeeded) {
-      setFallbackNeeded(false);
-    }
-  }, [state.status, environment.isPwa, environmentInfo.isIOSPwa, fallbackNeeded]);
-  
   const handleManualContinue = () => {
     addDebugInfo("Manual continue triggered by user");
     
@@ -620,6 +629,33 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         }
       });
     }
+  };
+  
+  const PlatformSpecificInstructions = () => {
+    if (environmentInfo.isIOSPwa) {
+      return (
+        <div className="text-xs text-amber-600 mt-1">
+          <AlertCircle className="h-3 w-3 inline mr-1" />
+          <span>
+            iOS PWA recording mode: Speak clearly with pauses between sentences.
+            {isRecordingOrRecovering(state.status) && 
+              " If no text appears, tap the restart button."}
+          </span>
+        </div>
+      );
+    }
+    
+    if (environment.isPwa && !environmentInfo.isIOS) {
+      return (
+        <div className="text-xs text-blue-600 mt-1">
+          <span>
+            Running in PWA mode. Speak naturally.
+          </span>
+        </div>
+      );
+    }
+    
+    return null;
   };
   
   if (!browserSupportsSpeechRecognition) {
@@ -666,25 +702,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     );
   }
   
-  useEffect(() => {
-    if (environment.isPwa && process.env.NODE_ENV === 'development') {
-      const logMemoryUsage = () => {
-        if (window.performance && typeof window.performance.memory !== 'undefined') {
-          const memory = (window.performance as any).memory;
-          addDebugInfo(`Memory: ${Math.round(memory.usedJSHeapSize / 1048576)}MB / ${Math.round(memory.jsHeapSizeLimit / 1048576)}MB`);
-        }
-      };
-      
-      logMemoryUsage();
-      const memoryInterval = setInterval(logMemoryUsage, 10000);
-      
-      return () => {
-        clearInterval(memoryInterval);
-        addDebugInfo("Cleared memory logging interval");
-      };
-    }
-  }, [environment.isPwa]);
-  
   return (
     <div className="space-y-4">
       <div className="text-center mb-6">
@@ -699,17 +716,17 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
             size="lg"
             className={cn(
               "rounded-full h-16 w-16 p-0",
-              (state.status === 'recording' || state.status === 'recovering')
+              isRecordingOrRecovering(state.status)
                 ? "bg-red-500 hover:bg-red-600 animate-pulse" 
                 : "bg-blue-500 hover:bg-blue-600"
             )}
             aria-label={
-              (state.status === 'recording' || state.status === 'recovering') 
+              isRecordingOrRecovering(state.status) 
                 ? "Stop recording" 
                 : "Start recording"
             }
           >
-            {(state.status === 'recording' || state.status === 'recovering') 
+            {isRecordingOrRecovering(state.status) 
               ? <Square className="h-6 w-6" /> 
               : <Mic className="h-6 w-6" />
             }
@@ -717,7 +734,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         </div>
         
         <div className="text-sm">
-          {(state.status === 'recording' || state.status === 'recovering') ? (
+          {isRecordingOrRecovering(state.status) ? (
             <div className="text-red-500 font-semibold">
               {state.status === 'recovering' 
                 ? "Reconnecting..." 
@@ -745,7 +762,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         <PlatformSpecificInstructions />
         
         {(environmentInfo.isIOSPwa || environmentInfo.isPwa) && 
-         (state.status === 'recording' || state.status === 'recovering') && (
+         isRecordingOrRecovering(state.status) && (
           <div className="mt-2">
             <Button 
               variant="outline" 
