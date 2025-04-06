@@ -41,9 +41,6 @@ export function useVoiceRecorderState(
   const [viewState, setViewState] = useState<ViewState>('idle');
   const { toast } = useToast();
   
-  // Add mounted ref to track component lifecycle
-  const isMountedRef = useRef(true);
-  
   // Logging system
   const debugLogsRef = useRef<Array<{
     timestamp: number;
@@ -99,8 +96,9 @@ export function useVoiceRecorderState(
   
   const isConfirmingRef = useRef(false);
   const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true); // Track component mount state
   
-  // Set isMountedRef to track component mount state
+  // Set isMountedRef to false when component unmounts
   useEffect(() => {
     isMountedRef.current = true;
     logDebug('Component mounted');
