@@ -105,6 +105,8 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   onResultComplete,
   isProcessing: externalProcessing 
 }) => {
+  // Moved all hooks to the top level to follow React hooks rules
+
   const {
     transcript,
     interimTranscript,
@@ -130,6 +132,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   const [debugInfo, setDebugInfo] = useState<string[]>([]);
   const isMobile = useIsMobile();
   
+  // All refs defined at the top level
   const retryAttemptsRef = useRef<number>(0);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -176,6 +179,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     cleanupActionsRef.current = [];
   };
 
+  // Effect for checking microphone permission
   useEffect(() => {
     const checkMicPermission = async () => {
       try {
@@ -217,6 +221,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }
   }, [state.status]);
   
+  // Component mount and cleanup effect
   useEffect(() => {
     let isMounted = true;
     
@@ -307,6 +312,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     environmentInfo.isIOSPwa
   ]);
   
+  // Recovery state handling effect
   useEffect(() => {
     if (recognitionRecovering && state.status === 'recording') {
       dispatch({ type: 'RECOVERY_STARTED' });
@@ -320,8 +326,9 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }
   }, [recognitionRecovering, state.status]);
   
+  // Recognition error handling effect
   useEffect(() => {
-    if (recognitionError && (state.status === 'recording' || state.status === 'recovering')) {
+    if (recognitionError && isRecordingOrRecovering(state.status)) {
       addDebugInfo(`Recognition error: ${recognitionError}`);
       dispatch({ 
         type: 'RECOGNITION_ERROR', 
@@ -330,7 +337,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }
   }, [recognitionError, state.status]);
   
-  // Effects for memory logging (always declared, conditionally executed)
+  // Memory logging effect
   useEffect(() => {
     if (environment.isPwa && process.env.NODE_ENV === 'development') {
       logMemoryUsage();
@@ -345,6 +352,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     return undefined;
   }, [environment.isPwa]);
   
+  // PWA fallback handling effect
   useEffect(() => {
     if ((environment.isPwa || environmentInfo.isIOSPwa) && 
         state.status === 'processing' && 
