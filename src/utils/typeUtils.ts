@@ -1,6 +1,6 @@
 
-import { DatabaseReminder, ReminderPriority } from "@/types/reminderTypes";
-import { Reminder as UIReminder } from "@/types/reminder";
+import { DatabaseReminder, ReminderPriority, UIReminder } from "@/types/reminderTypes";
+import { Reminder } from "@/types/reminder";
 
 /**
  * Ensures a priority value is one of the allowed enum values
@@ -31,9 +31,11 @@ export const convertToUIReminder = (reminder: DatabaseReminder): UIReminder => {
     dueDate: reminder.dueDate,
     priority: reminder.priority,
     completed: reminder.completed || false,
-    location: reminder.location,
-    // Properties from extended types
-    completedAt: reminder.completedAt
+    completedAt: reminder.completedAt,
+    createdAt: reminder.createdAt,
+    userId: reminder.userId,
+    category: reminder.category,
+    location: reminder.location
   };
 };
 
@@ -49,7 +51,8 @@ export const convertToBackendReminder = (reminder: UIReminder): Omit<DatabaseRem
     completed: reminder.completed || false,
     completedAt: reminder.completedAt,
     createdAt: new Date(),
-    userId: "", // This will be filled in by the reminder operations
+    userId: reminder.userId || "", // This will be filled in by the reminder operations
+    category: reminder.category,
     location: reminder.location
   };
 };

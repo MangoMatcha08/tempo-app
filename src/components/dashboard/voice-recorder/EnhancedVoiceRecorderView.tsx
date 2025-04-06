@@ -688,8 +688,8 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
           <Button
             onClick={toggleRecording}
             disabled={
-              state.status === 'processing' || 
-              state.status === 'confirming' || 
+              isProcessingState(state) || 
+              isConfirmingState(state) || 
               externalProcessing
             }
             size="lg"

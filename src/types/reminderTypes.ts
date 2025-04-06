@@ -84,6 +84,7 @@ export type DatabaseReminder = {
   completedAt?: Date;
   createdAt: Date;
   userId: string;
+  category?: ReminderCategory;
   location?: string;
 };
 
