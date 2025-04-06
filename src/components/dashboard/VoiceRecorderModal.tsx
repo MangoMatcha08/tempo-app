@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,6 @@ import VoiceReminderProcessingView from "./VoiceReminderProcessingView";
 import { useVoiceRecorderState } from "@/hooks/useVoiceRecorderState";
 import { useToast } from "@/hooks/use-toast";
 import { VoiceProcessingResult } from "@/types/reminderTypes";
-import { getEnvironmentDescription } from "@/hooks/speech-recognition/environmentDetection";
 
 interface VoiceRecorderModalProps {
   open: boolean;
@@ -24,18 +23,6 @@ interface VoiceRecorderModalProps {
 }
 
 const VoiceRecorderModal = ({ open, onOpenChange, onSave, onReminderCreated }: VoiceRecorderModalProps) => {
-  // Detect environment for voice recorder optimizations
-  const [environment, setEnvironment] = useState(() => {
-    const env = getEnvironmentDescription();
-    console.log("Voice recorder environment:", env);
-    return {
-      isPwa: env.isPwa,
-      isIOS: env.platform === 'iOS',
-      isIOSPwa: env.platform === 'iOS' && env.isPwa,
-      browser: env.browser
-    };
-  });
-
   const {
     title,
     setTitle,
@@ -53,20 +40,10 @@ const VoiceRecorderModal = ({ open, onOpenChange, onSave, onReminderCreated }: V
     handleCancel,
     handleGoBack,
     resetState
-  } = useVoiceRecorderState(onOpenChange, environment);
+  } = useVoiceRecorderState(onOpenChange);
   
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Log when modal opens or closes
-  useEffect(() => {
-    console.log(`Voice recorder modal ${open ? 'opened' : 'closed'} in ${environment.isPwa ? 'PWA' : 'browser'} mode`);
-    
-    if (!open) {
-      // Reset state when modal is closed
-      resetState();
-    }
-  }, [open, resetState, environment.isPwa]);
 
   const handleSave = async () => {
     if (!processingResult) return;

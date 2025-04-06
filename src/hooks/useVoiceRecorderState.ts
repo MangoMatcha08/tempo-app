@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { VoiceProcessingResult, ReminderPriority, ReminderCategory } from "@/types/reminderTypes";
 import { generateMeaningfulTitle } from "@/utils/voiceReminderUtils";
@@ -8,28 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 // Define view states for our state machine
 type ViewState = 'idle' | 'recording' | 'processing' | 'confirming';
 
-// Environment properties that affect state transitions
-interface VoiceRecorderEnvironment {
-  isPwa: boolean;
-  isIOS: boolean;
-  isIOSPwa: boolean;
-  isSafari?: boolean;
-  isMobile?: boolean;
-  platform?: string;
-  browser?: string;
-}
-
-export function useVoiceRecorderState(
-  onOpenChange: (open: boolean) => void,
-  environment?: VoiceRecorderEnvironment
-) {
-  // Environment defaults if not provided
-  const env: VoiceRecorderEnvironment = environment || {
-    isPwa: false,
-    isIOS: false,
-    isIOSPwa: false
-  };
-
+export function useVoiceRecorderState(onOpenChange: (open: boolean) => void) {
   const [title, setTitle] = useState("");
   const [transcript, setTranscript] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -81,8 +59,7 @@ export function useVoiceRecorderState(
       userAgent: userAgent.substring(0, 100),
       screenWidth: window.innerWidth,
       platform: navigator.platform,
-      viewportHeight: window.innerHeight,
-      providedEnvironment: env
+      viewportHeight: window.innerHeight
     });
     
     logDebug('Initial state', {
@@ -92,7 +69,7 @@ export function useVoiceRecorderState(
       hasTranscript: Boolean(transcript),
       hasResult: Boolean(processingResult)
     });
-  }, [logDebug, view, viewState, isProcessing, transcript, processingResult, env]);
+  }, [logDebug, view, viewState, isProcessing, transcript, processingResult]);
   
   const isConfirmingRef = useRef(false);
   const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -153,77 +130,18 @@ export function useVoiceRecorderState(
     }
   }, [view, viewState, logDebug]);
   
-  // Apply safe transition with platform-specific delays
-  const safePlatformTransition = useCallback((callback: () => void, baseDelay: number = 0) => {
-    // PWA environments, especially iOS PWA, need slightly longer delays for reliable state transitions
-    const delayMs = env.isIOSPwa ? Math.max(baseDelay, 300) : 
-                    env.isPwa ? Math.max(baseDelay, 200) : 
-                    baseDelay;
-                   
-    if (transitionTimerRef.current) {
-      clearTimeout(transitionTimerRef.current);
-    }
-    
-    // Only proceed if the component is still mounted
-    if (isMountedRef.current) {
-      if (delayMs > 0) {
-        logDebug(`Scheduling transition with ${delayMs}ms delay (isPwa: ${env.isPwa}, isIOSPwa: ${env.isIOSPwa})`);
-        
-        transitionTimerRef.current = setTimeout(() => {
-          // Double-check mounting status before executing
-          if (isMountedRef.current) {
-            callback();
-          } else {
-            logDebug('Cancelled transition - component unmounted during delay');
-          }
-          transitionTimerRef.current = null;
-        }, delayMs);
-      } else {
-        // Execute immediately if no delay needed
-        callback();
-      }
-    } else {
-      logDebug('Transition blocked - component unmounted');
-    }
-  }, [env.isPwa, env.isIOSPwa, logDebug]);
-  
   const transitionToConfirmView = useCallback(() => {
     if (viewState === 'processing' && isMountedRef.current) {
       logDebug("Transitioning from processing to confirming");
-      
-      // Use platform-specific safe transition
-      safePlatformTransition(() => {
-        if (isMountedRef.current) {
-          logDebug("Executing transition to confirm view");
-          setViewState('confirming');
-          setView('confirm');
-          
-          // In problematic environments, do an additional state update to force refresh
-          if (env.isIOSPwa) {
-            setTimeout(() => {
-              if (isMountedRef.current) {
-                logDebug("Forced additional state refresh for iOS PWA");
-                setIsProcessing(false); // Ensure processing is definitely false
-              }
-            }, 100);
-          }
-        }
-      }, env.isIOSPwa ? 250 : 50);
+      setViewState('confirming');
+      setView('confirm');
     } else {
       logDebug("Transition blocked", { viewState, isMounted: isMountedRef.current });
     }
-  }, [viewState, env.isIOSPwa, safePlatformTransition, logDebug]);
+  }, [viewState, logDebug]);
   
   const handleTranscriptComplete = useCallback((text: string) => {
-    logDebug("Transcript complete called", { 
-      textLength: text?.length || 0, 
-      textPreview: text?.substring(0, 20),
-      environment: {
-        isPwa: env.isPwa,
-        isIOS: env.isIOS,
-        isIOSPwa: env.isIOSPwa
-      }
-    });
+    logDebug("Transcript complete called", { textLength: text?.length || 0, textPreview: text?.substring(0, 20) });
     
     if (!text || !text.trim() || !isMountedRef.current) {
       logDebug("Empty transcript received or component unmounted, not processing", { 
@@ -264,56 +182,53 @@ export function useVoiceRecorderState(
       
       logDebug("Generated title", { title: generatedTitle });
       
-      // Use platform-specific transition timing
-      safePlatformTransition(() => {
-        if (!isMountedRef.current) return;
-        
-        logDebug("Setting state variables with processing results");
-        setTitle(generatedTitle);
-        setPriority(result.reminder.priority || ReminderPriority.MEDIUM);
-        setCategory(result.reminder.category || ReminderCategory.TASK);
-        setPeriodId(result.reminder.periodId || "none");
-        
-        if (!result.reminder.dueDate) {
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          tomorrow.setHours(9, 0, 0, 0);
-          result.reminder.dueDate = tomorrow;
-          logDebug("Added default due date", { dueDate: tomorrow });
+      setTitle(generatedTitle);
+      setPriority(result.reminder.priority || ReminderPriority.MEDIUM);
+      setCategory(result.reminder.category || ReminderCategory.TASK);
+      setPeriodId(result.reminder.periodId || "none");
+      
+      if (!result.reminder.dueDate) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(9, 0, 0, 0);
+        result.reminder.dueDate = tomorrow;
+        logDebug("Added default due date", { dueDate: tomorrow });
+      }
+      
+      setProcessingResult({
+        ...result,
+        reminder: {
+          ...result.reminder,
+          dueDate: result.reminder.dueDate
         }
-        
-        setProcessingResult({
-          ...result,
-          reminder: {
-            ...result.reminder,
-            dueDate: result.reminder.dueDate
-          }
+      });
+      
+      logDebug("Switching to confirmation view with result", { 
+        hasResult: true,
+        title: generatedTitle,
+        category: result.reminder.category,
+        priority: result.reminder.priority
+      });
+      
+      setIsProcessing(false);
+      
+      // Explicitly make the transition synchronous and direct
+      logDebug("Setting view state to confirming directly");
+      setViewState('confirming');
+      
+      logDebug("Setting view to confirm directly");
+      setView('confirm');
+      
+      // Add a verification log after a small delay to ensure state was updated
+      setTimeout(() => {
+        logDebug("Verification - state after transition", {
+          view: 'confirm', // This is what we expect
+          viewState: 'confirming', // This is what we expect
+          isProcessing: false, // This is what we expect
+          hasResult: Boolean(result),
+          title: generatedTitle
         });
-        
-        logDebug("Preparing to switch to confirmation view");
-        setIsProcessing(false);
-        
-        // For iOS PWA, we use a more direct approach with additional checks
-        if (env.isIOSPwa) {
-          logDebug("iOS PWA environment detected, using direct view transition");
-          setViewState('confirming');
-          setView('confirm');
-          
-          // Add a verification log after a small delay to ensure state was updated
-          setTimeout(() => {
-            logDebug("Verification - state after iOS PWA transition", {
-              view: view === 'confirm' ? 'confirm (✓)' : `confirm (❌ actually ${view})`,
-              viewState: viewState === 'confirming' ? 'confirming (✓)' : `confirming (❌ actually ${viewState})`,
-              isProcessing: isProcessing ? '❌ still processing' : '✓ not processing',
-              hasResult: Boolean(processingResult) ? '✓ has result' : '❌ no result'
-            });
-          }, 100);
-        } else {
-          // For other environments, use the regular transition function
-          logDebug("Using standard transition to confirm view");
-          transitionToConfirmView();
-        }
-      }, env.isIOSPwa ? 100 : 50);
+      }, 100);
       
     } catch (error) {
       console.error('Error processing voice input:', error);
@@ -336,8 +251,7 @@ export function useVoiceRecorderState(
         variant: "destructive"
       });
     }
-  }, [toast, safePlatformTransition, transitionToConfirmView, env.isIOSPwa, view, viewState, 
-      isProcessing, processingResult, logDebug]);
+  }, [toast, logDebug]);
   
   const handleCancel = useCallback(() => {
     logDebug("Cancel called", { currentViewState: viewState });
