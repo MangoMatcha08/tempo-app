@@ -12,4 +12,4 @@ export interface Reminder extends BaseReminder {
 }
 
 // Re-export the enum for backward compatibility
-export type { ReminderPriority, ReminderCategory, ChecklistItem };
+export { ReminderPriority };

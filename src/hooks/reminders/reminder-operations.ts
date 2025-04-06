@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { UIReminder } from "@/types/reminderTypes";
+import { Reminder } from "@/types/reminderTypes";
 import { useSingleReminderOperations } from "./operations-single";
 import { useBatchReminderOperations } from "./operations-batch";
 import { useReminderOperationsCore } from "./operations-core";

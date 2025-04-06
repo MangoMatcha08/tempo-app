@@ -1,3 +1,4 @@
+
 /// <reference types="vite/client" />
 
 // Define SpeechRecognition interfaces
@@ -51,18 +52,6 @@ interface SpeechRecognition extends EventTarget {
   abort(): void;
 }
 
-// Add Memory interface for Chrome's non-standard performance.memory
-interface MemoryInfo {
-  jsHeapSizeLimit: number;
-  totalJSHeapSize: number;
-  usedJSHeapSize: number;
-}
-
-// Extend Performance interface with non-standard memory property
-interface Performance {
-  memory?: MemoryInfo;
-}
-
 // Extend the Window interface to include firebase and speech recognition
 interface Window {
   firebase: any;
@@ -71,3 +60,4 @@ interface Window {
   mozSpeechRecognition?: new () => SpeechRecognition;
   msSpeechRecognition?: new () => SpeechRecognition;
 }
+

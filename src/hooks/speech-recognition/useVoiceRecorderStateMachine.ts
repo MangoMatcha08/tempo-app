@@ -1,14 +1,17 @@
+
 import { useReducer, useCallback, useRef } from 'react';
-import { ReminderPriority, ReminderCategory, VoiceProcessingResult, RecorderState } from '@/types/reminderTypes';
+import { ReminderPriority, ReminderCategory, VoiceProcessingResult } from '@/types/reminderTypes';
 import { useTrackedTimeouts } from '@/hooks/use-tracked-timeouts';
-import { 
-  isRecordingOrRecovering,
-  isProcessingState,
-  isConfirmingState,
-  isErrorState,
-  isIdleState,
-  isRequestingPermissionState
-} from '@/hooks/speech-recognition/typeGuards';
+
+// Define all possible state types
+export type RecorderState = 
+  | { status: 'idle' }
+  | { status: 'requesting-permission' }
+  | { status: 'recording' }
+  | { status: 'recovering' } 
+  | { status: 'processing', transcript: string }
+  | { status: 'confirming', result: VoiceProcessingResult }
+  | { status: 'error', message: string };
 
 // Define all possible events
 export type RecorderEvent =
@@ -181,7 +184,7 @@ export const useVoiceRecorderStateMachine = (environment?: VoiceRecorderEnvironm
       // Automatically reset after error displayed
       createTimeout(() => {
         console.log('[StateMachine] Auto-resetting after error');
-        clearAllTimeouts(); // Fixed: using clearAllTimeouts instead of clearTimeouts
+        clearAllTimeouts();
         dispatch({ type: 'RESET' });
       }, 5000);
     }, [createTimeout, clearAllTimeouts]),
@@ -205,20 +208,9 @@ export const useVoiceRecorderStateMachine = (environment?: VoiceRecorderEnvironm
     }, [clearAllTimeouts]),
   };
   
-  // Export type guards for use in components
-  const typeGuards = {
-    isRecordingOrRecovering,
-    isProcessingState,
-    isConfirmingState,
-    isErrorState,
-    isIdleState,
-    isRequestingPermissionState
-  };
-  
   return { 
     state, 
     actions,
-    registerCleanupAction,
-    typeGuards
+    registerCleanupAction
   };
 };

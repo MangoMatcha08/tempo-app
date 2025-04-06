@@ -28,7 +28,6 @@ const ReminderCategoryField = ({ category, setCategory }: ReminderCategoryFieldP
           <SelectItem value={ReminderCategory.PREPARATION}>Preparation</SelectItem>
           <SelectItem value={ReminderCategory.GRADING}>Grading</SelectItem>
           <SelectItem value={ReminderCategory.COMMUNICATION}>Communication</SelectItem>
-          <SelectItem value={ReminderCategory.OTHER}>Other</SelectItem>
         </SelectContent>
       </Select>
     </div>

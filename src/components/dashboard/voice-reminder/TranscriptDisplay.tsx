@@ -16,14 +16,7 @@ const TranscriptDisplay = ({
   processingResult, 
   showEntities = true 
 }: TranscriptDisplayProps) => {
-  const hasEntities = processingResult?.detectedEntities && 
-    (processingResult.detectedEntities.priority ||
-     processingResult.detectedEntities.category ||
-     processingResult.detectedEntities.period ||
-     processingResult.detectedEntities.date ||
-     processingResult.detectedEntities.time ||
-     processingResult.detectedEntities.newPeriod ||
-     (processingResult.detectedEntities.checklist && processingResult.detectedEntities.checklist.length > 0));
+  const hasEntities = processingResult && Object.values(processingResult.detectedEntities).some(value => !!value);
   
   // Format transcript with proper sentence capitalization and punctuation
   const formatTranscript = (text: string): string => {
@@ -60,7 +53,7 @@ const TranscriptDisplay = ({
         </ScrollArea>
       </div>
       
-      {showEntities && hasEntities && processingResult?.detectedEntities && (
+      {showEntities && hasEntities && (
         <div className="space-y-2">
           <label className="text-sm font-medium flex items-center gap-1.5">
             <Check className="h-3.5 w-3.5 text-green-500" />
@@ -68,46 +61,46 @@ const TranscriptDisplay = ({
           </label>
           
           <div className="flex flex-wrap gap-2">
-            {processingResult.detectedEntities.priority && (
+            {processingResult?.detectedEntities.priority && (
               <Badge variant="outline" className="flex gap-1 items-center">
                 <ArrowUpCircle className="h-3 w-3" />
                 <span>Priority: {processingResult.detectedEntities.priority}</span>
               </Badge>
             )}
             
-            {processingResult.detectedEntities.category && (
+            {processingResult?.detectedEntities.category && (
               <Badge variant="outline" className="flex gap-1 items-center">
                 <span>Category: {processingResult.detectedEntities.category}</span>
               </Badge>
             )}
             
-            {processingResult.detectedEntities.period && (
+            {processingResult?.detectedEntities.period && (
               <Badge variant="outline" className="flex gap-1 items-center">
                 <span>Period: {processingResult.detectedEntities.period}</span>
               </Badge>
             )}
             
-            {processingResult.detectedEntities.date && (
+            {processingResult?.detectedEntities.date && (
               <Badge variant="outline" className="flex gap-1 items-center bg-blue-50">
                 <Calendar className="h-3 w-3" />
                 <span>Date: {format(processingResult.detectedEntities.date, 'MMMM d, yyyy')}</span>
               </Badge>
             )}
             
-            {processingResult.detectedEntities.time && (
+            {processingResult?.detectedEntities.time && (
               <Badge variant="outline" className="flex gap-1 items-center bg-blue-50">
                 <Clock className="h-3 w-3" />
                 <span>Time: {format(processingResult.detectedEntities.time, 'h:mm a')}</span>
               </Badge>
             )}
             
-            {processingResult.detectedEntities.newPeriod && (
+            {processingResult?.detectedEntities.newPeriod && (
               <Badge variant="outline" className="flex gap-1 items-center bg-blue-50">
                 <span>New Period: {processingResult.detectedEntities.newPeriod}</span>
               </Badge>
             )}
             
-            {processingResult.detectedEntities.checklist && processingResult.detectedEntities.checklist.length > 0 && (
+            {processingResult?.detectedEntities.checklist && processingResult.detectedEntities.checklist.length > 0 && (
               <Badge variant="outline" className="flex gap-1 items-center">
                 <span>Checklist Items: {processingResult.detectedEntities.checklist.length}</span>
               </Badge>
@@ -115,7 +108,7 @@ const TranscriptDisplay = ({
           </div>
           
           <div className="text-xs text-muted-foreground mt-1">
-            Confidence: {Math.round((processingResult?.confidence || 0) * 100)}%
+            Confidence: {Math.round(processingResult?.confidence * 100)}%
           </div>
         </div>
       )}
