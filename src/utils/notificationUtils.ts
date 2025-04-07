@@ -1,6 +1,7 @@
 
 import { Reminder, ReminderPriority } from '@/types/reminderTypes';
-import { shouldSendNotification, NotificationSettings } from '@/services/notificationService';
+import { shouldSendNotification } from '@/services/notificationService';
+import { NotificationSettings } from '@/types/notificationTypes';
 
 /**
  * Show notification based on reminder priority and user settings

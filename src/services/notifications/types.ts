@@ -1,30 +1,12 @@
 
 import { ReminderPriority } from '@/types/reminderTypes';
+import { NotificationSettings as BaseNotificationSettings } from '@/types/notificationTypes';
 
-// User notification settings interface
-export interface NotificationSettings {
-  enabled: boolean;
-  email: {
-    enabled: boolean;
-    address: string;
-    minPriority: ReminderPriority;
-    dailySummary?: {
-      enabled: boolean;
-      timing: 'before' | 'after';
-    };
-  };
-  push: {
-    enabled: boolean;
-    minPriority: ReminderPriority;
-  };
-  inApp: {
-    enabled: boolean;
-    minPriority: ReminderPriority;
-  };
-}
+// Re-export the notification settings type
+export type { BaseNotificationSettings as NotificationSettings };
 
 // Default notification settings
-export const defaultNotificationSettings: NotificationSettings = {
+export const defaultNotificationSettings: BaseNotificationSettings = {
   enabled: true,
   email: {
     enabled: true,

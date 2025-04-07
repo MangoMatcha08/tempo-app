@@ -5,27 +5,34 @@ import { Reminder } from '@/types/reminderTypes';
 import { 
   setupForegroundMessageListener,
   getUserNotificationSettings,
-  NotificationSettings,
-  defaultNotificationSettings
+  defaultNotificationSettings,
+  firebaseInitPromise
 } from '@/services/notificationService';
 import { useNotificationPermission } from '@/hooks/useNotificationPermission';
 import { showNotification, formatReminderForNotification } from '@/utils/notificationUtils';
 import { ToastAction } from '@/components/ui/toast';
+import { 
+  NotificationSettings, 
+  NotificationRecord, 
+  ServiceWorkerMessage,
+  PermissionRequestResult
+} from '@/types/notificationTypes';
 
 interface NotificationContextType {
   notificationSettings: NotificationSettings;
   permissionGranted: boolean;
   isSupported: boolean;
-  requestPermission: () => Promise<boolean>;
+  requestPermission: () => Promise<PermissionRequestResult>;
   showNotification: (reminder: Reminder) => void;
   updateSettings: (settings: Partial<NotificationSettings>) => Promise<void>;
+  notificationHistory?: NotificationRecord[];
 }
 
 const NotificationContext = createContext<NotificationContextType>({
   notificationSettings: defaultNotificationSettings,
   permissionGranted: false,
   isSupported: true,
-  requestPermission: async () => false,
+  requestPermission: async () => ({ granted: false }),
   showNotification: () => {},
   updateSettings: async () => {},
 });
@@ -141,6 +148,47 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   // Wrapper for showNotification utility
   const handleShowNotification = (reminder: Reminder) => {
     showNotification(reminder, notificationSettings, toast);
+  };
+
+  // Add service worker message handler
+  useEffect(() => {
+    const handleServiceWorkerMessage = (event: MessageEvent) => {
+      const message = event.data as ServiceWorkerMessage;
+      
+      if (message && message.type === 'NOTIFICATION_ACTION') {
+        console.log('Received notification action from service worker:', message);
+        
+        // Handle notification actions from service worker
+        // This will be implemented in Phase 2
+      }
+    };
+
+    // Add event listener for service worker messages
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+    }
+
+    return () => {
+      if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+      }
+    };
+  }, []);
+
+  const requestPermission = async (): Promise<PermissionRequestResult> => {
+    try {
+      // Wait for Firebase to initialize
+      await firebaseInitPromise;
+      
+      const result = await useNotificationPermission().requestPermission();
+      return { granted: result };
+    } catch (error) {
+      console.error('Error requesting permission:', error);
+      return { 
+        granted: false, 
+        error: error instanceof Error ? error : new Error('Unknown error')
+      };
+    }
   };
 
   const contextValue: NotificationContextType = {
