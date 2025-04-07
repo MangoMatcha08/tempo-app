@@ -23,7 +23,7 @@ export const showNotification = (
       action: reminder.id ? (
         <div>View</div>
       ) : undefined
-      // This will be replaced by the ToastAction component
+      /* This will be replaced by the ToastAction component */
     });
   }
 
