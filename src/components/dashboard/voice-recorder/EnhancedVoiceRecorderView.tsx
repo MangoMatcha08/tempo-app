@@ -76,9 +76,37 @@ function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): Recor
   else if (checkStatus(state.status, 'error')) {
     if (event.type === 'RESET') 
       return { status: 'idle' };
+    
+    const errorMessage = 'message' in event ? event.message : 'Unknown error';
+    const errorState = { status: 'error' as const, message: errorMessage };
+    
+    setTimeout(() => {
+      if (state.status === 'error' && 'message' in state) {
+        const isRecoverableError = 
+          state.message.includes('no speech') || 
+          state.message.includes('network') || 
+          state.message.includes('aborted') ||
+          state.message.includes('Connection issue');
+        
+        if (isRecoverableError) {
+          console.log('Auto-resetting after recoverable error');
+          if (typeof window.__voiceRecorderDispatch === 'function') {
+            window.__voiceRecorderDispatch({ type: 'RESET' });
+          }
+        }
+      }
+    }, 6000);
+    
+    return errorState;
   }
   
   return state;
+}
+
+declare global {
+  interface Window {
+    __voiceRecorderDispatch?: (event: RecorderEvent) => void;
+  }
 }
 
 interface VoiceRecorderViewProps {
@@ -112,6 +140,13 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   const rawEnvironment = detectEnvironment();
   
   const [state, dispatch] = useReducer(voiceRecorderReducer, { status: 'idle' });
+  
+  useEffect(() => {
+    window.__voiceRecorderDispatch = dispatch;
+    return () => {
+      window.__voiceRecorderDispatch = undefined;
+    };
+  }, [dispatch]);
   
   const [countdown, setCountdown] = useState<number>(0);
   const [permissionState, setPermissionState] = useState<PermissionState | "unknown">("unknown");
@@ -488,7 +523,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       countdownTimerRef.current = null;
     }
     
-    // Give the browser a moment to release resources
     setTimeout(() => {
       if (retryAttemptsRef.current) {
         retryAttemptsRef.current = 0;
@@ -722,9 +756,9 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
               state.message.includes('network') || 
               state.message.includes('aborted') ||
               state.message.includes('Connection issue')) && (
-              <p className="text-xs mt-1 text-green-600">
-                <RefreshCw className="h-3 w-3 inline-block animate-spin mr-1" />
-                Recovery will happen automatically in a few seconds...
+              <p className="text-xs mt-1 text-green-600 flex items-center">
+                <RefreshCw className="h-3 w-3 animate-spin mr-1" />
+                <span>Auto-recovering shortly...</span>
               </p>
             )}
           </AlertDescription>
