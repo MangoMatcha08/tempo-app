@@ -6,13 +6,13 @@ import { Plus, Settings } from "lucide-react";
 import NotificationCenter from "@/components/notifications/NotificationCenter";
 import EnhancedToasts from "@/components/notifications/EnhancedToasts";
 
-// This would normally import from your main file, but here we're creating a new component
 interface DashboardHeaderProps {
   onAddReminder: () => void;
   pageTitle: string;
+  stats?: any;
 }
 
-const DashboardHeader = ({ onAddReminder, pageTitle }: DashboardHeaderProps) => {
+const DashboardHeader = ({ onAddReminder, pageTitle, stats }: DashboardHeaderProps) => {
   const navigate = useNavigate();
 
   return (

@@ -43,7 +43,6 @@ const EnhancedToasts = ({}: EnhancedToastsProps) => {
         closeButton
         richColors
         expand
-        id="notification-toaster"
       />
     </>
   );
