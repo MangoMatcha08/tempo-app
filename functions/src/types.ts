@@ -5,6 +5,13 @@ export enum ReminderPriority {
   HIGH = "high"
 }
 
+export enum NotificationTypes {
+  UPCOMING = "upcoming",
+  OVERDUE = "overdue",
+  DAILY_SUMMARY = "dailySummary",
+  TEST = "test"
+}
+
 export interface Reminder {
   id?: string;
   title: string;
@@ -16,6 +23,7 @@ export interface Reminder {
   periodId?: string;
   location?: string;
   completedAt?: FirebaseFirestore.Timestamp;
+  overdueNotified?: boolean;
 }
 
 export interface NotificationSettings {
@@ -24,6 +32,10 @@ export interface NotificationSettings {
     enabled: boolean;
     address: string;
     minPriority: ReminderPriority | string;
+    dailySummary?: {
+      enabled: boolean;
+      timing: 'before' | 'after';
+    };
   };
   push: {
     enabled: boolean;

@@ -9,9 +9,7 @@ import {
   defaultNotificationSettings
 } from '@/services/notificationService';
 import { useNotificationPermission } from '@/hooks/useNotificationPermission';
-import { showNotification } from '@/utils/notificationUtils';
-
-// Remove any potential circular imports to React Query here
+import { showNotification, formatReminderForNotification } from '@/utils/notificationUtils';
 
 interface NotificationContextType {
   notificationSettings: NotificationSettings;
@@ -19,6 +17,7 @@ interface NotificationContextType {
   isSupported: boolean;
   requestPermission: () => Promise<boolean>;
   showNotification: (reminder: Reminder) => void;
+  updateSettings: (settings: Partial<NotificationSettings>) => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType>({
@@ -27,6 +26,7 @@ const NotificationContext = createContext<NotificationContextType>({
   isSupported: true,
   requestPermission: async () => false,
   showNotification: () => {},
+  updateSettings: async () => {},
 });
 
 export const useNotifications = () => useContext(NotificationContext);
@@ -39,22 +39,36 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(defaultNotificationSettings);
   const { permissionGranted, isSupported, requestPermission } = useNotificationPermission();
   const { toast } = useToast();
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Get user ID from local storage
+  useEffect(() => {
+    const storedUserId = localStorage.getItem('userId');
+    if (storedUserId) {
+      setUserId(storedUserId);
+    }
+  }, []);
 
   // Initialize notification settings
   useEffect(() => {
     const initializeNotificationSettings = async () => {
       try {
+        if (!userId) return;
+        
         // Get user notification settings
-        const userId = localStorage.getItem('userId') || 'anonymous';
         const settings = await getUserNotificationSettings(userId);
         setNotificationSettings(settings);
+        
+        console.log('Notification settings initialized:', settings);
       } catch (error) {
         console.error('Error initializing notification settings:', error);
       }
     };
 
-    initializeNotificationSettings();
-  }, []);
+    if (userId) {
+      initializeNotificationSettings();
+    }
+  }, [userId]);
 
   // Setup foreground message listener
   useEffect(() => {
@@ -63,11 +77,25 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       const unsubscribe = setupForegroundMessageListener((payload) => {
         console.log('Received foreground message:', payload);
         
+        // Extract notification data
+        const notification = payload.notification;
+        const data = payload.data || {};
+        
         // Show toast notification for foreground messages
         toast({
-          title: payload.notification?.title || 'New Reminder',
-          description: payload.notification?.body || 'You have a new reminder',
+          title: notification?.title || 'New Reminder',
+          description: notification?.body || 'You have a new reminder',
           duration: 5000,
+          variant: data.priority === 'high' ? 'destructive' : 'default',
+          action: data.reminderId && data.reminderId !== 'test-reminder' ? {
+            label: "View",
+            onClick: () => {
+              // Navigate to the reminder detail view
+              if (typeof window !== 'undefined') {
+                window.location.href = `/dashboard/reminders/${data.reminderId}`;
+              }
+            }
+          } : undefined
         });
       });
 
@@ -76,6 +104,34 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       };
     }
   }, [toast]);
+
+  // Update notification settings
+  const updateSettings = async (settings: Partial<NotificationSettings>) => {
+    try {
+      if (!userId) {
+        console.error('Cannot update notification settings: No user ID available');
+        return;
+      }
+      
+      // Merge new settings with current settings
+      const updatedSettings = {
+        ...notificationSettings,
+        ...settings
+      };
+      
+      // Save to Firestore via notificationService
+      const { updateUserNotificationSettings } = await import('@/services/notificationService');
+      await updateUserNotificationSettings(userId, updatedSettings);
+      
+      // Update local state
+      setNotificationSettings(updatedSettings);
+      
+      console.log('Notification settings updated:', updatedSettings);
+    } catch (error) {
+      console.error('Error updating notification settings:', error);
+      throw error;
+    }
+  };
 
   // Wrapper for showNotification utility
   const handleShowNotification = (reminder: Reminder) => {
@@ -88,6 +144,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     isSupported,
     requestPermission,
     showNotification: handleShowNotification,
+    updateSettings,
   };
 
   return (

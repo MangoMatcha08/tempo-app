@@ -15,6 +15,13 @@ export enum ReminderCategory {
   OTHER = "other"
 }
 
+export enum NotificationType {
+  UPCOMING = "upcoming",
+  OVERDUE = "overdue",
+  DAILY_SUMMARY = "dailySummary",
+  TEST = "test"
+}
+
 /**
  * Base reminder interface with properties common to all contexts
  */
@@ -38,6 +45,7 @@ export interface DatabaseReminder extends BaseReminder {
   category?: ReminderCategory;
   periodId?: string;
   checklist?: ChecklistItem[];
+  overdueNotified?: boolean;
 }
 
 /**
@@ -92,4 +100,14 @@ export interface VoiceProcessingResult {
     date?: Date;
     time?: Date;
   };
+}
+
+export interface NotificationPayload {
+  title: string;
+  body: string;
+  reminderId: string;
+  priority: ReminderPriority;
+  type: NotificationType;
+  timestamp: number;
+  data?: Record<string, string>;
 }

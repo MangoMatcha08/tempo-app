@@ -56,8 +56,46 @@ export const callFunction = async (name: string, data?: any) => {
 };
 
 // Specific function calls
-export const sendTestNotification = async () => {
-  return await callFunction('sendTestNotification');
+export const sendTestNotification = async (options: {
+  type?: 'push' | 'email';
+  email?: string;
+  includeDeviceInfo?: boolean;
+} = {}) => {
+  const { type = 'push', email, includeDeviceInfo = true } = options;
+  
+  // Get device info if requested
+  let deviceInfo = {};
+  if (includeDeviceInfo) {
+    deviceInfo = {
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      language: navigator.language,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    };
+  }
+
+  // Add email if provided
+  const data: any = {
+    type,
+    ...deviceInfo
+  };
+
+  if (type === 'email' && email) {
+    data.email = email;
+  }
+
+  return await callFunction('sendTestNotification', data);
+};
+
+// Helper function for explicit reminder notification
+export const sendReminderNotification = async (
+  reminderId: string,
+  notificationType: string
+) => {
+  return await callFunction('sendReminderNotification', {
+    reminderId,
+    notificationType
+  });
 };
 
 // Re-export the Firebase Functions types/methods that we need

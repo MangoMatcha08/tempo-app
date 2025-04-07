@@ -18,7 +18,8 @@ export const showNotification = (
     toast({
       title: reminder.title,
       description: reminder.description || 'Reminder',
-      duration: 3000, // Consistently use 3 seconds
+      duration: 3000,
+      variant: getPriorityToastVariant(reminderPriority),
     });
   }
 
@@ -27,4 +28,23 @@ export const showNotification = (
     shouldSendNotification(reminderPriority, notificationSettings, 'push'));
   console.log('Should send email notification:', 
     shouldSendNotification(reminderPriority, notificationSettings, 'email'));
+};
+
+// Get toast variant based on priority
+export const getPriorityToastVariant = (priority: ReminderPriority): "default" | "destructive" => {
+  return priority === ReminderPriority.HIGH ? "destructive" : "default";
+};
+
+// Format reminder for notification
+export const formatReminderForNotification = (reminder: Reminder) => {
+  // Format due date to readable string
+  const formattedDueDate = reminder.dueDate instanceof Date 
+    ? reminder.dueDate.toLocaleString() 
+    : 'Unknown date';
+  
+  return {
+    title: reminder.title,
+    description: `${reminder.description || ''}\nDue: ${formattedDueDate}`,
+    priority: reminder.priority,
+  };
 };
