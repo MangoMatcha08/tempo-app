@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useReducer, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
@@ -44,6 +45,7 @@ const IOSPwaRecordingMode: React.FC<IOSPwaRecordingModeProps> = ({
   const [recordingCountdown, setRecordingCountdown] = useState(4);
   const [localCapturedTranscript, setLocalCapturedTranscript] = useState("");
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // Simplified recording logic with explicit timeouts
   const handleIOSRecording = () => {
@@ -59,14 +61,15 @@ const IOSPwaRecordingMode: React.FC<IOSPwaRecordingModeProps> = ({
     startListening();
     console.log("startListening called");
     
-    // Use a simple timeout approach instead of interval
+    // Clear any existing timers
     if (timerRef.current) clearTimeout(timerRef.current);
+    if (intervalRef.current) clearInterval(intervalRef.current);
     
     // Set up countdown display updates
-    const updateInterval = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       setRecordingCountdown(prev => {
         if (prev <= 1) {
-          clearInterval(updateInterval);
+          if (intervalRef.current) clearInterval(intervalRef.current);
           return 0;
         }
         return prev - 1;
@@ -78,7 +81,7 @@ const IOSPwaRecordingMode: React.FC<IOSPwaRecordingModeProps> = ({
       console.log("Recording timeout reached, stopping");
       stopListening();
       setIsCapturing(false);
-      clearInterval(updateInterval);
+      if (intervalRef.current) clearInterval(intervalRef.current);
       
       // Short delay to ensure transcript is finalized
       setTimeout(() => {
@@ -95,6 +98,7 @@ const IOSPwaRecordingMode: React.FC<IOSPwaRecordingModeProps> = ({
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, []);
   
@@ -910,4 +914,169 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
               >
                 {checkStatus(state.status, ['recording', 'recovering']) 
                   ? <Square className="h-6 w-6" /> 
-                  : <Mic className="h-6 w
+                  : <Mic className="h-6 w-6" />
+                }
+              </Button>
+            </div>
+            
+            <div className="font-mono text-lg font-semibold text-gray-700">
+              {checkStatus(state.status, ['recording', 'recovering']) && countdown > 0 && (
+                <span className={countdown <= 5 ? "text-red-500" : ""}>
+                  {Math.floor(countdown / 60).toString().padStart(2, '0')}:
+                  {(countdown % 60).toString().padStart(2, '0')}
+                </span>
+              )}
+            </div>
+            
+            <div className="text-sm text-gray-500">
+              {checkStatus(state.status, 'idle') && "Tap to start recording"}
+              {checkStatus(state.status, 'requesting-permission') && "Requesting microphone access..."}
+              {checkStatus(state.status, 'recording') && "Recording... Tap to stop"}
+              {checkStatus(state.status, 'recovering') && "Recovering connection..."}
+              {checkStatus(state.status, 'processing') && "Processing transcript..."}
+              {checkStatus(state.status, 'confirming') && "Confirm your reminder"}
+            </div>
+            
+            {(checkStatus(state.status, ['recording', 'recovering'])) && (
+              <div className="mt-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mx-1"
+                  onClick={handleForceRetry}
+                >
+                  <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                  Restart
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mx-1"
+                  onClick={handleStopRecording}
+                >
+                  <Square className="h-3.5 w-3.5 mr-1" />
+                  Stop
+                </Button>
+              </div>
+            )}
+            
+            <PlatformSpecificInstructions />
+          </div>
+          
+          {!checkStatus(state.status, 'idle') && (
+            <div className="border rounded-md p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium">Current Transcript</h3>
+                {checkStatus(state.status, ['processing', 'error']) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleReset}
+                    className="h-8 px-2 text-xs"
+                  >
+                    Reset
+                  </Button>
+                )}
+              </div>
+              
+              {checkStatus(state.status, ['recording', 'recovering']) && (
+                <ScrollArea className="h-20 w-full rounded">
+                  {transcript ? (
+                    <p className="text-md">{transcript}</p>
+                  ) : (
+                    <p className="text-gray-400 italic text-sm">
+                      {interimTranscript || "Listening..."}
+                    </p>
+                  )}
+                  {interimTranscript && <span className="text-gray-400 italic">{interimTranscript}</span>}
+                </ScrollArea>
+              )}
+              
+              {checkStatus(state.status, 'processing') && (
+                <div className="flex items-center justify-center space-x-2 py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+                  <span className="text-blue-500 font-medium">Processing transcript...</span>
+                </div>
+              )}
+              
+              {isErrorState && (
+                <Alert variant="destructive" className="mt-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle className="text-sm">Recognition Error</AlertTitle>
+                  <AlertDescription className="text-xs">
+                    {errorMessage}
+                  </AlertDescription>
+                  
+                  {preservedTranscript && (
+                    <div className="mt-2 pt-2 border-t border-red-200">
+                      <p className="text-xs mb-1 font-medium">Captured before error:</p>
+                      <p className="text-xs italic">{preservedTranscript}</p>
+                      
+                      <Button
+                        size="sm"
+                        className="mt-2 h-7 text-xs"
+                        onClick={() => {
+                          if (preservedTranscript) {
+                            attemptManualProcessing(preservedTranscript);
+                          }
+                        }}
+                      >
+                        Use This Transcript
+                      </Button>
+                    </div>
+                  )}
+                </Alert>
+              )}
+            </div>
+          )}
+          
+          {environmentInfo.isIOSPwa && <PWAGuidance />}
+        </>
+      )}
+      
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-4">
+          <details className="text-xs">
+            <summary className="cursor-pointer text-gray-500 font-mono mb-1">Debug Info</summary>
+            <div className="p-2 bg-gray-100 rounded border text-gray-600 font-mono overflow-x-auto">
+              <div>
+                <strong>Environment:</strong> {environment.browser} on {environment.platform}
+                {environment.isPwa ? ' (PWA)' : ''}
+              </div>
+              <div>
+                <strong>iOS PWA:</strong> {environmentInfo.isIOSPwa ? 'Yes' : 'No'}
+              </div>
+              <div>
+                <strong>Browser Support:</strong>{' '}
+                {browserSupportsSpeechRecognition ? 'Yes' : 'No'}
+              </div>
+              <div>
+                <strong>Mic Permission:</strong> {permissionState}
+              </div>
+              <div>
+                <strong>State:</strong> {state.status}
+              </div>
+              <div>
+                <strong>Transcript length:</strong> {transcript.length}
+              </div>
+              
+              <h5 className="mt-2 font-bold">Log:</h5>
+              <ScrollArea className="h-40 mt-1">
+                <ul>
+                  {debugInfo.map((info, i) => (
+                    <li key={i} className="odd:bg-gray-100 even:bg-gray-200 px-1">
+                      {info}
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
+            </div>
+          </details>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default EnhancedVoiceRecorderView;
