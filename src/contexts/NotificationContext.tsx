@@ -10,6 +10,7 @@ import {
 } from '@/services/notificationService';
 import { useNotificationPermission } from '@/hooks/useNotificationPermission';
 import { showNotification, formatReminderForNotification } from '@/utils/notificationUtils';
+import { ToastAction } from '@/components/ui/toast';
 
 interface NotificationContextType {
   notificationSettings: NotificationSettings;
@@ -87,15 +88,19 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
           description: notification?.body || 'You have a new reminder',
           duration: 5000,
           variant: data.priority === 'high' ? 'destructive' : 'default',
-          action: data.reminderId && data.reminderId !== 'test-reminder' ? {
-            label: "View",
-            onClick: () => {
-              // Navigate to the reminder detail view
-              if (typeof window !== 'undefined') {
-                window.location.href = `/dashboard/reminders/${data.reminderId}`;
-              }
-            }
-          } : undefined
+          action: data.reminderId && data.reminderId !== 'test-reminder' ? (
+            <ToastAction
+              altText="View reminder"
+              onClick={() => {
+                // Navigate to the reminder detail view
+                if (typeof window !== 'undefined') {
+                  window.location.href = `/dashboard/reminders/${data.reminderId}`;
+                }
+              }}
+            >
+              View
+            </ToastAction>
+          ) : undefined
         });
       });
 
