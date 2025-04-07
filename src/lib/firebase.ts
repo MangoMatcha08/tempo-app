@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
 import { 
   getAuth, 
@@ -18,6 +19,9 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager
 } from "firebase/firestore";
+
+// Import the ensureFirebaseInitialized function from the index file
+import { ensureFirebaseInitialized } from "./firebase/index";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -279,4 +283,4 @@ export const USERS_COLLECTION = 'users';
 export const PERIODS_COLLECTION = 'periods';
 
 // Export firebaseApp for use in other modules
-export { firebaseApp };
+export { firebaseApp, ensureFirebaseInitialized };
