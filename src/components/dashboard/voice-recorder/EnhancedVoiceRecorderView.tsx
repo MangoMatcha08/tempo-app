@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useReducer, useRef } from "react";
+
+import React, { useState, useEffect, useReducer, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -126,6 +127,8 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   const retryAttemptsRef = useRef<number>(0);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const errorResetTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
   
   const { 
     createTimeout, 
@@ -137,6 +140,41 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   const addDebugInfo = (info: string) => {
     setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${info}`]);
   };
+
+  // Add a cleanup function to ensure proper resource management
+  const cleanupRecognition = useCallback(() => {
+    console.log("Performing thorough recognition cleanup");
+    
+    if (isListening) {
+      stopListening();
+    }
+    
+    // Reset state variables
+    resetTranscript();
+    setInterimTranscript("");
+    setIsRecovering(false);
+    
+    // Force reset of recognition instance
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.onend = null;
+      } catch (err) {
+        console.error("Error cleaning up recognition:", err);
+      }
+    }
+    
+    // Clear any auto-reset timer
+    if (errorResetTimerRef.current) {
+      clearTimeout(errorResetTimerRef.current);
+      errorResetTimerRef.current = null;
+    }
+    
+    // Dispatch reset after cleanup
+    dispatch({ type: 'RESET' });
+  }, [isListening, stopListening, resetTranscript]);
   
   useEffect(() => {
     console.log("Voice Recorder Environment:", {
@@ -174,6 +212,33 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     const match = navigator.userAgent.match(/OS (\d+)_(\d+)_?(\d+)?/);
     return match ? `${match[1]}.${match[2]}${match[3] ? `.${match[3]}` : ''}` : null;
   };
+
+  // Set up auto-reset for error state
+  useEffect(() => {
+    if (checkStatus(state.status, 'error')) {
+      addDebugInfo("Setting up auto-reset for error state (8 seconds)");
+      
+      // Clear any existing error reset timer
+      if (errorResetTimerRef.current) {
+        clearTimeout(errorResetTimerRef.current);
+      }
+      
+      // Schedule auto-reset after 8 seconds in error state
+      errorResetTimerRef.current = setTimeout(() => {
+        console.log("Auto-reset triggered from error state");
+        addDebugInfo("Auto-reset triggered from error state");
+        dispatch({ type: 'RESET' });
+      }, 8000);
+      
+      // Clean up on unmount
+      return () => {
+        if (errorResetTimerRef.current) {
+          clearTimeout(errorResetTimerRef.current);
+          errorResetTimerRef.current = null;
+        }
+      };
+    }
+  }, [state.status]);
 
   useEffect(() => {
     const checkMicPermission = async () => {
@@ -225,6 +290,11 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       if (countdownTimerRef.current) {
         clearInterval(countdownTimerRef.current);
         countdownTimerRef.current = null;
+      }
+      
+      if (errorResetTimerRef.current) {
+        clearTimeout(errorResetTimerRef.current);
+        errorResetTimerRef.current = null;
       }
     };
   }, [isListening, stopListening, clearAllTimeouts]);
@@ -442,15 +512,12 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }, retryDelay);
   };
   
+  // Update handleReset to use the new cleanupRecognition function
   const handleReset = () => {
-    addDebugInfo("Resetting recorder state");
-    dispatch({ type: 'RESET' });
+    addDebugInfo("Resetting recorder state with thorough cleanup");
+    cleanupRecognition();
     
-    if (isListening) {
-      stopListening();
-    }
-    
-    resetTranscript();
+    // Reset refs
     retryAttemptsRef.current = 0;
     
     if (recordingTimerRef.current) {
@@ -542,7 +609,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
           <Button
             onClick={toggleRecording}
             disabled={
-              checkStatus(state.status, ['processing', 'confirming']) || 
+              checkStatus(state.status, ['processing', 'confirming', 'error']) || 
               externalProcessing
             }
             size="lg"
@@ -643,30 +710,60 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         </ScrollArea>
       </div>
       
+      {/* Enhanced error display with recovery button */}
       {checkStatus(state.status, 'error') && 'message' in state && (
         <Alert 
           variant="default" 
-          className="text-sm border-yellow-500 bg-yellow-50"
+          className="text-sm border-red-500 bg-red-50"
         >
-          <AlertCircle className="h-4 w-4 text-yellow-600" />
-          <AlertTitle className="text-yellow-700">Recognition Error</AlertTitle>
-          <AlertDescription className="text-yellow-600">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertTitle className="text-red-700">Recognition Error</AlertTitle>
+          <AlertDescription className="text-red-600">
             {state.message}
-            {environment.isPwa && (
-              <p className="text-xs mt-1">
-                PWA mode may have limited speech recognition capabilities.
-                Try using the restart button if needed.
-              </p>
-            )}
+            <p className="text-xs mt-2">
+              Voice recognition encountered an error. Please try again with the recovery button below.
+            </p>
           </AlertDescription>
-          <div className="mt-2">
+          <div className="mt-3">
             <Button
-              size="sm"
-              variant="outline"
-              onClick={handleReset}
+              onClick={() => {
+                addDebugInfo("Manual recovery reset initiated");
+                
+                // Full reset sequence
+                if (isListening) {
+                  stopListening();
+                }
+                
+                // Force cleanup of recognition resources
+                if (recognitionRef.current) {
+                  try {
+                    recognitionRef.current.abort();
+                    recognitionRef.current.onresult = null;
+                    recognitionRef.current.onerror = null;
+                    recognitionRef.current.onend = null;
+                    recognitionRef.current = null;
+                  } catch (err) {
+                    console.error("Error cleaning up recognition:", err);
+                  }
+                }
+                
+                // Reset state
+                resetTranscript();
+                retryAttemptsRef.current = 0;
+                
+                // Short delay before dispatching reset
+                setTimeout(() => {
+                  dispatch({ type: 'RESET' });
+                }, 100);
+              }}
+              className="w-full bg-red-100 text-red-800 hover:bg-red-200 border border-red-300"
             >
-              Try Again
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Recovery Reset
             </Button>
+            <p className="text-xs text-center mt-1">
+              This will automatically reset in a few seconds
+            </p>
           </div>
         </Alert>
       )}
