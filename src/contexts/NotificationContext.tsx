@@ -12,6 +12,7 @@ import { NotificationHistoryProvider, useNotificationHistory } from './Notificat
 import { setupForegroundMessageListener } from '@/services/messaging/messagingService';
 import { ServiceWorkerMessage } from '@/types/notifications/serviceWorkerTypes';
 import { ToastAction } from '@/components/ui/toast';
+import { NotificationType } from '@/types/reminderTypes';
 
 // Create a combined notification context
 interface NotificationContextType {
@@ -111,7 +112,8 @@ const NotificationProviderInner: React.FC<NotificationProviderProps> = ({ childr
         title: formattedNotification.title,
         body: formattedNotification.description || '',
         timestamp: Date.now(),
-        type: reminder.category ? reminder.category : 'GENERAL',
+        // Use NotificationType.TEST as default, which is a valid NotificationType value
+        type: NotificationType.TEST,
         reminderId: reminder.id,
         priority: reminder.priority,
         status: 'sent',
