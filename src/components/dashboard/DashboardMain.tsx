@@ -158,7 +158,11 @@ const DashboardMain = ({
 
   return (
     <DashboardLayout>
-      <DashboardHeader pageTitle="Tempo Dashboard" stats={reminderStats} />
+      <DashboardHeader 
+        pageTitle="Tempo Dashboard" 
+        stats={reminderStats} 
+        onAddReminder={openQuickReminderModal} 
+      />
       
       {!hasFirestorePermissions && (
         <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-4">

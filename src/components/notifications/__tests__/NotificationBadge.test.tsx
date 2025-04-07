@@ -1,23 +1,24 @@
 
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import NotificationBadge from '../NotificationBadge';
 import { useNotificationDisplay } from '@/hooks/useNotificationDisplay';
 
 // Mock the useNotificationDisplay hook
-jest.mock('@/hooks/useNotificationDisplay', () => ({
-  useNotificationDisplay: jest.fn()
+vi.mock('@/hooks/useNotificationDisplay', () => ({
+  useNotificationDisplay: vi.fn()
 }));
 
 describe('NotificationBadge', () => {
   beforeEach(() => {
     // Reset mock before each test
-    (useNotificationDisplay as jest.Mock).mockReset();
+    (useNotificationDisplay as ReturnType<typeof vi.fn>).mockReset();
   });
 
   it('should render without badge when no unread notifications', () => {
     // Mock the hook return value
-    (useNotificationDisplay as jest.Mock).mockReturnValue({
+    (useNotificationDisplay as ReturnType<typeof vi.fn>).mockReturnValue({
       unreadCount: 0
     });
 
@@ -30,7 +31,7 @@ describe('NotificationBadge', () => {
 
   it('should render with badge when there are unread notifications', () => {
     // Mock the hook return value
-    (useNotificationDisplay as jest.Mock).mockReturnValue({
+    (useNotificationDisplay as ReturnType<typeof vi.fn>).mockReturnValue({
       unreadCount: 5
     });
 
@@ -43,7 +44,7 @@ describe('NotificationBadge', () => {
 
   it('should show 9+ when unread count exceeds 9', () => {
     // Mock the hook return value
-    (useNotificationDisplay as jest.Mock).mockReturnValue({
+    (useNotificationDisplay as ReturnType<typeof vi.fn>).mockReturnValue({
       unreadCount: 15
     });
 
@@ -56,11 +57,11 @@ describe('NotificationBadge', () => {
 
   it('should call onClick handler when clicked', async () => {
     // Mock the hook return value
-    (useNotificationDisplay as jest.Mock).mockReturnValue({
+    (useNotificationDisplay as ReturnType<typeof vi.fn>).mockReturnValue({
       unreadCount: 3
     });
 
-    const handleClick = jest.fn();
+    const handleClick = vi.fn();
     render(<NotificationBadge onClick={handleClick} />);
     
     // Click the button

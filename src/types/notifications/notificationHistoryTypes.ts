@@ -5,7 +5,13 @@ import { NotificationChannel } from './settingsTypes';
 /**
  * Status of a notification delivery attempt
  */
-export type NotificationDeliveryStatus = 'pending' | 'sent' | 'failed' | 'received' | 'clicked';
+export enum NotificationDeliveryStatus {
+  PENDING = 'pending',
+  SENT = 'sent',
+  FAILED = 'failed',
+  RECEIVED = 'received',
+  CLICKED = 'clicked'
+}
 
 /**
  * Action that can be taken on a notification

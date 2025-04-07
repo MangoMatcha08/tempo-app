@@ -1,8 +1,10 @@
 
 import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import NotificationCard from '../NotificationCard';
 import { NotificationRecord } from '@/types/notifications/notificationHistoryTypes';
 import { NotificationType, ReminderPriority } from '@/types/reminderTypes';
+import { NotificationDeliveryStatus } from '@/types/notifications/notificationHistoryTypes';
 
 describe('NotificationCard', () => {
   const mockNotification: NotificationRecord = {
@@ -13,17 +15,17 @@ describe('NotificationCard', () => {
     type: NotificationType.TEST,
     reminderId: 'reminder-123',
     priority: ReminderPriority.MEDIUM,
-    status: 'sent',
+    status: NotificationDeliveryStatus.SENT,
     channels: ['inApp']
   };
 
   const mockHandlers = {
-    onAction: jest.fn(),
-    onMarkRead: jest.fn(),
+    onAction: vi.fn(),
+    onMarkRead: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should render notification details correctly', () => {
@@ -40,7 +42,7 @@ describe('NotificationCard', () => {
   it('should call onMarkRead when clicking on an unread notification', () => {
     const unreadNotification = {
       ...mockNotification,
-      status: 'sent'
+      status: NotificationDeliveryStatus.SENT
     };
     
     render(<NotificationCard 
@@ -58,7 +60,7 @@ describe('NotificationCard', () => {
   it('should not call onMarkRead when clicking on an already read notification', () => {
     const readNotification = {
       ...mockNotification,
-      status: 'received'
+      status: NotificationDeliveryStatus.RECEIVED
     };
     
     render(<NotificationCard 
