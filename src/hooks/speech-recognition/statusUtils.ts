@@ -39,3 +39,15 @@ export function getPreservedTranscript(
   }
   return null;
 }
+
+/**
+ * Extract error message from an error state if available
+ */
+export function getErrorMessage(
+  state: RecorderState | { status: string }
+): string {
+  if (state.status === 'error' && 'message' in state) {
+    return state.message;
+  }
+  return '';
+}

@@ -10,7 +10,7 @@ import { processTranscriptSafely } from "@/hooks/speech-recognition/errorHandler
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getEnvironmentDescription, detectEnvironment } from "@/hooks/speech-recognition/environmentDetection";
 import { VoiceProcessingResult } from "@/types/reminderTypes";
-import { checkStatus, getPreservedTranscript } from "@/hooks/speech-recognition/statusUtils";
+import { checkStatus, getPreservedTranscript, getErrorMessage } from "@/hooks/speech-recognition/statusUtils";
 
 const IOS_PWA_MAX_SESSION_DURATION = 6000; // 6 seconds max for iOS PWA (reduced from 8)
 const IOS_PWA_SESSION_PAUSE = 500; // 500ms pause between sessions
@@ -699,7 +699,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   }
 
   const isErrorState = checkStatus(state.status, 'error');
-  const errorMessage = isErrorState && 'message' in state ? state.message : '';
+  const errorMessage = getErrorMessage(state);
   const preservedTranscript = isErrorState ? getPreservedTranscript(state) : null;
   
   return (
@@ -827,7 +827,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
           <AlertCircle className="h-4 w-4 text-yellow-600" />
           <AlertTitle className="text-yellow-700">Recognition Error</AlertTitle>
           <AlertDescription className="text-yellow-600">
-            {state.message}
+            {getErrorMessage(state)}
             {environment.isPwa && (
               <p className="text-xs mt-1">
                 PWA mode may have limited speech recognition capabilities.
@@ -835,10 +835,10 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
               </p>
             )}
             
-            {(state.message.includes('no speech') || 
-              state.message.includes('network') || 
-              state.message.includes('aborted') ||
-              state.message.includes('Connection issue')) && (
+            {(getErrorMessage(state).includes('no speech') || 
+              getErrorMessage(state).includes('network') || 
+              getErrorMessage(state).includes('aborted') ||
+              getErrorMessage(state).includes('Connection issue')) && (
               <p className="text-xs mt-1 text-green-600 flex items-center">
                 <RefreshCw className="h-3 w-3 animate-spin mr-1" />
                 <span>Auto-recovering soon...</span>
