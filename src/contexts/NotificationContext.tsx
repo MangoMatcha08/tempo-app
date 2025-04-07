@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Reminder } from '@/types/reminderTypes';
@@ -45,7 +44,7 @@ interface NotificationProviderProps {
 
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(defaultNotificationSettings);
-  const { permissionGranted, isSupported, requestPermission } = useNotificationPermission();
+  const { permissionGranted, isSupported, requestPermission: hookRequestPermission } = useNotificationPermission();
   const { toast } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -175,12 +174,13 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     };
   }, []);
 
-  const requestPermission = async (): Promise<PermissionRequestResult> => {
+  // Wrapper for requestPermission that returns the proper type
+  const handleRequestPermission = async (): Promise<PermissionRequestResult> => {
     try {
       // Wait for Firebase to initialize
       await firebaseInitPromise;
       
-      const result = await useNotificationPermission().requestPermission();
+      const result = await hookRequestPermission();
       return { granted: result };
     } catch (error) {
       console.error('Error requesting permission:', error);
@@ -195,7 +195,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     notificationSettings,
     permissionGranted,
     isSupported,
-    requestPermission,
+    requestPermission: handleRequestPermission,
     showNotification: handleShowNotification,
     updateSettings,
   };

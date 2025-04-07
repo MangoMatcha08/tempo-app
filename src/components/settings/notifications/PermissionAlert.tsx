@@ -4,12 +4,13 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Bell } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { PermissionRequestResult } from "@/types/notificationTypes";
 
 interface PermissionAlertProps {
   permissionGranted: boolean;
   masterEnabled: boolean;
   pushEnabled: boolean;
-  requestPermission: () => Promise<boolean>;
+  requestPermission: () => Promise<PermissionRequestResult>;
 }
 
 const PermissionAlert = ({ 
@@ -48,9 +49,9 @@ const PermissionAlert = ({
       }
       
       // Try to request permission
-      const granted = await requestPermission();
+      const result = await requestPermission();
       
-      if (granted) {
+      if (result.granted) {
         toast({
           title: "Notifications enabled",
           description: "You will now receive push notifications",
