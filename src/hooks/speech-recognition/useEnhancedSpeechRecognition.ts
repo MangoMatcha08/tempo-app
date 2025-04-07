@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { detectEnvironment } from './environmentDetection';
 import { useTrackedTimeouts } from '../use-tracked-timeouts';
@@ -234,6 +233,22 @@ export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionRetu
       recognition.start();
       setIsListening(true);
       
+      // Special handling for iOS PWA
+      if (env.isIOSPwa) {
+        console.log('iOS PWA detected: Setting up shorter session duration');
+        // Set shorter session for iOS PWA to avoid WebKit issues
+        const iosPwaSessionTime = 8000; // 8 seconds max for iOS PWA
+        
+        createTimeout(() => {
+          if (isListening && isMounted()) {
+            console.log('iOS PWA auto-stop triggered after 8 seconds');
+            // Store accumulated transcript before stopping
+            accumulatedTranscriptRef.current += ' ' + transcript;
+            stopListening();
+          }
+        }, iosPwaSessionTime);
+      }
+      
       // For iOS PWA, set up periodic session refresh
       if (env.isIOSPwa) {
         setupIOSPwaSessionRefresh();
@@ -250,7 +265,8 @@ export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionRetu
     createTimeout, 
     runIfMounted, 
     isMounted,
-    env
+    env,
+    stopListening
   ]);
   
   /**
@@ -260,9 +276,8 @@ export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionRetu
   const setupIOSPwaSessionRefresh = useCallback(() => {
     if (!env.isIOSPwa || !recognitionRef.current) return;
     
-    // For iOS PWA, we need to periodically stop and restart recognition
-    // to prevent Safari from killing the session
-    const refreshInterval = env.recognitionConfig.maxSessionDuration;
+    // For iOS PWA, use shorter refresh interval (8 seconds instead of default)
+    const refreshInterval = 8000; // 8 seconds for iOS PWA
     
     createTimeout(() => {
       if (isListening && isMounted()) {
@@ -282,7 +297,7 @@ export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionRetu
         }
       }
     }, refreshInterval);
-  }, [env.isIOSPwa, env.recognitionConfig.maxSessionDuration, isListening, transcript, createTimeout, isMounted]);
+  }, [env.isIOSPwa, isListening, transcript, createTimeout, isMounted]);
   
   /**
    * Stop the speech recognition process
@@ -331,7 +346,14 @@ export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionRetu
    */
   const getCompleteTranscript = useCallback(() => {
     if (env.isIOSPwa) {
-      const complete = (accumulatedTranscriptRef.current + ' ' + transcript).trim();
+      // For iOS PWA, ensure we're returning both accumulated and current transcript
+      const complete = (accumulatedTranscriptRef.current + ' ' + transcript)
+        .replace(/\s+/g, ' ')
+        .trim();
+        
+      // Add debug log
+      console.log(`Complete transcript: ${complete.substring(0, 50)}... (${complete.length} chars)`);
+      
       // Reset accumulated transcript
       accumulatedTranscriptRef.current = '';
       return complete;
