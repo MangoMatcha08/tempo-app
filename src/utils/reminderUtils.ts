@@ -10,16 +10,16 @@ import {
 
 // Mock periods for testing/demo
 export const mockPeriods = [
-  { id: "p1", name: "Period 1", startTime: "8:00", endTime: "8:50" },
-  { id: "p2", name: "Period 2", startTime: "9:00", endTime: "9:50" },
-  { id: "p3", name: "Period 3", startTime: "10:00", endTime: "10:50" },
-  { id: "p4", name: "Lunch", startTime: "11:00", endTime: "11:45" },
-  { id: "p5", name: "Period 4", startTime: "12:00", endTime: "12:50" },
-  { id: "p6", name: "Planning", startTime: "13:00", endTime: "13:50" },
-  { id: "p7", name: "Period 5", startTime: "14:00", endTime: "14:50" },
-  { id: "p8", name: "Before School", startTime: "7:00", endTime: "8:00" },
-  { id: "p9", name: "After School", startTime: "15:00", endTime: "16:00" },
-  { id: "p10", name: "Prep Period", startTime: "13:00", endTime: "13:50" }
+  { id: "before-school", name: "Before School", startTime: "8:00", endTime: "8:50" },
+  { id: "1", name: "Period 1", startTime: "8:50", endTime: "9:50" },
+  { id: "break", name: "Break", startTime: "9:50", endTime: "10:05" },
+  { id: "2", name: "Period 2", startTime: "10:08", endTime: "11:08" },
+  { id: "3", name: "Period 3", startTime: "11:11", endTime: "12:11" },
+  { id: "4", name: "Period 4", startTime: "12:14", endTime: "13:14" },
+  { id: "lunch", name: "Lunch", startTime: "13:14", endTime: "13:44" },
+  { id: "5", name: "Period 5", startTime: "13:47", endTime: "14:47" },
+  { id: "6", name: "Period 6", startTime: "14:50", endTime: "15:30" },
+  { id: "after-school", name: "After School", startTime: "15:30", endTime: "17:00" }
 ];
 
 // Helper function to create a new reminder

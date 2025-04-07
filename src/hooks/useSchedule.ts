@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { useScheduleContext, Period, PeriodType } from '@/contexts/ScheduleContext';
 import { addMinutes, addDays, startOfWeek, isToday, isSameDay } from 'date-fns';
@@ -7,81 +8,108 @@ const generateMockPeriods = (): Period[] => {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   
+  const createTime = (hour: number, minute: number) => {
+    return new Date(today.getFullYear(), today.getMonth(), today.getDate(), hour, minute);
+  };
+  
   const mockPeriods: Period[] = [
     {
+      id: 'before-school',
+      title: 'Before School',
+      type: 'other',
+      startTime: createTime(8, 0), // 8:00 AM
+      endTime: createTime(8, 50),  // 8:50 AM
+      isRecurring: true,
+      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
+    },
+    {
       id: '1',
-      title: 'Math 101',
+      title: 'Period 1',
       type: 'core',
-      startTime: addMinutes(today, 480), // 8:00 AM
-      endTime: addMinutes(today, 540),   // 9:00 AM
+      startTime: createTime(8, 50), // 8:50 AM
+      endTime: createTime(9, 50),   // 9:50 AM
       location: 'Room 204',
       isRecurring: true,
-      daysOfWeek: [1, 3, 5], // Mon, Wed, Fri
+      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
       notes: 'Collect homework, Review Chapter 5, Quiz preparation',
     },
     {
+      id: 'break',
+      title: 'Break',
+      type: 'other',
+      startTime: createTime(9, 50), // 9:50 AM
+      endTime: createTime(10, 5),   // 10:05 AM
+      isRecurring: true,
+      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
+    },
+    {
       id: '2',
-      title: 'English Literature',
+      title: 'Period 2',
       type: 'core',
-      startTime: addMinutes(today, 560), // 9:20 AM
-      endTime: addMinutes(today, 620),   // 10:20 AM
+      startTime: createTime(10, 8), // 10:08 AM
+      endTime: createTime(11, 8),   // 11:08 AM
       location: 'Room 115',
       isRecurring: true,
-      daysOfWeek: [1, 3, 5], // Mon, Wed, Fri
+      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
       notes: 'Essay due date, Discussion on Hamlet',
     },
     {
       id: '3',
-      title: 'Planning Period',
-      type: 'planning',
-      startTime: addMinutes(today, 640), // 10:40 AM
-      endTime: addMinutes(today, 700),   // 11:40 AM
-      location: 'Teachers Lounge',
+      title: 'Period 3',
+      type: 'core',
+      startTime: createTime(11, 11), // 11:11 AM
+      endTime: createTime(12, 11),   // 12:11 PM
+      location: 'Room 302',
       isRecurring: true,
       daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
-      notes: 'Grade papers, Prepare test materials',
     },
     {
       id: '4',
-      title: 'Lunch Break',
+      title: 'Period 4',
+      type: 'core',
+      startTime: createTime(12, 14), // 12:14 PM
+      endTime: createTime(13, 14),   // 1:14 PM
+      location: 'Lab 3',
+      isRecurring: true,
+      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
+    },
+    {
+      id: 'lunch',
+      title: 'Lunch',
       type: 'other',
-      startTime: addMinutes(today, 720), // 12:00 PM
-      endTime: addMinutes(today, 760),   // 12:40 PM
+      startTime: createTime(13, 14), // 1:14 PM
+      endTime: createTime(13, 44),   // 1:44 PM
       isRecurring: true,
       daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
     },
     {
       id: '5',
-      title: 'Science Lab',
+      title: 'Period 5',
       type: 'core',
-      startTime: addMinutes(today, 780), // 1:00 PM
-      endTime: addMinutes(today, 840),   // 2:00 PM
-      location: 'Lab 3',
+      startTime: createTime(13, 47), // 1:47 PM
+      endTime: createTime(14, 47),   // 2:47 PM
+      location: 'Room 203',
       isRecurring: true,
-      daysOfWeek: [2, 4], // Tue, Thu
-      notes: 'Chemical reactions demo, Safety procedures review',
+      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
     },
     {
       id: '6',
-      title: 'Art Class',
-      type: 'elective',
-      startTime: addMinutes(today, 780), // 1:00 PM
-      endTime: addMinutes(today, 840),   // 2:00 PM
+      title: 'Period 6',
+      type: 'core',
+      startTime: createTime(14, 50), // 2:50 PM
+      endTime: createTime(15, 30),   // 3:30 PM
       location: 'Art Studio',
       isRecurring: true,
-      daysOfWeek: [1, 3, 5], // Mon, Wed, Fri
-      notes: 'Materials for next project, Student showcase preparation',
+      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
     },
     {
-      id: '7',
-      title: 'Faculty Meeting',
-      type: 'meeting',
-      startTime: addMinutes(today, 900), // 3:00 PM
-      endTime: addMinutes(today, 960),   // 4:00 PM
-      location: 'Conference Room',
+      id: 'after-school',
+      title: 'After School',
+      type: 'other',
+      startTime: createTime(15, 30), // 3:30 PM
+      endTime: createTime(17, 0),    // 5:00 PM
       isRecurring: true,
-      daysOfWeek: [3], // Wed only
-      notes: 'Budget discussion, Upcoming events, Parent-teacher conferences',
+      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
     },
   ];
   
