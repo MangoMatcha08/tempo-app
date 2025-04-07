@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useReducer, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
@@ -11,9 +10,8 @@ import { processTranscriptSafely } from "@/hooks/speech-recognition/errorHandler
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getEnvironmentDescription, detectEnvironment } from "@/hooks/speech-recognition/environmentDetection";
 import { VoiceProcessingResult } from "@/types/reminderTypes";
-import { checkStatus } from "@/hooks/speech-recognition/statusUtils";
+import { checkStatus, getPreservedTranscript } from "@/hooks/speech-recognition/statusUtils";
 
-// Add these constants at the top level, after imports
 const IOS_PWA_MAX_SESSION_DURATION = 6000; // 6 seconds max for iOS PWA (reduced from 8)
 const IOS_PWA_SESSION_PAUSE = 500; // 500ms pause between sessions
 const IOS_PWA_AUTO_STOP_BUFFER = 500; // Stop 500ms before max duration
@@ -106,7 +104,6 @@ function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): Recor
       
       console.log(`Scheduling auto-reset for recoverable error in ${resetDelay}ms`);
       
-      // Don't rely on event.dispatch, use setTimeout directly
       setTimeout(() => {
         console.log('Auto-reset executed for recoverable error');
       }, resetDelay);
@@ -191,7 +188,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     };
   }, []);
   
-  // Add iOS version detection
   const isIOSWithVersion = useCallback(() => {
     if (!environmentInfo.isIOS) return null;
     
@@ -366,7 +362,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   };
   
   const setupCountdown = () => {
-    // Use shorter session for iOS PWA
     const maxRecordingTime = environmentInfo.isIOSPwa ? 
       (isIOSBelowV15 ? 5 : 6) : 30;
       
@@ -401,28 +396,22 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }, 1000);
   };
   
-  // Update the setupIOSPwaSessionRefresh function to use shorter sessions with deliberate pauses
   const setupIOSPwaSessionRefresh = () => {
     if (!environmentInfo.isIOSPwa) return;
     
     addDebugInfo("Setting up iOS PWA short session management");
     
-    // Use shorter overall duration for iOS PWA
     const effectiveSessionDuration = isIOSBelowV15 ? 5000 : IOS_PWA_MAX_SESSION_DURATION;
     
-    // Stop slightly before max duration to avoid WebKit issues
     const autoStopTime = effectiveSessionDuration - IOS_PWA_AUTO_STOP_BUFFER;
     
-    // Set up auto-stop timer
     createTimeout(() => {
       if (isListening && isMountedRef.current) {
         addDebugInfo(`iOS PWA: Auto-stopping after ${autoStopTime}ms`);
-        // Save transcript before stopping
         const currentTranscript = transcript;
         
         stopListening();
         
-        // Short pause then try manual processing if we got a transcript
         createTimeout(() => {
           if (currentTranscript && currentTranscript.trim().length > 0 && isMountedRef.current) {
             addDebugInfo(`iOS PWA: Attempting manual processing of transcript: ${currentTranscript.substring(0, 30)}...`);
@@ -486,7 +475,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }
   };
   
-  // Add a special auto-processing function specifically for iOS PWA
   const attemptManualProcessing = (savedTranscript: string) => {
     if (!savedTranscript || !savedTranscript.trim()) {
       addDebugInfo("Cannot process: Empty transcript");
@@ -623,6 +611,22 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }, 100);
   };
   
+  const PWAGuidance = () => {
+    if (!environment.isPwa) return null;
+    
+    return (
+      <div className="mt-3 text-xs border p-2 rounded bg-blue-50 border-blue-200">
+        <h4 className="font-medium text-blue-800">Tips for iOS PWA voice recognition:</h4>
+        <ul className="mt-1 text-blue-700 space-y-1 list-disc pl-4">
+          <li>Keep recordings under {isIOSBelowV15 ? '5' : '6'} seconds for best results</li>
+          <li>Speak clearly with slight pauses between phrases</li>
+          <li>If you see your text but get an error, use "Process This Transcript"</li>
+          <li>Try recording in a quiet environment with minimal background noise</li>
+        </ul>
+      </div>
+    );
+  };
+  
   const PlatformSpecificInstructions = () => {
     if (environmentInfo.isIOSPwa) {
       return (
@@ -696,7 +700,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
 
   const isErrorState = checkStatus(state.status, 'error');
   const errorMessage = isErrorState && 'message' in state ? state.message : '';
-  const preservedTranscript = isErrorState && 'preservedTranscript' in state ? state.preservedTranscript : null;
+  const preservedTranscript = isErrorState ? getPreservedTranscript(state) : null;
   
   return (
     <div className="space-y-4">
@@ -737,9 +741,18 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
                   <div>
                     <span>Recording... {countdown}s</span>
                     {environmentInfo.isIOSPwa && (
-                      <div className="text-xs mt-1 flex items-center">
-                        <span className="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse mr-1"></span>
-                        <span>iOS mode: Keep under {isIOSBelowV15 ? 5 : 6} seconds</span>
+                      <div className="mt-1 flex flex-col items-center">
+                        <div className="w-full h-1.5 bg-red-100 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-red-500 transition-all duration-1000 ease-linear" 
+                            style={{ 
+                              width: `${Math.min(100, (countdown > 0 ? (1 - countdown/(isIOSBelowV15 ? 5 : 6)) * 100 : 100))}%` 
+                            }}
+                          ></div>
+                        </div>
+                        <span className="text-xs mt-1">
+                          {isIOSBelowV15 ? 'Keep under 5 sec' : 'Keep under 6 sec'}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -806,8 +819,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         </ScrollArea>
       </div>
       
-      {/* Enhanced error alert with better iOS PWA specific recovery */}
-      {checkStatus(state.status, 'error') && 'message' in state && (
+      {checkStatus(state.status, 'error') && (
         <Alert 
           variant="default" 
           className="text-sm border-yellow-500 bg-yellow-50"
@@ -833,38 +845,42 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
               </p>
             )}
           </AlertDescription>
-          <div className="mt-3 flex flex-col space-y-2">
+          
+          {preservedTranscript && (
+            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+              <p className="text-xs text-green-700 font-medium">Transcript was captured before the error:</p>
+              <p className="text-xs text-green-800 mt-1 italic">{preservedTranscript.substring(0, 100)}{preservedTranscript.length > 100 ? '...' : ''}</p>
+              <Button
+                size="sm"
+                onClick={() => attemptManualProcessing(preservedTranscript)}
+                className="w-full mt-2 bg-green-100 text-green-800 hover:bg-green-200 border border-green-300"
+              >
+                Process This Transcript
+              </Button>
+            </div>
+          )}
+          
+          <div className="mt-3 flex space-x-2">
             <Button
               size="sm"
               variant="outline"
               onClick={handleReset}
-              className="w-full"
+              className="flex-1"
             >
               Try Again
             </Button>
             
-            {/* Enhanced iOS PWA recovery options */}
-            {environmentInfo.isIOSPwa && (transcript || preservedTranscript) && (
+            {environmentInfo.isIOSPwa && (
               <Button
                 size="sm"
                 variant="default"
                 onClick={() => {
-                  addDebugInfo("iOS PWA: Manual processing trigger attempted");
-                  
                   handleReset();
-                  
-                  const savedTranscript = preservedTranscript || transcript;
-                  
-                  setTimeout(() => {
-                    if (isMountedRef.current) {
-                      addDebugInfo(`iOS PWA: Manual processing of transcript: ${savedTranscript.substring(0, 30)}...`);
-                      attemptManualProcessing(savedTranscript);
-                    }
-                  }, 500);
+                  setTimeout(() => toggleRecording(), 300);
                 }}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
               >
-                Force Process Current Transcript
+                New Short Recording
               </Button>
             )}
           </div>
@@ -909,6 +925,8 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
           )}
         </div>
       )}
+      
+      {environmentInfo.isIOSPwa && <PWAGuidance />}
       
       {process.env.NODE_ENV === 'development' && (
         <details className="mt-4 text-xs text-gray-500 border rounded p-2">
