@@ -10,13 +10,7 @@ import { processTranscriptSafely } from "@/hooks/speech-recognition/errorHandler
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getEnvironmentDescription, detectEnvironment } from "@/hooks/speech-recognition/environmentDetection";
 import { VoiceProcessingResult } from "@/types/reminderTypes";
-
-function checkStatus(currentStatus: any, expectedStatus: string | string[]): boolean {
-  if (Array.isArray(expectedStatus)) {
-    return expectedStatus.includes(String(currentStatus));
-  }
-  return String(currentStatus) === expectedStatus;
-}
+import { checkStatus } from "@/hooks/speech-recognition/statusUtils";
 
 type RecorderState = 
   | { status: 'idle' }
@@ -140,33 +134,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   const addDebugInfo = (info: string) => {
     setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${info}`]);
   };
-
-  const handleThoroughReset = useCallback(() => {
-    addDebugInfo("Performing thorough recognition reset");
-    
-    // Stop listening if active
-    if (isListening) {
-      stopListening();
-    }
-    
-    // Reset transcript using the proper method
-    resetTranscript();
-    
-    // Reset retry counter
-    if (retryAttemptsRef.current) {
-      retryAttemptsRef.current = 0;
-    }
-    
-    // Clear any pending timers
-    clearAllTimeouts();
-    
-    // Allow a short delay before state reset
-    setTimeout(() => {
-      // Reset the state machine
-      dispatch({ type: 'RESET' });
-      addDebugInfo("State machine reset complete");
-    }, 300);
-  }, [isListening, stopListening, resetTranscript, clearAllTimeouts, dispatch]);
 
   useEffect(() => {
     console.log("Voice Recorder Environment:", {
@@ -502,12 +469,14 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   
   const handleReset = () => {
     addDebugInfo("Resetting recorder state");
-    
     dispatch({ type: 'RESET' });
     
-    if (transcript) {
-      resetTranscript();
+    if (isListening) {
+      stopListening();
+      addDebugInfo("Stopped active listening during reset");
     }
+    
+    resetTranscript();
     
     if (recordingTimerRef.current) {
       clearTimeout(recordingTimerRef.current);
@@ -518,6 +487,14 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       clearInterval(countdownTimerRef.current);
       countdownTimerRef.current = null;
     }
+    
+    // Give the browser a moment to release resources
+    setTimeout(() => {
+      if (retryAttemptsRef.current) {
+        retryAttemptsRef.current = 0;
+        addDebugInfo("Reset retry counter");
+      }
+    }, 100);
   };
   
   const PlatformSpecificInstructions = () => {
@@ -590,7 +567,34 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       </div>
     );
   }
-  
+
+  // Add auto-reset functionality for error states
+  useEffect(() => {
+    // Only set up auto-reset when in error state
+    if (checkStatus(state.status, 'error') && 'message' in state) {
+      // Determine if this is a recoverable error
+      const isRecoverableError = 
+        state.message.includes('no speech') || 
+        state.message.includes('network') || 
+        state.message.includes('aborted') ||
+        state.message.includes('Connection issue');
+      
+      // Auto-reset for recoverable errors after delay (helpful for iOS PWA)
+      if (isRecoverableError) {
+        console.log('Setting up auto-reset for recoverable error');
+        addDebugInfo(`Scheduling auto-reset for recoverable error: ${state.message}`);
+        
+        // Use tracked timeout to ensure proper cleanup
+        const timeoutDuration = environmentInfo?.isIOSPwa ? 4000 : 6000;
+        createTimeout(() => {
+          console.log('Auto-resetting after recoverable error');
+          addDebugInfo('Auto-reset triggered after error');
+          dispatch({ type: 'RESET' });
+        }, timeoutDuration);
+      }
+    }
+  }, [state.status, createTimeout, dispatch, environmentInfo?.isIOSPwa]);
+
   return (
     <div className="space-y-4">
       <div className="text-center mb-6">
@@ -702,27 +706,39 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       {checkStatus(state.status, 'error') && 'message' in state && (
         <Alert 
           variant="default" 
-          className="text-sm border-red-500 bg-red-50"
+          className="text-sm border-yellow-500 bg-yellow-50"
         >
-          <AlertCircle className="h-4 w-4 text-red-600" />
-          <AlertTitle className="text-red-700">Recognition Error</AlertTitle>
-          <AlertDescription className="text-red-600">
+          <AlertCircle className="h-4 w-4 text-yellow-600" />
+          <AlertTitle className="text-yellow-700">Recognition Error</AlertTitle>
+          <AlertDescription className="text-yellow-600">
             {state.message}
-            <p className="text-xs mt-2">
-              Voice recognition encountered an error. The system will automatically reset in a few seconds, or you can use the recovery button below.
-            </p>
+            {environment.isPwa && (
+              <p className="text-xs mt-1">
+                PWA mode may have limited speech recognition capabilities.
+                {environmentInfo.isIOSPwa && " iOS PWA has the most limitations."}
+              </p>
+            )}
+            
+            {/* Add auto-reset notification for recoverable errors */}
+            {(state.message.includes('no speech') || 
+              state.message.includes('network') || 
+              state.message.includes('aborted') ||
+              state.message.includes('Connection issue')) && (
+              <p className="text-xs mt-1 text-green-600">
+                <RefreshCw className="h-3 w-3 inline-block animate-spin mr-1" />
+                Recovery will happen automatically in a few seconds...
+              </p>
+            )}
           </AlertDescription>
-          <div className="mt-3">
+          <div className="mt-2">
             <Button
-              onClick={handleThoroughReset}
-              className="w-full bg-red-100 text-red-800 hover:bg-red-200 border border-red-300"
+              size="sm"
+              variant="outline"
+              onClick={handleReset}
+              className="flex-1 bg-white hover:bg-gray-50"
             >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Recovery Reset
+              Try Again Now
             </Button>
-            <p className="text-xs text-center mt-1">
-              This will automatically reset in a few seconds
-            </p>
           </div>
         </Alert>
       )}
