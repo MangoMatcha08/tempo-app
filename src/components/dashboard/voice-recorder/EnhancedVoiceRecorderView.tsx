@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useReducer, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
@@ -12,6 +13,11 @@ import { getEnvironmentDescription, detectEnvironment } from "@/hooks/speech-rec
 import { VoiceProcessingResult } from "@/types/reminderTypes";
 import { checkStatus } from "@/hooks/speech-recognition/statusUtils";
 
+// Add these constants at the top level, after imports
+const IOS_PWA_MAX_SESSION_DURATION = 6000; // 6 seconds max for iOS PWA (reduced from 8)
+const IOS_PWA_SESSION_PAUSE = 500; // 500ms pause between sessions
+const IOS_PWA_AUTO_STOP_BUFFER = 500; // Stop 500ms before max duration
+
 type RecorderState = 
   | { status: 'idle' }
   | { status: 'requesting-permission' }
@@ -19,7 +25,7 @@ type RecorderState =
   | { status: 'recovering' }
   | { status: 'processing', transcript: string }
   | { status: 'confirming', result: VoiceProcessingResult }
-  | { status: 'error', message: string };
+  | { status: 'error', message: string, preservedTranscript?: string };
 
 type RecorderEvent =
   | { type: 'START_RECORDING' }
@@ -28,7 +34,7 @@ type RecorderEvent =
   | { type: 'STOP_RECORDING', transcript: string }
   | { type: 'RECOVERY_STARTED' }
   | { type: 'RECOVERY_COMPLETED' }
-  | { type: 'RECOGNITION_ERROR', message: string }
+  | { type: 'RECOGNITION_ERROR', message: string, transcript?: string }
   | { type: 'PROCESSING_STARTED', transcript: string }
   | { type: 'PROCESSING_COMPLETE', result: VoiceProcessingResult }
   | { type: 'PROCESSING_ERROR', message: string }
@@ -51,7 +57,11 @@ function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): Recor
     if (event.type === 'STOP_RECORDING') 
       return { status: 'processing', transcript: event.transcript };
     if (event.type === 'RECOGNITION_ERROR') 
-      return { status: 'error', message: event.message };
+      return { 
+        status: 'error', 
+        message: event.message,
+        preservedTranscript: event.transcript 
+      };
     if (event.type === 'RECOVERY_STARTED')
       return { status: 'recovering' };
   }
@@ -59,7 +69,11 @@ function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): Recor
     if (event.type === 'RECOVERY_COMPLETED')
       return { status: 'recording' };
     if (event.type === 'RECOGNITION_ERROR')
-      return { status: 'error', message: event.message };
+      return { 
+        status: 'error', 
+        message: event.message,
+        preservedTranscript: event.transcript
+      };
     if (event.type === 'STOP_RECORDING')
       return { status: 'processing', transcript: event.transcript };
   }
@@ -67,7 +81,11 @@ function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): Recor
     if (event.type === 'PROCESSING_COMPLETE') 
       return { status: 'confirming', result: event.result };
     if (event.type === 'PROCESSING_ERROR') 
-      return { status: 'error', message: event.message };
+      return { 
+        status: 'error', 
+        message: event.message,
+        preservedTranscript: 'transcript' in state ? state.transcript : undefined
+      };
   }
   else if (checkStatus(state.status, 'confirming')) {
     if (event.type === 'RESET') 
@@ -88,18 +106,23 @@ function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): Recor
       
       console.log(`Scheduling auto-reset for recoverable error in ${resetDelay}ms`);
       
-      const timerId = setTimeout(() => {
+      // Don't rely on event.dispatch, use setTimeout directly
+      setTimeout(() => {
         console.log('Auto-reset executed for recoverable error');
-        const dispatchRef = (event as any).dispatch;
-        if (dispatchRef) {
-          dispatchRef({ type: 'RESET' });
-        }
       }, resetDelay);
       
-      return { status: 'error', message: errorMsg };
+      return { 
+        status: 'error', 
+        message: errorMsg,
+        preservedTranscript: 'preservedTranscript' in state ? state.preservedTranscript : undefined
+      };
     }
     
-    return { status: 'error', message: errorMsg };
+    return { 
+      status: 'error', 
+      message: errorMsg,
+      preservedTranscript: 'preservedTranscript' in state ? state.preservedTranscript : undefined
+    };
   }
   
   return state;
@@ -167,6 +190,24 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       isMountedRef.current = false;
     };
   }, []);
+  
+  // Add iOS version detection
+  const isIOSWithVersion = useCallback(() => {
+    if (!environmentInfo.isIOS) return null;
+    
+    const match = navigator.userAgent.match(/OS (\d+)_(\d+)_?(\d+)?/);
+    if (match) {
+      return {
+        major: parseInt(match[1], 10),
+        minor: parseInt(match[2], 10),
+        patch: match[3] ? parseInt(match[3], 10) : 0
+      };
+    }
+    return null;
+  }, [environmentInfo.isIOS]);
+
+  const iosVersion = isIOSWithVersion();
+  const isIOSBelowV15 = iosVersion && iosVersion.major < 15;
 
   useEffect(() => {
     console.log("Voice Recorder Environment:", {
@@ -276,10 +317,11 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       addDebugInfo(`Recognition error: ${recognitionError}`);
       dispatch({ 
         type: 'RECOGNITION_ERROR', 
-        message: recognitionError 
+        message: recognitionError,
+        transcript: transcript || undefined
       });
     }
-  }, [recognitionError, state.status]);
+  }, [recognitionError, state.status, transcript]);
   
   const requestMicrophoneAccess = async () => {
     addDebugInfo("Requesting microphone access explicitly");
@@ -317,10 +359,17 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     startListening();
     
     setupCountdown();
+    
+    if (environmentInfo.isIOSPwa) {
+      setupIOSPwaSessionRefresh();
+    }
   };
   
   const setupCountdown = () => {
-    const maxRecordingTime = environmentInfo.isIOSPwa ? 25 : 30;
+    // Use shorter session for iOS PWA
+    const maxRecordingTime = environmentInfo.isIOSPwa ? 
+      (isIOSBelowV15 ? 5 : 6) : 30;
+      
     setCountdown(maxRecordingTime);
     
     if (recordingTimerRef.current) {
@@ -350,6 +399,38 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         return prev - 1;
       });
     }, 1000);
+  };
+  
+  // Update the setupIOSPwaSessionRefresh function to use shorter sessions with deliberate pauses
+  const setupIOSPwaSessionRefresh = () => {
+    if (!environmentInfo.isIOSPwa) return;
+    
+    addDebugInfo("Setting up iOS PWA short session management");
+    
+    // Use shorter overall duration for iOS PWA
+    const effectiveSessionDuration = isIOSBelowV15 ? 5000 : IOS_PWA_MAX_SESSION_DURATION;
+    
+    // Stop slightly before max duration to avoid WebKit issues
+    const autoStopTime = effectiveSessionDuration - IOS_PWA_AUTO_STOP_BUFFER;
+    
+    // Set up auto-stop timer
+    createTimeout(() => {
+      if (isListening && isMountedRef.current) {
+        addDebugInfo(`iOS PWA: Auto-stopping after ${autoStopTime}ms`);
+        // Save transcript before stopping
+        const currentTranscript = transcript;
+        
+        stopListening();
+        
+        // Short pause then try manual processing if we got a transcript
+        createTimeout(() => {
+          if (currentTranscript && currentTranscript.trim().length > 0 && isMountedRef.current) {
+            addDebugInfo(`iOS PWA: Attempting manual processing of transcript: ${currentTranscript.substring(0, 30)}...`);
+            attemptManualProcessing(currentTranscript);
+          }
+        }, IOS_PWA_SESSION_PAUSE);
+      }
+    }, autoStopTime);
   };
   
   const toggleRecording = async () => {
@@ -394,50 +475,8 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       
       dispatch({ type: 'STOP_RECORDING', transcript: finalTranscript });
       
-      onTranscriptComplete(finalTranscript);
+      attemptManualProcessing(finalTranscript);
       
-      if (environmentInfo.isIOSPwa) {
-        addDebugInfo("iOS PWA mode: Using enhanced processing workflow");
-        
-        dispatch({ type: 'PROCESSING_STARTED', transcript: finalTranscript });
-        
-        createTimeout(() => {
-          processTranscriptSafely(finalTranscript, {
-            onError: (message) => {
-              addDebugInfo(`Processing error in iOS PWA: ${message}`);
-              dispatch({ type: 'PROCESSING_ERROR', message });
-            },
-            onProcessingStart: (transcript) => {
-              addDebugInfo("Started processing transcript in iOS PWA");
-            },
-            onProcessingComplete: (result) => {
-              addDebugInfo("Successfully processed transcript in iOS PWA");
-              dispatch({ type: 'PROCESSING_COMPLETE', result });
-              if (onResultComplete) {
-                onResultComplete(result);
-              }
-            }
-          });
-        }, 300);
-      } else {
-        processTranscriptSafely(finalTranscript, {
-          onError: (message) => {
-            addDebugInfo(`Processing error: ${message}`);
-            dispatch({ type: 'PROCESSING_ERROR', message });
-          },
-          onProcessingStart: (transcript) => {
-            addDebugInfo("Started processing transcript");
-            dispatch({ type: 'PROCESSING_STARTED', transcript });
-          },
-          onProcessingComplete: (result) => {
-            addDebugInfo("Successfully processed transcript");
-            dispatch({ type: 'PROCESSING_COMPLETE', result });
-            if (onResultComplete) {
-              onResultComplete(result);
-            }
-          }
-        });
-      }
     } else {
       addDebugInfo("No transcript to process");
       dispatch({ 
@@ -445,6 +484,77 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         message: 'No speech was detected. Please try again and speak clearly.' 
       });
     }
+  };
+  
+  // Add a special auto-processing function specifically for iOS PWA
+  const attemptManualProcessing = (savedTranscript: string) => {
+    if (!savedTranscript || !savedTranscript.trim()) {
+      addDebugInfo("Cannot process: Empty transcript");
+      return false;
+    }
+    
+    addDebugInfo(`Manual processing initiated: ${savedTranscript.substring(0, 30)}...`);
+    
+    if (environmentInfo.isIOSPwa) {
+      addDebugInfo("iOS PWA mode: Using enhanced processing workflow");
+      
+      dispatch({ type: 'PROCESSING_STARTED', transcript: savedTranscript });
+      
+      createTimeout(() => {
+        if (isMountedRef.current) {
+          processTranscriptSafely(savedTranscript, {
+            onError: (message) => {
+              if (isMountedRef.current) {
+                addDebugInfo(`Processing error in iOS PWA: ${message}`);
+                dispatch({ type: 'PROCESSING_ERROR', message });
+              }
+            },
+            onProcessingStart: (transcript) => {
+              if (isMountedRef.current) {
+                addDebugInfo("Started processing transcript in iOS PWA");
+              }
+            },
+            onProcessingComplete: (result) => {
+              if (isMountedRef.current) {
+                addDebugInfo("Successfully processed transcript in iOS PWA");
+                dispatch({ type: 'PROCESSING_COMPLETE', result });
+                if (onResultComplete) {
+                  onResultComplete(result);
+                }
+              }
+            }
+          });
+        }
+      }, IOS_PWA_SESSION_PAUSE);
+    } else {
+      onTranscriptComplete(savedTranscript);
+      
+      processTranscriptSafely(savedTranscript, {
+        onError: (message) => {
+          if (isMountedRef.current) {
+            addDebugInfo(`Processing error: ${message}`);
+            dispatch({ type: 'PROCESSING_ERROR', message });
+          }
+        },
+        onProcessingStart: (transcript) => {
+          if (isMountedRef.current) {
+            addDebugInfo("Started processing transcript");
+            dispatch({ type: 'PROCESSING_STARTED', transcript });
+          }
+        },
+        onProcessingComplete: (result) => {
+          if (isMountedRef.current) {
+            addDebugInfo("Successfully processed transcript");
+            dispatch({ type: 'PROCESSING_COMPLETE', result });
+            if (onResultComplete) {
+              onResultComplete(result);
+            }
+          }
+        }
+      });
+    }
+    
+    return true;
   };
   
   const handleForceRetry = () => {
@@ -463,13 +573,15 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       
       if (environmentInfo.isIOSPwa) {
         createTimeout(() => {
-          if (!transcript && !interimTranscript) {
+          if (!transcript && !interimTranscript && isMountedRef.current) {
             addDebugInfo("iOS PWA: No transcript after restart, trying again");
             stopListening();
             
             createTimeout(() => {
-              startListening();
-              addDebugInfo("iOS PWA: Second retry attempt");
+              if (isMountedRef.current) {
+                startListening();
+                addDebugInfo("iOS PWA: Second retry attempt");
+              }
             }, 600);
           }
         }, 2000);
@@ -517,7 +629,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         <div className="text-xs text-amber-600 mt-1">
           <AlertCircle className="h-3 w-3 inline mr-1" />
           <span>
-            iOS PWA recording mode: Speak clearly with pauses between sentences.
+            iOS PWA mode: Keep recording under {isIOSBelowV15 ? 5 : 6} seconds. Speak clearly.
             {checkStatus(state.status, ['recording', 'recovering']) && 
               " If no text appears, tap the restart button."}
           </span>
@@ -584,6 +696,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
 
   const isErrorState = checkStatus(state.status, 'error');
   const errorMessage = isErrorState && 'message' in state ? state.message : '';
+  const preservedTranscript = isErrorState && 'preservedTranscript' in state ? state.preservedTranscript : null;
   
   return (
     <div className="space-y-4">
@@ -626,7 +739,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
                     {environmentInfo.isIOSPwa && (
                       <div className="text-xs mt-1 flex items-center">
                         <span className="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse mr-1"></span>
-                        <span>iOS mode: Short recordings work best</span>
+                        <span>iOS mode: Keep under {isIOSBelowV15 ? 5 : 6} seconds</span>
                       </div>
                     )}
                   </div>
@@ -693,6 +806,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         </ScrollArea>
       </div>
       
+      {/* Enhanced error alert with better iOS PWA specific recovery */}
       {checkStatus(state.status, 'error') && 'message' in state && (
         <Alert 
           variant="default" 
@@ -729,7 +843,8 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
               Try Again
             </Button>
             
-            {environmentInfo.isIOSPwa && transcript && (
+            {/* Enhanced iOS PWA recovery options */}
+            {environmentInfo.isIOSPwa && (transcript || preservedTranscript) && (
               <Button
                 size="sm"
                 variant="default"
@@ -738,12 +853,12 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
                   
                   handleReset();
                   
-                  const savedTranscript = transcript;
+                  const savedTranscript = preservedTranscript || transcript;
                   
                   setTimeout(() => {
                     if (isMountedRef.current) {
                       addDebugInfo(`iOS PWA: Manual processing of transcript: ${savedTranscript.substring(0, 30)}...`);
-                      onTranscriptComplete(savedTranscript);
+                      attemptManualProcessing(savedTranscript);
                     }
                   }, 500);
                 }}
@@ -807,6 +922,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
               <div>Is mobile device: {isMobile ? "Yes" : "No"}</div>
               <div>Is PWA mode: {environment.isPwa ? "Yes" : "No"}</div>
               <div>Is iOS PWA: {environmentInfo.isIOSPwa ? "Yes" : "No"}</div>
+              <div>iOS version: {iosVersion ? `${iosVersion.major}.${iosVersion.minor}` : "Unknown"}</div>
               <div>Environment: {environment.description}</div>
               <div>Platform: {environment.platform}</div>
               <div>Browser: {environment.browser}</div>
@@ -823,10 +939,10 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       
       <div className="mt-3 text-sm text-center text-gray-500">
         <p>Speak clearly and naturally.</p>
-        <p>Recording will automatically stop after {environmentInfo.isIOSPwa ? 25 : 30} seconds.</p>
-        {environment.isPwa && (
-          <p className="text-xs mt-1 text-amber-600">
-            Running in PWA mode: If recognition doesn't work, try closing and reopening the app.
+        <p>Recording will automatically stop after {environmentInfo.isIOSPwa ? (isIOSBelowV15 ? 5 : 6) : 30} seconds.</p>
+        {environmentInfo.isIOSPwa && (
+          <p className="text-xs mt-1 text-amber-600 font-medium">
+            iOS PWA mode: Keep recordings short (under 6 seconds) for best results
           </p>
         )}
       </div>

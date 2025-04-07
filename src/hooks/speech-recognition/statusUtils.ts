@@ -23,3 +23,19 @@ export function checkStatus(
   }
   return currentStatus === targetStatus;
 }
+
+/**
+ * Extract preserved transcript from an error state if available
+ */
+export function getPreservedTranscript(
+  state: RecorderState | { status: string }
+): string | null {
+  if (
+    state.status === 'error' && 
+    'preservedTranscript' in state && 
+    state.preservedTranscript
+  ) {
+    return state.preservedTranscript;
+  }
+  return null;
+}
