@@ -1,4 +1,3 @@
-
 import { useReducer, useCallback } from 'react';
 import { ReminderPriority, ReminderCategory, VoiceProcessingResult } from '@/types/reminderTypes';
 import { useTrackedTimeouts } from '@/hooks/use-tracked-timeouts';
@@ -12,7 +11,7 @@ export type RecorderState =
   | { status: 'recovering' } // Added this state for error recovery
   | { status: 'processing', transcript: string }
   | { status: 'confirming', result: VoiceProcessingResult }
-  | { status: 'error', message: string };
+  | { status: 'error', message: string, preservedTranscript?: string }; // Updated to include preservedTranscript
 
 // Define all possible events
 export type RecorderEvent =

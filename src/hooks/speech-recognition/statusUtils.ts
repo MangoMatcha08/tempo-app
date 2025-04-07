@@ -35,7 +35,7 @@ export function getPreservedTranscript(
     'preservedTranscript' in state && 
     state.preservedTranscript
   ) {
-    return state.preservedTranscript;
+    return state.preservedTranscript as string; // Added type assertion for safety
   }
   return null;
 }
