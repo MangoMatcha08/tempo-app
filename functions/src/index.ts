@@ -1,4 +1,3 @@
-
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { ReminderPriority, NotificationTypes } from "./types";
@@ -795,6 +794,87 @@ export const sendTestNotification = functions.https.onCall(
       throw new functions.https.HttpsError(
         "internal",
         "Failed to send test notification"
+      );
+    }
+  }
+);
+
+/**
+ * HTTP function to handle notification actions
+ * This function will be called by the service worker when users interact with notification actions
+ */
+export const handleNotificationAction = functions.https.onCall(
+  async (data, context) => {
+    // Validate request data
+    if (!data.action || !data.reminderId) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing required fields: action and reminderId"
+      );
+    }
+
+    const { action, reminderId, userId, timestamp, snoozeMinutes } = data;
+    console.log(`Processing ${action} for reminder ${reminderId}`);
+    
+    try {
+      // Get the reminder document
+      const reminderRef = db.collection("reminders").doc(reminderId);
+      const reminderDoc = await reminderRef.get();
+      
+      if (!reminderDoc.exists) {
+        throw new functions.https.HttpsError(
+          "not-found",
+          `Reminder ${reminderId} not found`
+        );
+      }
+      
+      const reminder = reminderDoc.data();
+      
+      // Verify the user has permission to modify this reminder
+      if (userId !== reminder?.userId && context.auth?.uid !== reminder?.userId) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "You don't have permission to modify this reminder"
+        );
+      }
+      
+      // Process the action
+      switch (action) {
+        case 'complete':
+          // Mark reminder as completed
+          await reminderRef.update({
+            completed: true,
+            completedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+          console.log(`Reminder ${reminderId} marked as completed`);
+          return { success: true, message: "Reminder completed" };
+          
+        case 'snooze':
+          // Calculate new due date
+          const minutes = snoozeMinutes || 30;
+          const newDueDate = admin.firestore.Timestamp.fromDate(
+            addMinutes(new Date(), minutes)
+          );
+          
+          // Update the reminder with new due date
+          await reminderRef.update({
+            dueDate: newDueDate,
+            overdueNotified: false // Reset overdue notification flag
+          });
+          console.log(`Reminder ${reminderId} snoozed for ${minutes} minutes`);
+          return { success: true, message: `Reminder snoozed for ${minutes} minutes` };
+          
+        default:
+          throw new functions.https.HttpsError(
+            "invalid-argument",
+            `Unknown action: ${action}`
+          );
+      }
+    } catch (error) {
+      console.error(`Error processing ${action} for reminder ${reminderId}:`, error);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Failed to process notification action"
       );
     }
   }
