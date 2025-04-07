@@ -8,6 +8,9 @@ import { detectDateTime } from './detectDateTime';
 import { mockPeriods } from '@/utils/reminderUtils';
 import { generateMeaningfulTitle } from '@/utils/voiceReminderUtils';
 
+// Threshold for accepting period detection
+const PERIOD_CONFIDENCE_THRESHOLD = 0.6;
+
 // Main function to process voice input
 export const processVoiceInput = (transcript: string): VoiceProcessingResult => {
   console.log('Processing voice input:', transcript);
@@ -21,9 +24,13 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
   // Generate a meaningful title based on the transcript and detected category
   const title = generateMeaningfulTitle(category, transcript);
   
-  // Detect period
+  // Detect period with confidence score
   const periodResult = detectPeriod(transcript);
   console.log('Period detection result:', periodResult);
+  
+  // Only use period if confidence is high enough
+  const usePeriod = periodResult.confidence >= PERIOD_CONFIDENCE_THRESHOLD;
+  const finalPeriodId = usePeriod ? periodResult.periodId : undefined;
   
   // Detect date and time
   const dateTimeResult = detectDateTime(transcript);
@@ -31,10 +38,6 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
   
   // Extract potential checklist items
   const checklistItems = extractChecklistItems(transcript);
-  
-  // Determine the correct period for the reminder
-  // Period detected in transcript takes priority over date-based period
-  const finalPeriodId = periodResult.periodId || dateTimeResult.periodId;
   
   // Find "Before School" period for default time
   const beforeSchoolPeriod = mockPeriods.find(p => 
@@ -50,7 +53,7 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
     description: transcript,
     priority,
     category,
-    periodId: finalPeriodId || (beforeSchoolPeriod ? beforeSchoolPeriod.id : undefined),
+    periodId: finalPeriodId, // Only use period if confidence is high enough
     voiceTranscript: transcript,
     checklist: checklistItems.map(text => ({
       text,
@@ -76,7 +79,7 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
       reminderInput.dueDate = dueDate;
       console.log('Updated due date with time:', reminderInput.dueDate);
     } 
-    // If no specific time but we have a period ID, use that period's start time
+    // If no specific time but we have a period ID with high confidence, use that period's start time
     else if (finalPeriodId) {
       const selectedPeriod = mockPeriods.find(p => p.id === finalPeriodId);
       if (selectedPeriod && selectedPeriod.startTime) {
@@ -145,24 +148,32 @@ export const processVoiceInput = (transcript: string): VoiceProcessingResult => 
   }
   
   // Add detected new period information if applicable
-  if (periodResult.isNewPeriod && periodResult.periodName) {
+  if (usePeriod && periodResult.isNewPeriod && periodResult.periodName) {
     reminderInput.detectedNewPeriod = {
       name: periodResult.periodName,
       isNew: true
     };
   }
   
+  // Calculate overall confidence based on various factors
+  // Period detection contributes to overall confidence
+  const overallConfidence = Math.max(
+    0.7, // Base confidence
+    periodResult.confidence * 0.5 + dateTimeResult.confidence * 0.5 // Weighted average of period and date confidence
+  );
+  
   // Return the processing result
   return {
     reminder: reminderInput,
-    confidence: Math.max(0.8, dateTimeResult.confidence),
+    confidence: overallConfidence,
     detectedEntities: {
       priority,
       category,
-      period: finalPeriodId || (beforeSchoolPeriod ? beforeSchoolPeriod.id : undefined),
+      period: finalPeriodId,
+      periodConfidence: periodResult.confidence,
       date: dateTimeResult.detectedDate,
       time: dateTimeResult.detectedTime,
-      newPeriod: periodResult.isNewPeriod ? periodResult.periodName : undefined,
+      newPeriod: periodResult.isNewPeriod && usePeriod ? periodResult.periodName : undefined,
       checklist: checklistItems
     }
   };

@@ -86,6 +86,7 @@ export interface VoiceProcessingResult {
     priority?: ReminderPriority;
     category?: ReminderCategory;
     period?: string;
+    periodConfidence?: number;
     newPeriod?: string;
     checklist?: string[];
     date?: Date;
