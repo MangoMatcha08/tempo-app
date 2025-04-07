@@ -1,11 +1,13 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Mail, BellRing, AlertTriangle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { sendTestNotification } from "@/lib/firebase/functions";
-import { useNotifications } from "@/contexts/NotificationContext";
+import { 
+  useNotificationSettings, 
+  useNotificationPermission 
+} from "@/contexts/NotificationContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -16,7 +18,8 @@ const TestNotifications = () => {
   const [isPushSending, setIsPushSending] = useState(false);
   const [includeDeviceInfo, setIncludeDeviceInfo] = useState(true);
   const { toast } = useToast();
-  const { permissionGranted, requestPermission, notificationSettings } = useNotifications();
+  const { settings: notificationSettings } = useNotificationSettings();
+  const { permissionGranted, requestPermission } = useNotificationPermission();
 
   const handleTestEmail = async () => {
     if (!email) {

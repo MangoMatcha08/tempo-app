@@ -1,70 +1,71 @@
 
-import { initializeFirebase } from '../notifications/firebase';
+import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-import { doc, setDoc, getFirestore } from 'firebase/firestore';
+import { firebaseConfig } from '@/lib/firebase/config';
 import { FirebaseMessagingPayload } from '@/types/notifications/serviceWorkerTypes';
+import { sendTestNotification } from '@/lib/firebase/functions';
 
-// Save FCM token to Firestore
-export const saveTokenToFirestore = async (userId: string, token: string): Promise<void> => {
+// Initialize Firebase app if it hasn't been initialized already
+let messaging: any;
+
+try {
+  if (typeof window !== 'undefined') {
+    const firebaseApp = initializeApp(firebaseConfig);
+    messaging = getMessaging(firebaseApp);
+  }
+} catch (error) {
+  console.error('Error initializing Firebase Messaging:', error);
+}
+
+/**
+ * Sets up a listener for messages while the app is in the foreground
+ * @param callback Function to be called when a message is received
+ * @returns Unsubscribe function
+ */
+export const setupForegroundMessageListener = (
+  callback: (payload: FirebaseMessagingPayload) => void
+): (() => void) => {
+  if (!messaging) {
+    console.warn('Messaging not initialized, cannot setup foreground listener');
+    return () => {};
+  }
+
   try {
-    const firestore = getFirestore();
-    const tokenRef = doc(firestore, 'users', userId, 'fcmTokens', token);
-    
-    await setDoc(tokenRef, {
-      token,
-      device: navigator.userAgent,
-      createdAt: new Date(),
-      lastUsed: new Date()
+    // Set up message handler
+    const unsubscribe = onMessage(messaging, (payload: any) => {
+      console.log('Received foreground message:', payload);
+      
+      // Call the provided callback
+      callback(payload);
     });
     
-    console.log('FCM Token saved to Firestore');
+    return unsubscribe;
   } catch (error) {
-    console.error('Error saving token to Firestore:', error);
+    console.error('Error setting up foreground message listener:', error);
+    return () => {};
   }
 };
 
-// Request notification permission and get FCM token
-export const requestNotificationPermission = async (): Promise<string | null> => {
+/**
+ * Gets the FCM token for the current device
+ * @returns Promise with the token
+ */
+export const getFCMToken = async (): Promise<string | null> => {
+  if (!messaging) {
+    console.warn('Messaging not initialized, cannot get FCM token');
+    return null;
+  }
+  
   try {
-    // Initialize Firebase first
-    await initializeFirebase();
-    
-    // Check permission status first
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      console.log('Notifications not supported in this environment');
-      return null;
-    }
-    
-    let permission = Notification.permission;
-    
-    // If permission is not granted, request it
-    if (permission !== 'granted') {
-      permission = await window.Notification.requestPermission();
-    }
-    
-    if (permission !== 'granted') {
-      console.log('Notification permission denied');
-      return null;
-    }
-    
-    // Get messaging instance
-    const messaging = getMessaging();
-    
-    // Get registration token
-    const token = await getToken(messaging, {
+    // Get token
+    const currentToken = await getToken(messaging, {
       vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY
     });
     
-    if (token) {
-      console.log('FCM token:', token);
-      
-      // Save token to Firestore
-      const userId = localStorage.getItem('userId');
-      if (userId) {
-        await saveTokenToFirestore(userId, token);
-      }
-      
-      return token;
+    if (currentToken) {
+      // Save the token to your backend
+      console.log('FCM Token:', currentToken);
+      return currentToken;
     } else {
       console.log('No registration token available');
       return null;
@@ -75,53 +76,18 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
   }
 };
 
-// Set up foreground message listener
-export const setupForegroundMessageListener = (
-  callback: (payload: FirebaseMessagingPayload) => void
-): (() => void) => {
-  try {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      console.log('Notifications not supported in this environment');
-      return () => {};
-    }
-    
-    const messaging = getMessaging();
-    
-    // Listen for messages in the foreground
-    const unsubscribe = onMessage(messaging, (payload) => {
-      console.log('Foreground message received:', payload);
-      callback(payload as FirebaseMessagingPayload);
-    });
-    
-    return unsubscribe;
-  } catch (error) {
-    console.error('Error setting up message listener:', error);
-    return () => {};
-  }
-};
-
-// Send a test push notification
-export const sendTestNotification = async (options: { 
-  type: string;
+/**
+ * Sends a test notification using the Firebase sendTestNotification function
+ * @param options Test notification options
+ * @returns Promise with the test result
+ */
+export const sendTestMessage = async (options: { 
+  type: 'push' | 'email';
   email?: string;
   includeDeviceInfo?: boolean;
 }): Promise<any> => {
   try {
-    const userId = localStorage.getItem('userId');
-    if (!userId) {
-      throw new Error('User ID not available');
-    }
-    
-    // Import the function dynamically to prevent circular dependencies
-    const { sendTestNotificationFn } = await import('@/lib/firebase/functions');
-    
-    // Call the cloud function to send the test notification
-    const result = await sendTestNotificationFn({
-      ...options,
-      userId
-    });
-    
-    return result;
+    return await sendTestNotification(options);
   } catch (error) {
     console.error('Error sending test notification:', error);
     throw error;

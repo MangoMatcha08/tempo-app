@@ -78,7 +78,7 @@ const NotificationProviderInner: React.FC<NotificationProviderProps> = ({ childr
 
   // Add service worker message handler
   React.useEffect(() => {
-    const handleServiceWorkerMessage = (event: MessageEvent) => {
+    const handleMessageEvent = (event: MessageEvent) => {
       const message = event.data as ServiceWorkerMessage;
       
       if (message && message.type === 'NOTIFICATION_ACTION') {
@@ -88,12 +88,12 @@ const NotificationProviderInner: React.FC<NotificationProviderProps> = ({ childr
 
     // Add event listener for service worker messages
     if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+      navigator.serviceWorker.addEventListener('message', handleMessageEvent);
     }
 
     return () => {
       if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-        navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+        navigator.serviceWorker.removeEventListener('message', handleMessageEvent);
       }
     };
   }, []);
@@ -110,7 +110,7 @@ const NotificationProviderInner: React.FC<NotificationProviderProps> = ({ childr
         title: formattedNotification.title,
         body: formattedNotification.description || '',
         timestamp: Date.now(),
-        type: reminder.type,
+        type: reminder.type || 'GENERAL',
         reminderId: reminder.id,
         priority: reminder.priority,
         status: 'sent',
