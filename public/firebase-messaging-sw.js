@@ -1,9 +1,8 @@
 
-// Firebase Cloud Messaging service worker
-// This file must be placed at the root of your app's public directory
+// This file is not compiled! It must use ES5 syntax or supported syntax by the target browsers.
 
-importScripts('https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.1.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.1.0/firebase-messaging-compat.js');
 
 // Firebase configuration
 const firebaseConfig = {
@@ -19,71 +18,50 @@ const firebaseConfig = {
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 
-// Initialize Firebase Cloud Messaging
+// Retrieve Firebase Messaging
 const messaging = firebase.messaging();
 
-// Log service worker activation
-self.addEventListener('install', (event) => {
-  console.log('[firebase-messaging-sw.js] Service worker installed');
-  self.skipWaiting(); // Ensure service worker activates immediately
-});
-
-self.addEventListener('activate', (event) => {
-  console.log('[firebase-messaging-sw.js] Service worker activated');
-  event.waitUntil(clients.claim()); // Take control of all clients
-});
-
 // Handle background messages
-messaging.onBackgroundMessage((payload) => {
+messaging.onBackgroundMessage(function(payload) {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
   
-  // Extract user ID from the payload if available
-  const userId = payload.data?.userId || 'anonymous';
-  console.log('[firebase-messaging-sw.js] Message intended for user:', userId);
-  
-  // Customize notification here
-  const notificationTitle = payload.notification.title || 'Tempo Reminder';
+  const notificationTitle = payload.notification.title || 'TempoWizard Reminder';
   const notificationOptions = {
-    body: payload.notification.body || 'You have a new reminder',
+    body: payload.notification.body || 'You have an upcoming reminder',
     icon: '/favicon.ico',
     badge: '/favicon.ico',
-    data: {
-      ...payload.data,
-      userId: userId, // Include user ID in notification data
-      timestamp: new Date().getTime()
-    },
-    tag: `tempo-notification-${userId}-${Date.now()}` // Ensure unique tag for each notification
+    data: payload.data || {}
   };
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  // Show notification
+  return self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
 // Handle notification click
-self.addEventListener('notificationclick', (event) => {
+self.addEventListener('notificationclick', function(event) {
   console.log('[firebase-messaging-sw.js] Notification click: ', event);
   
   event.notification.close();
   
-  // Get user ID from notification data
-  const userId = event.notification.data?.userId || 'anonymous';
+  // Get notification data
+  const reminderId = event.notification.data?.reminderId || '';
   
-  // This looks to see if the current is already open and focuses if it is
-  event.waitUntil(
-    clients.matchAll({
-      type: 'window',
-      includeUncontrolled: true
-    })
-    .then((clientList) => {
-      for (let i = 0; i < clientList.length; i++) {
-        const client = clientList[i];
-        if (client.url.includes('/dashboard') && 'focus' in client) {
-          return client.focus();
-        }
+  // Open a window with the reminder detail if available
+  const urlToOpen = new URL('/dashboard', self.location.origin).href;
+  
+  const openPromise = self.clients.matchAll({
+    type: 'window',
+    includeUncontrolled: true
+  }).then((clientList) => {
+    // Check if there is an existing open window
+    for (const client of clientList) {
+      if (client.url.includes('/dashboard') && 'focus' in client) {
+        return client.focus();
       }
-      
-      if (clients.openWindow) {
-        return clients.openWindow('/dashboard');
-      }
-    })
-  );
+    }
+    // If no existing window, open a new one
+    return self.clients.openWindow(urlToOpen);
+  });
+  
+  event.waitUntil(openPromise);
 });

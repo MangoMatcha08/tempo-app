@@ -3,6 +3,7 @@ import { getToken, onMessage } from 'firebase/messaging';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { initializeFirebase, messaging, firestore, vapidKey } from './firebase';
 import { defaultNotificationSettings } from './types';
+import { httpsCallable, getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 // Request permission and get FCM token
 export const requestNotificationPermission = async (): Promise<string | null> => {
@@ -116,16 +117,31 @@ export const saveTokenToFirestore = async (userId: string, token: string): Promi
   }
 };
 
-// Send a test notification to verify FCM setup
+// Send a test notification using Firebase Cloud Function
 export const sendTestNotification = async (email: string): Promise<boolean> => {
+  await initializeFirebase();
+  
   try {
-    // In a real implementation, this would call your backend API
-    // For demo purposes, we'll just simulate a successful response
-    console.log(`Simulating sending test notification to: ${email}`);
+    console.log(`Sending test notification to: ${email}`);
     
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Get Firebase Functions instance
+    const functions = getFunctions();
     
+    // If in development environment, connect to the emulator
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        connectFunctionsEmulator(functions, 'localhost', 5001);
+        console.log('Connected to Functions emulator');
+      } catch (emulatorError) {
+        console.warn('Error connecting to Functions emulator:', emulatorError);
+      }
+    }
+    
+    // Call the sendTestNotification function
+    const sendTestNotificationFn = httpsCallable(functions, 'sendTestNotification');
+    const result = await sendTestNotificationFn();
+    
+    console.log('Test notification result:', result.data);
     return true;
   } catch (error) {
     console.error('Error sending test notification:', error);

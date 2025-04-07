@@ -5,6 +5,7 @@ export * from './auth';
 export * from './firestore';
 export * from './indexing';
 export * from './network';
+export * from './functions';
 
 // Perform any needed initializations here
 console.log('Firebase module initialized');

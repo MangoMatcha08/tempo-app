@@ -16,6 +16,9 @@ import {
   setupForegroundMessageListener
 } from './notifications/messaging';
 
+// Import the functions
+import { sendTestNotification as sendTestNotificationFn } from '@/lib/firebase/functions';
+
 // Import and re-export the type correctly
 import type { NotificationSettings } from './notifications/types';
 export type { NotificationSettings };
@@ -32,7 +35,8 @@ export {
   saveTokenToFirestore,
   sendTestNotification,
   setupForegroundMessageListener,
-  shouldSendNotification
+  shouldSendNotification,
+  sendTestNotificationFn
 };
 
 export default {
@@ -41,5 +45,6 @@ export default {
   updateUserNotificationSettings,
   sendTestNotification,
   setupForegroundMessageListener,
-  shouldSendNotification
+  shouldSendNotification,
+  sendTestNotificationFn
 };
