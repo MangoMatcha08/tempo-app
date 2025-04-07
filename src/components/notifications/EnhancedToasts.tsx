@@ -34,8 +34,10 @@ const EnhancedToasts = ({}: EnhancedToastsProps) => {
             background: "var(--primary)",
             color: "var(--primary-foreground)",
           },
-          descriptionStyle: {
-            color: "var(--muted-foreground)",
+          // Removed descriptionStyle as it's not supported
+          // Added a CSS class that can be targeted instead
+          classNames: {
+            description: "text-muted-foreground text-sm"
           },
         }}
         closeButton
