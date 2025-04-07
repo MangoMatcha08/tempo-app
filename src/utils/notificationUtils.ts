@@ -32,7 +32,10 @@ export const showNotification = (
 
 // Get toast variant based on priority
 export const getPriorityToastVariant = (priority: ReminderPriority): "default" | "destructive" => {
-  return priority === ReminderPriority.HIGH ? "destructive" : "default";
+  if (priority === ReminderPriority.HIGH) {
+    return "destructive";
+  }
+  return "default";
 };
 
 // Format reminder for notification
