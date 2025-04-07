@@ -568,24 +568,23 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     );
   }
 
-  // Add auto-reset functionality for error states
+  const isErrorState = checkStatus(state.status, 'error');
+  const errorMessage = isErrorState && 'message' in state ? state.message : '';
+  const isIOSPwa = environmentInfo ? environmentInfo.isIOSPwa : false;
+
   useEffect(() => {
-    // Only set up auto-reset when in error state
-    if (checkStatus(state.status, 'error') && 'message' in state) {
-      // Determine if this is a recoverable error
+    if (isErrorState && errorMessage) {
       const isRecoverableError = 
-        state.message.includes('no speech') || 
-        state.message.includes('network') || 
-        state.message.includes('aborted') ||
-        state.message.includes('Connection issue');
+        errorMessage.includes('no speech') || 
+        errorMessage.includes('network') || 
+        errorMessage.includes('aborted') ||
+        errorMessage.includes('Connection issue');
       
-      // Auto-reset for recoverable errors after delay (helpful for iOS PWA)
       if (isRecoverableError) {
         console.log('Setting up auto-reset for recoverable error');
-        addDebugInfo(`Scheduling auto-reset for recoverable error: ${state.message}`);
+        addDebugInfo(`Scheduling auto-reset for recoverable error: ${errorMessage}`);
         
-        // Use tracked timeout to ensure proper cleanup
-        const timeoutDuration = environmentInfo?.isIOSPwa ? 4000 : 6000;
+        const timeoutDuration = isIOSPwa ? 4000 : 6000;
         createTimeout(() => {
           console.log('Auto-resetting after recoverable error');
           addDebugInfo('Auto-reset triggered after error');
@@ -593,8 +592,8 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         }, timeoutDuration);
       }
     }
-  }, [state.status, createTimeout, dispatch, environmentInfo?.isIOSPwa]);
-
+  }, [isErrorState, errorMessage, isIOSPwa, createTimeout, dispatch, addDebugInfo]);
+  
   return (
     <div className="space-y-4">
       <div className="text-center mb-6">
@@ -719,7 +718,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
               </p>
             )}
             
-            {/* Add auto-reset notification for recoverable errors */}
             {(state.message.includes('no speech') || 
               state.message.includes('network') || 
               state.message.includes('aborted') ||
