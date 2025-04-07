@@ -570,7 +570,17 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
             <div className="text-red-500 font-semibold">
               {checkStatus(state.status, 'recovering')
                 ? "Reconnecting..." 
-                : `Recording... ${countdown}s`
+                : (
+                  <div>
+                    <span>Recording... {countdown}s</span>
+                    {environmentInfo.isIOSPwa && (
+                      <div className="text-xs mt-1 flex items-center">
+                        <span className="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse mr-1"></span>
+                        <span>iOS mode: Short recordings work best</span>
+                      </div>
+                    )}
+                  </div>
+                )
               }
             </div>
           ) : checkStatus(state.status, 'processing') ? (
