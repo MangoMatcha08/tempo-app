@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useReducer, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
@@ -99,6 +98,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   onResultComplete,
   isProcessing: externalProcessing 
 }) => {
+  
   const {
     transcript,
     interimTranscript,
@@ -141,41 +141,33 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${info}`]);
   };
 
-  // Add a cleanup function to ensure proper resource management
-  const cleanupRecognition = useCallback(() => {
-    console.log("Performing thorough recognition cleanup");
+  const handleThoroughReset = useCallback(() => {
+    addDebugInfo("Performing thorough recognition reset");
     
+    // Stop listening if active
     if (isListening) {
       stopListening();
     }
     
-    // Reset state variables
+    // Reset transcript using the proper method
     resetTranscript();
-    setInterimTranscript("");
-    setIsRecovering(false);
     
-    // Force reset of recognition instance
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort();
-        recognitionRef.current.onresult = null;
-        recognitionRef.current.onerror = null;
-        recognitionRef.current.onend = null;
-      } catch (err) {
-        console.error("Error cleaning up recognition:", err);
-      }
+    // Reset retry counter
+    if (retryAttemptsRef.current) {
+      retryAttemptsRef.current = 0;
     }
     
-    // Clear any auto-reset timer
-    if (errorResetTimerRef.current) {
-      clearTimeout(errorResetTimerRef.current);
-      errorResetTimerRef.current = null;
-    }
+    // Clear any pending timers
+    clearAllTimeouts();
     
-    // Dispatch reset after cleanup
-    dispatch({ type: 'RESET' });
-  }, [isListening, stopListening, resetTranscript]);
-  
+    // Allow a short delay before state reset
+    setTimeout(() => {
+      // Reset the state machine
+      dispatch({ type: 'RESET' });
+      addDebugInfo("State machine reset complete");
+    }, 300);
+  }, [isListening, stopListening, resetTranscript, clearAllTimeouts, dispatch]);
+
   useEffect(() => {
     console.log("Voice Recorder Environment:", {
       isPwa: environment.isPwa,
@@ -213,24 +205,20 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     return match ? `${match[1]}.${match[2]}${match[3] ? `.${match[3]}` : ''}` : null;
   };
 
-  // Set up auto-reset for error state
   useEffect(() => {
     if (checkStatus(state.status, 'error')) {
       addDebugInfo("Setting up auto-reset for error state (8 seconds)");
       
-      // Clear any existing error reset timer
       if (errorResetTimerRef.current) {
         clearTimeout(errorResetTimerRef.current);
       }
       
-      // Schedule auto-reset after 8 seconds in error state
       errorResetTimerRef.current = setTimeout(() => {
         console.log("Auto-reset triggered from error state");
         addDebugInfo("Auto-reset triggered from error state");
         dispatch({ type: 'RESET' });
       }, 8000);
       
-      // Clean up on unmount
       return () => {
         if (errorResetTimerRef.current) {
           clearTimeout(errorResetTimerRef.current);
@@ -512,13 +500,14 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     }, retryDelay);
   };
   
-  // Update handleReset to use the new cleanupRecognition function
   const handleReset = () => {
-    addDebugInfo("Resetting recorder state with thorough cleanup");
-    cleanupRecognition();
+    addDebugInfo("Resetting recorder state");
     
-    // Reset refs
-    retryAttemptsRef.current = 0;
+    dispatch({ type: 'RESET' });
+    
+    if (transcript) {
+      resetTranscript();
+    }
     
     if (recordingTimerRef.current) {
       clearTimeout(recordingTimerRef.current);
@@ -710,7 +699,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
         </ScrollArea>
       </div>
       
-      {/* Enhanced error display with recovery button */}
       {checkStatus(state.status, 'error') && 'message' in state && (
         <Alert 
           variant="default" 
@@ -721,41 +709,12 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
           <AlertDescription className="text-red-600">
             {state.message}
             <p className="text-xs mt-2">
-              Voice recognition encountered an error. Please try again with the recovery button below.
+              Voice recognition encountered an error. The system will automatically reset in a few seconds, or you can use the recovery button below.
             </p>
           </AlertDescription>
           <div className="mt-3">
             <Button
-              onClick={() => {
-                addDebugInfo("Manual recovery reset initiated");
-                
-                // Full reset sequence
-                if (isListening) {
-                  stopListening();
-                }
-                
-                // Force cleanup of recognition resources
-                if (recognitionRef.current) {
-                  try {
-                    recognitionRef.current.abort();
-                    recognitionRef.current.onresult = null;
-                    recognitionRef.current.onerror = null;
-                    recognitionRef.current.onend = null;
-                    recognitionRef.current = null;
-                  } catch (err) {
-                    console.error("Error cleaning up recognition:", err);
-                  }
-                }
-                
-                // Reset state
-                resetTranscript();
-                retryAttemptsRef.current = 0;
-                
-                // Short delay before dispatching reset
-                setTimeout(() => {
-                  dispatch({ type: 'RESET' });
-                }, 100);
-              }}
+              onClick={handleThoroughReset}
               className="w-full bg-red-100 text-red-800 hover:bg-red-200 border border-red-300"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
@@ -777,7 +736,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
               : "Voice processing complete. If the confirmation screen doesn't appear automatically, please use the buttons below."}
           </p>
           
-          {/* Show progress if processing */}
           {checkStatus(state.status, 'processing') && (
             <div className="mt-2 relative pt-1">
               <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-amber-200">
@@ -786,7 +744,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
             </div>
           )}
           
-          {/* Show manual buttons if we're stuck in confirmation state */}
           {checkStatus(state.status, 'confirming') && 'result' in state && (
             <div className="mt-2 flex space-x-2">
               <Button 
