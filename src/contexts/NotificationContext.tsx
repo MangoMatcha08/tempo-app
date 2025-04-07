@@ -6,46 +6,28 @@ import {
   setupForegroundMessageListener,
   getUserNotificationSettings,
   NotificationSettings,
-  defaultNotificationSettings,
-  completeReminderFromNotification,
-  snoozeReminderFromNotification
+  defaultNotificationSettings
 } from '@/services/notificationService';
 import { useNotificationPermission } from '@/hooks/useNotificationPermission';
 import { showNotification, formatReminderForNotification } from '@/utils/notificationUtils';
 import { ToastAction } from '@/components/ui/toast';
-import { useReminders } from '@/hooks/reminders/use-reminders';
-
-interface NotificationPayload {
-  title: string;
-  body: string;
-  data?: Record<string, any>;
-  reminderId?: string;
-}
 
 interface NotificationContextType {
   notificationSettings: NotificationSettings;
   permissionGranted: boolean;
   isSupported: boolean;
-  unreadCount: number;
   requestPermission: () => Promise<boolean>;
   showNotification: (reminder: Reminder) => void;
   updateSettings: (settings: Partial<NotificationSettings>) => Promise<void>;
-  handleCompleteAction: (reminderId: string) => Promise<boolean>;
-  handleSnoozeAction: (reminderId: string, minutes?: number) => Promise<boolean>;
-  markAllRead: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType>({
   notificationSettings: defaultNotificationSettings,
   permissionGranted: false,
   isSupported: true,
-  unreadCount: 0,
   requestPermission: async () => false,
   showNotification: () => {},
   updateSettings: async () => {},
-  handleCompleteAction: async () => false,
-  handleSnoozeAction: async () => false,
-  markAllRead: () => {}
 });
 
 export const useNotifications = () => useContext(NotificationContext);
@@ -59,9 +41,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const { permissionGranted, isSupported, requestPermission } = useNotificationPermission();
   const { toast } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
-  const [unreadCount, setUnreadCount] = useState<number>(0);
-  const [notifications, setNotifications] = useState<NotificationPayload[]>([]);
-  const { refreshReminders } = useReminders();
 
   // Get user ID from local storage
   useEffect(() => {
@@ -103,22 +82,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         const notification = payload.notification;
         const data = payload.data || {};
         
-        // Add to unread count
-        setUnreadCount(prev => prev + 1);
-        
-        // Add to notifications array (for notification center)
-        if (notification?.title) {
-          setNotifications(prev => [
-            {
-              title: notification.title,
-              body: notification.body || '',
-              data,
-              reminderId: data.reminderId
-            },
-            ...prev.slice(0, 9) // Keep last 10 notifications
-          ]);
-        }
-        
         // Show toast notification for foreground messages
         toast({
           title: notification?.title || 'New Reminder',
@@ -126,27 +89,17 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
           duration: 5000,
           variant: data.priority === 'high' ? 'destructive' : 'default',
           action: data.reminderId && data.reminderId !== 'test-reminder' ? (
-            <div className="flex space-x-2">
-              {data.action !== 'completed' && (
-                <ToastAction
-                  altText="Complete"
-                  onClick={() => handleCompleteAction(data.reminderId)}
-                >
-                  Complete
-                </ToastAction>
-              )}
-              <ToastAction
-                altText="View"
-                onClick={() => {
-                  // Navigate to the reminder detail view
-                  if (typeof window !== 'undefined') {
-                    window.location.href = `/dashboard/reminders/${data.reminderId}`;
-                  }
-                }}
-              >
-                View
-              </ToastAction>
-            </div>
+            <ToastAction
+              altText="View reminder"
+              onClick={() => {
+                // Navigate to the reminder detail view
+                if (typeof window !== 'undefined') {
+                  window.location.href = `/dashboard/reminders/${data.reminderId}`;
+                }
+              }}
+            >
+              View
+            </ToastAction>
           ) : undefined
         });
       });
@@ -185,87 +138,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     }
   };
 
-  // Handle complete action from notification
-  const handleCompleteAction = async (reminderId: string): Promise<boolean> => {
-    if (!reminderId) return false;
-    
-    try {
-      const result = await completeReminderFromNotification(reminderId);
-      
-      if (result.success) {
-        toast({
-          title: "Reminder Completed",
-          description: "Reminder has been marked as complete",
-          duration: 3000,
-        });
-        
-        // Refresh reminders list to show the updated state
-        await refreshReminders();
-        return true;
-      } else {
-        toast({
-          title: "Action Failed",
-          description: "Unable to complete the reminder. Please try again.",
-          variant: "destructive",
-          duration: 3000,
-        });
-        return false;
-      }
-    } catch (error) {
-      console.error('Error completing reminder:', error);
-      toast({
-        title: "Error",
-        description: "An error occurred while completing the reminder.",
-        variant: "destructive",
-        duration: 3000,
-      });
-      return false;
-    }
-  };
-
-  // Handle snooze action from notification
-  const handleSnoozeAction = async (reminderId: string, minutes: number = 30): Promise<boolean> => {
-    if (!reminderId) return false;
-    
-    try {
-      const result = await snoozeReminderFromNotification(reminderId, minutes);
-      
-      if (result.success) {
-        toast({
-          title: "Reminder Snoozed",
-          description: `Reminder snoozed for ${minutes} minutes`,
-          duration: 3000,
-        });
-        
-        // Refresh reminders list to show the updated state
-        await refreshReminders();
-        return true;
-      } else {
-        toast({
-          title: "Action Failed",
-          description: "Unable to snooze the reminder. Please try again.",
-          variant: "destructive",
-          duration: 3000,
-        });
-        return false;
-      }
-    } catch (error) {
-      console.error('Error snoozing reminder:', error);
-      toast({
-        title: "Error",
-        description: "An error occurred while snoozing the reminder.",
-        variant: "destructive",
-        duration: 3000,
-      });
-      return false;
-    }
-  };
-
-  // Mark all notifications as read
-  const markAllRead = () => {
-    setUnreadCount(0);
-  };
-
   // Wrapper for showNotification utility
   const handleShowNotification = (reminder: Reminder) => {
     showNotification(reminder, notificationSettings, toast);
@@ -275,13 +147,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     notificationSettings,
     permissionGranted,
     isSupported,
-    unreadCount,
     requestPermission,
     showNotification: handleShowNotification,
     updateSettings,
-    handleCompleteAction,
-    handleSnoozeAction,
-    markAllRead
   };
 
   return (
