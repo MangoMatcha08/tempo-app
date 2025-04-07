@@ -77,36 +77,12 @@ function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): Recor
     if (event.type === 'RESET') 
       return { status: 'idle' };
     
-    const errorMessage = 'message' in event ? event.message : 'Unknown error';
-    const errorState = { status: 'error' as const, message: errorMessage };
+    const errorMsg = 'message' in event ? event.message : 'Unknown error';
     
-    setTimeout(() => {
-      if (state.status === 'error' && 'message' in state) {
-        const isRecoverableError = 
-          state.message.includes('no speech') || 
-          state.message.includes('network') || 
-          state.message.includes('aborted') ||
-          state.message.includes('Connection issue');
-        
-        if (isRecoverableError) {
-          console.log('Auto-resetting after recoverable error');
-          if (typeof window.__voiceRecorderDispatch === 'function') {
-            window.__voiceRecorderDispatch({ type: 'RESET' });
-          }
-        }
-      }
-    }, 6000);
-    
-    return errorState;
+    return { status: 'error', message: errorMsg };
   }
   
   return state;
-}
-
-declare global {
-  interface Window {
-    __voiceRecorderDispatch?: (event: RecorderEvent) => void;
-  }
 }
 
 interface VoiceRecorderViewProps {
@@ -140,13 +116,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   const rawEnvironment = detectEnvironment();
   
   const [state, dispatch] = useReducer(voiceRecorderReducer, { status: 'idle' });
-  
-  useEffect(() => {
-    window.__voiceRecorderDispatch = dispatch;
-    return () => {
-      window.__voiceRecorderDispatch = undefined;
-    };
-  }, [dispatch]);
   
   const [countdown, setCountdown] = useState<number>(0);
   const [permissionState, setPermissionState] = useState<PermissionState | "unknown">("unknown");
@@ -206,29 +175,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     const match = navigator.userAgent.match(/OS (\d+)_(\d+)_?(\d+)?/);
     return match ? `${match[1]}.${match[2]}${match[3] ? `.${match[3]}` : ''}` : null;
   };
-
-  useEffect(() => {
-    if (checkStatus(state.status, 'error')) {
-      addDebugInfo("Setting up auto-reset for error state (8 seconds)");
-      
-      if (errorResetTimerRef.current) {
-        clearTimeout(errorResetTimerRef.current);
-      }
-      
-      errorResetTimerRef.current = setTimeout(() => {
-        console.log("Auto-reset triggered from error state");
-        addDebugInfo("Auto-reset triggered from error state");
-        dispatch({ type: 'RESET' });
-      }, 8000);
-      
-      return () => {
-        if (errorResetTimerRef.current) {
-          clearTimeout(errorResetTimerRef.current);
-          errorResetTimerRef.current = null;
-        }
-      };
-    }
-  }, [state.status]);
 
   useEffect(() => {
     const checkMicPermission = async () => {
@@ -523,6 +469,11 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
       countdownTimerRef.current = null;
     }
     
+    if (errorResetTimerRef.current) {
+      clearTimeout(errorResetTimerRef.current);
+      errorResetTimerRef.current = null;
+    }
+    
     setTimeout(() => {
       if (retryAttemptsRef.current) {
         retryAttemptsRef.current = 0;
@@ -604,29 +555,6 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
 
   const isErrorState = checkStatus(state.status, 'error');
   const errorMessage = isErrorState && 'message' in state ? state.message : '';
-  const isIOSPwa = environmentInfo ? environmentInfo.isIOSPwa : false;
-
-  useEffect(() => {
-    if (isErrorState && errorMessage) {
-      const isRecoverableError = 
-        errorMessage.includes('no speech') || 
-        errorMessage.includes('network') || 
-        errorMessage.includes('aborted') ||
-        errorMessage.includes('Connection issue');
-      
-      if (isRecoverableError) {
-        console.log('Setting up auto-reset for recoverable error');
-        addDebugInfo(`Scheduling auto-reset for recoverable error: ${errorMessage}`);
-        
-        const timeoutDuration = isIOSPwa ? 4000 : 6000;
-        createTimeout(() => {
-          console.log('Auto-resetting after recoverable error');
-          addDebugInfo('Auto-reset triggered after error');
-          dispatch({ type: 'RESET' });
-        }, timeoutDuration);
-      }
-    }
-  }, [isErrorState, errorMessage, isIOSPwa, createTimeout, dispatch, addDebugInfo]);
   
   return (
     <div className="space-y-4">
@@ -758,7 +686,7 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
               state.message.includes('Connection issue')) && (
               <p className="text-xs mt-1 text-green-600 flex items-center">
                 <RefreshCw className="h-3 w-3 animate-spin mr-1" />
-                <span>Auto-recovering shortly...</span>
+                <span>Auto-recovering soon...</span>
               </p>
             )}
           </AlertDescription>
