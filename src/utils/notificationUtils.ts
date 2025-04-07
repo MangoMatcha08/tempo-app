@@ -1,4 +1,3 @@
-
 import { Reminder, ReminderPriority } from '@/types/reminderTypes';
 import { shouldSendNotification, NotificationSettings } from '@/services/notificationService';
 
@@ -23,8 +22,7 @@ export const showNotification = (
       action: reminder.id ? (
         <div>View</div>
       ) : undefined
-      /* This will be replaced by the ToastAction component */
-    });
+    }); /* This will be replaced by the ToastAction component */
   }
 
   // Log information about push and email notifications
