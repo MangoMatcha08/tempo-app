@@ -162,6 +162,8 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   const [debugInfo, setDebugInfo] = useState<string[]>([]);
   const isMobile = useIsMobile();
   
+  const [showSpecialMode, setShowSpecialMode] = useState(true);
+  
   const isMountedRef = useRef(true);
   
   const retryAttemptsRef = useRef<number>(0);
@@ -654,6 +656,120 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
     return null;
   };
   
+  const IOSPwaRecordingMode = () => {
+    if (!environmentInfo.isIOSPwa) return null;
+    
+    const [capturedTranscript, setCapturedTranscript] = useState("");
+    const [isCapturing, setIsCapturing] = useState(false);
+    const [recordingCountdown, setRecordingCountdown] = useState(4);
+    const countdownRef = useRef<NodeJS.Timeout | null>(null);
+    
+    const handleIOSRecording = () => {
+      resetTranscript();
+      setCapturedTranscript("");
+      
+      setIsCapturing(true);
+      startListening();
+      
+      setRecordingCountdown(4);
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      
+      countdownRef.current = setInterval(() => {
+        setRecordingCountdown(prev => {
+          if (prev <= 1) {
+            if (countdownRef.current) clearInterval(countdownRef.current);
+            stopListening();
+            setIsCapturing(false);
+            
+            const finalTranscript = transcript || interimTranscript;
+            if (finalTranscript) {
+              setCapturedTranscript(finalTranscript);
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    };
+    
+    const processTranscript = () => {
+      if (!capturedTranscript) return;
+      
+      onTranscriptComplete(capturedTranscript);
+    };
+    
+    return (
+      <div className="mt-4 p-3 border-2 border-blue-300 rounded-lg bg-blue-50 shadow-sm">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-blue-800 font-medium">iOS PWA Optimized Mode</h3>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 text-xs"
+            onClick={() => setShowSpecialMode(false)}
+          >
+            Use Standard Mode
+          </Button>
+        </div>
+        
+        <p className="text-sm text-blue-700 mb-3">
+          Voice recognition in iOS PWA requires a simplified approach:
+        </p>
+        
+        <div className="flex flex-col space-y-3">
+          <div className="p-2 bg-white rounded border border-blue-200">
+            <h4 className="text-sm font-medium text-blue-700">Step 1: Record (4 sec max)</h4>
+            
+            {isCapturing ? (
+              <div className="mt-2">
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div 
+                    className="bg-red-500 h-2.5 rounded-full transition-all duration-1000 ease-linear" 
+                    style={{ width: `${(4 - recordingCountdown) / 4 * 100}%` }}
+                  />
+                </div>
+                <p className="text-center text-sm mt-1 text-red-600 font-medium">
+                  Recording... {recordingCountdown}s left
+                </p>
+              </div>
+            ) : (
+              <Button
+                onClick={handleIOSRecording}
+                className="w-full mt-2 bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300"
+              >
+                <Mic className="h-4 w-4 mr-2" />
+                Start Short Recording
+              </Button>
+            )}
+          </div>
+          
+          <div className="p-2 bg-white rounded border border-blue-200">
+            <h4 className="text-sm font-medium text-blue-700">Step 2: Process Transcript</h4>
+            
+            {capturedTranscript ? (
+              <>
+                <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded text-sm">
+                  <p className="italic text-gray-700">{capturedTranscript}</p>
+                </div>
+                
+                <Button
+                  onClick={processTranscript}
+                  className="w-full mt-2 bg-green-100 hover:bg-green-200 text-green-800 border border-green-300"
+                >
+                  Process This Transcript
+                </Button>
+              </>
+            ) : (
+              <p className="text-sm text-gray-500 mt-2 italic">
+                Complete Step 1 to capture a transcript
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+  
   if (!browserSupportsSpeechRecognition) {
     return (
       <div className="text-center p-6">
@@ -704,120 +820,128 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   
   return (
     <div className="space-y-4">
-      <div className="text-center mb-6">
-        <div className="flex justify-center mb-4">
-          <Button
-            onClick={toggleRecording}
-            disabled={
-              checkStatus(state.status, ['processing', 'confirming', 'error']) || 
-              externalProcessing
-            }
-            size="lg"
-            className={cn(
-              "rounded-full h-16 w-16 p-0",
-              checkStatus(state.status, ['recording', 'recovering'])
-                ? "bg-red-500 hover:bg-red-600 animate-pulse" 
-                : "bg-blue-500 hover:bg-blue-600"
-            )}
-            aria-label={
-              checkStatus(state.status, ['recording', 'recovering']) 
-                ? "Stop recording" 
-                : "Start recording"
-            }
-          >
-            {checkStatus(state.status, ['recording', 'recovering']) 
-              ? <Square className="h-6 w-6" /> 
-              : <Mic className="h-6 w-6" />
-            }
-          </Button>
-        </div>
-        
-        <div className="text-sm">
-          {checkStatus(state.status, ['recording', 'recovering']) ? (
-            <div className="text-red-500 font-semibold">
-              {checkStatus(state.status, 'recovering')
-                ? "Reconnecting..." 
-                : (
-                  <div>
-                    <span>Recording... {countdown}s</span>
-                    {environmentInfo.isIOSPwa && (
-                      <div className="mt-1 flex flex-col items-center">
-                        <div className="w-full h-1.5 bg-red-100 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-red-500 transition-all duration-1000 ease-linear" 
-                            style={{ 
-                              width: `${Math.min(100, (countdown > 0 ? (1 - countdown/(isIOSBelowV15 ? 5 : 6)) * 100 : 100))}%` 
-                            }}
-                          ></div>
-                        </div>
-                        <span className="text-xs mt-1">
-                          {isIOSBelowV15 ? 'Keep under 5 sec' : 'Keep under 6 sec'}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )
-              }
-            </div>
-          ) : checkStatus(state.status, 'processing') ? (
-            <div className="text-green-500 font-semibold flex items-center justify-center">
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Processing your voice note...
-            </div>
-          ) : checkStatus(state.status, 'confirming') ? (
-            <div className="text-green-500 font-semibold">
-              Ready to save your voice note
-            </div>
-          ) : (
-            <div>
-              {permissionState === "granted" 
-                ? "Press to start recording" 
-                : "Press to request microphone access and start recording"}
-            </div>
-          )}
-        </div>
-        
-        <PlatformSpecificInstructions />
-        
-        {(environmentInfo.isIOSPwa || environmentInfo.isPwa) && 
-         checkStatus(state.status, ['recording', 'recovering']) && (
-          <div className="mt-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleForceRetry}
-              className="text-xs flex items-center gap-1"
-              disabled={checkStatus(state.status, 'recovering')}
-            >
-              <RefreshCw className="h-3 w-3" />
-              Restart Recording
-            </Button>
-            
-            <p className="text-xs text-muted-foreground mt-1">
-              If no text appears, try restarting the recording
-            </p>
-          </div>
-        )}
-      </div>
+      {environmentInfo.isIOSPwa && showSpecialMode && (
+        <IOSPwaRecordingMode />
+      )}
       
-      <div className="border rounded-md p-3 bg-slate-50">
-        <h3 className="font-medium mb-2 text-sm">Your voice input:</h3>
-        <ScrollArea className="h-[100px] overflow-y-auto">
-          <div className="whitespace-pre-wrap overflow-hidden">
-            {checkStatus(state.status, 'processing') && 'transcript' in state ? (
-              <p>{state.transcript}</p>
-            ) : checkStatus(state.status, 'confirming') && 'result' in state ? (
-              <p>{state.result.reminder.description}</p>
-            ) : transcript ? (
-              <p>{transcript}</p>
-            ) : (
-              <p className="text-muted-foreground italic">
-                {interimTranscript || "Speak after pressing the record button..."}
-              </p>
+      {(!environmentInfo.isIOSPwa || !showSpecialMode) && (
+        <>
+          <div className="text-center mb-6">
+            <div className="flex justify-center mb-4">
+              <Button
+                onClick={toggleRecording}
+                disabled={
+                  checkStatus(state.status, ['processing', 'confirming', 'error']) || 
+                  externalProcessing
+                }
+                size="lg"
+                className={cn(
+                  "rounded-full h-16 w-16 p-0",
+                  checkStatus(state.status, ['recording', 'recovering'])
+                    ? "bg-red-500 hover:bg-red-600 animate-pulse" 
+                    : "bg-blue-500 hover:bg-blue-600"
+                )}
+                aria-label={
+                  checkStatus(state.status, ['recording', 'recovering']) 
+                    ? "Stop recording" 
+                    : "Start recording"
+                }
+              >
+                {checkStatus(state.status, ['recording', 'recovering']) 
+                  ? <Square className="h-6 w-6" /> 
+                  : <Mic className="h-6 w-6" />
+                }
+              </Button>
+            </div>
+            
+            <div className="text-sm">
+              {checkStatus(state.status, ['recording', 'recovering']) ? (
+                <div className="text-red-500 font-semibold">
+                  {checkStatus(state.status, 'recovering')
+                    ? "Reconnecting..." 
+                    : (
+                      <div>
+                        <span>Recording... {countdown}s</span>
+                        {environmentInfo.isIOSPwa && (
+                          <div className="mt-1 flex flex-col items-center">
+                            <div className="w-full h-1.5 bg-red-100 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-red-500 transition-all duration-1000 ease-linear" 
+                                style={{ 
+                                  width: `${Math.min(100, (countdown > 0 ? (1 - countdown/(isIOSBelowV15 ? 5 : 6)) * 100 : 100))}%` 
+                                }}
+                              ></div>
+                            </div>
+                            <span className="text-xs mt-1">
+                              {isIOSBelowV15 ? 'Keep under 5 sec' : 'Keep under 6 sec'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  }
+                </div>
+              ) : checkStatus(state.status, 'processing') ? (
+                <div className="text-green-500 font-semibold flex items-center justify-center">
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing your voice note...
+                </div>
+              ) : checkStatus(state.status, 'confirming') ? (
+                <div className="text-green-500 font-semibold">
+                  Ready to save your voice note
+                </div>
+              ) : (
+                <div>
+                  {permissionState === "granted" 
+                    ? "Press to start recording" 
+                    : "Press to request microphone access and start recording"}
+                </div>
+              )}
+            </div>
+            
+            <PlatformSpecificInstructions />
+            
+            {(environmentInfo.isIOSPwa || environmentInfo.isPwa) && 
+             checkStatus(state.status, ['recording', 'recovering']) && (
+              <div className="mt-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleForceRetry}
+                  className="text-xs flex items-center gap-1"
+                  disabled={checkStatus(state.status, 'recovering')}
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Restart Recording
+                </Button>
+                
+                <p className="text-xs text-muted-foreground mt-1">
+                  If no text appears, try restarting the recording
+                </p>
+              </div>
             )}
           </div>
-        </ScrollArea>
-      </div>
+          
+          <div className="border rounded-md p-3 bg-slate-50">
+            <h3 className="font-medium mb-2 text-sm">Your voice input:</h3>
+            <ScrollArea className="h-[100px] overflow-y-auto">
+              <div className="whitespace-pre-wrap overflow-hidden">
+                {checkStatus(state.status, 'processing') && 'transcript' in state ? (
+                  <p>{state.transcript}</p>
+                ) : checkStatus(state.status, 'confirming') && 'result' in state ? (
+                  <p>{state.result.reminder.description}</p>
+                ) : transcript ? (
+                  <p>{transcript}</p>
+                ) : (
+                  <p className="text-muted-foreground italic">
+                    {interimTranscript || "Speak after pressing the record button..."}
+                  </p>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+        </>
+      )}
       
       {checkStatus(state.status, 'error') && (
         <Alert 
