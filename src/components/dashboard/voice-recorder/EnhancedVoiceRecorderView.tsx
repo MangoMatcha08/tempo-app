@@ -79,6 +79,26 @@ function voiceRecorderReducer(state: RecorderState, event: RecorderEvent): Recor
     
     const errorMsg = 'message' in event ? event.message : 'Unknown error';
     
+    if (errorMsg.includes('no speech') || 
+        errorMsg.includes('network') || 
+        errorMsg.includes('aborted') ||
+        errorMsg.includes('Connection issue')) {
+      
+      const resetDelay = 6000;
+      
+      console.log(`Scheduling auto-reset for recoverable error in ${resetDelay}ms`);
+      
+      const timerId = setTimeout(() => {
+        console.log('Auto-reset executed for recoverable error');
+        const dispatchRef = (event as any).dispatch;
+        if (dispatchRef) {
+          dispatchRef({ type: 'RESET' });
+        }
+      }, resetDelay);
+      
+      return { status: 'error', message: errorMsg };
+    }
+    
     return { status: 'error', message: errorMsg };
   }
   
@@ -122,6 +142,8 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   const [debugInfo, setDebugInfo] = useState<string[]>([]);
   const isMobile = useIsMobile();
   
+  const isMountedRef = useRef(true);
+  
   const retryAttemptsRef = useRef<number>(0);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -138,6 +160,13 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
   const addDebugInfo = (info: string) => {
     setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${info}`]);
   };
+  
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     console.log("Voice Recorder Environment:", {
@@ -690,15 +719,39 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
               </p>
             )}
           </AlertDescription>
-          <div className="mt-2">
+          <div className="mt-3 flex flex-col space-y-2">
             <Button
               size="sm"
               variant="outline"
               onClick={handleReset}
-              className="flex-1 bg-white hover:bg-gray-50"
+              className="w-full"
             >
-              Try Again Now
+              Try Again
             </Button>
+            
+            {environmentInfo.isIOSPwa && transcript && (
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() => {
+                  addDebugInfo("iOS PWA: Manual processing trigger attempted");
+                  
+                  handleReset();
+                  
+                  const savedTranscript = transcript;
+                  
+                  setTimeout(() => {
+                    if (isMountedRef.current) {
+                      addDebugInfo(`iOS PWA: Manual processing of transcript: ${savedTranscript.substring(0, 30)}...`);
+                      onTranscriptComplete(savedTranscript);
+                    }
+                  }, 500);
+                }}
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+              >
+                Force Process Current Transcript
+              </Button>
+            )}
           </div>
         </Alert>
       )}
