@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useReducer, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
@@ -47,7 +46,7 @@ const IOSPwaRecordingMode: React.FC<IOSPwaRecordingModeProps> = ({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Simplified recording logic with explicit timeouts
+  // Improved recording logic with progressive transcript checking
   const handleIOSRecording = () => {
     console.log("iOS Recording started");
     
@@ -55,6 +54,10 @@ const IOSPwaRecordingMode: React.FC<IOSPwaRecordingModeProps> = ({
     resetTranscript();
     setLocalCapturedTranscript("");
     setRecordingCountdown(4);
+    
+    // Store transcript before starting (should be empty)
+    const initialTranscript = transcript;
+    console.log("Initial transcript:", initialTranscript);
     
     // Start recording
     setIsCapturing(true);
@@ -68,6 +71,11 @@ const IOSPwaRecordingMode: React.FC<IOSPwaRecordingModeProps> = ({
     // Set up countdown display updates
     intervalRef.current = setInterval(() => {
       setRecordingCountdown(prev => {
+        // Log current transcript during recording
+        if (prev === 2) {
+          console.log("Mid-recording transcript:", transcript || interimTranscript);
+        }
+        
         if (prev <= 1) {
           if (intervalRef.current) clearInterval(intervalRef.current);
           return 0;
@@ -79,20 +87,64 @@ const IOSPwaRecordingMode: React.FC<IOSPwaRecordingModeProps> = ({
     // Set main recording timeout
     timerRef.current = setTimeout(() => {
       console.log("Recording timeout reached, stopping");
+      
+      // Capture transcript BEFORE stopping (important for iOS)
+      const preStopTranscript = transcript || interimTranscript;
+      console.log("Pre-stop transcript:", preStopTranscript);
+      
+      // Stop listening
       stopListening();
       setIsCapturing(false);
       if (intervalRef.current) clearInterval(intervalRef.current);
       
-      // Short delay to ensure transcript is finalized
-      setTimeout(() => {
-        const finalTranscript = transcript || interimTranscript;
-        console.log("Final transcript:", finalTranscript);
-        if (finalTranscript) {
-          setLocalCapturedTranscript(finalTranscript);
+      // Implement a progressive checking approach with multiple timeouts
+      // to ensure we catch the transcript whenever it becomes available
+      
+      // First check - immediate
+      const checkTranscript = () => {
+        const currentTranscript = transcript || interimTranscript || preStopTranscript;
+        console.log("Checking transcript:", currentTranscript);
+        
+        if (currentTranscript && currentTranscript.trim()) {
+          console.log("Transcript found:", currentTranscript);
+          setLocalCapturedTranscript(currentTranscript);
+          return true;
         }
+        return false;
+      };
+      
+      // Check immediately
+      if (checkTranscript()) return;
+      
+      // Check again after 300ms (original timing)
+      setTimeout(() => {
+        if (checkTranscript()) return;
+        
+        // Check again after 800ms (extended timing for iOS)
+        setTimeout(() => {
+          if (checkTranscript()) return;
+          
+          // Final check after 1500ms
+          setTimeout(() => {
+            if (!checkTranscript() && preStopTranscript) {
+              // Last resort - use the pre-stop transcript if we have it
+              console.log("Using pre-stop transcript as fallback");
+              setLocalCapturedTranscript(preStopTranscript);
+            }
+          }, 700);
+        }, 500);
       }, 300);
     }, 4000); // Fixed 4-second recording
   };
+  
+  // Add effect to monitor transcript changes
+  useEffect(() => {
+    // Only run this if we've just finished recording but don't have a local transcript yet
+    if (!isCapturing && !localCapturedTranscript && (transcript || interimTranscript)) {
+      console.log("Detected transcript after recording stopped:", transcript || interimTranscript);
+      setLocalCapturedTranscript(transcript || interimTranscript);
+    }
+  }, [isCapturing, transcript, interimTranscript, localCapturedTranscript]);
   
   // Clean up timers when component unmounts
   useEffect(() => {
@@ -157,7 +209,7 @@ const IOSPwaRecordingMode: React.FC<IOSPwaRecordingModeProps> = ({
           )}
         </div>
         
-        {/* Step 2: Process */}
+        {/* Step 2: Process - Improved with fallback button */}
         <div className="p-2 bg-white rounded border border-blue-200">
           <h4 className="text-sm font-medium text-blue-700">Step 2: Process Transcript</h4>
           
@@ -174,10 +226,32 @@ const IOSPwaRecordingMode: React.FC<IOSPwaRecordingModeProps> = ({
                 Process This Transcript
               </Button>
             </>
-          ) : (
+          ) : isCapturing ? (
             <p className="text-sm text-gray-500 mt-2 italic">
-              Complete Step 1 to capture a transcript
+              Recording in progress...
             </p>
+          ) : (
+            <>
+              <p className="text-sm text-gray-500 mt-2 italic">
+                {transcript || interimTranscript ? 
+                  "Finalizing transcript..." : 
+                  "Complete Step 1 to capture a transcript"}
+              </p>
+              
+              {/* Show this button if recording completed but no local transcript was set */}
+              {!isCapturing && (transcript || interimTranscript) && (
+                <Button
+                  onClick={() => {
+                    const availableTranscript = transcript || interimTranscript;
+                    console.log("Using available transcript:", availableTranscript);
+                    setLocalCapturedTranscript(availableTranscript);
+                  }}
+                  className="w-full mt-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border border-yellow-300"
+                >
+                  Use Available Transcript
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
