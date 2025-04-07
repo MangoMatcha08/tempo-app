@@ -1,5 +1,4 @@
 
-
 // Re-export all notification service functionality
 import { initializeFirebase } from './notifications/firebase';
 import { 
@@ -44,6 +43,7 @@ export {
   firebaseInitPromise
 };
 
+// Export default object with consistent naming
 export default {
   requestNotificationPermission,
   getUserNotificationSettings,

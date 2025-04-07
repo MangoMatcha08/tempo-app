@@ -2,7 +2,9 @@
 import { Reminder, ReminderPriority } from '@/types/reminderTypes';
 import { shouldSendNotification, NotificationSettings } from '@/services/notificationService';
 
-// Show notification based on reminder priority and user settings
+/**
+ * Show notification based on reminder priority and user settings
+ */
 export const showNotification = (
   reminder: Reminder, 
   notificationSettings: NotificationSettings,
@@ -30,7 +32,9 @@ export const showNotification = (
     shouldSendNotification(reminderPriority, notificationSettings, 'email'));
 };
 
-// Get toast variant based on priority
+/**
+ * Get toast variant based on reminder priority
+ */
 export const getPriorityToastVariant = (priority: ReminderPriority): "default" | "destructive" => {
   if (priority === ReminderPriority.HIGH) {
     return "destructive";
@@ -38,7 +42,9 @@ export const getPriorityToastVariant = (priority: ReminderPriority): "default" |
   return "default";
 };
 
-// Format reminder for notification
+/**
+ * Format reminder data for notification display
+ */
 export const formatReminderForNotification = (reminder: Reminder) => {
   // Format due date to readable string
   const formattedDueDate = reminder.dueDate instanceof Date 
