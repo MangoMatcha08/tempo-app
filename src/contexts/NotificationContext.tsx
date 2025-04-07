@@ -11,6 +11,8 @@ import {
 import { useNotificationPermission } from '@/hooks/useNotificationPermission';
 import { showNotification } from '@/utils/notificationUtils';
 
+// Remove any potential circular imports to React Query here
+
 interface NotificationContextType {
   notificationSettings: NotificationSettings;
   permissionGranted: boolean;

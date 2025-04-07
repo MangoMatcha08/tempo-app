@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Index from "@/pages/Index";
 import Dashboard from "@/components/Dashboard";
@@ -15,7 +15,12 @@ import PwaInstallPrompt from "@/components/ui/pwa-install-prompt";
 import { Toaster } from "@/components/ui/toaster";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster as SonnerToaster } from "sonner";
+import { ensureFirebaseInitialized } from "@/lib/firebase";
 
+// Ensure Firebase is initialized before React components
+ensureFirebaseInitialized();
+
+// Create QueryClient instance only once
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -28,9 +33,12 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  // Ensure we have a stable reference to queryClient
+  const [queryClientInstance] = useState(() => queryClient);
+
   return (
     <React.StrictMode>
-      <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={queryClientInstance}>
         <AuthProvider>
           <FirestoreProvider>
             <ScheduleProvider>

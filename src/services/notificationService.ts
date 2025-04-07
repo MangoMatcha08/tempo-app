@@ -23,8 +23,11 @@ import { sendTestNotification as sendTestNotificationFn } from '@/lib/firebase/f
 import type { NotificationSettings } from './notifications/types';
 export type { NotificationSettings };
 
-// Initialize Firebase when this module is loaded
-initializeFirebase().catch(err => console.error('Failed to initialize Firebase:', err));
+// Initialize Firebase when this module is loaded, but do it async to not block
+const firebaseInitPromise = initializeFirebase().catch(err => {
+  console.error('Failed to initialize Firebase:', err);
+  return false;
+});
 
 // Export all functionality
 export {
@@ -36,7 +39,8 @@ export {
   sendTestNotification,
   setupForegroundMessageListener,
   shouldSendNotification,
-  sendTestNotificationFn
+  sendTestNotificationFn,
+  firebaseInitPromise
 };
 
 export default {

@@ -7,5 +7,17 @@ export * from './indexing';
 export * from './network';
 export * from './functions';
 
-// Perform any needed initializations here
-console.log('Firebase module initialized');
+// Prevent multiple initializations
+let isFirebaseInitialized = false;
+
+// Perform initialization only once
+export const ensureFirebaseInitialized = () => {
+  if (!isFirebaseInitialized) {
+    console.log('Firebase module initialized');
+    isFirebaseInitialized = true;
+  }
+  return isFirebaseInitialized;
+};
+
+// Initialize immediately
+ensureFirebaseInitialized();
