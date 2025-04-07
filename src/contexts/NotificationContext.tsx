@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Reminder } from '@/types/reminderTypes';
@@ -13,8 +12,8 @@ import { setupForegroundMessageListener } from '@/services/messaging/messagingSe
 import { ServiceWorkerMessage } from '@/types/notifications/serviceWorkerTypes';
 import { ToastAction } from '@/components/ui/toast';
 import { NotificationType } from '@/types/reminderTypes';
+import { NotificationDeliveryStatus } from '@/types/notifications/notificationHistoryTypes';
 
-// Create a combined notification context
 interface NotificationContextType {
   showNotification: (reminder: Reminder) => void;
   handleServiceWorkerMessage: (message: ServiceWorkerMessage) => void;
@@ -31,25 +30,20 @@ interface NotificationProviderProps {
   children: React.ReactNode;
 }
 
-// This is the main provider that combines all notification-related providers
 const NotificationProviderInner: React.FC<NotificationProviderProps> = ({ children }) => {
   const { settings } = useNotificationSettings();
   const { permissionGranted, isSupported, requestPermission } = useNotificationPermission();
   const { addNotification, updateNotificationStatus } = useNotificationHistory();
   const { toast } = useToast();
 
-  // Setup foreground message listener
   React.useEffect(() => {
-    // Setup foreground message listener if notifications are supported
     if (typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator) {
       const unsubscribe = setupForegroundMessageListener((payload) => {
         console.log('Received foreground message:', payload);
         
-        // Extract notification data
         const notification = payload.notification;
         const data = payload.data || {};
         
-        // Show toast notification for foreground messages
         toast({
           title: notification?.title || 'New Reminder',
           description: notification?.body || 'You have a new reminder',
@@ -59,7 +53,6 @@ const NotificationProviderInner: React.FC<NotificationProviderProps> = ({ childr
             <ToastAction
               altText="View reminder"
               onClick={() => {
-                // Navigate to the reminder detail view
                 if (typeof window !== 'undefined') {
                   window.location.href = `/dashboard/reminders/${data.reminderId}`;
                 }
@@ -77,7 +70,6 @@ const NotificationProviderInner: React.FC<NotificationProviderProps> = ({ childr
     }
   }, [toast]);
 
-  // Add service worker message handler
   React.useEffect(() => {
     const handleMessageEvent = (event: MessageEvent) => {
       if (event.data && typeof event.data === 'object' && 'type' in event.data) {
@@ -88,7 +80,6 @@ const NotificationProviderInner: React.FC<NotificationProviderProps> = ({ childr
       }
     };
 
-    // Add event listener for service worker messages
     if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('message', handleMessageEvent);
     }
@@ -100,11 +91,9 @@ const NotificationProviderInner: React.FC<NotificationProviderProps> = ({ childr
     };
   }, []);
 
-  // Wrapper for showNotification utility
   const handleShowNotification = (reminder: Reminder) => {
     showNotification(reminder, settings, toast);
     
-    // Add to notification history if enabled
     const formattedNotification = formatReminderForNotification(reminder);
     if (formattedNotification) {
       addNotification({
@@ -112,31 +101,26 @@ const NotificationProviderInner: React.FC<NotificationProviderProps> = ({ childr
         title: formattedNotification.title,
         body: formattedNotification.description || '',
         timestamp: Date.now(),
-        // Use NotificationType.TEST as default, which is a valid NotificationType value
         type: NotificationType.TEST,
         reminderId: reminder.id,
         priority: reminder.priority,
-        status: 'sent',
+        status: NotificationDeliveryStatus.SENT,
         channels: ['inApp']
       });
     }
   };
 
-  // Handle service worker messages
   const handleServiceWorkerMessage = (message: ServiceWorkerMessage) => {
     console.log('Handling service worker message:', message);
     
     if (message.type === 'NOTIFICATION_ACTION' && message.payload) {
       const { reminderId, action, notification } = message.payload;
       
-      // Update notification status if we have notification info
       if (notification?.id) {
         updateNotificationStatus(notification.id, 'clicked');
       }
       
-      // Handle different actions
       if (action && reminderId) {
-        // This will be implemented in Phase 2B
         console.log(`Handling ${action} action for reminder ${reminderId}`);
       }
     }
@@ -154,7 +138,6 @@ const NotificationProviderInner: React.FC<NotificationProviderProps> = ({ childr
   );
 };
 
-// Combined provider that wraps all notification contexts
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   return (
     <NotificationSettingsProvider>
@@ -169,7 +152,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   );
 };
 
-// Re-export hooks for convenience
 export { 
   useNotificationSettings,
   useNotificationPermission,

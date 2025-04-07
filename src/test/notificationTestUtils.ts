@@ -1,6 +1,6 @@
 
 import { NotificationSettings } from '@/types/notifications/settingsTypes';
-import { NotificationRecord } from '@/types/notifications/notificationHistoryTypes';
+import { NotificationRecord, NotificationDeliveryStatus } from '@/types/notifications/notificationHistoryTypes';
 import { ReminderPriority, NotificationType } from '@/types/reminderTypes';
 
 /**
@@ -17,7 +17,7 @@ export const createMockNotificationRecord = (
     type: NotificationType.TEST,
     reminderId: `reminder-${Date.now()}`,
     priority: ReminderPriority.MEDIUM,
-    status: 'sent',
+    status: NotificationDeliveryStatus.SENT,
     channels: ['inApp'],
     ...overrides
   };

@@ -1,5 +1,6 @@
 
 import { vi } from 'vitest';
+import '@testing-library/jest-dom';
 
 // Mock browser APIs if needed
 global.matchMedia = global.matchMedia || function(query: string) {
