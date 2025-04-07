@@ -8,10 +8,10 @@ import {
   shouldSendNotification 
 } from './notifications/settings';
 import {
+  setupForegroundMessageListener,
   requestNotificationPermission,
   saveTokenToFirestore,
-  sendTestNotification,
-  setupForegroundMessageListener
+  sendTestNotification
 } from './messaging/messagingService';
 
 // Import the functions

@@ -77,6 +77,41 @@ export const getFCMToken = async (): Promise<string | null> => {
 };
 
 /**
+ * Request permission and get FCM token
+ * @returns Promise with the FCM token
+ */
+export const requestNotificationPermission = async (): Promise<string | null> => {
+  // Check if notifications are supported
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    console.warn('Notifications not supported in this browser');
+    return null;
+  }
+  
+  try {
+    // Request permission
+    const permission = await Notification.requestPermission();
+    
+    if (permission === 'granted') {
+      // Get FCM token
+      return await getFCMToken();
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error requesting notification permission:', error);
+    return null;
+  }
+};
+
+/**
+ * Save FCM token to Firestore
+ */
+export const saveTokenToFirestore = async (userId: string, token: string): Promise<void> => {
+  // Implementation would go here
+  console.log(`Saving token ${token} for user ${userId}`);
+};
+
+/**
  * Sends a test notification using the Firebase sendTestNotification function
  * @param options Test notification options
  * @returns Promise with the test result
@@ -92,4 +127,9 @@ export const sendTestMessage = async (options: {
     console.error('Error sending test notification:', error);
     throw error;
   }
+};
+
+// Export necessary functions
+export {
+  sendTestMessage as sendTestNotification
 };

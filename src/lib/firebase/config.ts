@@ -2,7 +2,7 @@
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
 
 // Firebase configuration
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyB9CRFtt-AaGZ-yVpPdOBaTRzmdi73MMu8",
   authDomain: "tempowizard-ac888.firebaseapp.com",
   projectId: "tempowizard-ac888",
