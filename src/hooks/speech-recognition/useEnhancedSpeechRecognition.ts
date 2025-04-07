@@ -4,7 +4,6 @@ import { useTrackedTimeouts } from '../use-tracked-timeouts';
 import { RecognitionEnvironment } from './types';
 import { handleRecognitionError } from './errorHandlers';
 
-// Type for the enhanced speech recognition hook return value
 export interface UseEnhancedSpeechRecognitionReturn {
   transcript: string;
   interimTranscript: string;
@@ -21,44 +20,33 @@ export interface UseEnhancedSpeechRecognitionReturn {
     isIOS: boolean;
     isIOSPwa: boolean;
     isMobile: boolean;
-    isPwa: boolean; // Added this property
+    isPwa: boolean;
     platform: string;
     browser: string;
   };
 }
 
-/**
- * Enhanced speech recognition hook that provides platform-specific optimizations
- * Builds on the existing speech recognition system with improved reliability
- * 
- * @returns Enhanced speech recognition interface
- */
 export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionReturn => {
-  // Get environment information
   const env = useMemo(() => detectEnvironment(), []);
-  
-  // State for transcript management
+
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isRecovering, setIsRecovering] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [browserSupportsSpeechRecognition, setBrowserSupportsSpeechRecognition] = useState(false);
-  
-  // Refs for managing recognition state
+
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const accumulatedTranscriptRef = useRef('');
   const retryAttemptsRef = useRef(0);
-  
-  // Resource management
+
   const { 
     createTimeout, 
     clearAllTimeouts, 
     runIfMounted,
     isMounted 
   } = useTrackedTimeouts();
-  
-  // Initialize speech recognition
+
   useEffect(() => {
     const SpeechRecognitionImpl = window.SpeechRecognition || 
                                   window.webkitSpeechRecognition || 
@@ -72,29 +60,23 @@ export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionRetu
     }
     
     try {
-      // Create recognition instance
       recognitionRef.current = new SpeechRecognitionImpl();
       setBrowserSupportsSpeechRecognition(true);
       
-      // Configure with environment-specific settings
       if (recognitionRef.current) {
         const recognition = recognitionRef.current;
         
-        // Set configuration based on environment
         recognition.continuous = env.recognitionConfig.continuous;
         recognition.interimResults = env.recognitionConfig.interimResults;
         recognition.maxAlternatives = env.recognitionConfig.maxAlternatives;
         
-        // Set language based on browser preference
         try {
           recognition.lang = navigator.language || 'en-US';
         } catch (err) {
           recognition.lang = 'en-US';
         }
         
-        // Set up base event handlers (detailed handlers added when recording starts)
         recognition.onerror = (event) => {
-          // Use our enhanced error handler
           handleRecognitionError(event, {
             isListening,
             env,
@@ -125,7 +107,6 @@ export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionRetu
       setBrowserSupportsSpeechRecognition(false);
     }
     
-    // Cleanup on unmount
     return () => {
       if (recognitionRef.current && isListening) {
         try {
@@ -136,17 +117,61 @@ export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionRetu
       }
     };
   }, []);
-  
-  /**
-   * Start the speech recognition process with platform-specific optimizations
-   */
+
+  const stopListening = useCallback(() => {
+    if (!recognitionRef.current) return;
+    
+    try {
+      if (env.isIOSPwa) {
+        accumulatedTranscriptRef.current += ' ' + transcript;
+      }
+      
+      recognitionRef.current.stop();
+      setIsListening(false);
+      
+      setInterimTranscript('');
+      
+      console.log('Speech recognition stopped');
+    } catch (err) {
+      console.error('Error stopping speech recognition:', err);
+      
+      try {
+        recognitionRef.current.abort();
+        setIsListening(false);
+      } catch (abortErr) {
+        console.error('Error aborting speech recognition:', abortErr);
+      }
+    }
+  }, [env.isIOSPwa, transcript]);
+
+  const setupIOSPwaSessionRefresh = useCallback(() => {
+    if (!env.isIOSPwa || !recognitionRef.current) return;
+    
+    const refreshInterval = 8000;
+    
+    createTimeout(() => {
+      if (isListening && isMounted()) {
+        console.log('iOS PWA: Refreshing recognition session');
+        
+        try {
+          accumulatedTranscriptRef.current += ' ' + transcript;
+          
+          recognitionRef.current?.stop();
+          
+          console.log('iOS PWA session refresh triggered');
+        } catch (err) {
+          console.error('Error during iOS PWA session refresh:', err);
+        }
+      }
+    }, refreshInterval);
+  }, [env.isIOSPwa, isListening, transcript, createTimeout, isMounted]);
+
   const startListening = useCallback(() => {
     if (!recognitionRef.current || !browserSupportsSpeechRecognition) {
       console.error('Speech recognition not available');
       return;
     }
     
-    // Reset state
     setTranscript('');
     setInterimTranscript('');
     setError(undefined);
@@ -156,7 +181,6 @@ export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionRetu
     try {
       const recognition = recognitionRef.current;
       
-      // Set up event handlers
       recognition.onresult = (event: SpeechRecognitionEvent) => {
         let finalTranscript = '';
         let currentInterim = '';
@@ -187,13 +211,10 @@ export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionRetu
       recognition.onend = () => {
         console.log('Recognition ended, isListening:', isListening);
         
-        // Only restart if still supposed to be listening
         if (isListening && isMounted()) {
           console.log('Restarting speech recognition...');
           
-          // iOS PWA needs special handling
           if (env.isIOSPwa) {
-            // Store transcript before restarting
             accumulatedTranscriptRef.current += ' ' + transcript;
             
             createTimeout(() => {
@@ -202,7 +223,6 @@ export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionRetu
               } catch (err) {
                 console.error('Error restarting iOS recognition:', err);
                 
-                // One more attempt after short delay
                 createTimeout(() => {
                   try {
                     recognition.start();
@@ -215,7 +235,6 @@ export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionRetu
               }
             }, env.recognitionConfig.restartDelay);
           } else {
-            // Standard restart for other platforms
             createTimeout(() => {
               try {
                 recognition.start();
@@ -229,27 +248,22 @@ export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionRetu
         }
       };
       
-      // Start recognition
       recognition.start();
       setIsListening(true);
       
-      // Special handling for iOS PWA
       if (env.isIOSPwa) {
         console.log('iOS PWA detected: Setting up shorter session duration');
-        // Set shorter session for iOS PWA to avoid WebKit issues
-        const iosPwaSessionTime = 8000; // 8 seconds max for iOS PWA
+        const iosPwaSessionTime = 8000;
         
         createTimeout(() => {
           if (isListening && isMounted()) {
             console.log('iOS PWA auto-stop triggered after 8 seconds');
-            // Store accumulated transcript before stopping
             accumulatedTranscriptRef.current += ' ' + transcript;
             stopListening();
           }
         }, iosPwaSessionTime);
       }
       
-      // For iOS PWA, set up periodic session refresh
       if (env.isIOSPwa) {
         setupIOSPwaSessionRefresh();
       }
@@ -266,108 +280,36 @@ export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionRetu
     runIfMounted, 
     isMounted,
     env,
-    stopListening
+    stopListening,
+    setupIOSPwaSessionRefresh
   ]);
-  
-  /**
-   * Set up periodic session refresh for iOS PWA
-   * This addresses the issue of iOS PWA terminating long-running recognition sessions
-   */
-  const setupIOSPwaSessionRefresh = useCallback(() => {
-    if (!env.isIOSPwa || !recognitionRef.current) return;
-    
-    // For iOS PWA, use shorter refresh interval (8 seconds instead of default)
-    const refreshInterval = 8000; // 8 seconds for iOS PWA
-    
-    createTimeout(() => {
-      if (isListening && isMounted()) {
-        console.log('iOS PWA: Refreshing recognition session');
-        
-        try {
-          // Store current transcript
-          accumulatedTranscriptRef.current += ' ' + transcript;
-          
-          // Stop current session
-          recognitionRef.current?.stop();
-          
-          // We'll restart automatically via the onend handler
-          console.log('iOS PWA session refresh triggered');
-        } catch (err) {
-          console.error('Error during iOS PWA session refresh:', err);
-        }
-      }
-    }, refreshInterval);
-  }, [env.isIOSPwa, isListening, transcript, createTimeout, isMounted]);
-  
-  /**
-   * Stop the speech recognition process
-   */
-  const stopListening = useCallback(() => {
-    if (!recognitionRef.current) return;
-    
-    try {
-      // For iOS PWA, save accumulated transcript
-      if (env.isIOSPwa) {
-        accumulatedTranscriptRef.current += ' ' + transcript;
-      }
-      
-      // Stop recognition
-      recognitionRef.current.stop();
-      setIsListening(false);
-      
-      // Clear any interim transcript
-      setInterimTranscript('');
-      
-      console.log('Speech recognition stopped');
-    } catch (err) {
-      console.error('Error stopping speech recognition:', err);
-      
-      // Force recognition to stop
-      try {
-        recognitionRef.current.abort();
-        setIsListening(false);
-      } catch (abortErr) {
-        console.error('Error aborting speech recognition:', abortErr);
-      }
-    }
-  }, [env.isIOSPwa, transcript]);
-  
-  /**
-   * Reset the transcript
-   */
+
   const resetTranscript = useCallback(() => {
     setTranscript('');
     setInterimTranscript('');
     accumulatedTranscriptRef.current = '';
   }, []);
-  
-  /**
-   * Get the complete transcript, including accumulated parts for iOS PWA
-   */
+
   const getCompleteTranscript = useCallback(() => {
     if (env.isIOSPwa) {
-      // For iOS PWA, ensure we're returning both accumulated and current transcript
       const complete = (accumulatedTranscriptRef.current + ' ' + transcript)
         .replace(/\s+/g, ' ')
         .trim();
         
-      // Add debug log
       console.log(`Complete transcript: ${complete.substring(0, 50)}... (${complete.length} chars)`);
       
-      // Reset accumulated transcript
       accumulatedTranscriptRef.current = '';
       return complete;
     }
     return transcript;
   }, [env.isIOSPwa, transcript]);
-  
-  // Create environment info object for return value
+
   const environmentInfo = useMemo(() => {
     return {
       isIOS: env.isIOS,
       isIOSPwa: env.isIOSPwa,
       isMobile: env.isMobile,
-      isPwa: env.isPwa, // Added this property to include it in the environmentInfo
+      isPwa: env.isPwa,
       platform: env.isIOS ? 'iOS' : (env.isAndroid ? 'Android' : 'Desktop'),
       browser: env.isSafari ? 'Safari' : 
                (env.isChrome ? 'Chrome' : 
@@ -375,7 +317,7 @@ export const useEnhancedSpeechRecognition = (): UseEnhancedSpeechRecognitionRetu
                (env.isEdge ? 'Edge' : 'Other')))
     };
   }, [env]);
-  
+
   return {
     transcript,
     interimTranscript,
