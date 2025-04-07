@@ -4,7 +4,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Bell } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { PermissionRequestResult } from "@/types/notificationTypes";
+import { PermissionRequestResult } from "@/types/notifications/permissionTypes";
 
 interface PermissionAlertProps {
   permissionGranted: boolean;

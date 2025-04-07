@@ -1,84 +1,44 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+
+import React from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Reminder } from '@/types/reminderTypes';
 import { 
-  setupForegroundMessageListener,
-  getUserNotificationSettings,
-  defaultNotificationSettings,
-  firebaseInitPromise
-} from '@/services/notificationService';
-import { useNotificationPermission } from '@/hooks/useNotificationPermission';
-import { showNotification, formatReminderForNotification } from '@/utils/notificationUtils';
+  showNotification, 
+  formatReminderForNotification 
+} from '@/utils/notificationUtils';
+import { NotificationSettingsProvider, useNotificationSettings } from './NotificationSettingsContext';
+import { NotificationPermissionProvider, useNotificationPermission } from './NotificationPermissionContext';
+import { NotificationHistoryProvider, useNotificationHistory } from './NotificationHistoryContext';
+import { setupForegroundMessageListener } from '@/services/messaging/messagingService';
+import { ServiceWorkerMessage } from '@/types/notifications/serviceWorkerTypes';
 import { ToastAction } from '@/components/ui/toast';
-import { 
-  NotificationSettings, 
-  NotificationRecord, 
-  ServiceWorkerMessage,
-  PermissionRequestResult
-} from '@/types/notificationTypes';
 
+// Create a combined notification context
 interface NotificationContextType {
-  notificationSettings: NotificationSettings;
-  permissionGranted: boolean;
-  isSupported: boolean;
-  requestPermission: () => Promise<PermissionRequestResult>;
   showNotification: (reminder: Reminder) => void;
-  updateSettings: (settings: Partial<NotificationSettings>) => Promise<void>;
-  notificationHistory?: NotificationRecord[];
+  handleServiceWorkerMessage: (message: ServiceWorkerMessage) => void;
 }
 
-const NotificationContext = createContext<NotificationContextType>({
-  notificationSettings: defaultNotificationSettings,
-  permissionGranted: false,
-  isSupported: true,
-  requestPermission: async () => ({ granted: false }),
+const NotificationContext = React.createContext<NotificationContextType>({
   showNotification: () => {},
-  updateSettings: async () => {},
+  handleServiceWorkerMessage: () => {}
 });
 
-export const useNotifications = () => useContext(NotificationContext);
+export const useNotifications = () => React.useContext(NotificationContext);
 
 interface NotificationProviderProps {
   children: React.ReactNode;
 }
 
-export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
-  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(defaultNotificationSettings);
-  const { permissionGranted, isSupported, requestPermission: hookRequestPermission } = useNotificationPermission();
+// This is the main provider that combines all notification-related providers
+const NotificationProviderInner: React.FC<NotificationProviderProps> = ({ children }) => {
+  const { settings } = useNotificationSettings();
+  const { permissionGranted, isSupported, requestPermission } = useNotificationPermission();
+  const { addNotification, updateNotificationStatus } = useNotificationHistory();
   const { toast } = useToast();
-  const [userId, setUserId] = useState<string | null>(null);
-
-  // Get user ID from local storage
-  useEffect(() => {
-    const storedUserId = localStorage.getItem('userId');
-    if (storedUserId) {
-      setUserId(storedUserId);
-    }
-  }, []);
-
-  // Initialize notification settings
-  useEffect(() => {
-    const initializeNotificationSettings = async () => {
-      try {
-        if (!userId) return;
-        
-        // Get user notification settings
-        const settings = await getUserNotificationSettings(userId);
-        setNotificationSettings(settings);
-        
-        console.log('Notification settings initialized:', settings);
-      } catch (error) {
-        console.error('Error initializing notification settings:', error);
-      }
-    };
-
-    if (userId) {
-      initializeNotificationSettings();
-    }
-  }, [userId]);
 
   // Setup foreground message listener
-  useEffect(() => {
+  React.useEffect(() => {
     // Setup foreground message listener if notifications are supported
     if (typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator) {
       const unsubscribe = setupForegroundMessageListener((payload) => {
@@ -116,49 +76,13 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     }
   }, [toast]);
 
-  // Update notification settings
-  const updateSettings = async (settings: Partial<NotificationSettings>) => {
-    try {
-      if (!userId) {
-        console.error('Cannot update notification settings: No user ID available');
-        return;
-      }
-      
-      // Merge new settings with current settings
-      const updatedSettings = {
-        ...notificationSettings,
-        ...settings
-      };
-      
-      // Save to Firestore via notificationService
-      const { updateUserNotificationSettings } = await import('@/services/notificationService');
-      await updateUserNotificationSettings(userId, updatedSettings);
-      
-      // Update local state
-      setNotificationSettings(updatedSettings);
-      
-      console.log('Notification settings updated:', updatedSettings);
-    } catch (error) {
-      console.error('Error updating notification settings:', error);
-      throw error;
-    }
-  };
-
-  // Wrapper for showNotification utility
-  const handleShowNotification = (reminder: Reminder) => {
-    showNotification(reminder, notificationSettings, toast);
-  };
-
   // Add service worker message handler
-  useEffect(() => {
+  React.useEffect(() => {
     const handleServiceWorkerMessage = (event: MessageEvent) => {
       const message = event.data as ServiceWorkerMessage;
       
       if (message && message.type === 'NOTIFICATION_ACTION') {
-        console.log('Received notification action from service worker:', message);
-        
-        // Handle notification actions from service worker
-        // This will be implemented in Phase 2
+        handleServiceWorkerMessage(message);
       }
     };
 
@@ -174,35 +98,77 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     };
   }, []);
 
-  // Wrapper for requestPermission that returns the proper type
-  const handleRequestPermission = async (): Promise<PermissionRequestResult> => {
-    try {
-      // Wait for Firebase to initialize
-      await firebaseInitPromise;
-      
-      const result = await hookRequestPermission();
-      return { granted: result };
-    } catch (error) {
-      console.error('Error requesting permission:', error);
-      return { 
-        granted: false, 
-        error: error instanceof Error ? error : new Error('Unknown error')
-      };
+  // Wrapper for showNotification utility
+  const handleShowNotification = (reminder: Reminder) => {
+    showNotification(reminder, settings, toast);
+    
+    // Add to notification history if enabled
+    const formattedNotification = formatReminderForNotification(reminder);
+    if (formattedNotification) {
+      addNotification({
+        id: `reminder-${reminder.id}-${Date.now()}`,
+        title: formattedNotification.title,
+        body: formattedNotification.description || '',
+        timestamp: Date.now(),
+        type: reminder.type,
+        reminderId: reminder.id,
+        priority: reminder.priority,
+        status: 'sent',
+        channels: ['inApp']
+      });
     }
   };
 
-  const contextValue: NotificationContextType = {
-    notificationSettings,
-    permissionGranted,
-    isSupported,
-    requestPermission: handleRequestPermission,
+  // Handle service worker messages
+  const handleServiceWorkerMessage = (message: ServiceWorkerMessage) => {
+    console.log('Handling service worker message:', message);
+    
+    if (message.type === 'NOTIFICATION_ACTION' && message.payload) {
+      const { reminderId, action, notification } = message.payload;
+      
+      // Update notification status if we have notification info
+      if (notification?.id) {
+        updateNotificationStatus(notification.id, 'clicked');
+      }
+      
+      // Handle different actions
+      if (action && reminderId) {
+        // This will be implemented in Phase 2B
+        console.log(`Handling ${action} action for reminder ${reminderId}`);
+      }
+    }
+  };
+
+  const value: NotificationContextType = {
     showNotification: handleShowNotification,
-    updateSettings,
+    handleServiceWorkerMessage
   };
 
   return (
-    <NotificationContext.Provider value={contextValue}>
+    <NotificationContext.Provider value={value}>
       {children}
     </NotificationContext.Provider>
   );
+};
+
+// Combined provider that wraps all notification contexts
+export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
+  return (
+    <NotificationSettingsProvider>
+      <NotificationPermissionProvider>
+        <NotificationHistoryProvider>
+          <NotificationProviderInner>
+            {children}
+          </NotificationProviderInner>
+        </NotificationHistoryProvider>
+      </NotificationPermissionProvider>
+    </NotificationSettingsProvider>
+  );
+};
+
+// Re-export hooks for convenience
+export { 
+  useNotificationSettings,
+  useNotificationPermission,
+  useNotificationHistory
 };

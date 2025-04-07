@@ -1,9 +1,7 @@
 
-// Re-export all notification service functionality
+// Re-export notification service functionality
 import { initializeFirebase } from './notifications/firebase';
-import { 
-  defaultNotificationSettings 
-} from './notifications/types';
+import { defaultNotificationSettings } from '@/types/notifications/settingsTypes';
 import { 
   getUserNotificationSettings, 
   updateUserNotificationSettings, 
@@ -14,13 +12,13 @@ import {
   saveTokenToFirestore,
   sendTestNotification,
   setupForegroundMessageListener
-} from './notifications/messaging';
+} from './messaging/messagingService';
 
 // Import the functions
 import { sendTestNotification as sendTestNotificationFn } from '@/lib/firebase/functions';
 
 // Import and re-export the type correctly
-import type { NotificationSettings } from './notifications/types';
+import type { NotificationSettings } from '@/types/notifications/settingsTypes';
 export type { NotificationSettings };
 
 // Initialize Firebase when this module is loaded, but do it async to not block

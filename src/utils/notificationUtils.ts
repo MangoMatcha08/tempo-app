@@ -1,7 +1,7 @@
 
 import { Reminder, ReminderPriority } from '@/types/reminderTypes';
-import { shouldSendNotification } from '@/services/notificationService';
-import { NotificationSettings } from '@/types/notificationTypes';
+import { NotificationSettings } from '@/types/notifications/settingsTypes';
+import { shouldSendNotification } from '@/services/notifications/settings';
 
 /**
  * Show notification based on reminder priority and user settings
@@ -47,6 +47,8 @@ export const getPriorityToastVariant = (priority: ReminderPriority): "default" |
  * Format reminder data for notification display
  */
 export const formatReminderForNotification = (reminder: Reminder) => {
+  if (!reminder) return null;
+  
   // Format due date to readable string
   const formattedDueDate = reminder.dueDate instanceof Date 
     ? reminder.dueDate.toLocaleString() 

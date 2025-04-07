@@ -4,10 +4,9 @@ import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
 import { 
-  updateUserNotificationSettings,
-  NotificationSettings as NotificationSettingsType
-} from "@/services/notificationService";
-import { useNotifications } from "@/contexts/NotificationContext";
+  useNotificationSettings,
+  useNotificationPermission
+} from "@/contexts/NotificationContext";
 import { ExtendedNotificationSettings } from "./types";
 import MasterSwitch from "./MasterSwitch";
 import BrowserAlert from "./BrowserAlert";
@@ -18,16 +17,17 @@ import InAppNotifications from "./InAppNotifications";
 
 const NotificationSettings = () => {
   const { toast } = useToast();
-  const { notificationSettings, permissionGranted, requestPermission } = useNotifications();
+  const { settings, updateSettings } = useNotificationSettings();
+  const { permissionGranted, requestPermission } = useNotificationPermission();
   
   // Extend the default notification settings with daily summary options
   const extendedSettings: ExtendedNotificationSettings = {
-    ...notificationSettings,
+    ...settings,
     email: {
-      ...notificationSettings.email,
+      ...settings.email,
       dailySummary: {
-        enabled: notificationSettings.email?.dailySummary?.enabled || false,
-        timing: notificationSettings.email?.dailySummary?.timing || 'after'
+        enabled: settings.email?.dailySummary?.enabled || false,
+        timing: settings.email?.dailySummary?.timing || 'after'
       }
     }
   };
@@ -40,23 +40,22 @@ const NotificationSettings = () => {
   React.useEffect(() => {
     // Merge the existing settings with the default daily summary settings
     const updatedSettings: ExtendedNotificationSettings = {
-      ...notificationSettings,
+      ...settings,
       email: {
-        ...notificationSettings.email,
+        ...settings.email,
         dailySummary: {
-          enabled: notificationSettings.email?.dailySummary?.enabled || false,
-          timing: notificationSettings.email?.dailySummary?.timing || 'after'
+          enabled: settings.email?.dailySummary?.enabled || false,
+          timing: settings.email?.dailySummary?.timing || 'after'
         }
       }
     };
     
     form.reset(updatedSettings);
-  }, [notificationSettings, form]);
+  }, [settings, form]);
 
   const onSubmit = async (data: ExtendedNotificationSettings) => {
     try {
-      const userId = localStorage.getItem('userId') || 'anonymous';
-      await updateUserNotificationSettings(userId, data);
+      await updateSettings(data);
       
       console.log("Notification settings saved:", data);
       toast({
