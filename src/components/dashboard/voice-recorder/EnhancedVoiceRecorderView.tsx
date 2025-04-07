@@ -680,10 +680,10 @@ const EnhancedVoiceRecorderView: React.FC<VoiceRecorderViewProps> = ({
           )}
           
           {/* Show manual buttons if we're stuck in confirmation state */}
-          {checkStatus(state.status, 'confirming') && (
+          {checkStatus(state.status, 'confirming') && 'result' in state && (
             <div className="mt-2 flex space-x-2">
               <Button 
-                onClick={() => onResultComplete && processingResult && onResultComplete(processingResult)}
+                onClick={() => onResultComplete && onResultComplete(state.result)}
                 className="flex-1"
                 size="sm"
               >
