@@ -1,6 +1,5 @@
-
 import { useNotifications as useNotificationContext, useNotificationHistory } from '@/contexts/NotificationContext';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 import { NotificationRecord, NotificationAction } from '@/types/notifications/notificationHistoryTypes';
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -31,16 +30,13 @@ export const useNotifications = () => {
     // Mark notification as displayed
     updateNotificationStatus(notification.id, 'sent');
     
-    // Display toast with Sonner
-    toast(
-      notification.title,
-      {
-        id: notification.id,
-        description: notification.body,
-        duration: 5000,
-        action: {
-          label: 'View',
-          onClick: () => {
+    // Display toast with shadcn UI toast
+    toast({
+      title: notification.title,
+      description: notification.body,
+      action: (
+        <button
+          onClick={() => {
             // Handle action
             updateNotificationStatus(notification.id, 'clicked');
             
@@ -48,18 +44,18 @@ export const useNotifications = () => {
             if (notification.reminderId) {
               navigate(`/dashboard/reminders/${notification.reminderId}`);
             }
-          }
-        },
-        onDismiss: () => {
+          }}
+        >
+          View
+        </button>
+      ),
+      onOpenChange: (open) => {
+        if (!open) {
           // Mark as received when dismissed
-          updateNotificationStatus(notification.id, 'received');
-        },
-        onAutoClose: () => {
-          // Mark as received when auto-closed
           updateNotificationStatus(notification.id, 'received');
         }
       }
-    );
+    });
   }, [updateNotificationStatus, navigate]);
   
   /**
@@ -91,7 +87,6 @@ export const useNotifications = () => {
             toast({
               title: 'Offline Action Queued',
               description: `Your ${action} action will be processed when you're back online.`,
-              duration: 3000
             });
             
             return true;

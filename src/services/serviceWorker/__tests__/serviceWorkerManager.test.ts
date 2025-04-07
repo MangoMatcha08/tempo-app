@@ -1,7 +1,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ServiceWorkerManager } from '../serviceWorkerManager';
-import { mockServiceWorker, createMockOfflineQueue } from '@/test/serviceWorkerTestUtils';
+import { mockServiceWorker, createMockOfflineQueue } from '@/__tests__/utils/serviceWorkerTestUtils';
 
 describe('ServiceWorkerManager', () => {
   // Mock navigator.serviceWorker
@@ -112,17 +112,6 @@ describe('ServiceWorkerManager', () => {
     
     // Mock offline queue
     const offlineQueue = createMockOfflineQueue();
-    vi.spyOn(offlineQueue, 'add');
-    vi.spyOn(offlineQueue, 'getAll').mockResolvedValue([
-      {
-        id: 'test-123',
-        action: 'view',
-        reminderId: 'reminder-123',
-        timestamp: Date.now(),
-        payload: {},
-        retryCount: 0
-      }
-    ]);
     
     // Set offline mode
     mockSW.networkStatus.setOnline(false);

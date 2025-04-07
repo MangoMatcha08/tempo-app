@@ -18,7 +18,7 @@ export interface ServiceWorkerMessage {
  * Message payload from app to service worker
  */
 export interface AppMessage {
-  type: 'SKIP_WAITING' | 'CLEAR_NOTIFICATIONS' | 'CHECK_PERMISSION';
+  type: 'SKIP_WAITING' | 'CLEAR_NOTIFICATIONS' | 'CHECK_PERMISSION' | 'NOTIFICATION_ACTION';
   payload?: any;
 }
 
