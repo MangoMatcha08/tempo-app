@@ -21,8 +21,9 @@ export const showNotification = (
       duration: 5000,
       variant: getPriorityToastVariant(reminderPriority),
       action: reminder.id ? (
-        <div>View</div> // This will be replaced by the ToastAction component
+        <div>View</div>
       ) : undefined
+      // This will be replaced by the ToastAction component
     });
   }
 
