@@ -1,9 +1,6 @@
-
 import { useState, useEffect, useCallback } from 'react';
-import { NotificationRecord } from '@/types/notifications/notificationHistoryTypes';
-import { ReminderPriority } from '@/types/reminderTypes';
-import { NotificationType } from '@/types/reminderTypes';
-import { NotificationDeliveryStatus } from '@/types/notifications/notificationHistoryTypes';
+import { NotificationRecord, NotificationDeliveryStatus } from '@/types/notifications/notificationHistoryTypes';
+import { ReminderPriority, NotificationType } from '@/types/reminderTypes';
 import { NotificationChannel } from '@/types/notifications/settingsTypes';
 
 const PAGE_SIZE = 10;
@@ -131,12 +128,12 @@ export const useNotificationPagination = ({
 function generateMockNotifications(count: number): NotificationRecord[] {
   const notifications: NotificationRecord[] = [];
   
-  const types = ['reminder', 'system', 'message'];
+  const types = [NotificationType.UPCOMING, NotificationType.OVERDUE, NotificationType.DAILY_SUMMARY];
   const priorities: ReminderPriority[] = [ReminderPriority.LOW, ReminderPriority.MEDIUM, ReminderPriority.HIGH];
   const statuses: NotificationDeliveryStatus[] = [NotificationDeliveryStatus.PENDING, NotificationDeliveryStatus.RECEIVED];
   
   for (let i = 0; i < count; i++) {
-    const type = types[i % types.length] as NotificationType;
+    const type = types[i % types.length];
     const priority = priorities[i % priorities.length];
     const status = i % 3 === 0 ? NotificationDeliveryStatus.PENDING : NotificationDeliveryStatus.RECEIVED;
     
@@ -148,8 +145,7 @@ function generateMockNotifications(count: number): NotificationRecord[] {
       type,
       priority,
       timestamp: Date.now() - (i * 3600000), // Hours ago
-      userId: 'test-user',
-      sourceId: type === 'reminder' ? `reminder-${i}` : null,
+      sourceId: type === NotificationType.UPCOMING ? `reminder-${i}` : null,
       sourceType: type,
       actions: [],
       image: null,

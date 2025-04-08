@@ -2,73 +2,40 @@
 import { ReminderPriority } from '@/types/reminderTypes';
 
 /**
- * Channel through which notifications can be delivered
+ * Notification delivery channels
  */
-export type NotificationChannel = 'email' | 'push' | 'inApp';
-
-/**
- * Settings for each notification channel
- */
-export interface NotificationChannelSettings {
-  enabled: boolean;
-  minPriority: ReminderPriority;
+export enum NotificationChannel {
+  IN_APP = 'inApp',
+  PUSH = 'push',
+  EMAIL = 'email',
+  SMS = 'sms'
 }
 
 /**
- * Email-specific notification settings
+ * Notification settings for a user
  */
-export interface EmailNotificationSettings extends NotificationChannelSettings {
-  address: string;
-  dailySummary?: {
+export interface NotificationSettings {
+  enabled: boolean;
+  email: {
     enabled: boolean;
-    timing: 'before' | 'after';
+    address: string;
+    minPriority: ReminderPriority;
+    dailySummary?: {
+      enabled: boolean;
+      timing: 'before' | 'after';
+    };
+  };
+  push: {
+    enabled: boolean;
+    minPriority: ReminderPriority;
+  };
+  inApp: {
+    enabled: boolean;
+    minPriority: ReminderPriority;
   };
 }
 
 /**
- * Push notification specific settings
+ * Notification permission state
  */
-export interface PushNotificationSettings extends NotificationChannelSettings {
-  // Push-specific settings can be added here
-}
-
-/**
- * In-app notification specific settings
- */
-export interface InAppNotificationSettings extends NotificationChannelSettings {
-  // In-app specific settings can be added here
-}
-
-/**
- * Complete user notification settings
- */
-export interface NotificationSettings {
-  enabled: boolean;
-  email: EmailNotificationSettings;
-  push: PushNotificationSettings;
-  inApp: InAppNotificationSettings;
-}
-
-/**
- * Default notification settings
- */
-export const defaultNotificationSettings: NotificationSettings = {
-  enabled: true,
-  email: {
-    enabled: true,
-    address: '',
-    minPriority: ReminderPriority.HIGH,
-    dailySummary: {
-      enabled: false,
-      timing: 'after'
-    }
-  },
-  push: {
-    enabled: true,
-    minPriority: ReminderPriority.MEDIUM
-  },
-  inApp: {
-    enabled: true,
-    minPriority: ReminderPriority.LOW
-  }
-};
+export type NotificationPermissionState = 'default' | 'granted' | 'denied' | 'unsupported';

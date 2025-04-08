@@ -27,14 +27,21 @@ export interface NotificationRecord {
   body: string;
   timestamp: number;
   type: NotificationType;
+  userId?: string; // Added userId field as optional
   reminderId?: string;
   priority: ReminderPriority;
   status: NotificationDeliveryStatus;
   channels: NotificationChannel[];
+  sourceId?: string | null;
+  sourceType?: string | NotificationType;
   actions?: Array<{
     type: NotificationAction;
     timestamp: number;
   }>;
+  image?: string | null;
+  read?: boolean;
+  readAt?: number | null;
+  metadata?: Record<string, any>;
 }
 
 /**
@@ -56,4 +63,3 @@ export interface NotificationHistoryState {
   error: Error | null;
   pagination: PaginationState;
 }
-
