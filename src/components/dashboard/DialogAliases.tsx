@@ -1,6 +1,6 @@
 
 /**
- * DialogAliases.ts
+ * DialogAliases.tsx
  * 
  * This file provides standardized naming for dialog components used in the dashboard.
  * It re-exports existing components under consistent naming conventions to improve
@@ -12,6 +12,7 @@
  * 3. Easier maintenance as component APIs evolve
  */
 
+import React from "react";
 import { QuickReminderModal, QuickReminderModalProps } from "./QuickReminderModal";
 import { VoiceRecorderModal, VoiceRecorderModalProps } from "./VoiceRecorderModal";
 import { EnhancedReminderCreator } from "./EnhancedReminderCreator";
@@ -35,11 +36,11 @@ export interface EnhancedReminderDialogProps {
   onReminderCreated?: (reminder: any) => void;
 }
 
-export const EnhancedReminderDialog = ({ 
+export const EnhancedReminderDialog: React.FC<EnhancedReminderDialogProps> = ({ 
   open, 
   onOpenChange, 
   onReminderCreated 
-}: EnhancedReminderDialogProps) => {
+}) => {
   const handleReminderCreated = (reminder: any) => {
     if (onReminderCreated) {
       onReminderCreated(reminder);
