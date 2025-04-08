@@ -1,13 +1,14 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Mail, BellRing, AlertTriangle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { sendTestNotification } from "@/lib/firebase/functions";
 import { 
-  useNotificationSettings, 
-  useNotificationPermission 
-} from "@/contexts/NotificationContext";
+  useNotificationSettings,
+  useNotificationPermission,
+  useNotificationServices
+} from "@/hooks/notifications";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -18,8 +19,9 @@ const TestNotifications = () => {
   const [isPushSending, setIsPushSending] = useState(false);
   const [includeDeviceInfo, setIncludeDeviceInfo] = useState(true);
   const { toast } = useToast();
-  const { settings: notificationSettings } = useNotificationSettings();
+  const { settings } = useNotificationSettings();
   const { permissionGranted, requestPermission } = useNotificationPermission();
+  const { sendTestNotification } = useNotificationServices();
 
   const handleTestEmail = async () => {
     if (!email) {
@@ -119,8 +121,8 @@ const TestNotifications = () => {
           />
           <Button 
             onClick={handleTestEmail} 
-            disabled={isEmailSending || !notificationSettings.email.enabled || !email}
-            variant={notificationSettings.email.enabled ? "default" : "outline"}
+            disabled={isEmailSending || !settings.email.enabled || !email}
+            variant={settings.email.enabled ? "default" : "outline"}
           >
             {isEmailSending ? (
               <>
@@ -139,7 +141,7 @@ const TestNotifications = () => {
           This will send a test email notification to verify your email settings.
         </p>
         
-        {!notificationSettings.email.enabled && (
+        {!settings.email.enabled && (
           <p className="text-sm text-amber-600 dark:text-amber-400">
             Email notifications are currently disabled in your settings.
           </p>
@@ -151,8 +153,8 @@ const TestNotifications = () => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
           <Button 
             onClick={handleTestPush} 
-            disabled={isPushSending || !notificationSettings.push.enabled}
-            variant={notificationSettings.push.enabled ? "default" : "outline"}
+            disabled={isPushSending || !settings.push.enabled}
+            variant={settings.push.enabled ? "default" : "outline"}
             className="w-full sm:w-auto"
           >
             {isPushSending ? (
@@ -172,13 +174,13 @@ const TestNotifications = () => {
           This will send a test push notification to your current device.
         </p>
         
-        {!notificationSettings.push.enabled && (
+        {!settings.push.enabled && (
           <p className="text-sm text-amber-600 dark:text-amber-400">
             Push notifications are currently disabled in your settings.
           </p>
         )}
         
-        {!permissionGranted && notificationSettings.push.enabled && (
+        {!permissionGranted && settings.push.enabled && (
           <p className="text-sm text-amber-600 dark:text-amber-400">
             You need to grant notification permissions in your browser first.
           </p>

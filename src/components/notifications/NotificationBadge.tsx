@@ -2,7 +2,7 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Bell } from "lucide-react";
-import { useNotificationDisplay } from "@/hooks/useNotificationDisplay";
+import { useNotificationDisplay } from "@/hooks/notifications/useNotificationDisplay";
 import { cn } from "@/lib/utils";
 
 interface NotificationBadgeProps {

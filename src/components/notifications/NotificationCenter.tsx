@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { 
   Sheet, 
@@ -9,7 +10,7 @@ import {
   SheetClose
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { useNotificationDisplay } from "@/hooks/useNotificationDisplay";
+import { useNotificationDisplay } from "@/hooks/notifications/useNotificationDisplay";
 import { Bell, Check, Clock, Filter, Settings } from "lucide-react";
 import NotificationBadge from "./NotificationBadge";
 import NotificationList from "./NotificationList";
@@ -26,7 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useFeature } from "@/contexts/FeatureFlagContext";
+import { useNotificationFeatures } from "@/hooks/notifications/useNotificationFeatures";
 
 interface NotificationCenterProps {
   className?: string;
@@ -42,12 +43,13 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
     unreadCount,
     clearHistory,
     pagination, 
-    setPage
+    setPage,
+    virtualizedListsEnabled
   } = useNotificationDisplay();
 
-  const historyEnabled = useFeature("HISTORY_ENABLED");
-  const paginatedLoading = useFeature("PAGINATED_LOADING");
-  const virtualizedLists = useFeature("VIRTUALIZED_LISTS");
+  const { isFeatureEnabled } = useNotificationFeatures();
+  const historyEnabled = isFeatureEnabled("HISTORY_ENABLED");
+  const paginatedLoading = isFeatureEnabled("PAGINATED_LOADING");
 
   const unreadNotifications = notifications.filter(
     n => n.status !== 'received' && n.status !== 'clicked'
@@ -140,7 +142,7 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
                 onAction={handleNotificationAction}
                 onMarkRead={markAsRead}
                 emptyMessage="No unread notifications"
-                virtualized={virtualizedLists}
+                virtualized={virtualizedListsEnabled}
                 showPagination={paginatedLoading && pagination.totalPages > 1}
                 currentPage={pagination.currentPage}
                 totalPages={pagination.totalPages}
@@ -156,7 +158,7 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
                 onAction={handleNotificationAction}
                 onMarkRead={markAsRead}
                 emptyMessage="No notifications"
-                virtualized={virtualizedLists}
+                virtualized={virtualizedListsEnabled}
                 showPagination={paginatedLoading && pagination.totalPages > 1}
                 currentPage={pagination.currentPage}
                 totalPages={pagination.totalPages}
