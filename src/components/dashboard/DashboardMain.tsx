@@ -133,12 +133,11 @@ const DashboardMain = ({
 
       {/* Modals */}
       <DashboardModals
-        isQuickReminderModalOpen={modalState.quickReminder}
-        isVoiceReminderModalOpen={modalState.voiceReminder}
-        onQuickReminderClose={() => closeModal('quickReminder')}
-        onVoiceReminderClose={() => closeModal('voiceReminder')}
-        onAddQuickReminder={addReminder}
-        user={user}
+        showQuickReminderModal={modalState.quickReminder}
+        setShowQuickReminderModal={(open: boolean) => setModalState(prev => ({ ...prev, quickReminder: open }))}
+        showVoiceRecorderModal={modalState.voiceReminder}
+        setShowVoiceRecorderModal={(open: boolean) => setModalState(prev => ({ ...prev, voiceReminder: open }))}
+        onReminderCreated={addReminder}
       />
 
       {/* Developer Panel */}
