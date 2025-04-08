@@ -1,5 +1,5 @@
-
-import { useNotifications as useNotificationContext, useNotificationHistory } from '@/contexts/NotificationContext';
+import { useNotifications as useNotificationContext } from '@/contexts/NotificationContext';
+import { useNotificationHistory } from '@/contexts/notificationHistory';
 import { toast } from 'sonner';
 import { NotificationRecord } from '@/types/notifications/notificationHistoryTypes';
 import { useCallback } from 'react';
