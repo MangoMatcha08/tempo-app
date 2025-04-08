@@ -18,17 +18,17 @@ import {
 } from '@/types/notifications/notificationHistoryTypes';
 
 import {
-  NotificationPermissionState
+  NotificationPermissionState,
+  PermissionRequestResult
 } from '@/types/notifications/permissionTypes';
 
 import {
   ServiceWorkerMessage,
-  ServiceWorkerStatus,
-  NotificationActionPayload
+  // ServiceWorkerStatus and NotificationActionPayload are not exported from the file
 } from '@/types/notifications/serviceWorkerTypes';
 
-// Export all the imported types
-export {
+// Export all the imported types using 'export type' syntax for isolatedModules compatibility
+export type { 
   NotificationSettings,
   NotificationChannel,
   NotificationRecord,
@@ -38,6 +38,6 @@ export {
   NotificationHistoryState,
   NotificationPermissionState,
   ServiceWorkerMessage,
-  ServiceWorkerStatus,
-  NotificationActionPayload
+  PermissionRequestResult
 };
+

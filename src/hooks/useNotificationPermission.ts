@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { requestNotificationPermission } from '@/services/notificationService';
-import { PermissionRequestResult } from '@/types/notificationTypes';
+import { PermissionRequestResult } from '@/types/notifications/permissionTypes';
 
 export const useNotificationPermission = () => {
   const [permissionGranted, setPermissionGranted] = useState<boolean>(false);

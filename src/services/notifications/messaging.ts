@@ -2,7 +2,7 @@
 import { getToken, onMessage } from 'firebase/messaging';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { initializeFirebase, messaging, firestore, vapidKey } from './firebase';
-import { defaultNotificationSettings } from './types';
+import { defaultNotificationSettings } from '@/types/notifications/settingsTypes';
 import { httpsCallable, getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 // Request permission and get FCM token
