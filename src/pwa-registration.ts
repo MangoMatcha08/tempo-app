@@ -1,5 +1,7 @@
+
 import { toast } from '@/hooks/use-toast';
 import { logger } from '@/services/serviceWorker/serviceWorkerLogger';
+import { ToastAction } from '@/components/ui/toast';
 
 // Service Worker Registration and Update Management
 interface CustomRegistration extends ServiceWorkerRegistration {
@@ -70,14 +72,18 @@ const setupUpdateListeners = (registration: ServiceWorkerRegistration) => {
         toast({
           title: 'App Update Available',
           description: 'Refresh to update to the latest version.',
-          action: {
-            label: 'Update Now',
-            onClick: () => {
-              // Skip waiting and reload
-              newWorker.postMessage({ type: 'SKIP_WAITING' });
-              window.location.reload();
-            }
-          }
+          action: (
+            <ToastAction
+              altText="Update Now"
+              onClick={() => {
+                // Skip waiting and reload
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                window.location.reload();
+              }}
+            >
+              Update Now
+            </ToastAction>
+          )
         });
       }
     });
@@ -119,12 +125,16 @@ export const promptUserToReload = () => {
   toast({
     title: 'App Update Available',
     description: 'A new version of this app is available. Reload to update?',
-    action: {
-      label: 'Reload',
-      onClick: () => {
-        window.location.reload();
-      }
-    }
+    action: (
+      <ToastAction
+        altText="Reload"
+        onClick={() => {
+          window.location.reload();
+        }}
+      >
+        Reload
+      </ToastAction>
+    )
   });
 };
 

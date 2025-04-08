@@ -1,3 +1,4 @@
+
 import { useNotifications as useNotificationContext, useNotificationHistory } from '@/contexts/NotificationContext';
 import { toast } from '@/hooks/use-toast';
 import { NotificationRecord, NotificationAction } from '@/types/notifications/notificationHistoryTypes';
@@ -6,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { offlineQueue } from '@/services/offline/offlineQueue';
 import { serviceWorkerManager } from '@/services/serviceWorker/serviceWorkerManager';
 import { logger } from '@/services/serviceWorker/serviceWorkerLogger';
+import { ToastAction } from '@/components/ui/toast';
 
 /**
  * Custom hook for enhanced notification functionality
@@ -35,7 +37,8 @@ export const useNotifications = () => {
       title: notification.title,
       description: notification.body,
       action: (
-        <button
+        <ToastAction 
+          altText="View notification" 
           onClick={() => {
             // Handle action
             updateNotificationStatus(notification.id, 'clicked');
@@ -47,7 +50,7 @@ export const useNotifications = () => {
           }}
         >
           View
-        </button>
+        </ToastAction>
       ),
       onOpenChange: (open) => {
         if (!open) {

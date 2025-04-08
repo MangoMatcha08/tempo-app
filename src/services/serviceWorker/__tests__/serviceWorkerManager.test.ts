@@ -120,7 +120,7 @@ describe('ServiceWorkerManager', () => {
     await serviceWorkerManager.sendNotificationAction('view', 'reminder-123');
     
     // Should have queued the action
-    expect(offlineQueue.add).toHaveBeenCalled();
+    expect(offlineQueue.addToQueue).toHaveBeenCalled();
     
     // Set online mode
     mockSW.networkStatus.setOnline(true);
