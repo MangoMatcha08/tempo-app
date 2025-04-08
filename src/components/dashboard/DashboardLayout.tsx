@@ -2,14 +2,14 @@
 import { ReactNode } from "react";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import DashboardSidebar from "./DashboardSidebar";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useBreakpointDown } from "@/hooks/use-media-query";
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  const isMobile = useIsMobile();
+  const isMobile = useBreakpointDown("md");
 
   return (
     <SidebarProvider defaultOpen={!isMobile}>

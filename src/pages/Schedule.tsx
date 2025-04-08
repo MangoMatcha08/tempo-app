@@ -4,12 +4,13 @@ import { ScheduleView } from '@/components/schedule/ScheduleView';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Home } from 'lucide-react';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useMediaQuery, useBreakpointDown } from '@/hooks/use-media-query';
 
 // Memoize the Schedule component to prevent unnecessary renders
 const Schedule = memo(() => {
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
+  // Use the new hook directly instead of useIsMobile
+  const isMobile = useBreakpointDown("md");
 
   // Memoize navigation handler
   const handleNavigateToDashboard = useCallback(() => 
