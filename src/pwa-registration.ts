@@ -1,8 +1,4 @@
 
-import { toast } from '@/hooks/use-toast';
-import { logger } from '@/services/serviceWorker/serviceWorkerLogger';
-import { ToastAction } from '@/components/ui/toast';
-
 // Service Worker Registration and Update Management
 interface CustomRegistration extends ServiceWorkerRegistration {
   sync?: {
@@ -10,146 +6,121 @@ interface CustomRegistration extends ServiceWorkerRegistration {
   };
 }
 
-/**
- * Register the service worker with error handling and graceful degradation
- */
+// Register the service worker
 export const registerServiceWorker = async () => {
   if ('serviceWorker' in navigator) {
     try {
-      logger.info('Registering service worker');
       const registration = await navigator.serviceWorker.register('/service-worker.js');
-      logger.info('Service worker registration complete', { scope: registration.scope });
-      
-      // Set up event listeners for service worker updates
-      setupUpdateListeners(registration);
-      
+      console.log('Service worker registration complete');
       return registration;
     } catch (error) {
-      logger.error('Service worker registration failed:', error);
-      
-      // Show error toast for graceful degradation
-      toast({
-        title: 'Limited Offline Support',
-        description: 'Some features may not work properly without offline support.',
-        variant: 'destructive'
-      });
-      
+      console.error('Service worker registration failed:', error);
       throw error;
     }
   } else {
-    logger.warn('Service workers are not supported in this browser');
-    
-    // Show warning toast for graceful degradation
-    toast({
-      title: 'Limited App Features',
-      description: 'Your browser does not support offline mode and push notifications.',
-      variant: 'destructive'
-    });
-    
+    console.warn('Service workers are not supported in this browser');
     throw new Error('Service workers not supported');
   }
 };
 
-/**
- * Set up listeners for service worker updates
- */
-const setupUpdateListeners = (registration: ServiceWorkerRegistration) => {
-  // Listen for new service workers
-  registration.addEventListener('updatefound', () => {
-    // Get the installing service worker
-    const newWorker = registration.installing;
-    if (!newWorker) return;
-    
-    logger.info('New service worker installing');
-    
-    // Listen for state changes
-    newWorker.addEventListener('statechange', () => {
-      if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-        // New service worker is installed and waiting to activate
-        logger.info('New service worker installed and waiting');
-        
-        // Show update toast
-        toast({
-          title: 'App Update Available',
-          description: 'Refresh to update to the latest version.',
-          action: (
-            <ToastAction
-              altText="Update Now"
-              onClick={() => {
-                // Skip waiting and reload
-                newWorker.postMessage({ type: 'SKIP_WAITING' });
-                window.location.reload();
-              }}
-            >
-              Update Now
-            </ToastAction>
-          )
-        });
+// Check for service worker updates
+export const checkForUpdates = async () => {
+  if ('serviceWorker' in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (registration) {
+        await registration.update();
+        console.log('Service worker update check complete');
       }
-    });
-  });
-  
-  // Listen for controller change (service worker activated)
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    logger.info('Service worker controller changed');
-  });
-};
-
-/**
- * Check for updates to the service worker
- */
-export const checkForUpdates = async (registration: CustomRegistration) => {
-  try {
-    logger.info('Checking for service worker updates');
-    await registration.update();
-  } catch (error) {
-    logger.error('Failed to check for service worker updates:', error);
+    } catch (error) {
+      console.error('Service worker update check failed:', error);
+    }
   }
 };
 
-/**
- * Set up periodic update checks
- */
-export const setupPeriodicUpdateChecks = (registration: CustomRegistration) => {
-  // Check for updates every hour
-  setInterval(() => {
-    checkForUpdates(registration);
-  }, 3600000);
-};
-
-/**
- * Prompt user to reload the page for updates
- */
-export const promptUserToReload = () => {
-  // Show toast notification
-  toast({
-    title: 'App Update Available',
-    description: 'A new version of this app is available. Reload to update?',
-    action: (
-      <ToastAction
-        altText="Reload"
-        onClick={() => {
-          window.location.reload();
-        }}
-      >
-        Reload
-      </ToastAction>
-    )
-  });
-};
-
-/**
- * Handle the service worker message event
- */
-export const handleServiceWorkerMessage = (event: MessageEvent) => {
-  const message = event.data;
+// Setup periodic update checks (time in minutes)
+export const setupPeriodicUpdateChecks = (intervalMinutes: number) => {
+  // Convert minutes to milliseconds
+  const interval = intervalMinutes * 60 * 1000;
   
-  // Handle different message types
-  switch (message.type) {
-    case 'UPDATE_AVAILABLE':
-      promptUserToReload();
-      break;
-    default:
-      console.warn('Unknown message from service worker:', message);
+  // Perform initial check
+  checkForUpdates();
+  
+  // Set up periodic checks
+  setInterval(checkForUpdates, interval);
+  
+  console.log(`Service worker update checks scheduled every ${intervalMinutes} minutes`);
+};
+
+// Handle update found event
+export const onUpdateFound = (callback: () => void) => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistration().then(registration => {
+      if (registration) {
+        registration.addEventListener('updatefound', () => {
+          console.log('Service worker update found');
+          
+          // Get the new service worker
+          const newWorker = registration.installing;
+          
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // New service worker is installed and ready to take over
+                console.log('New service worker installed and ready');
+                callback();
+              }
+            });
+          }
+        });
+      }
+    });
+  }
+};
+
+// Prompt user to reload the page for updates
+export const promptUserToReload = () => {
+  // This can be implemented with a custom UI component
+  const userConfirmed = window.confirm(
+    'A new version of this app is available. Reload to update?'
+  );
+  
+  if (userConfirmed) {
+    window.location.reload();
+  }
+};
+
+// Register for background sync
+export const registerBackgroundSync = async (syncTag: string) => {
+  if ('serviceWorker' in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      // Use the custom interface to handle the optional sync property
+      const customReg = registration as CustomRegistration;
+      
+      if (customReg.sync) {
+        await customReg.sync.register(syncTag);
+        console.log(`Background sync registered for tag: ${syncTag}`);
+        return true;
+      } else {
+        console.warn('Background sync is not supported in this browser');
+        return false;
+      }
+    } catch (error) {
+      console.error('Background sync registration failed:', error);
+      return false;
+    }
+  }
+  return false;
+};
+
+// Manually trigger an update and reload
+export const updateAndReload = async () => {
+  if ('serviceWorker' in navigator) {
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (registration) {
+      await registration.update();
+      window.location.reload();
+    }
   }
 };

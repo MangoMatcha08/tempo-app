@@ -6,7 +6,7 @@ import { NotificationAction } from './notificationHistoryTypes';
  * Message payload from service worker to app
  */
 export interface ServiceWorkerMessage {
-  type: 'NOTIFICATION_CLICKED' | 'NOTIFICATION_CLOSED' | 'NOTIFICATION_ACTION' | 'READY' | 'UPDATE_AVAILABLE';
+  type: 'NOTIFICATION_CLICKED' | 'NOTIFICATION_CLOSED' | 'NOTIFICATION_ACTION' | 'READY';
   payload?: {
     reminderId?: string;
     action?: NotificationAction;
@@ -18,7 +18,7 @@ export interface ServiceWorkerMessage {
  * Message payload from app to service worker
  */
 export interface AppMessage {
-  type: 'SKIP_WAITING' | 'CLEAR_NOTIFICATIONS' | 'CHECK_PERMISSION' | 'NOTIFICATION_ACTION';
+  type: 'SKIP_WAITING' | 'CLEAR_NOTIFICATIONS' | 'CHECK_PERMISSION';
   payload?: any;
 }
 
