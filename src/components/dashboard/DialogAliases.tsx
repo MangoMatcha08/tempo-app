@@ -13,9 +13,11 @@
  */
 
 import React from "react";
-import { QuickReminderModal, QuickReminderModalProps } from "./QuickReminderModal";
-import { VoiceRecorderModal, VoiceRecorderModalProps } from "./VoiceRecorderModal";
-import { EnhancedReminderCreator } from "./EnhancedReminderCreator";
+import QuickReminderModal from "./QuickReminderModal";
+import { type QuickReminderModalProps } from "./QuickReminderModal";
+import VoiceRecorderModal from "./VoiceRecorderModal";
+import { type VoiceRecorderModalProps } from "./VoiceRecorderModal";
+import EnhancedReminderCreator from "./EnhancedReminderCreator";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 // Re-export QuickReminderModal as AddReminderDialog
