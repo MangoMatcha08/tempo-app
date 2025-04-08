@@ -1,8 +1,7 @@
 
 import React from "react";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "sonner";
 import { useTheme } from "next-themes";
-import { Toaster as SonnerToaster } from "sonner";
 
 interface EnhancedToastsProps {
   // No props needed for this component
@@ -16,29 +15,46 @@ const EnhancedToasts = ({}: EnhancedToastsProps) => {
   
   return (
     <>
-      {/* Standard toast */}
-      <Toaster position="bottom-right" />
-      
-      {/* Notification-specific toast with different positioning */}
-      <SonnerToaster
+      {/* Standard toast in bottom-right */}
+      <Toaster 
+        position="bottom-right"
         theme={theme as any}
-        position="top-right"
+        className="toast-container"
         toastOptions={{
-          className: "notification-toast",
           style: {
             background: "var(--background)",
             color: "var(--foreground)",
             border: "1px solid var(--border)",
           },
-          actionButtonStyle: {
-            background: "var(--primary)",
-            color: "var(--primary-foreground)",
-          },
-          // Removed descriptionStyle as it's not supported
-          // Added a CSS class that can be targeted instead
           classNames: {
-            description: "text-muted-foreground text-sm"
+            toast: "toast-item",
+            title: "text-sm font-semibold",
+            description: "text-sm text-muted-foreground",
+            actionButton: "bg-primary text-primary-foreground"
+          }
+        }}
+        closeButton
+        richColors
+        expand
+      />
+      
+      {/* Notification-specific toast with different positioning */}
+      <Toaster
+        position="top-right"
+        theme={theme as any}
+        className="notification-toast-container"
+        toastOptions={{
+          style: {
+            background: "var(--background)",
+            color: "var(--foreground)",
+            border: "1px solid var(--border)",
           },
+          classNames: {
+            toast: "notification-toast",
+            title: "text-sm font-semibold",
+            description: "text-sm text-muted-foreground",
+            actionButton: "bg-primary text-primary-foreground"
+          }
         }}
         closeButton
         richColors

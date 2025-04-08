@@ -21,34 +21,31 @@ export const useNotifications = () => {
     updateNotificationStatus(notification.id, 'sent');
     
     // Display toast with Sonner
-    toast(
-      notification.title,
-      {
-        id: notification.id,
-        description: notification.body,
-        duration: 5000,
-        action: {
-          label: 'View',
-          onClick: () => {
-            // Handle action
-            updateNotificationStatus(notification.id, 'clicked');
-            
-            // Navigate to reminder if ID exists
-            if (notification.reminderId) {
-              navigate(`/dashboard/reminders/${notification.reminderId}`);
-            }
+    toast(notification.title, {
+      id: notification.id,
+      description: notification.body,
+      duration: 5000,
+      action: {
+        label: 'View',
+        onClick: () => {
+          // Handle action
+          updateNotificationStatus(notification.id, 'clicked');
+          
+          // Navigate to reminder if ID exists
+          if (notification.reminderId) {
+            navigate(`/dashboard/reminders/${notification.reminderId}`);
           }
-        },
-        onDismiss: () => {
-          // Mark as received when dismissed
-          updateNotificationStatus(notification.id, 'received');
-        },
-        onAutoClose: () => {
-          // Mark as received when auto-closed
-          updateNotificationStatus(notification.id, 'received');
         }
+      },
+      onDismiss: () => {
+        // Mark as received when dismissed
+        updateNotificationStatus(notification.id, 'received');
+      },
+      onAutoClose: () => {
+        // Mark as received when auto-closed
+        updateNotificationStatus(notification.id, 'received');
       }
-    );
+    });
   }, [updateNotificationStatus, navigate]);
   
   return {
