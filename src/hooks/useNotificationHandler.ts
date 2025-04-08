@@ -48,7 +48,7 @@ export interface NotificationHandler {
   handleServiceWorkerMessage: (message: ServiceWorkerMessage) => void;
   
   // Testing
-  sendTestNotification: (options: { type: string; email?: string; includeDeviceInfo?: boolean }) => Promise<any>;
+  sendTestNotification: (options: { type: "push" | "email"; email?: string; includeDeviceInfo?: boolean }) => Promise<any>;
   
   // Utility
   unreadCount: number;
@@ -92,6 +92,7 @@ export function useNotificationHandler(): NotificationHandler {
     requestPermission
   } = useNotificationPermission();
   
+  // Get notification display functionality
   const {
     notifications,
     markAsRead,
@@ -103,10 +104,14 @@ export function useNotificationHandler(): NotificationHandler {
     setPage,
     setPageSize,
     loading: displayLoading,
-    error: displayError,
+    error: displayError
+  } = useNotificationDisplay();
+  
+  // Get direct access to history functions not exposed by display hook
+  const {
     addNotification,
     updateNotificationStatus
-  } = useNotificationDisplay();
+  } = useNotificationHistory();
 
   /**
    * Show a toast notification with actions
@@ -145,9 +150,10 @@ export function useNotificationHandler(): NotificationHandler {
 
   /**
    * Send a test notification (wrapper)
+   * @param options Configuration options for the test notification
    */
   const sendTestNotificationWrapper = useCallback(async (options: { 
-    type: string; 
+    type: "push" | "email"; 
     email?: string; 
     includeDeviceInfo?: boolean 
   }) => {
