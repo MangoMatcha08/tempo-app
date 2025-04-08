@@ -23,30 +23,36 @@ export const useNotificationPerformance = (componentName: string) => {
   }, [componentName, componentPerf]);
   
   // Measure a function that loads notifications
-  const measureNotificationLoad = useCallback(<T>(
-    name: string,
-    loadFn: () => Promise<T>
-  ): Promise<T> => {
-    return notificationPerformance.measureServiceWorkerOperation(
-      `${componentName}-${name}`,
-      loadFn,
-      { component: componentName }
-    );
-  }, [componentName]);
+  const measureNotificationLoad = useCallback(
+    <T,>(  // Added comma after T to fix JSX/TypeScript ambiguity
+      name: string,
+      loadFn: () => Promise<T>
+    ): Promise<T> => {
+      return notificationPerformance.measureServiceWorkerOperation(
+        `${componentName}-${name}`,
+        loadFn,
+        { component: componentName }
+      );
+    }, 
+    [componentName]
+  );
   
   // Track notification interaction
-  const trackInteraction = useCallback((
-    action: string,
-    metadata?: Record<string, any>
-  ) => {
-    const id = notificationPerformance.measureInteraction(action, {
-      ...metadata,
-      component: componentName
-    });
-    
-    // Return a function to end the measurement
-    return () => performanceMonitor.endMark(id);
-  }, [componentName]);
+  const trackInteraction = useCallback(
+    (
+      action: string,
+      metadata?: Record<string, any>
+    ) => {
+      const id = notificationPerformance.measureInteraction(action, {
+        ...metadata,
+        component: componentName
+      });
+      
+      // Return a function to end the measurement
+      return () => performanceMonitor.endMark(id);
+    }, 
+    [componentName]
+  );
   
   return {
     measureNotificationLoad,
