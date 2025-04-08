@@ -1,9 +1,11 @@
+
 import React from "react";
 import { NotificationRecord } from "@/types/notifications/notificationHistoryTypes";
 import NotificationCard from "./NotificationCard";
 import { Info } from "lucide-react";
 import VirtualizedNotificationList from "./VirtualizedNotificationList";
 import NotificationPagination from "./NotificationPagination";
+import { useFeature } from "@/contexts/FeatureFlagContext";
 
 interface NotificationListProps {
   notifications: NotificationRecord[];
@@ -26,7 +28,7 @@ const NotificationList = ({
   onMarkRead,
   emptyMessage = "No notifications",
   className,
-  virtualized = true,
+  virtualized: explicitlyVirtualized,
   height,
   loading = false,
   showPagination = false,
@@ -34,6 +36,15 @@ const NotificationList = ({
   totalPages = 1,
   onPageChange
 }: NotificationListProps) => {
+  // Use feature flag to determine if we should use virtualization
+  const virtualizedListsEnabled = useFeature("VIRTUALIZED_LISTS");
+  
+  // Allow prop to override feature flag (explicit false takes precedence)
+  const virtualized = explicitlyVirtualized !== false && virtualizedListsEnabled;
+  
+  // Determine if pagination should be shown based on feature flag
+  const paginationEnabled = useFeature("PAGINATED_LOADING");
+  const shouldShowPagination = showPagination && paginationEnabled;
 
   // Use virtualized list if requested and we have enough items
   if (virtualized && notifications.length > 5) {
@@ -49,7 +60,7 @@ const NotificationList = ({
           loading={loading}
         />
         
-        {showPagination && onPageChange && (
+        {shouldShowPagination && onPageChange && (
           <NotificationPagination
             currentPage={currentPage}
             totalPages={totalPages}
@@ -98,7 +109,7 @@ const NotificationList = ({
         </div>
       </div>
       
-      {showPagination && onPageChange && (
+      {shouldShowPagination && onPageChange && (
         <NotificationPagination
           currentPage={currentPage}
           totalPages={totalPages}

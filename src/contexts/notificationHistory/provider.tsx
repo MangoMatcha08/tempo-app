@@ -1,312 +1,213 @@
-
-import React, { useReducer, useEffect, useState, useCallback } from 'react';
-import { NotificationRecord, NotificationAction } from '@/types/notifications/notificationHistoryTypes';
-import { NOTIFICATION_FEATURES } from '@/types/notifications/index';
-import { 
-  notificationHistoryReducer, 
-  initialState, 
-  cleanupByAge, 
-  cleanupByCount 
-} from './reducer';
+import React, { useReducer, useCallback, useEffect, useState } from 'react';
 import { NotificationHistoryContext } from './context';
+import { reducer, initialState } from './reducer';
+import { NotificationAction } from '@/types/notifications/notificationHistoryTypes';
 import { 
   DEFAULT_CLEANUP_CONFIG, 
   NotificationCleanupConfig 
 } from '@/types/notifications/serviceWorkerTypes';
-import { serviceWorkerManager } from '@/services/notifications/ServiceWorkerManager';
+import { useFeatureFlags } from '@/contexts/FeatureFlagContext';
 
-interface NotificationHistoryProviderProps {
+const LOCAL_STORAGE_KEY = 'notification_history';
+const CLEANUP_CONFIG_KEY = 'notification_cleanup_config';
+
+export interface NotificationHistoryProviderProps {
   children: React.ReactNode;
 }
 
 export const NotificationHistoryProvider: React.FC<NotificationHistoryProviderProps> = ({ children }) => {
-  const [state, dispatch] = useReducer(notificationHistoryReducer, initialState);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(reducer, initialState);
   const [cleanupConfig, setCleanupConfig] = useState<NotificationCleanupConfig>(DEFAULT_CLEANUP_CONFIG);
+  const { flags } = useFeatureFlags();
 
-  // Get user ID and cleanup config from local storage
   useEffect(() => {
-    const storedUserId = localStorage.getItem('userId');
-    if (storedUserId) {
-      setUserId(storedUserId);
-    }
+    loadHistory();
     
-    // Load cleanup config from local storage
-    const storedCleanupConfig = localStorage.getItem('notificationCleanupConfig');
-    if (storedCleanupConfig) {
-      try {
-        const parsedConfig = JSON.parse(storedCleanupConfig);
+    try {
+      const storedConfig = localStorage.getItem(CLEANUP_CONFIG_KEY);
+      if (storedConfig) {
+        const parsedConfig = JSON.parse(storedConfig);
         setCleanupConfig({
           ...DEFAULT_CLEANUP_CONFIG,
           ...parsedConfig
         });
-      } catch (error) {
-        console.error('Error parsing cleanup config:', error);
-        setCleanupConfig(DEFAULT_CLEANUP_CONFIG);
       }
+    } catch (error) {
+      console.error('Error loading cleanup configuration:', error);
     }
   }, []);
 
-  // Load notification history when user ID is available
   useEffect(() => {
-    if (userId && NOTIFICATION_FEATURES.HISTORY_ENABLED) {
-      loadHistory();
+    if (state.records.length > 0) {
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state.records));
+      } catch (error) {
+        console.error('Error saving notification history:', error);
+      }
     }
-  }, [userId, state.pagination.currentPage, state.pagination.pageSize]);
-  
-  // Schedule automated cleanup based on interval
+  }, [state.records]);
+
   useEffect(() => {
-    if (!userId || !cleanupConfig.enabled || !NOTIFICATION_FEATURES.HISTORY_ENABLED) return;
-    
-    const lastCleanup = cleanupConfig.lastCleanup || 0;
-    const now = Date.now();
-    const cleanupIntervalMs = cleanupConfig.cleanupInterval * 60 * 60 * 1000;
-    
-    // Check if cleanup is due
-    if (now - lastCleanup > cleanupIntervalMs) {
-      runAutomaticCleanup();
-    }
-    
-    // Schedule next cleanup
-    const nextCleanupTime = Math.max(0, cleanupIntervalMs - (now - lastCleanup));
-    const cleanupTimer = setTimeout(() => runAutomaticCleanup(), nextCleanupTime);
-    
-    return () => clearTimeout(cleanupTimer);
-  }, [userId, cleanupConfig, state.records.length]);
-
-  // Load notification history
-  const loadHistory = async () => {
-    if (!userId || !NOTIFICATION_FEATURES.HISTORY_ENABLED) return;
-
-    dispatch({ type: 'LOAD_HISTORY_START' });
-    
     try {
-      // This will be implemented in a future phase with actual Firebase integration
-      // For now, we're just simulating paginated data
-      
-      // Simulate pagination in development by generating mock data
-      const startIndex = (state.pagination.currentPage - 1) * state.pagination.pageSize;
-      const endIndex = startIndex + state.pagination.pageSize;
-      
-      // In a real implementation, you'd fetch only the current page from Firebase
-      // For now, we're simulating with either an empty array or mock data
-      const mockRecords: NotificationRecord[] = [];
-      const totalItems = mockRecords.length;
-      
-      dispatch({ 
-        type: 'LOAD_HISTORY_SUCCESS', 
-        payload: { 
-          records: mockRecords.slice(startIndex, endIndex), 
-          totalItems 
-        }
-      });
+      localStorage.setItem(CLEANUP_CONFIG_KEY, JSON.stringify(cleanupConfig));
     } catch (error) {
-      console.error('Error loading notification history:', error);
-      dispatch({ 
-        type: 'LOAD_HISTORY_ERROR', 
-        payload: error instanceof Error ? error : new Error('Failed to load notification history') 
-      });
+      console.error('Error saving cleanup configuration:', error);
     }
-  };
-
-  // Add a notification to history
-  const addNotification = (notification: NotificationRecord) => {
-    if (!NOTIFICATION_FEATURES.HISTORY_ENABLED) return;
-    dispatch({ type: 'ADD_NOTIFICATION', payload: notification });
-    
-    // In a future phase, we would persist this to Firebase
-  };
-
-  // Update notification status
-  const updateNotificationStatus = (id: string, status: string) => {
-    if (!NOTIFICATION_FEATURES.HISTORY_ENABLED) return;
-    dispatch({ type: 'UPDATE_NOTIFICATION_STATUS', payload: { id, status } });
-    
-    // In a future phase, we would persist this to Firebase
-  };
-
-  // Add action to notification
-  const addNotificationAction = (id: string, actionType: NotificationAction) => {
-    if (!NOTIFICATION_FEATURES.HISTORY_ENABLED) return;
-    dispatch({ 
-      type: 'ADD_NOTIFICATION_ACTION', 
-      payload: { 
-        id, 
-        action: { 
-          type: actionType, 
-          timestamp: Date.now() 
-        } 
-      } 
-    });
-    
-    // In a future phase, we would persist this to Firebase
-  };
-
-  // Clear notification history
-  const clearHistory = () => {
-    if (!NOTIFICATION_FEATURES.HISTORY_ENABLED) return;
-    dispatch({ type: 'CLEAR_HISTORY' });
-    
-    // In a future phase, we would persist this to Firebase
-  };
+  }, [cleanupConfig]);
   
-  // Run automatic cleanup based on configured rules
-  const runAutomaticCleanup = async () => {
-    if (!NOTIFICATION_FEATURES.HISTORY_ENABLED || !cleanupConfig.enabled) return;
-    
-    console.log('Running automatic notification cleanup');
-    
+  const addNotification = useCallback((notification) => {
+    dispatch({ type: 'ADD_NOTIFICATION', payload: notification });
+  }, []);
+
+  const updateNotificationStatus = useCallback((id, status) => {
+    dispatch({ type: 'UPDATE_STATUS', payload: { id, status } });
+  }, []);
+
+  const addNotificationAction = useCallback((id, action) => {
+    dispatch({ type: 'ADD_ACTION', payload: { id, action } });
+  }, []);
+
+  const clearHistory = useCallback(() => {
+    dispatch({ type: 'CLEAR_HISTORY' });
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+  }, []);
+
+  const loadHistory = useCallback(async () => {
     try {
-      // Apply age-based cleanup
-      const { keptRecords: afterAgeCleanup, removedRecords: removedByAge } = cleanupByAge(
-        state.records,
-        cleanupConfig.maxAge,
-        cleanupConfig.highPriorityMaxAge,
-        cleanupConfig.keepHighPriority
-      );
-      
-      // Apply count-based cleanup to the remaining notifications
-      const { keptRecords: finalRecords, removedRecords: removedByCount } = cleanupByCount(
-        afterAgeCleanup,
-        cleanupConfig.maxCount
-      );
-      
-      // Combine removed IDs from both cleanups
-      const removedIds = [
-        ...removedByAge.map(n => n.id),
-        ...removedByCount.map(n => n.id)
-      ];
-      
-      if (removedIds.length > 0) {
-        // Log cleanup stats
-        console.log(`Cleaned up ${removedIds.length} notifications:`, {
-          byAge: removedByAge.length,
-          byCount: removedByCount.length
-        });
-        
-        // Update state
-        dispatch({ type: 'CLEANUP_NOTIFICATIONS', payload: { removedIds } });
-        
-        // In a future phase, we would persist this cleanup to Firebase
-        
-        // Update last cleanup timestamp
-        const updatedConfig = {
-          ...cleanupConfig,
-          lastCleanup: Date.now()
-        };
-        
-        setCleanupConfig(updatedConfig);
-        localStorage.setItem('notificationCleanupConfig', JSON.stringify(updatedConfig));
-        
-        // Also inform service worker about the cleanup
-        serviceWorkerManager.sendMessage({
-          type: 'CLEANUP_NOTIFICATIONS', 
-          payload: {
-            cleanupOptions: {
-              maxAge: cleanupConfig.maxAge,
-              maxCount: cleanupConfig.maxCount
-            }
-          }
-        });
+      const storedHistory = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (storedHistory) {
+        const parsedHistory = JSON.parse(storedHistory);
+        dispatch({ type: 'LOAD_HISTORY', payload: parsedHistory });
       }
     } catch (error) {
-      console.error('Error during automatic cleanup:', error);
+      console.error('Error loading notification history:', error);
     }
-  };
-  
-  // Manual cleanup with options
-  const cleanupNotifications = async (options: {
-    maxAge?: number;
-    maxCount?: number;
-    keepHighPriority?: boolean;
-    highPriorityMaxAge?: number;
-  } = {}) => {
-    if (!NOTIFICATION_FEATURES.HISTORY_ENABLED) return;
-    
-    const cleanupMaxAge = options.maxAge ?? cleanupConfig.maxAge;
-    const cleanupMaxCount = options.maxCount ?? cleanupConfig.maxCount;
-    const keepHighPriority = options.keepHighPriority ?? cleanupConfig.keepHighPriority;
-    const highPriorityMaxAge = options.highPriorityMaxAge ?? cleanupConfig.highPriorityMaxAge;
-    
-    // Apply age-based cleanup
-    const { keptRecords: afterAgeCleanup, removedRecords: removedByAge } = cleanupByAge(
-      state.records,
-      cleanupMaxAge,
-      highPriorityMaxAge,
-      keepHighPriority
-    );
-    
-    // Apply count-based cleanup
-    const { keptRecords: finalRecords, removedRecords: removedByCount } = cleanupByCount(
-      afterAgeCleanup,
-      cleanupMaxCount
-    );
-    
-    // Combine removed IDs
-    const removedIds = [
-      ...removedByAge.map(n => n.id),
-      ...removedByCount.map(n => n.id)
-    ];
-    
-    if (removedIds.length > 0) {
-      dispatch({ type: 'CLEANUP_NOTIFICATIONS', payload: { removedIds } });
-      
-      // In a future phase, we would persist this to Firebase
-    }
-    
-    return {
-      totalRemoved: removedIds.length,
-      byAge: removedByAge.length,
-      byCount: removedByCount.length
-    };
-  };
-  
-  // Update cleanup configuration
-  const updateCleanupConfig = (newConfig: Partial<NotificationCleanupConfig>) => {
-    const updatedConfig = {
-      ...cleanupConfig,
-      ...newConfig
-    };
-    
-    setCleanupConfig(updatedConfig);
-    localStorage.setItem('notificationCleanupConfig', JSON.stringify(updatedConfig));
-    
-    // Also inform service worker about the updated config
-    serviceWorkerManager.updateCacheConfig({
-      cleanupConfig: updatedConfig
-    });
-    
-    return updatedConfig;
-  };
+  }, []);
 
-  // Set current page
   const setPage = useCallback((page: number) => {
     dispatch({ type: 'SET_PAGE', payload: page });
   }, []);
 
-  // Set page size
   const setPageSize = useCallback((size: number) => {
     dispatch({ type: 'SET_PAGE_SIZE', payload: size });
   }, []);
 
-  const value = {
-    ...state,
-    addNotification,
-    updateNotificationStatus,
-    addNotificationAction,
-    clearHistory,
-    loadHistory,
-    setPage,
-    setPageSize,
-    cleanupConfig,
-    updateCleanupConfig,
-    cleanupNotifications,
-    runAutomaticCleanup
-  };
+  const updateCleanupConfig = useCallback((config: Partial<NotificationCleanupConfig>): NotificationCleanupConfig => {
+    setCleanupConfig(prev => {
+      const newConfig = { ...prev, ...config };
+      return newConfig;
+    });
+    
+    return cleanupConfig;
+  }, [cleanupConfig]);
+
+  const cleanupNotifications = useCallback(async (options?: {
+    maxAge?: number;
+    maxCount?: number;
+    keepHighPriority?: boolean;
+    highPriorityMaxAge?: number;
+  }) => {
+    const now = Date.now();
+    const config = { ...cleanupConfig, ...options };
+    
+    if (!config.enabled && !options) {
+      return { totalRemoved: 0, byAge: 0, byCount: 0 };
+    }
+
+    const maxAgeMs = (config.maxAge || 30) * 24 * 60 * 60 * 1000;
+    const highPriorityMaxAgeMs = (config.highPriorityMaxAge || 90) * 24 * 60 * 60 * 1000;
+    
+    let byAge = 0;
+    let removedIds: string[] = [];
+    
+    state.records.forEach(notification => {
+      const age = now - notification.timestamp;
+      const isHighPriority = notification.priority === 'high';
+      
+      if (isHighPriority && config.keepHighPriority) {
+        if (age > highPriorityMaxAgeMs) {
+          removedIds.push(notification.id);
+          byAge++;
+        }
+      } else if (age > maxAgeMs) {
+        removedIds.push(notification.id);
+        byAge++;
+      }
+    });
+    
+    let remainingRecords = state.records.filter(
+      record => !removedIds.includes(record.id)
+    );
+    
+    let byCount = 0;
+    if (remainingRecords.length > (config.maxCount || 200)) {
+      remainingRecords.sort((a, b) => b.timestamp - a.timestamp);
+      
+      const toRemove = remainingRecords.slice(config.maxCount || 200);
+      byCount = toRemove.length;
+      
+      removedIds = [...removedIds, ...toRemove.map(r => r.id)];
+    }
+    
+    if (removedIds.length > 0) {
+      dispatch({ 
+        type: 'REMOVE_NOTIFICATIONS', 
+        payload: { ids: removedIds } 
+      });
+    }
+    
+    if (removedIds.length > 0 || options) {
+      updateCleanupConfig({
+        lastCleanup: now
+      });
+    }
+    
+    return {
+      totalRemoved: removedIds.length,
+      byAge,
+      byCount
+    };
+  }, [state.records, cleanupConfig, updateCleanupConfig]);
+
+  const runAutomaticCleanup = useCallback(async () => {
+    if (!flags.AUTO_CLEANUP || !cleanupConfig.enabled) {
+      return;
+    }
+    
+    const now = Date.now();
+    const lastCleanup = cleanupConfig.lastCleanup || 0;
+    const cleanupIntervalMs = (cleanupConfig.cleanupInterval || 24) * 60 * 60 * 1000;
+    
+    if (now - lastCleanup > cleanupIntervalMs) {
+      console.log("Running automatic notification cleanup...");
+      const result = await cleanupNotifications();
+      console.log(`Cleanup complete: removed ${result.totalRemoved} notifications`);
+    }
+  }, [cleanupConfig, cleanupNotifications, flags.AUTO_CLEANUP]);
+  
+  const isFeatureEnabled = useCallback((featureName: string): boolean => {
+    return flags[featureName as keyof typeof flags] ?? false;
+  }, [flags]);
 
   return (
-    <NotificationHistoryContext.Provider value={value}>
+    <NotificationHistoryContext.Provider value={{
+      ...state,
+      addNotification,
+      updateNotificationStatus,
+      addNotificationAction,
+      clearHistory,
+      loadHistory,
+      setPage,
+      setPageSize,
+      cleanupConfig,
+      updateCleanupConfig,
+      cleanupNotifications,
+      runAutomaticCleanup,
+      isFeatureEnabled
+    }}>
       {children}
     </NotificationHistoryContext.Provider>
   );
 };
+
+export default NotificationHistoryProvider;

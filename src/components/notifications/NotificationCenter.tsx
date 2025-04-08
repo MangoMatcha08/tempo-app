@@ -27,7 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { NOTIFICATION_FEATURES } from "@/types/notifications/index";
+import { useFeature } from "@/contexts/FeatureFlagContext";
 
 interface NotificationCenterProps {
   className?: string;
@@ -41,8 +41,15 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
     handleAction,
     markAllAsRead, 
     unreadCount,
-    clearHistory
+    clearHistory,
+    pagination, 
+    setPage
   } = useNotificationDisplay();
+
+  // Get feature flags
+  const historyEnabled = useFeature("HISTORY_ENABLED");
+  const paginatedLoading = useFeature("PAGINATED_LOADING");
+  const virtualizedLists = useFeature("VIRTUALIZED_LISTS");
 
   const unreadNotifications = notifications.filter(
     n => n.status !== 'received' && n.status !== 'clicked'
@@ -96,7 +103,7 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
                       Mark all as read
                     </DropdownMenuItem>
                   )}
-                  {NOTIFICATION_FEATURES.HISTORY_ENABLED && (
+                  {historyEnabled && (
                     <DropdownMenuItem onClick={clearHistory}>
                       <Clock className="h-4 w-4 mr-2" />
                       Clear history
@@ -137,6 +144,11 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
                 onAction={handleNotificationAction}
                 onMarkRead={markAsRead}
                 emptyMessage="No unread notifications"
+                virtualized={virtualizedLists}
+                showPagination={paginatedLoading && pagination.totalPages > 1}
+                currentPage={pagination.page}
+                totalPages={pagination.totalPages}
+                onPageChange={setPage}
               />
             </ScrollArea>
           </TabsContent>
@@ -148,6 +160,11 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
                 onAction={handleNotificationAction}
                 onMarkRead={markAsRead}
                 emptyMessage="No notifications"
+                virtualized={virtualizedLists}
+                showPagination={paginatedLoading && pagination.totalPages > 1}
+                currentPage={pagination.page}
+                totalPages={pagination.totalPages}
+                onPageChange={setPage}
               />
             </ScrollArea>
           </TabsContent>

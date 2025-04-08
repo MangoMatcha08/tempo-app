@@ -11,6 +11,7 @@ import { AppMessage } from "@/types/notifications/serviceWorkerTypes";
 import { SERVICE_WORKER_FEATURES } from "@/types/notifications/serviceWorkerTypes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CacheManager from "./CacheManager";
+import { useFeatureFlags } from "@/contexts/FeatureFlagContext";
 
 const ServiceWorkerSettings = () => {
   const { 
@@ -25,6 +26,7 @@ const ServiceWorkerSettings = () => {
     sendMessage 
   } = useServiceWorker();
   
+  const { flags } = useFeatureFlags();
   const [clearingCache, setClearingCache] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("general");
 
@@ -51,6 +53,9 @@ const ServiceWorkerSettings = () => {
       setClearingCache(false);
     }
   };
+
+  // Determine if advanced cache features should be shown
+  const showAdvancedCache = flags.ADVANCED_CACHE;
 
   if (!supported) {
     return (
@@ -89,10 +94,12 @@ const ServiceWorkerSettings = () => {
           <CardContent>
             <TabsList className="grid grid-cols-2 mb-4">
               <TabsTrigger value="general">General</TabsTrigger>
-              <TabsTrigger value="cache">
-                <Database className="h-4 w-4 mr-2" />
-                Cache
-              </TabsTrigger>
+              {showAdvancedCache && (
+                <TabsTrigger value="cache">
+                  <Database className="h-4 w-4 mr-2" />
+                  Cache
+                </TabsTrigger>
+              )}
             </TabsList>
             
             {error && (
@@ -138,8 +145,11 @@ const ServiceWorkerSettings = () => {
                       {SERVICE_WORKER_FEATURES.PERIODIC_SYNC && (
                         <li className="text-sm">Periodic Background Sync</li>
                       )}
-                      {SERVICE_WORKER_FEATURES.ADVANCED_CACHING && (
+                      {flags.ADVANCED_CACHE && SERVICE_WORKER_FEATURES.ADVANCED_CACHING && (
                         <li className="text-sm">Intelligent Cache Management</li>
+                      )}
+                      {flags.AUTO_CLEANUP && SERVICE_WORKER_FEATURES.AUTO_CLEANUP && (
+                        <li className="text-sm">Automatic Notification Cleanup</li>
                       )}
                     </ul>
                   </AlertDescription>
@@ -147,9 +157,11 @@ const ServiceWorkerSettings = () => {
               )}
             </TabsContent>
             
-            <TabsContent value="cache" className="mt-0">
-              <CacheManager />
-            </TabsContent>
+            {showAdvancedCache && (
+              <TabsContent value="cache" className="mt-0">
+                <CacheManager />
+              </TabsContent>
+            )}
           </CardContent>
           
           <CardFooter className="flex justify-between">

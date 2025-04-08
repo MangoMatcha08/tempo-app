@@ -10,6 +10,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { FirestoreProvider } from "@/contexts/FirestoreContext";
 import { ScheduleProvider } from "@/contexts/ScheduleContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { FeatureFlagProvider } from "@/contexts/FeatureFlagContext";
 import OfflineNotification from "@/components/ui/offline-notification";
 import PwaInstallPrompt from "@/components/ui/pwa-install-prompt";
 import { Toaster } from "@/components/ui/toaster";
@@ -39,28 +40,30 @@ function App() {
   return (
     <React.StrictMode>
       <QueryClientProvider client={queryClientInstance}>
-        <AuthProvider>
-          <FirestoreProvider>
-            <ScheduleProvider>
-              <NotificationProvider>
-                <Router>
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/schedule" element={<Schedule />} />
-                    <Route path="/settings" element={<Settings />} />
-                    <Route path="/404" element={<NotFound />} />
-                    <Route path="*" element={<Navigate to="/404" replace />} />
-                  </Routes>
-                  <Toaster />
-                  <SonnerToaster position="top-right" closeButton />
-                  <OfflineNotification />
-                  <PwaInstallPrompt />
-                </Router>
-              </NotificationProvider>
-            </ScheduleProvider>
-          </FirestoreProvider>
-        </AuthProvider>
+        <FeatureFlagProvider>
+          <AuthProvider>
+            <FirestoreProvider>
+              <ScheduleProvider>
+                <NotificationProvider>
+                  <Router>
+                    <Routes>
+                      <Route path="/" element={<Index />} />
+                      <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/schedule" element={<Schedule />} />
+                      <Route path="/settings" element={<Settings />} />
+                      <Route path="/404" element={<NotFound />} />
+                      <Route path="*" element={<Navigate to="/404" replace />} />
+                    </Routes>
+                    <Toaster />
+                    <SonnerToaster position="top-right" closeButton />
+                    <OfflineNotification />
+                    <PwaInstallPrompt />
+                  </Router>
+                </NotificationProvider>
+              </ScheduleProvider>
+            </FirestoreProvider>
+          </AuthProvider>
+        </FeatureFlagProvider>
       </QueryClientProvider>
     </React.StrictMode>
   );

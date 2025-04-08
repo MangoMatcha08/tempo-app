@@ -29,6 +29,7 @@ export interface NotificationHistoryContextType extends NotificationHistoryState
     byCount: number;
   }>;
   runAutomaticCleanup: () => Promise<void>;
+  isFeatureEnabled: (featureName: string) => boolean;
 }
 
 export const NotificationHistoryContext = createContext<NotificationHistoryContextType>({
@@ -57,7 +58,8 @@ export const NotificationHistoryContext = createContext<NotificationHistoryConte
     cleanupInterval: 24
   }),
   cleanupNotifications: async () => ({ totalRemoved: 0, byAge: 0, byCount: 0 }),
-  runAutomaticCleanup: async () => {}
+  runAutomaticCleanup: async () => {},
+  isFeatureEnabled: () => true
 });
 
 export const useNotificationHistory = () => useContext(NotificationHistoryContext);

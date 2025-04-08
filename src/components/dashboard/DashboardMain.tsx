@@ -1,33 +1,36 @@
 
-import { useCallback } from "react";
-import DashboardHeader from "@/components/dashboard/DashboardHeader";
-import DashboardContent from "@/components/dashboard/DashboardContent";
-import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { useToast } from "@/hooks/use-toast";
-import { convertToBackendReminder } from "@/utils/typeUtils";
-import DashboardModalHandler from "@/components/dashboard/DashboardModalHandler";
-import { useFirestore } from "@/contexts/FirestoreContext";
-import { Reminder } from "@/types/reminderTypes";
+import React, { useState } from "react";
+import DashboardHeader from "./DashboardHeader";
+import DashboardContent from "./DashboardContent";
+import DashboardModals from "./DashboardModals";
+import DashboardSidebar from "./DashboardSidebar";
+import DeveloperPanel from "@/components/developer/DeveloperPanel";
+import { UIEnhancedReminder } from "./DashboardContent";
+import { ReminderStats } from "@/hooks/reminders/reminder-stats";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Menu } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface DashboardMainProps {
-  reminders: any[];
+  reminders: UIEnhancedReminder[];
   loading: boolean;
-  isRefreshing: boolean;
-  urgentReminders: any[];
-  upcomingReminders: any[];
-  completedReminders: any[];
-  reminderStats: any;
+  isRefreshing?: boolean;
+  urgentReminders: UIEnhancedReminder[];
+  upcomingReminders: UIEnhancedReminder[];
+  completedReminders: UIEnhancedReminder[];
+  reminderStats: ReminderStats;
   handleCompleteReminder: (id: string) => void;
   handleUndoComplete: (id: string) => void;
-  addReminder: (reminder: any) => Promise<any>;
-  updateReminder: (reminder: any) => Promise<any>;
-  loadMoreReminders: () => Promise<void>;
+  addReminder: (reminder: any) => Promise<boolean>;
+  updateReminder: (reminder: UIEnhancedReminder) => void;
+  loadMoreReminders: () => void;
   refreshReminders: () => Promise<boolean>;
   hasMore: boolean;
   totalCount: number;
-  hasError: boolean;
-  addToBatchComplete: (id: string) => void;
-  addToBatchUpdate: (reminder: Reminder) => void;
+  hasError?: boolean;
+  addToBatchComplete?: (id: string) => void;
+  addToBatchUpdate?: (reminder: UIEnhancedReminder) => void;
   deleteReminder?: (id: string) => Promise<boolean>;
   batchDeleteReminders?: (ids: string[]) => Promise<boolean>;
 }
@@ -48,160 +51,102 @@ const DashboardMain = ({
   refreshReminders,
   hasMore,
   totalCount,
-  hasError,
+  hasError = false,
   addToBatchComplete,
   addToBatchUpdate,
   deleteReminder,
   batchDeleteReminders
 }: DashboardMainProps) => {
-  const { toast } = useToast();
-  const { hasFirestorePermissions, useMockData } = useFirestore();
-
-  // Enhanced reminder operations with batching support
-  const handleBatchedCompleteReminder = useCallback((id: string) => {
-    // For immediate visual feedback, still call the individual operation
-    handleCompleteReminder(id);
-    
-    // Add to batch for efficient processing
-    addToBatchComplete(id);
-  }, [handleCompleteReminder, addToBatchComplete]);
-  
-  const handleBatchedReminderUpdated = useCallback((reminder: any) => {
-    // For immediate visual feedback, still call the individual operation
-    updateReminder(convertToBackendReminder(reminder));
-    
-    // Add to batch for efficient processing
-    addToBatchUpdate(reminder);
-    
-    toast({
-      title: "Reminder Updated",
-      description: `"${reminder.title}" has been updated.`
-    });
-  }, [updateReminder, addToBatchUpdate, toast]);
-
-  const handleLoadMore = useCallback(() => {
-    if (hasMore && !loading) {
-      console.log("Loading more reminders");
-      loadMoreReminders().catch(error => {
-        console.error("Error loading more reminders:", error);
-        toast({
-          title: "Error Loading Reminders",
-          description: "There was a problem loading more reminders.",
-          variant: "destructive"
-        });
-      });
-    }
-  }, [hasMore, loading, loadMoreReminders, toast]);
-
-  // Handle clearing a single completed reminder
-  const handleClearCompleted = useCallback((id: string) => {
-    if (deleteReminder) {
-      console.log("Clearing completed reminder:", id);
-      deleteReminder(id).catch(error => {
-        console.error("Error clearing completed reminder:", error);
-        toast({
-          title: "Error Removing Reminder",
-          description: "There was a problem removing the completed reminder.",
-          variant: "destructive"
-        });
-      });
-    }
-  }, [deleteReminder, toast]);
-
-  // Handle clearing all completed reminders
-  const handleClearAllCompleted = useCallback(() => {
-    if (completedReminders.length > 0 && batchDeleteReminders) {
-      const completedIds = completedReminders.map(reminder => reminder.id);
-      console.log("Clearing all completed reminders:", completedIds);
-      
-      batchDeleteReminders(completedIds).catch(error => {
-        console.error("Error clearing all completed reminders:", error);
-        toast({
-          title: "Error Clearing Reminders",
-          description: "There was a problem removing the completed reminders.",
-          variant: "destructive"
-        });
-      });
-    }
-  }, [completedReminders, batchDeleteReminders, toast]);
-
-  // Handle dashboard modals with enhanced logging
-  const { 
-    modalComponents, 
-    openQuickReminderModal, 
-    openVoiceRecorderModal 
-  } = DashboardModalHandler({
-    addReminder: async (reminder) => {
-      console.log("Adding new reminder from modal:", reminder);
-      try {
-        const savedReminder = await addReminder(reminder);
-        console.log("Successfully saved reminder from modal:", savedReminder);
-        return savedReminder;
-      } catch (error) {
-        console.error("Error adding reminder from modal:", error);
-        throw error;
-      }
-    },
-    refreshReminders: async () => {
-      console.log("Refreshing reminders after modal action");
-      try {
-        const success = await refreshReminders();
-        console.log("Refresh result from modal:", success);
-        return success;
-      } catch (error) {
-        console.error("Error refreshing reminders in modal handler:", error);
-        return false;
-      }
-    },
-    useMockData: useMockData
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [modalState, setModalState] = useState({
+    quickReminder: false,
+    voiceReminder: false
   });
+  const { user } = useAuth();
+
+  const toggleSidebar = () => setSidebarOpen(prev => !prev);
+
+  const openModal = (modalName: keyof typeof modalState) => {
+    setModalState(prev => ({ ...prev, [modalName]: true }));
+  };
+
+  const closeModal = (modalName: keyof typeof modalState) => {
+    setModalState(prev => ({ ...prev, [modalName]: false }));
+  };
 
   return (
-    <DashboardLayout>
-      <DashboardHeader 
-        pageTitle="Tempo Dashboard" 
-        stats={reminderStats} 
-        onAddReminder={openQuickReminderModal} 
-      />
-      
-      {!hasFirestorePermissions && (
-        <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-4">
-          <div className="flex items-start">
-            <div className="ml-3">
-              <p className="text-sm text-amber-700 font-medium">
-                Firestore API Not Configured
-              </p>
-              <p className="mt-1 text-sm text-amber-600">
-                The Firestore API needs to be enabled for this project. Visit the Firebase Console
-                to enable the Firestore API for project: tempowizard-ac888
-              </p>
-            </div>
-          </div>
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+      {/* Sidebar */}
+      <DashboardSidebar open={sidebarOpen} onClose={toggleSidebar} />
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <DashboardHeader
+          stats={reminderStats}
+          onMenuClick={toggleSidebar}
+          onRefresh={refreshReminders}
+          isRefreshing={isRefreshing}
+          totalReminders={totalCount}
+        />
+        
+        {/* Mobile Menu Toggle */}
+        <div className="lg:hidden p-4 pb-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleSidebar}
+            className="mb-4"
+          >
+            <Menu className="h-4 w-4 mr-2" />
+            Menu
+          </Button>
         </div>
-      )}
-      
-      <DashboardContent 
-        urgentReminders={urgentReminders}
-        upcomingReminders={upcomingReminders}
-        completedReminders={completedReminders}
-        onCompleteReminder={handleBatchedCompleteReminder}
-        onUndoComplete={handleUndoComplete}
-        onNewReminder={openQuickReminderModal}
-        onNewVoiceNote={openVoiceRecorderModal}
-        onUpdateReminder={handleBatchedReminderUpdated}
-        onClearAllCompleted={handleClearAllCompleted}
-        onClearCompleted={handleClearCompleted}
-        isLoading={loading}
-        hasError={hasError}
-        hasMoreReminders={hasMore}
-        totalCount={totalCount}
-        loadedCount={reminders.length}
-        onLoadMore={handleLoadMore}
-        isRefreshing={isRefreshing}
+
+        {/* Scrollable Content */}
+        <div 
+          className={cn(
+            "flex-1 overflow-y-auto px-4 pb-12 pt-0 lg:px-8",
+            sidebarOpen ? "lg:ml-0" : "lg:ml-0"
+          )}
+        >
+          <DashboardContent
+            urgentReminders={urgentReminders}
+            upcomingReminders={upcomingReminders}
+            completedReminders={completedReminders}
+            onCompleteReminder={handleCompleteReminder}
+            onUndoComplete={handleUndoComplete}
+            onNewReminder={() => openModal('quickReminder')}
+            onNewVoiceNote={() => openModal('voiceReminder')}
+            onUpdateReminder={updateReminder}
+            onClearAllCompleted={batchDeleteReminders ? 
+              () => batchDeleteReminders(completedReminders.map(r => r.id)) : 
+              undefined
+            }
+            onClearCompleted={deleteReminder}
+            isLoading={loading}
+            hasError={!!hasError}
+            hasMoreReminders={hasMore}
+            totalCount={totalCount}
+            loadedCount={reminders.length}
+            onLoadMore={loadMoreReminders}
+            isRefreshing={isRefreshing}
+          />
+        </div>
+      </div>
+
+      {/* Modals */}
+      <DashboardModals
+        quickReminderOpen={modalState.quickReminder}
+        voiceReminderOpen={modalState.voiceReminder}
+        onQuickReminderOpenChange={(open) => setModalState(prev => ({ ...prev, quickReminder: open }))}
+        onVoiceReminderOpenChange={(open) => setModalState(prev => ({ ...prev, voiceReminder: open }))}
+        onAddReminder={addReminder}
+        user={user}
       />
-      
-      {modalComponents}
-    </DashboardLayout>
+
+      {/* Developer Panel */}
+      <DeveloperPanel />
+    </div>
   );
 };
 
