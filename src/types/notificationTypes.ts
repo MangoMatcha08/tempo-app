@@ -23,8 +23,9 @@ import {
 } from '@/types/notifications/notificationHistoryTypes';
 
 import {
-  NotificationPermissionState,
-  PermissionRequestResult
+  BrowserPermissionState,
+  PermissionRequestResult,
+  NotificationPermissionContextState
 } from '@/types/notifications/permissionTypes';
 
 import {
@@ -53,11 +54,19 @@ export type {
   /** State of the notification history */
   NotificationHistoryState,
   /** Browser notification permission state */
-  NotificationPermissionState,
+  BrowserPermissionState,
   /** Message from service worker to app */
   ServiceWorkerMessage,
   /** Message from app to service worker */
   AppMessage,
   /** Result of a permission request */
-  PermissionRequestResult
+  PermissionRequestResult,
+  /** Context state for notification permissions */
+  NotificationPermissionContextState
 };
+
+// For backwards compatibility
+/**
+ * @deprecated Use BrowserPermissionState instead
+ */
+export type NotificationPermissionState = BrowserPermissionState;
