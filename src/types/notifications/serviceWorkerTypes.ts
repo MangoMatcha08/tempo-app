@@ -8,7 +8,7 @@ import { NotificationAction } from './notificationHistoryTypes';
 export interface ServiceWorkerMessage {
   type: 'NOTIFICATION_CLICKED' | 'NOTIFICATION_CLOSED' | 'NOTIFICATION_ACTION' | 
         'READY' | 'SYNC_COMPLETE' | 'SYNC_FAILED' | 'CACHE_MAINTENANCE_COMPLETE' |
-        'CACHE_STATS';
+        'CACHE_STATS' | 'CLEANUP_COMPLETE';
   payload?: {
     reminderId?: string;
     action?: NotificationAction;
@@ -18,6 +18,7 @@ export interface ServiceWorkerMessage {
     version?: string;
     stats?: CacheStatistics;
     timestamp?: number;
+    cleanupStats?: CleanupStatistics;
   };
 }
 
@@ -27,7 +28,7 @@ export interface ServiceWorkerMessage {
 export interface AppMessage {
   type: 'SKIP_WAITING' | 'CLEAR_NOTIFICATIONS' | 'CHECK_PERMISSION' | 
         'SYNC_REMINDERS' | 'SET_IMPLEMENTATION' | 'CACHE_MAINTENANCE' | 
-        'UPDATE_CONFIG' | 'CLEAR_CACHE' | 'GET_CACHE_STATS';
+        'UPDATE_CONFIG' | 'CLEAR_CACHE' | 'GET_CACHE_STATS' | 'CLEANUP_NOTIFICATIONS';
   payload?: {
     useNewImplementation?: boolean;
     reminders?: any[];
@@ -37,8 +38,10 @@ export interface AppMessage {
       cachingEnabled?: boolean;
       cacheMaintenanceInterval?: number;
       debug?: boolean;
+      cleanupConfig?: NotificationCleanupConfig;
       [key: string]: any;
     };
+    cleanupOptions?: NotificationCleanupOptions;
     [key: string]: any;
   };
 }
@@ -92,6 +95,7 @@ export interface ServiceWorkerConfig {
   debug: boolean;
   cachingEnabled?: boolean;
   cacheMaintenanceInterval?: number;
+  cleanupConfig?: NotificationCleanupConfig;
 }
 
 /**
@@ -103,5 +107,53 @@ export const SERVICE_WORKER_FEATURES = {
   OFFLINE_SUPPORT: true,
   PERIODIC_SYNC: false,
   PUSH_NOTIFICATION_ACTIONS: true,
-  ADVANCED_CACHING: true
+  ADVANCED_CACHING: true,
+  AUTO_CLEANUP: true
 };
+
+/**
+ * Cleanup statistics returned after notification cleanup
+ */
+export interface CleanupStatistics {
+  totalRemoved: number;
+  byAge: number;
+  byCount: number;
+  byPriority: number;
+  timestamp: number;
+  executionTime: number;
+}
+
+/**
+ * Configuration for automatic notification cleanup
+ */
+export interface NotificationCleanupConfig {
+  enabled: boolean;
+  maxAge: number;         // in days
+  maxCount: number;       // max number of notifications to keep
+  keepHighPriority: boolean;
+  highPriorityMaxAge: number; // in days
+  cleanupInterval: number; // in hours
+  lastCleanup?: number;   // timestamp
+}
+
+/**
+ * Default cleanup configuration
+ */
+export const DEFAULT_CLEANUP_CONFIG: NotificationCleanupConfig = {
+  enabled: true,
+  maxAge: 30,            // 30 days
+  maxCount: 200,         // Keep last 200 notifications
+  keepHighPriority: true,
+  highPriorityMaxAge: 90, // 90 days for high priority
+  cleanupInterval: 24,    // Run cleanup daily
+};
+
+/**
+ * Options for manual notification cleanup
+ */
+export interface NotificationCleanupOptions {
+  force?: boolean;       // Force cleanup regardless of interval
+  dryRun?: boolean;      // Calculate what would be removed but don't remove
+  maxAge?: number;       // Override default maxAge
+  maxCount?: number;     // Override default maxCount
+}

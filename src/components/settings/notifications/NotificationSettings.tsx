@@ -11,8 +11,10 @@ import PermissionAlert from "./PermissionAlert";
 import EmailNotifications from "./EmailNotifications";
 import PushNotifications from "./PushNotifications";
 import InAppNotifications from "./InAppNotifications";
+import NotificationCleanupSettings from "../NotificationCleanupSettings";
 import { Button } from "@/components/ui/button";
 import { ReminderPriority } from "@/types/reminderTypes";
+import { NOTIFICATION_FEATURES } from "@/types/notifications/index";
 
 const NotificationSettings = () => {
   const { toast } = useToast();
@@ -119,6 +121,10 @@ const NotificationSettings = () => {
             inAppEnabled={form.watch('inApp.enabled')} 
           />
         </div>
+        
+        {NOTIFICATION_FEATURES.HISTORY_ENABLED && (
+          <NotificationCleanupSettings />
+        )}
         
         <Button type="submit">
           Save Changes

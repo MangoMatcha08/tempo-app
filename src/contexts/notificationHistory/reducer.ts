@@ -1,10 +1,10 @@
-
 import { 
   NotificationRecord,
   NotificationHistoryState,
   NotificationAction,
   PaginationState
 } from '@/types/notifications/notificationHistoryTypes';
+import { ReminderPriority } from '@/types/reminderTypes';
 
 // Default pagination settings
 export const DEFAULT_PAGE_SIZE = 20;
@@ -19,7 +19,8 @@ export type NotificationHistoryAction =
   | { type: 'ADD_NOTIFICATION_ACTION'; payload: { id: string; action: { type: NotificationAction; timestamp: number } } }
   | { type: 'CLEAR_HISTORY' }
   | { type: 'SET_PAGE'; payload: number }
-  | { type: 'SET_PAGE_SIZE'; payload: number };
+  | { type: 'SET_PAGE_SIZE'; payload: number }
+  | { type: 'CLEANUP_NOTIFICATIONS'; payload: { removedIds: string[] } };
 
 // Initial state for notification history
 export const initialState: NotificationHistoryState = {
@@ -115,6 +116,24 @@ export const notificationHistoryReducer = (
           totalPages: 1
         }
       };
+    case 'CLEANUP_NOTIFICATIONS': {
+      const { removedIds } = action.payload;
+      const updatedRecords = state.records.filter(record => !removedIds.includes(record.id));
+      
+      return {
+        ...state,
+        records: updatedRecords,
+        pagination: {
+          ...state.pagination,
+          totalItems: updatedRecords.length,
+          totalPages: calculateTotalPages(updatedRecords.length, state.pagination.pageSize),
+          currentPage: Math.min(
+            state.pagination.currentPage, 
+            calculateTotalPages(updatedRecords.length, state.pagination.pageSize)
+          )
+        }
+      };
+    }
     case 'SET_PAGE':
       return {
         ...state,
@@ -142,3 +161,62 @@ export const notificationHistoryReducer = (
   }
 };
 
+/**
+ * Helper functions for notification cleanup
+ */
+
+// Clean up notifications by age
+export const cleanupByAge = (
+  notifications: NotificationRecord[], 
+  maxAgeInDays: number,
+  highPriorityMaxAgeInDays: number,
+  keepHighPriority: boolean
+): { keptRecords: NotificationRecord[], removedRecords: NotificationRecord[] } => {
+  const now = Date.now();
+  const maxAgeMs = maxAgeInDays * 24 * 60 * 60 * 1000;
+  const highPriorityMaxAgeMs = highPriorityMaxAgeInDays * 24 * 60 * 60 * 1000;
+  
+  const keptRecords: NotificationRecord[] = [];
+  const removedRecords: NotificationRecord[] = [];
+  
+  notifications.forEach(notification => {
+    const age = now - notification.timestamp;
+    const isHighPriority = notification.priority === ReminderPriority.HIGH;
+    
+    if (isHighPriority && keepHighPriority) {
+      // Keep high priority notifications if they're within high priority max age
+      if (age <= highPriorityMaxAgeMs) {
+        keptRecords.push(notification);
+      } else {
+        removedRecords.push(notification);
+      }
+    } else {
+      // For regular priority, use standard max age
+      if (age <= maxAgeMs) {
+        keptRecords.push(notification);
+      } else {
+        removedRecords.push(notification);
+      }
+    }
+  });
+  
+  return { keptRecords, removedRecords };
+};
+
+// Clean up notifications by count
+export const cleanupByCount = (
+  notifications: NotificationRecord[], 
+  maxCount: number
+): { keptRecords: NotificationRecord[], removedRecords: NotificationRecord[] } => {
+  if (notifications.length <= maxCount) {
+    return { keptRecords: notifications, removedRecords: [] };
+  }
+  
+  // Sort by timestamp, newest first
+  const sorted = [...notifications].sort((a, b) => b.timestamp - a.timestamp);
+  
+  const keptRecords = sorted.slice(0, maxCount);
+  const removedRecords = sorted.slice(maxCount);
+  
+  return { keptRecords, removedRecords };
+};

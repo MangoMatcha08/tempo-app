@@ -1,11 +1,11 @@
-
 import { 
   performanceMonitor,
   notificationPerformance
 } from '@/utils/performanceUtils';
 import { 
   AppMessage, 
-  ServiceWorkerMessage
+  ServiceWorkerMessage,
+  NotificationCleanupConfig
 } from '@/types/notifications/serviceWorkerTypes';
 
 /**
@@ -86,6 +86,7 @@ export class ServiceWorkerManager {
     cachingEnabled?: boolean;
     cacheMaintenanceInterval?: number;
     debug?: boolean;
+    cleanupConfig?: NotificationCleanupConfig;
   }): Promise<boolean> {
     return this.sendMessage({
       type: 'UPDATE_CONFIG',
@@ -125,6 +126,21 @@ export class ServiceWorkerManager {
       
       // Timeout fallback
       setTimeout(() => resolve({ error: 'Request timed out' }), 3000);
+    });
+  }
+  
+  /**
+   * Trigger notification cleanup in the service worker
+   */
+  async cleanupNotifications(options?: {
+    force?: boolean;
+    dryRun?: boolean;
+    maxAge?: number;
+    maxCount?: number;
+  }): Promise<boolean> {
+    return this.sendMessage({
+      type: 'CLEANUP_NOTIFICATIONS',
+      payload: { cleanupOptions: options }
     });
   }
   

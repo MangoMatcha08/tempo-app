@@ -1,7 +1,11 @@
 
 import { createContext, useContext } from 'react';
-import { NotificationHistoryState, NotificationAction } from '@/types/notifications/notificationHistoryTypes';
+import { 
+  NotificationHistoryState, 
+  NotificationAction 
+} from '@/types/notifications/notificationHistoryTypes';
 import { initialState } from './reducer';
+import { NotificationCleanupConfig } from '@/types/notifications/serviceWorkerTypes';
 
 // Context for notification history
 export interface NotificationHistoryContextType extends NotificationHistoryState {
@@ -12,6 +16,19 @@ export interface NotificationHistoryContextType extends NotificationHistoryState
   loadHistory: () => Promise<void>;
   setPage: (page: number) => void;
   setPageSize: (size: number) => void;
+  cleanupConfig: NotificationCleanupConfig;
+  updateCleanupConfig: (config: Partial<NotificationCleanupConfig>) => NotificationCleanupConfig;
+  cleanupNotifications: (options?: {
+    maxAge?: number;
+    maxCount?: number;
+    keepHighPriority?: boolean;
+    highPriorityMaxAge?: number;
+  }) => Promise<{
+    totalRemoved: number;
+    byAge: number;
+    byCount: number;
+  }>;
+  runAutomaticCleanup: () => Promise<void>;
 }
 
 export const NotificationHistoryContext = createContext<NotificationHistoryContextType>({
@@ -22,8 +39,25 @@ export const NotificationHistoryContext = createContext<NotificationHistoryConte
   clearHistory: () => {},
   loadHistory: async () => {},
   setPage: () => {},
-  setPageSize: () => {}
+  setPageSize: () => {},
+  cleanupConfig: {
+    enabled: true,
+    maxAge: 30,
+    maxCount: 200,
+    keepHighPriority: true,
+    highPriorityMaxAge: 90,
+    cleanupInterval: 24
+  },
+  updateCleanupConfig: () => ({
+    enabled: true,
+    maxAge: 30,
+    maxCount: 200,
+    keepHighPriority: true,
+    highPriorityMaxAge: 90,
+    cleanupInterval: 24
+  }),
+  cleanupNotifications: async () => ({ totalRemoved: 0, byAge: 0, byCount: 0 }),
+  runAutomaticCleanup: async () => {}
 });
 
 export const useNotificationHistory = () => useContext(NotificationHistoryContext);
-
