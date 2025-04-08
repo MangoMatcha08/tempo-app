@@ -1,36 +1,47 @@
 
-import React, { useRef, useCallback } from "react";
+import React, { useRef, useCallback, useState, useEffect } from "react";
 import { NotificationRecord } from "@/types/notifications/notificationHistoryTypes";
 import NotificationCard from "./NotificationCard";
 import { Info } from "lucide-react";
-import { FixedSizeList as List } from 'react-window';
+import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { notificationPerformance } from '@/utils/performanceUtils';
+import AutoSizer from 'react-virtualized-auto-sizer';
 
-// Row renderer component for virtualized list
+// Define a separate component for row rendering to optimize re-renders
 const NotificationRow = React.memo(({ 
   data, 
   index, 
   style 
-}: { 
-  data: { 
-    notifications: NotificationRecord[], 
-    onAction: (id: string, action: 'view' | 'dismiss') => void,
-    onMarkRead: (id: string) => void
-  }, 
-  index: number, 
-  style: React.CSSProperties 
-}) => {
-  const notification = data.notifications[index];
+}: ListChildComponentProps) => {
+  const { 
+    notifications, 
+    onAction, 
+    onMarkRead 
+  } = data;
+  
+  const notification = notifications[index];
+  const [renderId] = useState(`notification-${notification.id}`);
+  
+  // Measure individual item render performance
+  useEffect(() => {
+    const markId = notificationPerformance.startRenderingNotifications(1);
+    return () => {
+      notificationPerformance.endRenderingNotifications(markId);
+    };
+  }, [renderId]);
+  
   return (
     <div style={{ 
       ...style, 
       paddingTop: 6,
-      paddingBottom: 6
+      paddingBottom: 6,
+      width: '100%'
     }}>
       <NotificationCard
         notification={notification}
-        onAction={data.onAction}
-        onMarkRead={data.onMarkRead}
+        onAction={onAction}
+        onMarkRead={onMarkRead}
       />
     </div>
   );
@@ -59,9 +70,54 @@ const VirtualizedNotificationList = ({
 }: VirtualizedNotificationListProps) => {
   const listRef = useRef<List>(null);
   const isMobile = useIsMobile();
-
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState<number>(height);
+  
+  // Start measuring rendering performance
+  useEffect(() => {
+    const markId = notificationPerformance.startRenderingNotifications(notifications.length);
+    
+    // Track memory usage after rendering (if browser supports it)
+    if (window.performance && 'memory' in window.performance) {
+      console.log('Memory usage after notification render:', 
+        // @ts-ignore - memory is not in the standard TypeScript definitions
+        (window.performance.memory.usedJSHeapSize / 1048576).toFixed(2) + 'MB');
+    }
+    
+    return () => {
+      notificationPerformance.endRenderingNotifications(markId);
+    };
+  }, [notifications.length]);
+  
   // Calculate row height based on mobile status
-  const rowHeight = isMobile ? 160 : 140;
+  const rowHeight = isMobile ? 165 : 145; // Adjusted heights based on typical notification card sizes
+
+  // Dynamically adjust container height based on content and available space
+  useEffect(() => {
+    if (!containerRef.current) return;
+    
+    const updateHeight = () => {
+      // Calculate height based on parent container or viewport
+      const parentHeight = containerRef.current?.parentElement?.clientHeight || window.innerHeight;
+      const maxListHeight = Math.min(
+        parentHeight * 0.8,  // Max 80% of parent height
+        notifications.length * rowHeight + 20, // Total content height plus padding
+        height // User-defined max height
+      );
+      
+      // Minimum height to show at least 2 items
+      const minHeight = Math.min(rowHeight * 2, rowHeight * notifications.length);
+      const newHeight = Math.max(minHeight, maxListHeight);
+      
+      if (newHeight !== containerHeight) {
+        setContainerHeight(newHeight);
+      }
+    };
+    
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, [height, notifications.length, rowHeight, containerHeight]);
 
   // Prepare list data for the virtualized list
   const listData = useCallback(() => ({
@@ -92,26 +148,25 @@ const VirtualizedNotificationList = ({
     );
   }
 
-  // Calculate actual height for the list container
-  const listHeight = Math.min(
-    height, 
-    notifications.length * rowHeight + 15 // Add padding
-  );
-
+  // Implement the virtualized list with auto-sizing
   return (
-    <div className={className}>
-      <List
-        ref={listRef}
-        height={listHeight}
-        width="100%"
-        itemCount={notifications.length}
-        itemSize={rowHeight}
-        itemData={listData()}
-        className="notification-list"
-        overscanCount={3}
-      >
-        {NotificationRow}
-      </List>
+    <div ref={containerRef} className={className} style={{ height: containerHeight }}>
+      <AutoSizer disableHeight>
+        {({ width }) => (
+          <List
+            ref={listRef}
+            height={containerHeight}
+            width={width}
+            itemCount={notifications.length}
+            itemSize={rowHeight}
+            itemData={listData()}
+            className="notification-list scrollbar-thin scrollbar-thumb-rounded-md scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600"
+            overscanCount={3} // Render additional items above/below viewport for smooth scrolling
+          >
+            {NotificationRow}
+          </List>
+        )}
+      </AutoSizer>
     </div>
   );
 };

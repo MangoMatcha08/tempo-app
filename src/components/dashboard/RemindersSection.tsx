@@ -3,10 +3,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle } from "lucide-react";
 import ReminderCard from "./ReminderCard";
 import ReminderListItem from "./ReminderListItem";
-import { memo, useMemo, useState, useEffect } from "react";
+import { memo, useMemo, useState, useEffect, useRef } from "react";
 import { FixedSizeList as List } from 'react-window';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { UIReminder } from "@/types/reminderTypes";
+import { performanceMonitor } from '@/utils/performanceUtils';
+import AutoSizer from 'react-virtualized-auto-sizer';
 
 interface RemindersSectionProps {
   urgentReminders: UIReminder[];
@@ -54,6 +56,27 @@ const RemindersSection = memo(({
   const isMobile = useIsMobile();
   const [stableUrgent, setStableUrgent] = useState(urgentReminders);
   const [stableUpcoming, setStableUpcoming] = useState(upcomingReminders);
+  const listRef = useRef<List>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Performance monitoring
+  useEffect(() => {
+    const markId = performanceMonitor.startMark('render-reminders-section', 'notification-render', {
+      urgentCount: urgentReminders.length,
+      upcomingCount: upcomingReminders.length
+    });
+    
+    // Track memory usage if available
+    if (window.performance && 'memory' in window.performance) {
+      console.log('Memory usage during RemindersSection render:', 
+        // @ts-ignore - memory is not in the standard TypeScript definitions
+        (window.performance.memory.usedJSHeapSize / 1048576).toFixed(2) + 'MB');
+    }
+    
+    return () => {
+      performanceMonitor.endMark(markId);
+    };
+  }, [urgentReminders.length, upcomingReminders.length]);
   
   // Use effect to stabilize the lists and prevent flickering
   useEffect(() => {
@@ -68,6 +91,9 @@ const RemindersSection = memo(({
   // Determine if there are no reminders to show
   const noReminders = stableUrgent.length === 0 && stableUpcoming.length === 0;
   
+  // Determine if we should use virtualization based on item count
+  const shouldVirtualize = useMemo(() => stableUpcoming.length > 50, [stableUpcoming.length]);
+  
   // Memoize list data to prevent unnecessary rerenders
   const listData = useMemo(() => ({
     items: stableUpcoming,
@@ -77,14 +103,36 @@ const RemindersSection = memo(({
   
   // Calculate list height based on number of items, with a maximum
   const listHeight = useMemo(() => {
-    const itemHeight = 64; // Height of each reminder item in pixels
+    const itemHeight = isMobile ? 72 : 64; // Height of each reminder item in pixels
     const maxItems = 5; // Maximum number of items to show before scrolling
     const count = stableUpcoming.length;
     return Math.min(count, maxItems) * itemHeight;
-  }, [stableUpcoming.length]);
+  }, [stableUpcoming.length, isMobile]);
   
   // Adjust row height based on device
   const rowHeight = useMemo(() => isMobile ? 72 : 64, [isMobile]);
+  
+  // Measure scroll performance
+  const handleScroll = useMemo(() => {
+    let lastScrollTime = 0;
+    let scrollMarkId = '';
+    
+    return () => {
+      const now = Date.now();
+      
+      // Only measure performance if we haven't measured in the last 300ms
+      if (now - lastScrollTime > 300) {
+        if (scrollMarkId) performanceMonitor.endMark(scrollMarkId);
+        
+        scrollMarkId = performanceMonitor.startMark('reminder-list-scroll', 'notification-interaction', {
+          itemCount: stableUpcoming.length,
+          virtual: shouldVirtualize
+        });
+        
+        lastScrollTime = now;
+      }
+    };
+  }, [stableUpcoming.length, shouldVirtualize]);
   
   return (
     <div className="space-y-4">
@@ -114,16 +162,26 @@ const RemindersSection = memo(({
           <h3 className="text-lg font-semibold mb-2">Coming Up Later</h3>
           <Card>
             <CardContent className="p-0 overflow-hidden">
-              {stableUpcoming.length > 10 ? (
-                <List
-                  height={listHeight}
-                  width="100%"
-                  itemCount={stableUpcoming.length}
-                  itemSize={rowHeight}
-                  itemData={listData}
-                >
-                  {UpcomingRow}
-                </List>
+              {shouldVirtualize ? (
+                <div ref={containerRef} style={{ height: listHeight }}>
+                  <AutoSizer disableHeight>
+                    {({ width }) => (
+                      <List
+                        ref={listRef}
+                        height={listHeight}
+                        width={width}
+                        itemCount={stableUpcoming.length}
+                        itemSize={rowHeight}
+                        itemData={listData}
+                        onScroll={handleScroll}
+                        className="scrollbar-thin scrollbar-thumb-rounded-md scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600"
+                        overscanCount={3}
+                      >
+                        {UpcomingRow}
+                      </List>
+                    )}
+                  </AutoSizer>
+                </div>
               ) : (
                 // For small lists, don't use virtualization to avoid jumping issues
                 stableUpcoming.map((reminder) => (
