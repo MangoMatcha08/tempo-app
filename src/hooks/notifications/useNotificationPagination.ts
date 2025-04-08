@@ -16,8 +16,8 @@ export function useNotificationPagination(options: NotificationPaginationOptions
   const { user } = useAuth();
   const isMobile = useMediaQuery('(max-width: 640px)');
   
-  // Get page size from feature flags
-  const pageSize = useFeature('NOTIFICATIONS_PAGE_SIZE') ? 5 : 5; // Default to 5 if feature flag not found
+  // Get page size from feature flags - now correctly typed
+  const pageSize = useFeature('NOTIFICATIONS_PAGE_SIZE');
   const mobilePageSize = isMobile ? Math.min(pageSize, 3) : pageSize;
   
   // Extract options with defaults
@@ -98,7 +98,8 @@ export function useNotificationPagination(options: NotificationPaginationOptions
         image: null,
         read: !unreadOnly && Math.random() > 0.5,
         readAt: null,
-        metadata: {}
+        metadata: {},
+        channels: ['in-app'] // Add missing channels property
       }));
       
       setItems(prev => currentPage === 1 ? mockData : [...prev, ...mockData]);

@@ -219,6 +219,9 @@ const Dashboard = () => {
     categoryBreakdown: {}
   };
 
+  // Use the retrieved stats or fallback to default stats
+  const stats = reminderStats || defaultStats;
+
   return (
     <DashboardMain
       reminders={reminders}
@@ -227,7 +230,7 @@ const Dashboard = () => {
       urgentReminders={urgentReminders}
       upcomingReminders={upcomingReminders}
       completedReminders={completedReminders}
-      reminderStats={reminderStats || defaultStats}
+      reminderStats={stats}
       handleCompleteReminder={handleCompleteReminder}
       handleUndoComplete={handleUndoComplete}
       addReminder={handleAddReminder}

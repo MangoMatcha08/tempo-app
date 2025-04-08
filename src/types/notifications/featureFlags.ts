@@ -55,3 +55,11 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
 
 // Storage key for persisted feature flags
 export const FEATURE_FLAGS_STORAGE_KEY = 'app_feature_flags';
+
+// Helper type for feature value types
+export type FeatureFlagValue = boolean | number;
+
+// Helper function to check if a feature flag is boolean type
+export const isBooleanFeature = (flagName: keyof FeatureFlags): boolean => {
+  return typeof DEFAULT_FEATURE_FLAGS[flagName] === 'boolean';
+};
