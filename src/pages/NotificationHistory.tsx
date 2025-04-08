@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useNotificationDisplay } from "@/hooks/useNotificationDisplay";
 import { useNavigate } from "react-router-dom";
@@ -181,13 +180,10 @@ const NotificationHistory = () => {
             onAction={onNotificationAction}
             onMarkRead={markAsRead}
             emptyMessage="No notifications found"
+            loading={loading}
+            virtualized={true}
+            height={window.innerHeight - 220}
           />
-          
-          {loading && (
-            <div className="py-4 text-center text-muted-foreground">
-              Loading notifications...
-            </div>
-          )}
           
           {!loading && sortedNotifications.length > 0 && (
             <div className="py-4 text-center text-muted-foreground">
