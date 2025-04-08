@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { useNotificationHistory } from '@/contexts/NotificationContext';
+import { useNotificationHistory } from '@/contexts/notificationHistory';
 import { NotificationRecord } from '@/types/notifications/notificationHistoryTypes';
 
 /**
@@ -17,7 +17,10 @@ export const useNotificationDisplay = (options: {
     error,
     updateNotificationStatus,
     addNotificationAction,
-    clearHistory: clearHistoryContext
+    clearHistory: clearHistoryContext,
+    pagination,
+    setPage,
+    setPageSize
   } = useNotificationHistory();
   
   const [filteredRecords, setFilteredRecords] = useState<NotificationRecord[]>([]);
@@ -33,8 +36,8 @@ export const useNotificationDisplay = (options: {
     // Sort by timestamp, newest first
     filtered.sort((a, b) => b.timestamp - a.timestamp);
     
-    // Apply limit
-    if (limit) {
+    // Apply limit if specified and pagination not needed
+    if (limit && limit < filtered.length) {
       filtered = filtered.slice(0, limit);
     }
     
@@ -80,7 +83,10 @@ export const useNotificationDisplay = (options: {
     handleAction,
     markAllAsRead,
     clearHistory,
-    unreadCount: filteredRecords.filter(n => n.status !== 'received' && n.status !== 'clicked').length
+    unreadCount: filteredRecords.filter(n => n.status !== 'received' && n.status !== 'clicked').length,
+    pagination,
+    setPage,
+    setPageSize
   };
 };
 

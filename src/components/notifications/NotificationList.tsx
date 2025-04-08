@@ -3,6 +3,7 @@ import { NotificationRecord } from "@/types/notifications/notificationHistoryTyp
 import NotificationCard from "./NotificationCard";
 import { Info } from "lucide-react";
 import VirtualizedNotificationList from "./VirtualizedNotificationList";
+import NotificationPagination from "./NotificationPagination";
 
 interface NotificationListProps {
   notifications: NotificationRecord[];
@@ -13,6 +14,10 @@ interface NotificationListProps {
   virtualized?: boolean;
   height?: number;
   loading?: boolean;
+  showPagination?: boolean;
+  currentPage?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
 }
 
 const NotificationList = ({
@@ -23,21 +28,36 @@ const NotificationList = ({
   className,
   virtualized = true,
   height,
-  loading = false
+  loading = false,
+  showPagination = false,
+  currentPage = 1,
+  totalPages = 1,
+  onPageChange
 }: NotificationListProps) => {
 
   // Use virtualized list if requested and we have enough items
   if (virtualized && notifications.length > 5) {
     return (
-      <VirtualizedNotificationList
-        notifications={notifications}
-        onAction={onAction}
-        onMarkRead={onMarkRead}
-        emptyMessage={emptyMessage}
-        className={className}
-        height={height}
-        loading={loading}
-      />
+      <div className="flex flex-col">
+        <VirtualizedNotificationList
+          notifications={notifications}
+          onAction={onAction}
+          onMarkRead={onMarkRead}
+          emptyMessage={emptyMessage}
+          className={className}
+          height={height}
+          loading={loading}
+        />
+        
+        {showPagination && onPageChange && (
+          <NotificationPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={onPageChange}
+            className="mt-4"
+          />
+        )}
+      </div>
     );
   }
 
@@ -64,17 +84,28 @@ const NotificationList = ({
   }
 
   return (
-    <div className={className}>
-      <div className="space-y-3">
-        {notifications.map(notification => (
-          <NotificationCard
-            key={notification.id}
-            notification={notification}
-            onAction={onAction}
-            onMarkRead={onMarkRead}
-          />
-        ))}
+    <div className="flex flex-col">
+      <div className={className}>
+        <div className="space-y-3">
+          {notifications.map(notification => (
+            <NotificationCard
+              key={notification.id}
+              notification={notification}
+              onAction={onAction}
+              onMarkRead={onMarkRead}
+            />
+          ))}
+        </div>
       </div>
+      
+      {showPagination && onPageChange && (
+        <NotificationPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+          className="mt-4"
+        />
+      )}
     </div>
   );
 };

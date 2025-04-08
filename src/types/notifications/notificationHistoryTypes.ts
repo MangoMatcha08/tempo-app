@@ -38,10 +38,22 @@ export interface NotificationRecord {
 }
 
 /**
+ * Pagination state for notification history
+ */
+export interface PaginationState {
+  currentPage: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+/**
  * Notification history state
  */
 export interface NotificationHistoryState {
   records: NotificationRecord[];
   loading: boolean;
   error: Error | null;
+  pagination: PaginationState;
 }
+

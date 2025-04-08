@@ -1,5 +1,5 @@
 
-import React, { useReducer, useEffect, useState } from 'react';
+import React, { useReducer, useEffect, useState, useCallback } from 'react';
 import { NotificationRecord, NotificationAction } from '@/types/notifications/notificationHistoryTypes';
 import { NOTIFICATION_FEATURES } from '@/types/notifications/index';
 import { notificationHistoryReducer, initialState } from './reducer';
@@ -26,7 +26,7 @@ export const NotificationHistoryProvider: React.FC<NotificationHistoryProviderPr
     if (userId && NOTIFICATION_FEATURES.HISTORY_ENABLED) {
       loadHistory();
     }
-  }, [userId]);
+  }, [userId, state.pagination.currentPage, state.pagination.pageSize]);
 
   // Load notification history
   const loadHistory = async () => {
@@ -36,9 +36,24 @@ export const NotificationHistoryProvider: React.FC<NotificationHistoryProviderPr
     
     try {
       // This will be implemented in a future phase with actual Firebase integration
-      // For now, we're just returning an empty array
-      const records: NotificationRecord[] = [];
-      dispatch({ type: 'LOAD_HISTORY_SUCCESS', payload: records });
+      // For now, we're just simulating paginated data
+      
+      // Simulate pagination in development by generating mock data
+      const startIndex = (state.pagination.currentPage - 1) * state.pagination.pageSize;
+      const endIndex = startIndex + state.pagination.pageSize;
+      
+      // In a real implementation, you'd fetch only the current page from Firebase
+      // For now, we're simulating with either an empty array or mock data
+      const mockRecords: NotificationRecord[] = [];
+      const totalItems = mockRecords.length;
+      
+      dispatch({ 
+        type: 'LOAD_HISTORY_SUCCESS', 
+        payload: { 
+          records: mockRecords.slice(startIndex, endIndex), 
+          totalItems 
+        }
+      });
     } catch (error) {
       console.error('Error loading notification history:', error);
       dispatch({ 
@@ -89,13 +104,25 @@ export const NotificationHistoryProvider: React.FC<NotificationHistoryProviderPr
     // In a future phase, we would persist this to Firebase
   };
 
+  // Set current page
+  const setPage = useCallback((page: number) => {
+    dispatch({ type: 'SET_PAGE', payload: page });
+  }, []);
+
+  // Set page size
+  const setPageSize = useCallback((size: number) => {
+    dispatch({ type: 'SET_PAGE_SIZE', payload: size });
+  }, []);
+
   const value = {
     ...state,
     addNotification,
     updateNotificationStatus,
     addNotificationAction,
     clearHistory,
-    loadHistory
+    loadHistory,
+    setPage,
+    setPageSize
   };
 
   return (
@@ -104,3 +131,4 @@ export const NotificationHistoryProvider: React.FC<NotificationHistoryProviderPr
     </NotificationHistoryContext.Provider>
   );
 };
+

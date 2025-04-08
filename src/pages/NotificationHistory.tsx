@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { useNotificationDisplay } from "@/hooks/useNotificationDisplay";
 import { useNavigate } from "react-router-dom";
 import NotificationList from "@/components/notifications/NotificationList";
@@ -25,11 +26,19 @@ import { ReminderPriority, NotificationType } from "@/types/reminderTypes";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NotificationAction } from "@/types/notifications/notificationHistoryTypes";
+import { useNotificationHistory } from "@/contexts/notificationHistory";
 
 const NotificationHistory = () => {
   const navigate = useNavigate();
   const [filterType, setFilterType] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("newest");
+  
+  // Get pagination state directly from context
+  const { 
+    pagination: { currentPage, totalPages, pageSize },
+    setPage,
+    setPageSize
+  } = useNotificationHistory();
 
   // Custom filter based on user selection
   const customFilter = (notification: any) => {
@@ -50,9 +59,14 @@ const NotificationHistory = () => {
     clearHistory,
     unreadCount
   } = useNotificationDisplay({
-    limit: 100,
+    limit: pageSize,
     filter: customFilter
   });
+
+  // Handle page size changes
+  const handlePageSizeChange = (newSize: string) => {
+    setPageSize(Number(newSize));
+  };
 
   // Handle notification action
   const onNotificationAction = (id: string, action: NotificationAction) => {
@@ -150,6 +164,21 @@ const NotificationHistory = () => {
             </SelectContent>
           </Select>
           
+          <Select 
+            value={pageSize.toString()} 
+            onValueChange={handlePageSizeChange}
+          >
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Page size" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10 per page</SelectItem>
+              <SelectItem value="20">20 per page</SelectItem>
+              <SelectItem value="50">50 per page</SelectItem>
+              <SelectItem value="100">100 per page</SelectItem>
+            </SelectContent>
+          </Select>
+          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -183,12 +212,17 @@ const NotificationHistory = () => {
             loading={loading}
             virtualized={true}
             height={window.innerHeight - 220}
+            showPagination={true}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setPage}
           />
           
           {!loading && sortedNotifications.length > 0 && (
             <div className="py-4 text-center text-muted-foreground">
               Showing {sortedNotifications.length} notifications
               {filterType !== "all" && " (filtered)"}
+              {` - Page ${currentPage} of ${totalPages}`}
             </div>
           )}
         </ScrollArea>

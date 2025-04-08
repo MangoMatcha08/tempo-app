@@ -10,6 +10,8 @@ export interface NotificationHistoryContextType extends NotificationHistoryState
   addNotificationAction: (id: string, action: NotificationAction) => void;
   clearHistory: () => void;
   loadHistory: () => Promise<void>;
+  setPage: (page: number) => void;
+  setPageSize: (size: number) => void;
 }
 
 export const NotificationHistoryContext = createContext<NotificationHistoryContextType>({
@@ -19,6 +21,9 @@ export const NotificationHistoryContext = createContext<NotificationHistoryConte
   addNotificationAction: () => {},
   clearHistory: () => {},
   loadHistory: async () => {},
+  setPage: () => {},
+  setPageSize: () => {}
 });
 
 export const useNotificationHistory = () => useContext(NotificationHistoryContext);
+
