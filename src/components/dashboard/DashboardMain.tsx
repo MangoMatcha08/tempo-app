@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 interface DashboardMainProps {
   reminders: UIEnhancedReminder[];
@@ -75,74 +76,76 @@ const DashboardMain = ({
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
-      {/* Sidebar */}
-      <DashboardSidebar />
+    <SidebarProvider>
+      <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+        {/* Sidebar */}
+        <DashboardSidebar />
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <DashboardHeader
-          pageTitle="Dashboard"
-          onAddReminder={() => openModal('quickReminder')}
-        />
-        
-        {/* Mobile Menu Toggle */}
-        <div className="lg:hidden p-4 pb-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={toggleSidebar}
-            className="mb-4"
-          >
-            <Menu className="h-4 w-4 mr-2" />
-            Menu
-          </Button>
-        </div>
-
-        {/* Scrollable Content */}
-        <div 
-          className={cn(
-            "flex-1 overflow-y-auto px-4 pb-12 pt-0 lg:px-8",
-            sidebarOpen ? "lg:ml-0" : "lg:ml-0"
-          )}
-        >
-          <DashboardContent
-            urgentReminders={urgentReminders}
-            upcomingReminders={upcomingReminders}
-            completedReminders={completedReminders}
-            onCompleteReminder={handleCompleteReminder}
-            onUndoComplete={handleUndoComplete}
-            onNewReminder={() => openModal('quickReminder')}
-            onNewVoiceNote={() => openModal('voiceReminder')}
-            onUpdateReminder={updateReminder}
-            onClearAllCompleted={batchDeleteReminders ? 
-              () => batchDeleteReminders(completedReminders.map(r => r.id)) : 
-              undefined
-            }
-            onClearCompleted={deleteReminder}
-            isLoading={loading}
-            hasError={!!hasError}
-            hasMoreReminders={hasMore}
-            totalCount={totalCount}
-            loadedCount={reminders.length}
-            onLoadMore={loadMoreReminders}
-            isRefreshing={isRefreshing}
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <DashboardHeader
+            pageTitle="Dashboard"
+            onAddReminder={() => openModal('quickReminder')}
           />
+          
+          {/* Mobile Menu Toggle */}
+          <div className="lg:hidden p-4 pb-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleSidebar}
+              className="mb-4"
+            >
+              <Menu className="h-4 w-4 mr-2" />
+              Menu
+            </Button>
+          </div>
+
+          {/* Scrollable Content */}
+          <div 
+            className={cn(
+              "flex-1 overflow-y-auto px-4 pb-12 pt-0 lg:px-8",
+              sidebarOpen ? "lg:ml-0" : "lg:ml-0"
+            )}
+          >
+            <DashboardContent
+              urgentReminders={urgentReminders}
+              upcomingReminders={upcomingReminders}
+              completedReminders={completedReminders}
+              onCompleteReminder={handleCompleteReminder}
+              onUndoComplete={handleUndoComplete}
+              onNewReminder={() => openModal('quickReminder')}
+              onNewVoiceNote={() => openModal('voiceReminder')}
+              onUpdateReminder={updateReminder}
+              onClearAllCompleted={batchDeleteReminders ? 
+                () => batchDeleteReminders(completedReminders.map(r => r.id)) : 
+                undefined
+              }
+              onClearCompleted={deleteReminder}
+              isLoading={loading}
+              hasError={!!hasError}
+              hasMoreReminders={hasMore}
+              totalCount={totalCount}
+              loadedCount={reminders.length}
+              onLoadMore={loadMoreReminders}
+              isRefreshing={isRefreshing}
+            />
+          </div>
         </div>
+
+        {/* Modals */}
+        <DashboardModals
+          showQuickReminderModal={modalState.quickReminder}
+          setShowQuickReminderModal={(open: boolean) => setModalState(prev => ({ ...prev, quickReminder: open }))}
+          showVoiceRecorderModal={modalState.voiceReminder}
+          setShowVoiceRecorderModal={(open: boolean) => setModalState(prev => ({ ...prev, voiceReminder: open }))}
+          onReminderCreated={addReminder}
+        />
+
+        {/* Developer Panel */}
+        <DeveloperPanel />
       </div>
-
-      {/* Modals */}
-      <DashboardModals
-        showQuickReminderModal={modalState.quickReminder}
-        setShowQuickReminderModal={(open: boolean) => setModalState(prev => ({ ...prev, quickReminder: open }))}
-        showVoiceRecorderModal={modalState.voiceReminder}
-        setShowVoiceRecorderModal={(open: boolean) => setModalState(prev => ({ ...prev, voiceReminder: open }))}
-        onReminderCreated={addReminder}
-      />
-
-      {/* Developer Panel */}
-      <DeveloperPanel />
-    </div>
+    </SidebarProvider>
   );
 };
 
