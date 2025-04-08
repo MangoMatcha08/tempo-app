@@ -21,8 +21,11 @@ if (process.env.NODE_ENV === 'production') {
       console.log('Service worker registration complete');
       setupPeriodicUpdateChecks(30); // Check for updates every 30 minutes
     })
-    .catch(console.error);
+    .catch(error => {
+      console.error('Service worker registration failed:', error);
+      console.warn('App will run without offline support');
+    });
 }
 
-// Render the app
+// Render the app regardless of service worker status
 renderApp();
