@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useReminders } from "@/hooks/reminders/use-reminders";
 import { useToast } from "@/hooks/use-toast";
@@ -202,7 +201,6 @@ const Dashboard = () => {
     };
   }, [clearCacheAndRefresh]);
 
-  // Create default stats if none are available
   const defaultStats: ReminderStats = {
     total: reminders.length,
     completed: completedReminders.length,
@@ -219,8 +217,7 @@ const Dashboard = () => {
     categoryBreakdown: {}
   };
 
-  // Use the retrieved stats or fallback to default stats
-  const stats = reminderStats || defaultStats;
+  const stats: ReminderStats = reminderStats || defaultStats;
 
   return (
     <DashboardMain

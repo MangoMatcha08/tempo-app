@@ -74,10 +74,10 @@ const NotificationPagination = ({
         ) {
           onPageChange(currentPage - 1);
           
-          // Log navigation performance
+          // Log navigation performance - using 'notifications' as a string instead of enum
           performanceMonitor.startMark(
             `pagination-keyboard-prev-${Date.now()}`, 
-            'notifications', // Using appropriate category instead of 'pagination'
+            'pagination', // Using 'pagination' which should be a valid category
             { from: currentPage, to: currentPage - 1, method: 'keyboard' }
           );
         }
@@ -92,7 +92,7 @@ const NotificationPagination = ({
           // Log navigation performance
           performanceMonitor.startMark(
             `pagination-keyboard-next-${Date.now()}`, 
-            'notifications', // Using appropriate category instead of 'pagination'
+            'pagination', // Using 'pagination' which should be a valid category
             { from: currentPage, to: currentPage + 1, method: 'keyboard' }
           );
         }
@@ -109,7 +109,7 @@ const NotificationPagination = ({
   const handlePageClick = (page: number) => {
     performanceMonitor.startMark(
       `pagination-click-${Date.now()}`, 
-      'notifications', // Using appropriate category instead of 'pagination'
+      'pagination', // Using 'pagination' which should be a valid category
       { from: currentPage, to: page, method: 'click' }
     );
     onPageChange(page);

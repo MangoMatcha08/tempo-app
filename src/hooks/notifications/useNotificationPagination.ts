@@ -82,7 +82,7 @@ export function useNotificationPagination(options: NotificationPaginationOptions
     
     // Simulate API call delay
     const timer = setTimeout(() => {
-      // Sample notification data
+      // Sample notification data with numeric timestamp (not Date object)
       const mockData: NotificationRecord[] = Array(mobilePageSize).fill(null).map((_, i) => ({
         id: `notification-${currentPage}-${i}`,
         title: `Notification ${currentPage * mobilePageSize + i}`,
@@ -90,7 +90,7 @@ export function useNotificationPagination(options: NotificationPaginationOptions
         status: unreadOnly ? 'new' : (Math.random() > 0.5 ? 'new' : 'read'),
         type: ['default', 'success', 'info', 'warning', 'error'][Math.floor(Math.random() * 5)] as any,
         priority: 'normal',
-        timestamp: new Date(Date.now() - (i * 60000)), // Each one a minute earlier
+        timestamp: Date.now() - (i * 60000), // Numeric timestamp (milliseconds)
         userId: user?.uid || 'unknown',
         sourceId: null,
         sourceType: null,
@@ -99,7 +99,7 @@ export function useNotificationPagination(options: NotificationPaginationOptions
         read: !unreadOnly && Math.random() > 0.5,
         readAt: null,
         metadata: {},
-        channels: ['in-app'] // Add missing channels property
+        channels: ['in-app'] // Added required channels property
       }));
       
       setItems(prev => currentPage === 1 ? mockData : [...prev, ...mockData]);

@@ -17,7 +17,7 @@ interface NotificationOptions {
 
 export function useNotificationHandler() {
   const { toast } = useToast();
-  const enableExtendedLogging = !!useFeature('VERBOSE_LOGGING');
+  const enableExtendedLogging = Boolean(useFeature('VERBOSE_LOGGING'));
   
   const sendNotification = useCallback((options: NotificationOptions) => {
     const { title, body, type = 'default', duration = 5000, action, onClose } = options;
