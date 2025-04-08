@@ -15,6 +15,14 @@ export * from './notificationHistoryTypes';
 export * from './permissionTypes';
 export * from './serviceWorkerTypes';
 export * from './featureFlags';
+export * from './sharedTypes';
+
+/**
+ * Re-export NotificationType from reminderTypes for backward compatibility
+ * @note This enum is primarily defined in reminderTypes.ts but commonly used
+ * in notification contexts. In the future, consider using types from sharedTypes.ts
+ */
+export { NotificationType } from '../reminderTypes';
 
 /**
  * Feature flag constants for notification functionality
