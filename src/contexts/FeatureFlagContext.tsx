@@ -1,11 +1,11 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { FeatureFlags, DEFAULT_FEATURE_FLAGS, FEATURE_FLAGS_STORAGE_KEY, FeatureFlagValue, isBooleanFeature } from '@/types/notifications/featureFlags';
+import { FeatureFlags, DEFAULT_FEATURE_FLAGS, FEATURE_FLAGS_STORAGE_KEY } from '@/types/notifications/featureFlags';
 
 // Context interface for feature flags
 interface FeatureFlagContextType {
   flags: FeatureFlags;
-  setFlag: <K extends keyof FeatureFlags>(flagName: K, value: FeatureFlags[K]) => void;
+  setFlag: (flagName: keyof FeatureFlags, value: boolean) => void;
   resetFlags: () => void;
   devMode: boolean;
   toggleDevMode: () => void;
@@ -47,7 +47,7 @@ export const FeatureFlagProvider: React.FC<FeatureFlagProviderProps> = ({
   };
   
   const [flags, setFlags] = useState<FeatureFlags>(loadPersistedFlags());
-  const [devMode, setDevMode] = useState<boolean>(!!flags.DEV_MODE);
+  const [devMode, setDevMode] = useState<boolean>(flags.DEV_MODE || false);
   
   // Persist flags to localStorage when they change
   useEffect(() => {
@@ -56,14 +56,14 @@ export const FeatureFlagProvider: React.FC<FeatureFlagProviderProps> = ({
     }
   }, [flags]);
   
-  // Update a single flag with the correct type
-  const setFlag = <K extends keyof FeatureFlags>(flagName: K, value: FeatureFlags[K]) => {
+  // Update a single flag
+  const setFlag = (flagName: keyof FeatureFlags, value: boolean) => {
     setFlags(prev => {
       const newFlags = { ...prev, [flagName]: value };
       
-      // If we're changing DEV_MODE, update the state
+      // If we're disabling DEV_MODE, update the state
       if (flagName === 'DEV_MODE') {
-        setDevMode(!!value);
+        setDevMode(value);
       }
       
       return newFlags;
@@ -73,14 +73,14 @@ export const FeatureFlagProvider: React.FC<FeatureFlagProviderProps> = ({
   // Reset all flags to default values
   const resetFlags = () => {
     setFlags(DEFAULT_FEATURE_FLAGS);
-    setDevMode(!!DEFAULT_FEATURE_FLAGS.DEV_MODE);
+    setDevMode(DEFAULT_FEATURE_FLAGS.DEV_MODE);
   };
   
   // Toggle developer mode
   const toggleDevMode = () => {
     setDevMode(prev => {
       const newValue = !prev;
-      setFlag('DEV_MODE', newValue as FeatureFlags['DEV_MODE']);
+      setFlag('DEV_MODE', newValue);
       return newValue;
     });
   };
@@ -112,7 +112,7 @@ export const useFeatureFlags = () => {
 };
 
 // Hook to check if a specific feature is enabled
-export const useFeature = <K extends keyof FeatureFlags>(featureName: K): FeatureFlags[K] => {
+export const useFeature = (featureName: keyof FeatureFlags): boolean => {
   const { flags } = useFeatureFlags();
   return flags[featureName];
 };

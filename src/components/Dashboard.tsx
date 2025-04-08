@@ -6,8 +6,6 @@ import { useDashboardRefresh } from "@/hooks/reminders/use-dashboard-refresh";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardMain from "@/components/dashboard/DashboardMain";
 import { getUserFriendlyErrorMessage } from "@/lib/firebase/error-utils";
-import { ReminderStats } from "@/types/statsTypes";
-import { CreateReminderInput, UIReminder } from "@/types/reminderTypes";
 
 const Dashboard = () => {
   const [hasError, setHasError] = useState(false);
@@ -94,7 +92,7 @@ const Dashboard = () => {
     hasError
   );
 
-  const handleAddReminder = useCallback(async (reminder: CreateReminderInput): Promise<boolean> => {
+  const handleAddReminder = useCallback(async (reminder: any): Promise<boolean> => {
     try {
       console.log("Adding reminder in Dashboard:", reminder);
       const result = await addReminderBase(reminder);
@@ -107,10 +105,9 @@ const Dashboard = () => {
         
         console.log("Forcing refresh after add");
         await refreshReminders();
-        return true;
       }
       
-      return false;
+      return !!result;
     } catch (err) {
       console.error("Error adding reminder in Dashboard:", err);
       toast({
@@ -201,24 +198,6 @@ const Dashboard = () => {
     };
   }, [clearCacheAndRefresh]);
 
-  const defaultStats: ReminderStats = {
-    total: reminders.length,
-    completed: completedReminders.length,
-    urgent: urgentReminders.length,
-    upcoming: upcomingReminders.length,
-    overdue: 0,
-    completionRate: completedReminders.length / (reminders.length || 1),
-    overdueRate: 0,
-    priorityBreakdown: {
-      high: 0,
-      medium: 0,
-      low: 0
-    },
-    categoryBreakdown: {}
-  };
-
-  const stats: ReminderStats = reminderStats || defaultStats;
-
   return (
     <DashboardMain
       reminders={reminders}
@@ -227,7 +206,7 @@ const Dashboard = () => {
       urgentReminders={urgentReminders}
       upcomingReminders={upcomingReminders}
       completedReminders={completedReminders}
-      reminderStats={stats}
+      reminderStats={reminderStats}
       handleCompleteReminder={handleCompleteReminder}
       handleUndoComplete={handleUndoComplete}
       addReminder={handleAddReminder}

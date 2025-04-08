@@ -1,3 +1,4 @@
+
 import React, { useReducer, useCallback, useEffect, useState } from 'react';
 import { NotificationHistoryContext } from './context';
 import { reducer, initialState } from './reducer';
@@ -186,8 +187,7 @@ export const NotificationHistoryProvider: React.FC<NotificationHistoryProviderPr
   }, [cleanupConfig, cleanupNotifications, flags.AUTO_CLEANUP]);
   
   const isFeatureEnabled = useCallback((featureName: string): boolean => {
-    const value = flags[featureName as keyof typeof flags];
-    return value === true || !!value;
+    return flags[featureName as keyof typeof flags] ?? false;
   }, [flags]);
 
   return (
