@@ -23,7 +23,7 @@ export const useNotificationPerformance = (componentName: string) => {
   }, [componentName, componentPerf]);
   
   // Measure a function that loads notifications
-  const measureNotificationLoad = useCallback(async <T>(
+  const measureNotificationLoad = useCallback(<T>(
     name: string,
     loadFn: () => Promise<T>
   ): Promise<T> => {
