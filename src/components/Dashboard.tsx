@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useReminders } from "@/hooks/reminders/use-reminders";
 import { useToast } from "@/hooks/use-toast";
@@ -6,6 +7,8 @@ import { useDashboardRefresh } from "@/hooks/reminders/use-dashboard-refresh";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardMain from "@/components/dashboard/DashboardMain";
 import { getUserFriendlyErrorMessage } from "@/lib/firebase/error-utils";
+import { ReminderStats } from "@/types/statsTypes";
+import { CreateReminderInput, UIReminder } from "@/types/reminderTypes";
 
 const Dashboard = () => {
   const [hasError, setHasError] = useState(false);
@@ -92,7 +95,7 @@ const Dashboard = () => {
     hasError
   );
 
-  const handleAddReminder = useCallback(async (reminder: any): Promise<boolean> => {
+  const handleAddReminder = useCallback(async (reminder: CreateReminderInput): Promise<boolean> => {
     try {
       console.log("Adding reminder in Dashboard:", reminder);
       const result = await addReminderBase(reminder);
@@ -105,9 +108,10 @@ const Dashboard = () => {
         
         console.log("Forcing refresh after add");
         await refreshReminders();
+        return true;
       }
       
-      return !!result;
+      return false;
     } catch (err) {
       console.error("Error adding reminder in Dashboard:", err);
       toast({
@@ -198,6 +202,23 @@ const Dashboard = () => {
     };
   }, [clearCacheAndRefresh]);
 
+  // Create default stats if none are available
+  const defaultStats: ReminderStats = {
+    total: reminders.length,
+    completed: completedReminders.length,
+    urgent: urgentReminders.length,
+    upcoming: upcomingReminders.length,
+    overdue: 0,
+    completionRate: completedReminders.length / (reminders.length || 1),
+    overdueRate: 0,
+    priorityBreakdown: {
+      high: 0,
+      medium: 0,
+      low: 0
+    },
+    categoryBreakdown: {}
+  };
+
   return (
     <DashboardMain
       reminders={reminders}
@@ -206,7 +227,7 @@ const Dashboard = () => {
       urgentReminders={urgentReminders}
       upcomingReminders={upcomingReminders}
       completedReminders={completedReminders}
-      reminderStats={reminderStats}
+      reminderStats={reminderStats || defaultStats}
       handleCompleteReminder={handleCompleteReminder}
       handleUndoComplete={handleUndoComplete}
       addReminder={handleAddReminder}

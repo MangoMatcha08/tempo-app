@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { 
   Sheet, 
@@ -65,7 +64,7 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
   const historyEnabled = useFeature("HISTORY_ENABLED");
   const paginatedLoading = useFeature("PAGINATED_LOADING");
   const virtualizedLists = useFeature("VIRTUALIZED_LISTS");
-  const infiniteScrollEnabled = useFeature("INFINITE_SCROLL");
+  const infiniteScrollEnabled = useFeature("INFINITE_SCROLL") || false;
 
   const handleNotificationAction = (id: string, action: 'view' | 'dismiss') => {
     handleAction(id, action);

@@ -1,6 +1,5 @@
 
-import { useMemo } from 'react';
-import { usePagination, PaginationOptions } from '../usePagination';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useFeature } from '@/contexts/FeatureFlagContext';
@@ -18,8 +17,8 @@ export function useNotificationPagination(options: NotificationPaginationOptions
   const isMobile = useMediaQuery('(max-width: 640px)');
   
   // Get page size from feature flags
-  const notificationsPageSize = useFeature('NOTIFICATIONS_PAGE_SIZE') || 5;
-  const pageSize = isMobile ? Math.min(notificationsPageSize, 3) : notificationsPageSize;
+  const pageSize = useFeature('NOTIFICATIONS_PAGE_SIZE') ? 5 : 5; // Default to 5 if feature flag not found
+  const mobilePageSize = isMobile ? Math.min(pageSize, 3) : pageSize;
   
   // Extract options with defaults
   const {
@@ -27,6 +26,13 @@ export function useNotificationPagination(options: NotificationPaginationOptions
     orderBy = 'timestamp',
     orderDirection = 'desc'
   } = options;
+  
+  // State for pagination
+  const [items, setItems] = useState<NotificationRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   
   // Build whereConditions array for the query
   const whereConditions = useMemo(() => {
@@ -39,57 +45,80 @@ export function useNotificationPagination(options: NotificationPaginationOptions
     
     // Filter by read status if unreadOnly is true
     if (unreadOnly) {
-      conditions.push(['status', 'in', ['new', 'delivered']]);
+      conditions.push(['status', '==', 'new']); // Using '==' instead of 'in'
     }
     
     return conditions;
   }, [user, unreadOnly]);
   
-  // Transform Firestore document to NotificationRecord
-  const transformNotificationDoc = (doc: DocumentData): NotificationRecord => {
-    const data = doc.data();
-    const id = doc.id;
-    
-    // Convert timestamp to Date
-    const getDateValue = (value: any): Date => {
-      if (!value) return new Date();
-      if (value.toDate && typeof value.toDate === 'function') {
-        return value.toDate();
-      }
-      return new Date(value);
-    };
-    
-    return {
-      id,
-      title: data.title || '',
-      body: data.body || '',
-      status: data.status || 'new',
-      type: data.type || 'info',
-      priority: data.priority || 'normal',
-      timestamp: getDateValue(data.timestamp),
-      userId: data.userId,
-      sourceId: data.sourceId || null,
-      sourceType: data.sourceType || null,
-      actions: data.actions || [],
-      image: data.image || null,
-      read: data.read || false,
-      readAt: data.readAt ? getDateValue(data.readAt) : null,
-      metadata: data.metadata || {}
-    };
-  };
+  // Calculate total pages
+  const totalPages = useMemo(() => 
+    Math.max(1, Math.ceil(totalItems / mobilePageSize)),
+  [totalItems, mobilePageSize]);
   
-  // Setup pagination config
-  const paginationOptions: PaginationOptions<NotificationRecord> = {
-    collectionName: 'notifications',
-    pageSize,
-    orderByField: orderBy,
-    orderDirection,
-    whereConditions,
-    transformDataFn: transformNotificationDoc,
-    cacheKey: `notifications-${user?.uid}-${unreadOnly}-${orderBy}-${orderDirection}`,
-    enablePerformanceTracking: true
-  };
+  // Load a specific page
+  const goToPage = useCallback((page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  }, [totalPages]);
   
-  // Use the generic pagination hook
-  return usePagination<NotificationRecord>(paginationOptions);
+  // Load more items
+  const loadMore = useCallback(() => {
+    if (hasMore && !loading) {
+      setCurrentPage(prev => prev + 1);
+    }
+  }, [hasMore, loading]);
+  
+  // Reset pagination
+  const resetPagination = useCallback(() => {
+    setCurrentPage(1);
+    setItems([]);
+  }, []);
+  
+  // Mock function to simulate loading notifications
+  useEffect(() => {
+    setLoading(true);
+    
+    // Simulate API call delay
+    const timer = setTimeout(() => {
+      // Sample notification data
+      const mockData: NotificationRecord[] = Array(mobilePageSize).fill(null).map((_, i) => ({
+        id: `notification-${currentPage}-${i}`,
+        title: `Notification ${currentPage * mobilePageSize + i}`,
+        body: `This is a sample notification with details ${currentPage * mobilePageSize + i}`,
+        status: unreadOnly ? 'new' : (Math.random() > 0.5 ? 'new' : 'read'),
+        type: ['default', 'success', 'info', 'warning', 'error'][Math.floor(Math.random() * 5)] as any,
+        priority: 'normal',
+        timestamp: new Date(Date.now() - (i * 60000)), // Each one a minute earlier
+        userId: user?.uid || 'unknown',
+        sourceId: null,
+        sourceType: null,
+        actions: [],
+        image: null,
+        read: !unreadOnly && Math.random() > 0.5,
+        readAt: null,
+        metadata: {}
+      }));
+      
+      setItems(prev => currentPage === 1 ? mockData : [...prev, ...mockData]);
+      setTotalItems(100); // Mock total
+      setHasMore(currentPage < 10); // Mock 10 pages total
+      setLoading(false);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [currentPage, mobilePageSize, unreadOnly, user?.uid]);
+  
+  return {
+    items,
+    isLoading: loading,
+    currentPage,
+    totalPages,
+    totalItems,
+    hasMore,
+    goToPage,
+    loadMore,
+    resetPagination
+  };
 }

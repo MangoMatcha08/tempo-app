@@ -2,6 +2,7 @@
 import { useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useFeature } from '@/contexts/FeatureFlagContext';
+import { ToastActionElement } from '@/components/ui/toast';
 
 type NotificationType = 'default' | 'success' | 'info' | 'warning' | 'error' | 'destructive';
 
@@ -10,7 +11,7 @@ interface NotificationOptions {
   body: string;
   type?: NotificationType;
   duration?: number;
-  action?: React.ReactNode;
+  action?: ToastActionElement;
   onClose?: () => void;
 }
 

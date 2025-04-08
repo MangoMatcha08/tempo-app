@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { NotificationRecord } from "@/types/notifications/notificationHistoryTypes";
 import NotificationCard from "./NotificationCard";
@@ -70,7 +69,7 @@ const NotificationList = ({
   const shouldShowPagination = showPagination && paginationEnabled && !disablePagination;
   
   // Determine if "load more" functionality should be shown
-  const infiniteScrollEnabled = useFeature("INFINITE_SCROLL");
+  const infiniteScrollEnabled = useFeature("INFINITE_SCROLL") || false;
   const shouldShowLoadMore = onLoadMore && infiniteScrollEnabled && !shouldShowPagination;
 
   // Use virtualized list if requested and we have enough items

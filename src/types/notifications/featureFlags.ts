@@ -16,6 +16,12 @@ export interface FeatureFlags {
   VIRTUALIZED_LISTS: boolean;
   PAGINATED_LOADING: boolean;
   ADVANCED_CACHE: boolean;
+  INFINITE_SCROLL: boolean;
+  
+  // Page size configurations
+  NOTIFICATIONS_PAGE_SIZE: number;
+  SMALL_PAGE_SIZE: number;
+  LARGE_PAGE_SIZE: number;
   
   // Developer features
   DEV_MODE: boolean;
@@ -35,6 +41,12 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   VIRTUALIZED_LISTS: true,
   PAGINATED_LOADING: true,
   ADVANCED_CACHE: true,
+  INFINITE_SCROLL: false,
+  
+  // Page size configurations
+  NOTIFICATIONS_PAGE_SIZE: 5,
+  SMALL_PAGE_SIZE: 5,
+  LARGE_PAGE_SIZE: 10,
   
   // Developer features
   DEV_MODE: false,

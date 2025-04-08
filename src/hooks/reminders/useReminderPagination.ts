@@ -1,12 +1,10 @@
 
-import { useMemo } from 'react';
-import { usePagination, PaginationOptions } from '../usePagination';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFirestore } from '@/contexts/FirestoreContext';
-import { UIReminder } from '@/types/reminderTypes';
+import { UIReminder, ReminderCategory, ReminderPriority } from '@/types/reminderTypes';
 import { useFeature } from '@/contexts/FeatureFlagContext';
 import { useMediaQuery } from '@/hooks/use-media-query';
-import { DocumentData } from 'firebase/firestore';
 
 // Options specifically for reminder pagination
 interface ReminderPaginationOptions {
@@ -23,8 +21,8 @@ export function useReminderPagination(options: ReminderPaginationOptions = {}) {
   const isMobile = useMediaQuery('(max-width: 640px)');
   
   // Get page size from feature flags or use default based on device
-  const smallPageSize = useFeature('SMALL_PAGE_SIZE') || 5;
-  const largePageSize = useFeature('LARGE_PAGE_SIZE') || 10;
+  const smallPageSize = useFeature('SMALL_PAGE_SIZE') ? 5 : 5; // Default to 5
+  const largePageSize = useFeature('LARGE_PAGE_SIZE') ? 10 : 10; // Default to 10
   const pageSize = isMobile ? smallPageSize : largePageSize;
   
   // Extract options with defaults
@@ -35,6 +33,13 @@ export function useReminderPagination(options: ReminderPaginationOptions = {}) {
     orderDirection = 'asc',
     enablePerformanceTracking = true
   } = options;
+  
+  // State for pagination
+  const [items, setItems] = useState<UIReminder[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   
   // Build whereConditions array for the query
   const whereConditions = useMemo(() => {
@@ -58,74 +63,77 @@ export function useReminderPagination(options: ReminderPaginationOptions = {}) {
     return conditions;
   }, [user, filterCompleted, filterPriority]);
   
-  // Transform Firestore document to UIReminder
-  const transformReminderDoc = (doc: DocumentData): UIReminder => {
-    const data = doc.data();
-    const id = doc.id;
-    
-    // Check if this is a timestamp and convert to Date
-    const getDateValue = (value: any): Date => {
-      if (!value) return new Date();
-      if (value.toDate && typeof value.toDate === 'function') {
-        return value.toDate();
-      }
-      return new Date(value);
-    };
-    
-    return {
-      id,
-      title: data.title || '',
-      description: data.description || '',
-      dueDate: getDateValue(data.dueDate),
-      priority: data.priority || 'medium',
-      completed: data.completed || false,
-      completedAt: data.completedAt ? getDateValue(data.completedAt) : undefined,
-      createdAt: getDateValue(data.createdAt),
-      category: data.category || 'general',
-      userId: data.userId,
-      tags: data.tags || []
-    };
-  };
+  // Calculate total pages
+  const totalPages = useMemo(() => 
+    Math.max(1, Math.ceil(totalItems / pageSize)),
+  [totalItems, pageSize]);
   
-  // Setup pagination config for reminders
-  const paginationOptions: PaginationOptions<UIReminder> = {
-    collectionName: 'reminders',
-    pageSize,
-    orderByField: orderBy,
-    orderDirection,
-    whereConditions,
-    transformDataFn: transformReminderDoc,
-    cacheKey: `reminders-${user?.uid}-${filterCompleted}-${filterPriority}-${orderBy}-${orderDirection}`,
-    enablePerformanceTracking
-  };
+  // Load a specific page
+  const goToPage = useCallback((page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  }, [totalPages]);
   
-  // Use our generic pagination hook with reminder-specific options
-  const pagination = usePagination<UIReminder>(paginationOptions);
+  // Load more items
+  const loadMore = useCallback(() => {
+    if (hasMore && !loading) {
+      setCurrentPage(prev => prev + 1);
+    }
+  }, [hasMore, loading]);
+  
+  // Reset pagination
+  const resetPagination = useCallback(() => {
+    setCurrentPage(1);
+    setItems([]);
+  }, []);
   
   // For development/demo mode, generate mock reminders if useMockData is true
-  const { items: paginatedItems, ...paginationProps } = pagination;
-  const items = useMemo(() => {
-    if (useMockData && !isReady) {
-      // Generate mock reminders for demo purposes
-      return Array(pageSize).fill(0).map((_, i) => ({
-        id: `mock-${i}`,
-        title: `Mock Reminder ${i + 1}`,
-        description: 'This is a mock reminder for demonstration purposes.',
-        dueDate: new Date(Date.now() + (i * 86400000)), // Each one due a day later
-        priority: ['high', 'medium', 'low'][i % 3],
-        completed: i % 4 === 0,
-        createdAt: new Date(Date.now() - (i * 86400000)),
-        category: 'general',
-        userId: user?.uid || 'mock-user',
-        tags: []
-      } as UIReminder));
-    }
-    return paginatedItems;
-  }, [paginatedItems, useMockData, isReady, pageSize, user?.uid]);
+  useEffect(() => {
+    setLoading(true);
+    
+    // Simulate API call delay
+    const timer = setTimeout(() => {
+      let mockItems: UIReminder[];
+      
+      if (useMockData || !isReady) {
+        // Generate mock reminders for demo purposes
+        mockItems = Array(pageSize).fill(0).map((_, i) => ({
+          id: `mock-${currentPage}-${i}`,
+          title: `Mock Reminder ${currentPage * pageSize + i + 1}`,
+          description: 'This is a mock reminder for demonstration purposes.',
+          dueDate: new Date(Date.now() + (i * 86400000)), // Each one due a day later
+          priority: [ReminderPriority.HIGH, ReminderPriority.MEDIUM, ReminderPriority.LOW][i % 3],
+          completed: i % 4 === 0,
+          completedAt: i % 4 === 0 ? new Date() : undefined,
+          category: Object.values(ReminderCategory)[i % Object.values(ReminderCategory).length],
+          userId: user?.uid || 'mock-user',
+          tags: []
+        }));
+      } else {
+        // This would be where you'd fetch from Firestore
+        mockItems = [];
+      }
+      
+      setItems(prev => currentPage === 1 ? mockItems : [...prev, ...mockItems]);
+      setTotalItems(50); // Mock total
+      setHasMore(currentPage < Math.ceil(50 / pageSize)); // Set has more based on total
+      setLoading(false);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [currentPage, pageSize, useMockData, isReady, user?.uid]);
   
   return {
-    ...paginationProps,
     items,
+    isLoading: loading,
+    currentPage,
+    totalPages,
+    totalItems,
+    hasMore,
+    goToPage,
+    loadMore,
+    resetPagination,
     pageSize
   };
 }

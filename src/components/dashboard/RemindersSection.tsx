@@ -75,9 +75,12 @@ const RemindersSection = memo(({
   const listRef = useRef<List>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
+  // Determine if we should use virtualization based on item count
+  const shouldVirtualize = useMemo(() => stableUpcoming.length > 50, [stableUpcoming.length]);
+  
   // Check feature flags for pagination and infinite scroll
   const paginationFeatureEnabled = useFeature('PAGINATED_LOADING');
-  const infiniteScrollEnabled = useFeature('INFINITE_SCROLL');
+  const infiniteScrollEnabled = useFeature('INFINITE_SCROLL') || false; // Provide default
   const shouldShowPagination = paginationEnabled && paginationFeatureEnabled && totalPages > 1;
   const shouldShowLoadMore = onLoadMore && infiniteScrollEnabled && !shouldShowPagination;
   
@@ -116,9 +119,6 @@ const RemindersSection = memo(({
   
   // Determine if there are no reminders to show
   const noReminders = stableUrgent.length === 0 && stableUpcoming.length === 0;
-  
-  // Determine if we should use virtualization based on item count
-  const shouldVirtualize = useMemo(() => stableUpcoming.length > 50, [stableUpcoming.length]);
   
   // Memoize list data to prevent unnecessary rerenders
   const listData = useMemo(() => ({
