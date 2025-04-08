@@ -15,7 +15,7 @@ import { useVoiceRecorderState } from "@/hooks/useVoiceRecorderState";
 import { useToast } from "@/hooks/use-toast";
 import { VoiceProcessingResult } from "@/types/reminderTypes";
 
-export interface VoiceRecorderModalProps {
+interface VoiceRecorderModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave?: (reminder: any) => void;

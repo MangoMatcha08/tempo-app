@@ -28,7 +28,7 @@ import { Reminder as UIReminder } from "@/types/reminder";
 import { convertToUIReminder } from "@/utils/typeUtils";
 import { useToast } from "@/hooks/use-toast";
 
-export interface QuickReminderModalProps {
+interface QuickReminderModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onReminderCreated?: (reminder: UIReminder) => void;
