@@ -6,7 +6,7 @@ import { NotificationAction } from './notificationHistoryTypes';
  * Message payload from service worker to app
  */
 export interface ServiceWorkerMessage {
-  type: 'NOTIFICATION_CLICKED' | 'NOTIFICATION_CLOSED' | 'NOTIFICATION_ACTION' | 'READY';
+  type: 'NOTIFICATION_CLICKED' | 'NOTIFICATION_CLOSED' | 'NOTIFICATION_ACTION' | 'READY' | 'UPDATE_AVAILABLE';
   payload?: {
     reminderId?: string;
     action?: NotificationAction;
