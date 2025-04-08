@@ -73,6 +73,62 @@ export class ServiceWorkerManager {
   }
   
   /**
+   * Trigger a cache cleanup in the service worker
+   */
+  async triggerCacheMaintenance(): Promise<boolean> {
+    return this.sendMessage({ type: 'CACHE_MAINTENANCE' });
+  }
+  
+  /**
+   * Update service worker cache configuration
+   */
+  async updateCacheConfig(config: {
+    cachingEnabled?: boolean;
+    cacheMaintenanceInterval?: number;
+    debug?: boolean;
+  }): Promise<boolean> {
+    return this.sendMessage({
+      type: 'UPDATE_CONFIG',
+      payload: { config }
+    });
+  }
+  
+  /**
+   * Clear specific cache or all caches
+   */
+  async clearCache(cacheType?: 'static' | 'notifications' | 'documents' | 'images' | 'api'): Promise<boolean> {
+    return this.sendMessage({
+      type: 'CLEAR_CACHE',
+      payload: { cacheType }
+    });
+  }
+  
+  /**
+   * Get cache statistics
+   */
+  async getCacheStats(): Promise<any> {
+    return new Promise((resolve) => {
+      if (!navigator.serviceWorker.controller) {
+        resolve({ error: 'Service worker not active' });
+        return;
+      }
+      
+      const channel = new MessageChannel();
+      channel.port1.onmessage = (event) => {
+        resolve(event.data?.stats || { error: 'Failed to get stats' });
+      };
+      
+      navigator.serviceWorker.controller.postMessage(
+        { type: 'GET_CACHE_STATS' },
+        [channel.port2]
+      );
+      
+      // Timeout fallback
+      setTimeout(() => resolve({ error: 'Request timed out' }), 3000);
+    });
+  }
+  
+  /**
    * Register a listener for service worker messages with performance tracking
    */
   registerMessageListener(

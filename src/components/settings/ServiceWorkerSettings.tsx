@@ -4,11 +4,13 @@ import { useServiceWorker } from "@/hooks/useServiceWorker";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { RefreshCw, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { RefreshCw, CheckCircle2, XCircle, AlertTriangle, Database } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AppMessage } from "@/types/notifications/serviceWorkerTypes";
 import { SERVICE_WORKER_FEATURES } from "@/types/notifications/serviceWorkerTypes";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import CacheManager from "./CacheManager";
 
 const ServiceWorkerSettings = () => {
   const { 
@@ -24,6 +26,7 @@ const ServiceWorkerSettings = () => {
   } = useServiceWorker();
   
   const [clearingCache, setClearingCache] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("general");
 
   // Toggle between legacy and enhanced implementation
   const handleToggleImplementation = async () => {
@@ -75,66 +78,81 @@ const ServiceWorkerSettings = () => {
         </CardDescription>
       </CardHeader>
       
-      <CardContent className="space-y-4">
-        {error && (
-          <Alert variant="destructive">
-            <XCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        
-        {registered && (
-          <>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Enhanced Mode</p>
-                <p className="text-sm text-muted-foreground">
-                  Use enhanced implementation with better offline support
-                </p>
-              </div>
-              <Switch
-                checked={implementation === 'enhanced'}
-                onCheckedChange={handleToggleImplementation}
-                disabled={loading}
-              />
-            </div>
-            
-            {implementation === 'enhanced' && (
-              <Alert>
-                <CheckCircle2 className="h-4 w-4" />
-                <AlertTitle>Enhanced Features</AlertTitle>
-                <AlertDescription>
-                  <ul className="list-disc pl-5 space-y-1 mt-2">
-                    {SERVICE_WORKER_FEATURES.BACKGROUND_SYNC && (
-                      <li className="text-sm">Background Sync</li>
-                    )}
-                    {SERVICE_WORKER_FEATURES.OFFLINE_SUPPORT && (
-                      <li className="text-sm">Enhanced Offline Support</li>
-                    )}
-                    {SERVICE_WORKER_FEATURES.NOTIFICATION_GROUPING && (
-                      <li className="text-sm">Notification Grouping</li>
-                    )}
-                    {SERVICE_WORKER_FEATURES.PUSH_NOTIFICATION_ACTIONS && (
-                      <li className="text-sm">Advanced Notification Actions</li>
-                    )}
-                    {SERVICE_WORKER_FEATURES.PERIODIC_SYNC && (
-                      <li className="text-sm">Periodic Background Sync</li>
-                    )}
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            )}
-          </>
-        )}
-      </CardContent>
-      
-      <CardFooter className="flex justify-between">
-        {!registered ? (
+      {!registered ? (
+        <CardContent>
           <Button onClick={register} disabled={loading}>
             Install Service Worker
           </Button>
-        ) : (
-          <>
+        </CardContent>
+      ) : (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <CardContent>
+            <TabsList className="grid grid-cols-2 mb-4">
+              <TabsTrigger value="general">General</TabsTrigger>
+              <TabsTrigger value="cache">
+                <Database className="h-4 w-4 mr-2" />
+                Cache
+              </TabsTrigger>
+            </TabsList>
+            
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <XCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            <TabsContent value="general" className="mt-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Enhanced Mode</p>
+                  <p className="text-sm text-muted-foreground">
+                    Use enhanced implementation with better offline support
+                  </p>
+                </div>
+                <Switch
+                  checked={implementation === 'enhanced'}
+                  onCheckedChange={handleToggleImplementation}
+                  disabled={loading}
+                />
+              </div>
+              
+              {implementation === 'enhanced' && (
+                <Alert className="mt-4">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertTitle>Enhanced Features</AlertTitle>
+                  <AlertDescription>
+                    <ul className="list-disc pl-5 space-y-1 mt-2">
+                      {SERVICE_WORKER_FEATURES.BACKGROUND_SYNC && (
+                        <li className="text-sm">Background Sync</li>
+                      )}
+                      {SERVICE_WORKER_FEATURES.OFFLINE_SUPPORT && (
+                        <li className="text-sm">Enhanced Offline Support</li>
+                      )}
+                      {SERVICE_WORKER_FEATURES.NOTIFICATION_GROUPING && (
+                        <li className="text-sm">Notification Grouping</li>
+                      )}
+                      {SERVICE_WORKER_FEATURES.PUSH_NOTIFICATION_ACTIONS && (
+                        <li className="text-sm">Advanced Notification Actions</li>
+                      )}
+                      {SERVICE_WORKER_FEATURES.PERIODIC_SYNC && (
+                        <li className="text-sm">Periodic Background Sync</li>
+                      )}
+                      {SERVICE_WORKER_FEATURES.ADVANCED_CACHING && (
+                        <li className="text-sm">Intelligent Cache Management</li>
+                      )}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="cache" className="mt-0">
+              <CacheManager />
+            </TabsContent>
+          </CardContent>
+          
+          <CardFooter className="flex justify-between">
             <Button 
               variant="outline" 
               onClick={handleClearCache}
@@ -146,7 +164,7 @@ const ServiceWorkerSettings = () => {
                   Clearing...
                 </>
               ) : (
-                "Clear Cache"
+                "Clear Service Worker"
               )}
             </Button>
             
@@ -164,9 +182,9 @@ const ServiceWorkerSettings = () => {
                 "Check Status"
               )}
             </Button>
-          </>
-        )}
-      </CardFooter>
+          </CardFooter>
+        </Tabs>
+      )}
     </Card>
   );
 };
