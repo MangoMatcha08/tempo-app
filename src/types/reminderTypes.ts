@@ -15,10 +15,18 @@ export enum ReminderCategory {
   OTHER = "other"
 }
 
+/**
+ * Types of notifications that can be sent
+ * @enum {string}
+ */
 export enum NotificationType {
+  /** Reminder for upcoming deadline */
   UPCOMING = "upcoming",
+  /** Reminder for overdue task */
   OVERDUE = "overdue",
+  /** Daily summary of reminders */
   DAILY_SUMMARY = "dailySummary",
+  /** Test notification for debugging */
   TEST = "test"
 }
 
