@@ -10,15 +10,22 @@
  */
 
 import { 
-  NotificationRecord, 
-  NotificationAction,
-  NotificationSettings,
-  NotificationDeliveryStatus,
+  NotificationRecord as NotificationRecordBase, 
+  NotificationAction as NotificationActionBase,
+  NotificationSettings as NotificationSettingsBase,
+  NotificationDeliveryStatus as NotificationDeliveryStatusBase,
   NotificationCleanupConfig,
   PermissionRequestResult,
-  ServiceWorkerMessage
+  ServiceWorkerMessage as ServiceWorkerMessageBase
 } from '@/types/notifications';
 import { Reminder } from '@/types/reminderTypes';
+
+// Re-export the base types to avoid direct imports from multiple places
+export type NotificationRecord = NotificationRecordBase;
+export type NotificationAction = NotificationActionBase;
+export type NotificationDeliveryStatus = NotificationDeliveryStatusBase;
+export type NotificationSettings = NotificationSettingsBase;
+export type ServiceWorkerMessage = ServiceWorkerMessageBase;
 
 /**
  * Core notification state interface
@@ -88,6 +95,7 @@ export interface NotificationServices {
 
 /**
  * Toast display options abstraction
+ * Compatible with both Sonner and shadcn/ui toast libraries
  */
 export interface ToastOptions {
   title: string;

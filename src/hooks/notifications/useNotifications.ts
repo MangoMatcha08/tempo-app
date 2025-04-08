@@ -8,7 +8,7 @@
  * @module hooks/notifications/useNotifications
  */
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { NotificationsAPI, NotificationDisplayOptions } from './types';
 import { useNotificationState } from './useNotificationState';
 import { useNotificationToast } from './useNotificationDisplay';

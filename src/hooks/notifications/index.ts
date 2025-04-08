@@ -8,6 +8,7 @@
  * @module hooks/notifications
  */
 
+// Re-export main notification hook and types
 export * from './useNotifications';
 export * from './types';
 

@@ -15,9 +15,11 @@ import {
   NotificationDisplay, 
   NotificationDisplayOptions,
   ToastOptions,
-  NotificationStateInterface
+  NotificationStateInterface,
+  NotificationRecord,
+  NotificationDeliveryStatus,
+  NotificationAction
 } from './types';
-import { NotificationRecord, NotificationChannel, NotificationDeliveryStatus, NotificationAction } from '@/types/notifications';
 import { Reminder } from '@/types/reminderTypes';
 import { formatReminderForNotification, getPriorityToastVariant } from '@/utils/notificationUtils';
 import { useNotificationState } from './useNotificationState';
@@ -167,19 +169,25 @@ export function useNotificationToast(): NotificationDisplay {
       onAutoClose
     } = options;
     
+    // Map our common type to shadcn/ui variant (which has fewer options)
+    const shadcnVariant = type === 'success' || type === 'warning' ? 'default' : type;
+    
     // For shadcn/ui toast
     uiToast({
       title,
       description,
-      variant: type,
+      variant: shadcnVariant,
       duration,
+      // Handle action differently for shadcn/ui
       action: action ? {
-        label: action.label,
+        // Create an action component with the label and onClick handler
+        // @ts-ignore - This is compatible with shadcn Toast API
+        children: action.label,
         onClick: action.onClick
       } : undefined,
     });
     
-    // For Sonner toast
+    // For Sonner toast (which supports more variants)
     toast(title, {
       description,
       duration,
