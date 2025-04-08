@@ -1,8 +1,19 @@
 
+/**
+ * Notification Settings Type Definitions
+ * 
+ * This module contains all type definitions related to notification settings,
+ * including channels, preferences, and default values.
+ * 
+ * @module types/notifications/settingsTypes
+ */
+
 import { ReminderPriority } from '@/types/reminderTypes';
 
 /**
  * Notification delivery channels
+ * Defines the available communication channels for sending notifications
+ * 
  * @enum {string}
  */
 export enum NotificationChannel {
@@ -19,6 +30,8 @@ export enum NotificationChannel {
 /**
  * Notification settings for a user
  * Controls how and when notifications are sent to the user
+ * 
+ * @interface NotificationSettings
  */
 export interface NotificationSettings {
   /** Master switch to enable/disable all notifications */
@@ -55,11 +68,11 @@ export interface NotificationSettings {
   };
 }
 
-// Removed duplicate declaration of NotificationPermissionState as it's now in permissionTypes.ts
-
 /**
  * Default notification settings
  * Used when a user doesn't have custom settings
+ * 
+ * @const {NotificationSettings}
  */
 export const defaultNotificationSettings: NotificationSettings = {
   enabled: true,

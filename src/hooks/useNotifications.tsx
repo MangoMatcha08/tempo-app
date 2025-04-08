@@ -1,12 +1,14 @@
+
 import { useNotifications as useNotificationContext } from '@/contexts/NotificationContext';
 import { useNotificationHistory } from '@/contexts/notificationHistory';
 import { toast } from 'sonner';
-import { NotificationRecord } from '@/types/notifications/notificationHistoryTypes';
+import { NotificationRecord } from '@/types/notifications';
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 /**
  * Custom hook for enhanced notification functionality
+ * Combines context functionality with additional utility methods
  */
 export const useNotifications = () => {
   const { showNotification, handleServiceWorkerMessage } = useNotificationContext();
@@ -15,6 +17,7 @@ export const useNotifications = () => {
   
   /**
    * Show a toast notification with actions
+   * @param notification The notification record to display
    */
   const showToastNotification = useCallback((notification: NotificationRecord) => {
     // Mark notification as displayed

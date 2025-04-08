@@ -1,7 +1,18 @@
 
 /**
+ * Notification Permission Type Definitions
+ * 
+ * This module contains all type definitions related to notification permissions,
+ * including browser permission states and request results.
+ * 
+ * @module types/notifications/permissionTypes
+ */
+
+/**
  * The result of a notification permission request.
  * Contains information about the permission status and any errors that occurred.
+ * 
+ * @interface PermissionRequestResult
  */
 export interface PermissionRequestResult {
   /** Whether permission was granted */
@@ -15,11 +26,16 @@ export interface PermissionRequestResult {
 /**
  * Browser's native notification permission state
  * with additional states for unsupported browsers.
+ * 
+ * @type {string}
  */
 export type BrowserPermissionState = 'default' | 'granted' | 'denied' | 'unsupported';
 
 /**
  * Context state for notification permissions
+ * Used in the NotificationPermissionContext
+ * 
+ * @interface NotificationPermissionContextState
  */
 export interface NotificationPermissionContextState {
   /** Whether notification permissions have been granted */

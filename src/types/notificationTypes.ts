@@ -1,5 +1,8 @@
 
 /**
+ * @deprecated This file is maintained for backward compatibility only.
+ * Import types directly from '@/types/notifications' instead.
+ * 
  * Central re-export file for notification types
  * 
  * This file maintains backwards compatibility while we migrate
@@ -37,6 +40,7 @@ import {
 
 /**
  * Export all the imported types using 'export type' syntax for isolatedModules compatibility
+ * @deprecated Import these types directly from '@/types/notifications' instead
  */
 export type { 
   /** User notification preferences */
@@ -67,6 +71,6 @@ export type {
 
 // For backwards compatibility
 /**
- * @deprecated Use BrowserPermissionState instead
+ * @deprecated Use BrowserPermissionState from '@/types/notifications/permissionTypes' instead
  */
 export type NotificationPermissionState = BrowserPermissionState;

@@ -1,10 +1,13 @@
 
 import { Reminder, ReminderPriority } from '@/types/reminderTypes';
-import { NotificationSettings } from '@/types/notifications/settingsTypes';
+import { NotificationSettings } from '@/types/notifications';
 import { shouldSendNotification } from '@/services/notifications/settings';
 
 /**
  * Show notification based on reminder priority and user settings
+ * @param reminder The reminder to show notification for
+ * @param notificationSettings User notification settings
+ * @param toast Toast function to display notifications
  */
 export const showNotification = (
   reminder: Reminder, 
@@ -35,6 +38,8 @@ export const showNotification = (
 
 /**
  * Get toast variant based on reminder priority
+ * @param priority The priority level of the reminder
+ * @returns The appropriate toast variant
  */
 export const getPriorityToastVariant = (priority: ReminderPriority): "default" | "destructive" => {
   if (priority === ReminderPriority.HIGH) {
@@ -45,6 +50,8 @@ export const getPriorityToastVariant = (priority: ReminderPriority): "default" |
 
 /**
  * Format reminder data for notification display
+ * @param reminder The reminder to format
+ * @returns Formatted notification data or null if reminder is invalid
  */
 export const formatReminderForNotification = (reminder: Reminder) => {
   if (!reminder) return null;

@@ -1,10 +1,13 @@
 
 import { useState, useEffect } from 'react';
 import { useNotificationHistory } from '@/contexts/notificationHistory';
-import { NotificationRecord } from '@/types/notifications/notificationHistoryTypes';
+import { NotificationRecord, NotificationAction } from '@/types/notifications';
 
 /**
  * Custom hook for displaying and interacting with notifications
+ * 
+ * @param options Configuration options for notification display
+ * @returns Object containing notification data and interaction methods
  */
 export const useNotificationDisplay = (options: {
   limit?: number;
@@ -44,13 +47,20 @@ export const useNotificationDisplay = (options: {
     setFilteredRecords(filtered);
   }, [records, limit, filter]);
   
-  // Mark notification as read
+  /**
+   * Mark a notification as read
+   * @param notificationId ID of the notification to mark as read
+   */
   const markAsRead = (notificationId: string) => {
     updateNotificationStatus(notificationId, 'received');
   };
   
-  // Handle notification action
-  const handleAction = (notificationId: string, action: 'view' | 'complete' | 'snooze' | 'dismiss') => {
+  /**
+   * Handle a notification action
+   * @param notificationId ID of the notification
+   * @param action The action to perform
+   */
+  const handleAction = (notificationId: string, action: NotificationAction) => {
     addNotificationAction(notificationId, action);
     
     // Update status based on action
@@ -59,7 +69,9 @@ export const useNotificationDisplay = (options: {
     }
   };
   
-  // Mark all as read
+  /**
+   * Mark all notifications as read
+   */
   const markAllAsRead = () => {
     filteredRecords.forEach(record => {
       if (record.status !== 'received' && record.status !== 'clicked') {
@@ -68,7 +80,10 @@ export const useNotificationDisplay = (options: {
     });
   };
   
-  // Clear all notification history
+  /**
+   * Clear all notification history
+   * Asks for confirmation before clearing
+   */
   const clearHistory = () => {
     if (window.confirm("Are you sure you want to clear all notification history?")) {
       clearHistoryContext();

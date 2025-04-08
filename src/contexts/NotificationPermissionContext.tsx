@@ -1,10 +1,9 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   PermissionRequestResult,
   BrowserPermissionState, 
   NotificationPermissionContextState 
-} from '@/types/notifications/permissionTypes';
+} from '@/types/notifications';
 import { requestNotificationPermission, firebaseInitPromise } from '@/services/notificationService';
 
 const NotificationPermissionContext = createContext<NotificationPermissionContextState>({
@@ -13,12 +12,20 @@ const NotificationPermissionContext = createContext<NotificationPermissionContex
   requestPermission: async () => ({ granted: false }),
 });
 
+/**
+ * Custom hook to access notification permission context
+ * @returns The notification permission context state
+ */
 export const useNotificationPermission = () => useContext(NotificationPermissionContext);
 
 interface NotificationPermissionProviderProps {
   children: React.ReactNode;
 }
 
+/**
+ * Provider component for notification permissions
+ * Manages and exposes notification permission state
+ */
 export const NotificationPermissionProvider: React.FC<NotificationPermissionProviderProps> = ({ children }) => {
   const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
   const [isSupported, setIsSupported] = useState<boolean>(true);

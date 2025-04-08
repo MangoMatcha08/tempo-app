@@ -1,4 +1,11 @@
 
+/**
+ * Notification Service Type Definitions
+ * 
+ * @deprecated Import types directly from '@/types/notifications' instead
+ * This file is maintained for backward compatibility.
+ */
+
 import { ReminderPriority } from '@/types/reminderTypes';
 import { NotificationSettings } from '@/types/notifications/settingsTypes';
 

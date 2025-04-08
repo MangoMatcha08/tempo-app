@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useNotificationHistory } from '@/contexts/notificationHistory';
@@ -9,13 +8,13 @@ import { toast } from 'sonner';
 import { 
   NotificationRecord, 
   NotificationDeliveryStatus,
-  NotificationAction
-} from '@/types/notifications/notificationHistoryTypes';
-import { NotificationSettings } from '@/types/notifications/settingsTypes';
-import { PermissionRequestResult } from '@/types/notifications/permissionTypes';
+  NotificationAction,
+  NotificationSettings,
+  PermissionRequestResult,
+  ServiceWorkerMessage
+} from '@/types/notifications';
 import { Reminder } from '@/types/reminderTypes';
 import { sendTestNotification } from '@/services/notificationService';
-import { ServiceWorkerMessage } from '@/types/notifications/serviceWorkerTypes';
 
 /**
  * Unified notification handler interface
@@ -115,6 +114,7 @@ export function useNotificationHandler(): NotificationHandler {
 
   /**
    * Show a toast notification with actions
+   * @param notification The notification record to display
    */
   const showToastNotification = useCallback((notification: NotificationRecord) => {
     // Mark notification as displayed
@@ -149,8 +149,9 @@ export function useNotificationHandler(): NotificationHandler {
   }, [updateNotificationStatus]);
 
   /**
-   * Send a test notification (wrapper)
+   * Send a test notification
    * @param options Configuration options for the test notification
+   * @returns Promise that resolves when the notification is sent
    */
   const sendTestNotificationWrapper = useCallback(async (options: { 
     type: "push" | "email"; 

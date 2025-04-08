@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Reminder } from '@/types/reminderTypes';
@@ -9,11 +10,13 @@ import { NotificationSettingsProvider, useNotificationSettings } from './Notific
 import { NotificationPermissionProvider, useNotificationPermission } from './NotificationPermissionContext';
 import { NotificationHistoryProvider, useNotificationHistory } from './notificationHistory';
 import { setupForegroundMessageListener } from '@/services/messaging/messagingService';
-import { ServiceWorkerMessage } from '@/types/notifications/serviceWorkerTypes';
+import { 
+  ServiceWorkerMessage,
+  NotificationType,
+  NotificationDeliveryStatus,
+  NotificationChannel
+} from '@/types/notifications';
 import { ToastAction } from '@/components/ui/toast';
-import { NotificationType } from '@/types/reminderTypes';
-import { NotificationDeliveryStatus } from '@/types/notifications/notificationHistoryTypes';
-import { NotificationChannel } from '@/types/notifications/settingsTypes';
 
 interface NotificationContextType {
   showNotification: (reminder: Reminder) => void;
