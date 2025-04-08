@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useReminders } from "@/hooks/reminders/use-reminders";
 import { useToast } from "@/hooks/use-toast";
@@ -107,7 +108,7 @@ const Dashboard = () => {
         await refreshReminders();
       }
       
-      return !!result;
+      return !!result; // Convert to boolean
     } catch (err) {
       console.error("Error adding reminder in Dashboard:", err);
       toast({
