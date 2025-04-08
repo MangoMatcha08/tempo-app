@@ -85,7 +85,7 @@ export const NotificationSettingsProvider: React.FC<NotificationSettingsProvider
   }, [userId]);
 
   // Update settings
-  const updateSettings = async (newSettings: Partial<NotificationSettings>) => {
+  const updateSettings = async (newSettings: Partial<NotificationSettings>): Promise<void> => {
     try {
       setLoading(true);
       
@@ -111,8 +111,6 @@ export const NotificationSettingsProvider: React.FC<NotificationSettingsProvider
       // Update local state
       setSettings(updatedSettings);
       setError(null);
-      
-      return updatedSettings;
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to update notification settings'));
       console.error('Error updating notification settings:', err);

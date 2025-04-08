@@ -51,7 +51,7 @@ const ServiceWorkerSettings = () => {
 
   if (!supported) {
     return (
-      <Alert variant="warning">
+      <Alert variant="default" className="bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900 dark:border-yellow-800 dark:text-yellow-300">
         <AlertTriangle className="h-4 w-4" />
         <AlertTitle>Service Workers Not Supported</AlertTitle>
         <AlertDescription>
@@ -66,7 +66,7 @@ const ServiceWorkerSettings = () => {
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           Service Worker Settings
-          <Badge variant={registered ? "success" : "destructive"}>
+          <Badge variant={registered ? "secondary" : "destructive"} className={registered ? "bg-green-500 text-white" : ""}>
             {registered ? "Active" : "Inactive"}
           </Badge>
         </CardTitle>

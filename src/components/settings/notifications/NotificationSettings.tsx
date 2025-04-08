@@ -2,7 +2,7 @@
 import React, { useEffect } from "react";
 import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
-import { useToast } from "@/components/ui/toast";
+import { useToast } from "@/hooks/use-toast";
 import { useNotificationSettings, useNotificationPermission } from "@/contexts/NotificationContext";
 import { ExtendedNotificationSettings } from "./types";
 import MasterSwitch from "./MasterSwitch";
@@ -12,6 +12,7 @@ import EmailNotifications from "./EmailNotifications";
 import PushNotifications from "./PushNotifications";
 import InAppNotifications from "./InAppNotifications";
 import { Button } from "@/components/ui/button";
+import { ReminderPriority } from "@/types/reminderTypes";
 
 const NotificationSettings = () => {
   const { toast } = useToast();
@@ -51,6 +52,16 @@ const NotificationSettings = () => {
     form.reset(updatedSettings);
   }, [settings, form]);
 
+  // Custom wrapper for requestPermission to return boolean
+  const handleRequestPermission = async (): Promise<boolean> => {
+    try {
+      return await requestPermission();
+    } catch (error) {
+      console.error("Error requesting permission:", error);
+      return false;
+    }
+  };
+
   const onSubmit = async (data: ExtendedNotificationSettings) => {
     try {
       await updateSettings(data);
@@ -83,7 +94,7 @@ const NotificationSettings = () => {
           permissionGranted={permissionGranted} 
           masterEnabled={form.watch('enabled')} 
           pushEnabled={form.watch('push.enabled')} 
-          requestPermission={requestPermission}
+          requestPermission={handleRequestPermission}
         />
         
         <div className="space-y-4">

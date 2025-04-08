@@ -21,7 +21,7 @@ const PermissionAlert = ({
   if (!masterEnabled || !pushEnabled || permissionGranted) return null;
   
   return (
-    <Alert variant="warning">
+    <Alert variant="default" className="bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900 dark:border-yellow-800 dark:text-yellow-300">
       <AlertTriangle className="h-4 w-4" />
       <AlertDescription className="flex items-center justify-between flex-wrap">
         <span>Push notifications require browser permission.</span>

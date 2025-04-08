@@ -1,80 +1,66 @@
 
-import React from "react";
-import { FormField, FormItem, FormLabel, FormControl, FormDescription } from "@/components/ui/form";
-import { Switch } from "@/components/ui/switch";
-import { Control } from "react-hook-form";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { NotificationSettings } from "@/types/notifications/settingsTypes";
-import { useNotificationPermission } from "@/contexts/NotificationContext";
-import { Button } from "@/components/ui/button";
-import { Bell, AlertTriangle } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import React from 'react';
+import { FormControl, FormDescription, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import { Switch } from '@/components/ui/switch';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertTriangle, Info } from 'lucide-react';
+import { Control } from 'react-hook-form';
+import { NotificationSettings } from '@/types/notifications/settingsTypes';
 
 interface NotificationTogglesProps {
   control: Control<NotificationSettings>;
-  enabled: boolean;
+  name: `${string}.enabled`;
+  title: string;
+  description: string;
+  disabledWhen?: boolean;
+  warningWhenDisabled?: string;
+  infoText?: string;
 }
 
-const NotificationToggles = ({ control, enabled }: NotificationTogglesProps) => {
-  const { permissionGranted, isSupported, requestPermission } = useNotificationPermission();
-
+const NotificationToggles = ({
+  control,
+  name,
+  title,
+  description,
+  disabledWhen = false,
+  warningWhenDisabled,
+  infoText
+}: NotificationTogglesProps) => {
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Bell className="h-5 w-5" />
-            Notification Preferences
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <FormField
-            control={control}
-            name="enabled"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                <div className="space-y-0.5">
-                  <FormLabel className="text-base">Enable All Notifications</FormLabel>
-                  <FormDescription>
-                    Master switch for all notification types
-                  </FormDescription>
-                </div>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-          
-          {isSupported && !permissionGranted && enabled && (
-            <Alert variant="warning" className="mt-4">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                Browser notifications are not enabled. 
-                <Button 
-                  variant="link" 
-                  className="p-0 h-auto ml-1" 
-                  onClick={requestPermission}
-                >
-                  Enable notifications
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
-          
-          {!isSupported && enabled && (
-            <Alert variant="warning" className="mt-4">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                Your browser doesn't support notifications. Some features may not work.
-              </AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
+      <FormField
+        control={control}
+        name={name}
+        render={({ field }) => (
+          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+            <div className="space-y-0.5">
+              <FormLabel className="text-base">{title}</FormLabel>
+              <FormDescription>{description}</FormDescription>
+            </div>
+            <FormControl>
+              <Switch
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabledWhen}
+              />
+            </FormControl>
+          </FormItem>
+        )}
+      />
+
+      {disabledWhen && warningWhenDisabled && (
+        <Alert variant="default" className="bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900 dark:border-yellow-800 dark:text-yellow-300">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{warningWhenDisabled}</AlertDescription>
+        </Alert>
+      )}
+
+      {infoText && (
+        <Alert variant="default" className="bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900 dark:border-blue-700 dark:text-blue-300">
+          <Info className="h-4 w-4" />
+          <AlertDescription>{infoText}</AlertDescription>
+        </Alert>
+      )}
     </div>
   );
 };
