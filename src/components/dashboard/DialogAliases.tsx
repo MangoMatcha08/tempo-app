@@ -8,4 +8,4 @@
 // Re-export components with more descriptive names
 export { default as AddReminderDialog } from "./QuickReminderModal";
 export { default as VoiceNoteDialog } from "./VoiceRecorderModal";
-export { default as EnhancedReminderDialog } from "./EnhancedReminderCreator";
+export { EnhancedReminderCreator as EnhancedReminderDialog } from "./enhanced-reminder";
