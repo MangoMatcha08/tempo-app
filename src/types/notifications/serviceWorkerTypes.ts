@@ -1,3 +1,4 @@
+
 import { NotificationRecord } from './notificationHistoryTypes';
 import { NotificationAction } from './notificationHistoryTypes';
 
@@ -18,6 +19,30 @@ export interface ServiceWorkerMessage {
     stats?: CacheStatistics;
     timestamp?: number;
     cleanupStats?: CleanupStatistics;
+  };
+}
+
+/**
+ * Message payload from app to service worker
+ */
+export interface AppMessage {
+  type: 'SKIP_WAITING' | 'CLEAR_NOTIFICATIONS' | 'CHECK_PERMISSION' | 
+        'SYNC_REMINDERS' | 'SET_IMPLEMENTATION' | 'CACHE_MAINTENANCE' | 
+        'UPDATE_CONFIG' | 'CLEAR_CACHE' | 'GET_CACHE_STATS' | 'CLEANUP_NOTIFICATIONS';
+  payload?: {
+    useNewImplementation?: boolean;
+    reminders?: any[];
+    userId?: string;
+    cacheType?: string;
+    config?: {
+      cachingEnabled?: boolean;
+      cacheMaintenanceInterval?: number;
+      debug?: boolean;
+      cleanupConfig?: NotificationCleanupConfig;
+      [key: string]: any;
+    };
+    cleanupOptions?: NotificationCleanupOptions;
+    [key: string]: any;
   };
 }
 
