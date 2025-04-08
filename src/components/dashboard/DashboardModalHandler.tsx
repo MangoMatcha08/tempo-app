@@ -1,8 +1,6 @@
 
 import { useState, useCallback } from "react";
-import QuickReminderModal from "./QuickReminderModal";
-import VoiceRecorderModal from "./VoiceRecorderModal";
-import EnhancedReminderCreator from "./EnhancedReminderCreator";
+import { EnhancedReminderDialog, VoiceNoteDialog } from "./DialogAliases";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 interface DashboardModalHandlerProps {
@@ -59,7 +57,7 @@ const DashboardModalHandler = ({
       {/* Enhanced Reminder Creator in a Dialog */}
       <Dialog open={enhancedReminderOpen} onOpenChange={setEnhancedReminderOpen}>
         <DialogContent className="sm:max-w-[600px]">
-          <EnhancedReminderCreator
+          <EnhancedReminderDialog
             onReminderCreated={(reminder) => {
               handleReminderCreated(reminder);
               setEnhancedReminderOpen(false);
@@ -70,7 +68,7 @@ const DashboardModalHandler = ({
       </Dialog>
 
       {/* Voice Recorder Modal */}
-      <VoiceRecorderModal
+      <VoiceNoteDialog
         open={voiceRecorderOpen}
         onOpenChange={setVoiceRecorderOpen}
         onReminderCreated={handleReminderCreated}
