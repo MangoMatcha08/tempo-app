@@ -1,16 +1,15 @@
 
-import { NotificationSettings } from "@/services/notificationService";
-import { ReminderPriority } from "@/types/reminderTypes";
+import { NotificationSettings } from "@/types/notifications/settingsTypes";
 
-// Extended notification settings to include daily summary options
+// Extended notification settings type that includes dailySummary options
 export interface ExtendedNotificationSettings extends NotificationSettings {
   email: {
     enabled: boolean;
     address: string;
-    minPriority: ReminderPriority;
+    minPriority: string;
     dailySummary: {
       enabled: boolean;
       timing: 'before' | 'after';
-    };
-  };
+    }
+  }
 }

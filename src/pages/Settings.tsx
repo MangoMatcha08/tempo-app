@@ -4,9 +4,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import TestNotifications from "@/components/settings/TestNotifications";
 import AccountSettings from "@/components/settings/AccountSettings";
+import ServiceWorkerSettings from "@/components/settings/ServiceWorkerSettings";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Bell, User, Cog } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Settings = () => {
@@ -29,8 +30,18 @@ const Settings = () => {
       
       <Tabs defaultValue="notifications" className="space-y-6">
         <TabsList className="w-full max-w-md">
-          <TabsTrigger value="notifications" className="flex-1">Notifications</TabsTrigger>
-          <TabsTrigger value="account" className="flex-1">Account</TabsTrigger>
+          <TabsTrigger value="notifications" className="flex items-center gap-2">
+            <Bell className="h-4 w-4" />
+            Notifications
+          </TabsTrigger>
+          <TabsTrigger value="account" className="flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Account
+          </TabsTrigger>
+          <TabsTrigger value="advanced" className="flex items-center gap-2">
+            <Cog className="h-4 w-4" />
+            Advanced
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="notifications" className="space-y-6">
@@ -69,6 +80,20 @@ const Settings = () => {
             </CardHeader>
             <CardContent>
               <AccountSettings />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="advanced">
+          <Card>
+            <CardHeader>
+              <CardTitle>Service Worker Settings</CardTitle>
+              <CardDescription>
+                Configure offline functionality and background tasks
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ServiceWorkerSettings />
             </CardContent>
           </Card>
         </TabsContent>

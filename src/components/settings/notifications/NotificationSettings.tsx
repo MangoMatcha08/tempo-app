@@ -2,11 +2,8 @@
 import React, { useEffect } from "react";
 import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
-import { useToast } from "@/hooks/use-toast";
-import { 
-  useNotificationSettings,
-  useNotificationPermission
-} from "@/contexts/NotificationContext";
+import { useToast } from "@/components/ui/toast";
+import { useNotificationSettings, useNotificationPermission } from "@/contexts/NotificationContext";
 import { ExtendedNotificationSettings } from "./types";
 import MasterSwitch from "./MasterSwitch";
 import BrowserAlert from "./BrowserAlert";
@@ -14,6 +11,7 @@ import PermissionAlert from "./PermissionAlert";
 import EmailNotifications from "./EmailNotifications";
 import PushNotifications from "./PushNotifications";
 import InAppNotifications from "./InAppNotifications";
+import { Button } from "@/components/ui/button";
 
 const NotificationSettings = () => {
   const { toast } = useToast();
@@ -109,12 +107,9 @@ const NotificationSettings = () => {
           />
         </div>
         
-        <button
-          type="submit"
-          className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded"
-        >
+        <Button type="submit">
           Save Changes
-        </button>
+        </Button>
       </form>
     </Form>
   );

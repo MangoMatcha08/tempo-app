@@ -47,15 +47,31 @@ export const NotificationSettingsProvider: React.FC<NotificationSettingsProvider
     }
   }, []);
 
-  // Initialize notification settings
+  // Load settings from localStorage first, then try to get from backend
   useEffect(() => {
-    const initializeSettings = async () => {
-      if (!userId) return;
-      
+    const loadSettings = async () => {
       try {
         setLoading(true);
-        const userSettings = await getUserNotificationSettings(userId);
-        setSettings(userSettings);
+        
+        // First try to load from localStorage
+        const storedSettings = localStorage.getItem('notificationSettings');
+        if (storedSettings) {
+          const parsedSettings = JSON.parse(storedSettings) as NotificationSettings;
+          setSettings(parsedSettings);
+        }
+        
+        // If we have userId, try to load from backend and update localStorage
+        if (userId) {
+          try {
+            const userSettings = await getUserNotificationSettings(userId);
+            setSettings(userSettings);
+            localStorage.setItem('notificationSettings', JSON.stringify(userSettings));
+          } catch (backendError) {
+            console.warn('Failed to load settings from backend, using localStorage', backendError);
+            // Continue using localStorage settings if backend fails
+          }
+        }
+        
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to load notification settings'));
@@ -65,18 +81,11 @@ export const NotificationSettingsProvider: React.FC<NotificationSettingsProvider
       }
     };
 
-    if (userId) {
-      initializeSettings();
-    }
+    loadSettings();
   }, [userId]);
 
   // Update settings
   const updateSettings = async (newSettings: Partial<NotificationSettings>) => {
-    if (!userId) {
-      setError(new Error('No user ID available'));
-      return;
-    }
-
     try {
       setLoading(true);
       
@@ -86,12 +95,24 @@ export const NotificationSettingsProvider: React.FC<NotificationSettingsProvider
         ...newSettings
       };
       
-      // Save to backend
-      await updateUserNotificationSettings(userId, updatedSettings);
+      // Save to localStorage
+      localStorage.setItem('notificationSettings', JSON.stringify(updatedSettings));
+      
+      // Save to backend if userId exists
+      if (userId) {
+        try {
+          await updateUserNotificationSettings(userId, updatedSettings);
+        } catch (backendError) {
+          console.warn('Failed to update settings in backend', backendError);
+          // Continue with localStorage update even if backend fails
+        }
+      }
       
       // Update local state
       setSettings(updatedSettings);
       setError(null);
+      
+      return updatedSettings;
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to update notification settings'));
       console.error('Error updating notification settings:', err);

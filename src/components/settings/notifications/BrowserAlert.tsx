@@ -1,37 +1,27 @@
 
-import { useState, useEffect } from "react";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle } from "lucide-react";
+import React from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertTriangle } from 'lucide-react';
 
 const BrowserAlert = () => {
-  const [isNativeNotificationsSupported, setIsNativeNotificationsSupported] = useState(true);
+  // Check if we're running in a browser environment
+  const isBrowser = typeof window !== 'undefined';
   
-  // Check if notifications are supported in this browser
-  useEffect(() => {
-    const checkNotificationSupport = () => {
-      // Check in a safe way for all environments
-      const isSupported = typeof window !== 'undefined' && 
-                          'Notification' in window &&
-                          typeof navigator !== 'undefined' &&
-                          'serviceWorker' in navigator;
-      
-      setIsNativeNotificationsSupported(isSupported);
-    };
-    
-    checkNotificationSupport();
-  }, []);
+  // Check if the browser is supported
+  const isModernBrowser = isBrowser && 'Notification' in window;
+  const isMobile = isBrowser && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-  if (isNativeNotificationsSupported) {
-    return null;
-  }
-
+  if (!isBrowser || isModernBrowser) return null;
+  
   return (
-    <Alert className="bg-yellow-50 border-yellow-200">
-      <AlertTriangle className="h-4 w-4 text-yellow-800" />
-      <AlertTitle className="text-yellow-800">Browser limitation</AlertTitle>
-      <AlertDescription className="text-yellow-700">
-        Push notifications aren't supported in this browser or environment. 
-        For full notification support, please use a modern browser like Chrome, Firefox, or Edge.
+    <Alert variant="warning">
+      <AlertTriangle className="h-4 w-4" />
+      <AlertDescription>
+        {isMobile ? (
+          "Some mobile browsers have limited notification support. For the best experience, use our mobile app."
+        ) : (
+          "Your browser may not support all notification features. Consider upgrading to a modern browser."
+        )}
       </AlertDescription>
     </Alert>
   );

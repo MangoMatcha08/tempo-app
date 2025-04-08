@@ -5,16 +5,29 @@ import {
   SheetContent, 
   SheetHeader, 
   SheetTitle,
-  SheetTrigger
+  SheetTrigger,
+  SheetFooter,
+  SheetClose
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useNotificationDisplay } from "@/hooks/useNotificationDisplay";
-import { Bell, Check } from "lucide-react";
+import { Bell, Check, Clock, Filter, Settings } from "lucide-react";
 import NotificationBadge from "./NotificationBadge";
 import NotificationList from "./NotificationList";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Link } from "react-router-dom";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { NOTIFICATION_FEATURES } from "@/types/notifications/index";
 
 interface NotificationCenterProps {
   className?: string;
@@ -27,7 +40,8 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
     markAsRead, 
     handleAction,
     markAllAsRead, 
-    unreadCount
+    unreadCount,
+    clearHistory
   } = useNotificationDisplay();
 
   const unreadNotifications = notifications.filter(
@@ -45,7 +59,7 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
       setOpen(false);
     }
   };
-  
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
@@ -66,17 +80,38 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
               )}
             </SheetTitle>
             
-            {unreadCount > 0 && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-xs"
-                onClick={markAllAsRead}
-              >
-                <Check className="h-3.5 w-3.5 mr-1" />
-                Mark all as read
-              </Button>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Filter className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  {unreadCount > 0 && (
+                    <DropdownMenuItem onClick={markAllAsRead}>
+                      <Check className="h-4 w-4 mr-2" />
+                      Mark all as read
+                    </DropdownMenuItem>
+                  )}
+                  {NOTIFICATION_FEATURES.HISTORY_ENABLED && (
+                    <DropdownMenuItem onClick={clearHistory}>
+                      <Clock className="h-4 w-4 mr-2" />
+                      Clear history
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" onClick={() => setOpen(false)}>
+                    <Settings className="h-4 w-4 mr-2" />
+                    Notification settings
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </SheetHeader>
         
@@ -117,6 +152,12 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
             </ScrollArea>
           </TabsContent>
         </Tabs>
+        
+        <SheetFooter className="mt-4">
+          <SheetClose asChild>
+            <Button variant="secondary" className="w-full">Close</Button>
+          </SheetClose>
+        </SheetFooter>
       </SheetContent>
     </Sheet>
   );

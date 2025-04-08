@@ -10,13 +10,14 @@ export const useNotificationDisplay = (options: {
   limit?: number;
   filter?: (notification: NotificationRecord) => boolean;
 } = {}) => {
-  const { limit = 10, filter } = options;
+  const { limit = 50, filter } = options;
   const { 
     records,
     loading, 
     error,
     updateNotificationStatus,
-    addNotificationAction
+    addNotificationAction,
+    clearHistory: clearHistoryContext
   } = useNotificationHistory();
   
   const [filteredRecords, setFilteredRecords] = useState<NotificationRecord[]>([]);
@@ -49,7 +50,10 @@ export const useNotificationDisplay = (options: {
   const handleAction = (notificationId: string, action: 'view' | 'complete' | 'snooze' | 'dismiss') => {
     addNotificationAction(notificationId, action);
     
-    // Additional action-specific logic can be added here in future phases
+    // Update status based on action
+    if (action === 'view' || action === 'dismiss') {
+      updateNotificationStatus(notificationId, action === 'view' ? 'clicked' : 'received');
+    }
   };
   
   // Mark all as read
@@ -61,6 +65,13 @@ export const useNotificationDisplay = (options: {
     });
   };
   
+  // Clear all notification history
+  const clearHistory = () => {
+    if (window.confirm("Are you sure you want to clear all notification history?")) {
+      clearHistoryContext();
+    }
+  };
+  
   return {
     notifications: filteredRecords,
     loading,
@@ -68,6 +79,9 @@ export const useNotificationDisplay = (options: {
     markAsRead,
     handleAction,
     markAllAsRead,
+    clearHistory,
     unreadCount: filteredRecords.filter(n => n.status !== 'received' && n.status !== 'clicked').length
   };
 };
+
+export default useNotificationDisplay;
