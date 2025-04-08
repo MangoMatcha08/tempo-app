@@ -2,7 +2,7 @@
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { ReminderPriority } from '@/types/reminderTypes';
 import { initializeFirebase, firestore } from './firebase';
-import { NotificationSettings, defaultNotificationSettings } from './types';
+import { NotificationSettings, defaultNotificationSettings } from '@/types/notifications/settingsTypes';
 
 // Get user's notification settings
 export const getUserNotificationSettings = async (userId: string): Promise<NotificationSettings> => {

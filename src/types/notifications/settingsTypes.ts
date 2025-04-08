@@ -39,3 +39,28 @@ export interface NotificationSettings {
  * Notification permission state
  */
 export type NotificationPermissionState = 'default' | 'granted' | 'denied' | 'unsupported';
+
+/**
+ * Default notification settings
+ */
+export const defaultNotificationSettings: NotificationSettings = {
+  enabled: true,
+  email: {
+    enabled: true,
+    address: '',
+    minPriority: ReminderPriority.HIGH,
+    dailySummary: {
+      enabled: false,
+      timing: 'after'
+    }
+  },
+  push: {
+    enabled: true,
+    minPriority: ReminderPriority.MEDIUM
+  },
+  inApp: {
+    enabled: true,
+    minPriority: ReminderPriority.LOW
+  }
+};
+

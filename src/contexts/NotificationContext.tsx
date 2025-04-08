@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Reminder } from '@/types/reminderTypes';
@@ -14,6 +13,7 @@ import { ServiceWorkerMessage } from '@/types/notifications/serviceWorkerTypes';
 import { ToastAction } from '@/components/ui/toast';
 import { NotificationType } from '@/types/reminderTypes';
 import { NotificationDeliveryStatus } from '@/types/notifications/notificationHistoryTypes';
+import { NotificationChannel } from '@/types/notifications/settingsTypes';
 
 interface NotificationContextType {
   showNotification: (reminder: Reminder) => void;
@@ -106,7 +106,7 @@ const NotificationProviderInner: React.FC<NotificationProviderProps> = ({ childr
         reminderId: reminder.id,
         priority: reminder.priority,
         status: NotificationDeliveryStatus.SENT,
-        channels: ['inApp']
+        channels: [NotificationChannel.IN_APP]
       });
     }
   };

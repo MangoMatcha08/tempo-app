@@ -1,10 +1,10 @@
-
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import NotificationCard from '../NotificationCard';
 import { NotificationRecord } from '@/types/notifications/notificationHistoryTypes';
 import { NotificationType, ReminderPriority } from '@/types/reminderTypes';
 import { NotificationDeliveryStatus } from '@/types/notifications/notificationHistoryTypes';
+import { NotificationChannel } from '@/types/notifications/settingsTypes';
 
 describe('NotificationCard', () => {
   const mockNotification: NotificationRecord = {
@@ -16,7 +16,7 @@ describe('NotificationCard', () => {
     reminderId: 'reminder-123',
     priority: ReminderPriority.MEDIUM,
     status: NotificationDeliveryStatus.SENT,
-    channels: ['inApp']
+    channels: [NotificationChannel.IN_APP]
   };
 
   const mockHandlers = {
@@ -51,7 +51,6 @@ describe('NotificationCard', () => {
       onMarkRead={mockHandlers.onMarkRead}
     />);
     
-    // Click the card (not the buttons)
     fireEvent.click(screen.getByText('Test Notification'));
     
     expect(mockHandlers.onMarkRead).toHaveBeenCalledWith('test-notification-1');
@@ -69,7 +68,6 @@ describe('NotificationCard', () => {
       onMarkRead={mockHandlers.onMarkRead}
     />);
     
-    // Click the card (not the buttons)
     fireEvent.click(screen.getByText('Test Notification'));
     
     expect(mockHandlers.onMarkRead).not.toHaveBeenCalled();
@@ -82,7 +80,6 @@ describe('NotificationCard', () => {
       onMarkRead={mockHandlers.onMarkRead}
     />);
     
-    // Find and click the View button
     fireEvent.click(screen.getByText('View'));
     
     expect(mockHandlers.onAction).toHaveBeenCalledWith('test-notification-1', 'view');
@@ -95,7 +92,6 @@ describe('NotificationCard', () => {
       onMarkRead={mockHandlers.onMarkRead}
     />);
     
-    // Find and click the Dismiss button
     fireEvent.click(screen.getByText('Dismiss'));
     
     expect(mockHandlers.onAction).toHaveBeenCalledWith('test-notification-1', 'dismiss');

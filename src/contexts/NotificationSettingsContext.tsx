@@ -1,8 +1,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
-  NotificationSettings, 
-  defaultNotificationSettings 
+  NotificationSettings,
+  defaultNotificationSettings
 } from '@/types/notifications/settingsTypes';
 import { 
   getUserNotificationSettings, 

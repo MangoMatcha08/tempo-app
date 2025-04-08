@@ -1,28 +1,9 @@
 
 import { ReminderPriority } from '@/types/reminderTypes';
-import { NotificationSettings as BaseNotificationSettings } from '@/types/notificationTypes';
+import { NotificationSettings } from '@/types/notifications/settingsTypes';
 
 // Re-export the notification settings type
-export type { BaseNotificationSettings as NotificationSettings };
+export type { NotificationSettings };
 
-// Default notification settings
-export const defaultNotificationSettings: BaseNotificationSettings = {
-  enabled: true,
-  email: {
-    enabled: true,
-    address: '',
-    minPriority: ReminderPriority.HIGH,
-    dailySummary: {
-      enabled: false,
-      timing: 'after'
-    }
-  },
-  push: {
-    enabled: true,
-    minPriority: ReminderPriority.MEDIUM
-  },
-  inApp: {
-    enabled: true,
-    minPriority: ReminderPriority.LOW
-  }
-};
+// We're now using the defaultNotificationSettings from settingsTypes.ts
+// This file can be removed if it's not needed for other purposes
