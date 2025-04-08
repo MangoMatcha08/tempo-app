@@ -5,11 +5,12 @@ import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle, Info } from 'lucide-react';
 import { Control } from 'react-hook-form';
-import { NotificationSettings } from '@/types/notifications/settingsTypes';
+import { ExtendedNotificationSettings } from './types';
 
 interface NotificationTogglesProps {
-  control: Control<NotificationSettings>;
-  name: `${string}.enabled`;
+  control: Control<ExtendedNotificationSettings>;
+  // Use a union of specific string literals instead of template type
+  name: "enabled" | "email.enabled" | "push.enabled" | "inApp.enabled" | "email.dailySummary.enabled";
   title: string;
   description: string;
   disabledWhen?: boolean;
@@ -39,7 +40,7 @@ const NotificationToggles = ({
             </div>
             <FormControl>
               <Switch
-                checked={field.value}
+                checked={typeof field.value === 'boolean' ? field.value : false}
                 onCheckedChange={field.onChange}
                 disabled={disabledWhen}
               />

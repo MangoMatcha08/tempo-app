@@ -55,7 +55,9 @@ const NotificationSettings = () => {
   // Custom wrapper for requestPermission to return boolean
   const handleRequestPermission = async (): Promise<boolean> => {
     try {
-      return await requestPermission();
+      const result = await requestPermission();
+      // Extract just the boolean value from the result
+      return !!result.granted;  // Convert to boolean
     } catch (error) {
       console.error("Error requesting permission:", error);
       return false;
