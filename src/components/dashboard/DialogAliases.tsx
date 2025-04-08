@@ -23,11 +23,11 @@ import type { QuickReminderModalProps } from "./QuickReminderModal";
 import type { VoiceRecorderModalProps } from "./VoiceRecorderModal";
 
 // Re-export QuickReminderModal as AddReminderDialog
-export { QuickReminderModal as AddReminderDialog };
+export { default as AddReminderDialog } from "./QuickReminderModal";
 export type { QuickReminderModalProps as AddReminderDialogProps };
 
 // Re-export VoiceRecorderModal as VoiceNoteDialog
-export { VoiceRecorderModal as VoiceNoteDialog };
+export { default as VoiceNoteDialog } from "./VoiceRecorderModal";
 export type { VoiceRecorderModalProps as VoiceNoteDialogProps };
 
 /**
