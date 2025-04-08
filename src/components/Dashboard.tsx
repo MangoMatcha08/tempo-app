@@ -22,7 +22,7 @@ const Dashboard = () => {
     reminderStats,
     handleCompleteReminder,
     handleUndoComplete,
-    addReminder,
+    addReminder: addReminderBase,
     updateReminder,
     loadMoreReminders,
     refreshReminders,
@@ -92,10 +92,10 @@ const Dashboard = () => {
     hasError
   );
 
-  const handleAddReminder = useCallback(async (reminder: any) => {
+  const handleAddReminder = useCallback(async (reminder: any): Promise<boolean> => {
     try {
       console.log("Adding reminder in Dashboard:", reminder);
-      const result = await addReminder(reminder);
+      const result = await addReminderBase(reminder);
       
       if (result) {
         toast({
@@ -107,7 +107,7 @@ const Dashboard = () => {
         await refreshReminders();
       }
       
-      return result;
+      return !!result;
     } catch (err) {
       console.error("Error adding reminder in Dashboard:", err);
       toast({
@@ -115,9 +115,9 @@ const Dashboard = () => {
         description: "There was a problem adding your reminder.",
         variant: "destructive"
       });
-      throw err;
+      return false;
     }
-  }, [addReminder, refreshReminders, toast]);
+  }, [addReminderBase, refreshReminders, toast]);
 
   const handleDeleteReminder = useCallback(async (id: string) => {
     try {
@@ -209,7 +209,7 @@ const Dashboard = () => {
       reminderStats={reminderStats}
       handleCompleteReminder={handleCompleteReminder}
       handleUndoComplete={handleUndoComplete}
-      addReminder={handleAddReminder || addReminder}
+      addReminder={handleAddReminder}
       updateReminder={updateReminder}
       loadMoreReminders={loadMoreReminders}
       refreshReminders={refreshReminders}
@@ -218,8 +218,8 @@ const Dashboard = () => {
       hasError={hasError}
       addToBatchComplete={addToBatchComplete}
       addToBatchUpdate={addToBatchUpdate}
-      deleteReminder={handleDeleteReminder || deleteReminder}
-      batchDeleteReminders={handleBatchDeleteReminders || batchDeleteReminders}
+      deleteReminder={handleDeleteReminder}
+      batchDeleteReminders={handleBatchDeleteReminders}
     />
   );
 };

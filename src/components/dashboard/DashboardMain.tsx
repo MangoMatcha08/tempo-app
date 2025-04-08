@@ -77,16 +77,13 @@ const DashboardMain = ({
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
       {/* Sidebar */}
-      <DashboardSidebar open={sidebarOpen} onClose={toggleSidebar} />
+      <DashboardSidebar />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <DashboardHeader
-          stats={reminderStats}
-          onMenuClick={toggleSidebar}
-          onRefresh={refreshReminders}
-          isRefreshing={isRefreshing}
-          totalReminders={totalCount}
+          pageTitle="Dashboard"
+          onAddReminder={() => openModal('quickReminder')}
         />
         
         {/* Mobile Menu Toggle */}
@@ -136,11 +133,11 @@ const DashboardMain = ({
 
       {/* Modals */}
       <DashboardModals
-        quickReminderOpen={modalState.quickReminder}
-        voiceReminderOpen={modalState.voiceReminder}
-        onQuickReminderOpenChange={(open) => setModalState(prev => ({ ...prev, quickReminder: open }))}
-        onVoiceReminderOpenChange={(open) => setModalState(prev => ({ ...prev, voiceReminder: open }))}
-        onAddReminder={addReminder}
+        isQuickReminderModalOpen={modalState.quickReminder}
+        isVoiceReminderModalOpen={modalState.voiceReminder}
+        onQuickReminderClose={() => closeModal('quickReminder')}
+        onVoiceReminderClose={() => closeModal('voiceReminder')}
+        onAddQuickReminder={addReminder}
         user={user}
       />
 

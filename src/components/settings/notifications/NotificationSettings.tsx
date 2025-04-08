@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
@@ -21,7 +20,6 @@ const NotificationSettings = () => {
   const { settings, updateSettings } = useNotificationSettings();
   const { permissionGranted, requestPermission } = useNotificationPermission();
   
-  // Extend the default notification settings with daily summary options
   const extendedSettings: ExtendedNotificationSettings = {
     ...settings,
     email: {
@@ -37,9 +35,7 @@ const NotificationSettings = () => {
     defaultValues: extendedSettings
   });
 
-  // Update form values when context settings change
   React.useEffect(() => {
-    // Merge the existing settings with the default daily summary settings
     const updatedSettings: ExtendedNotificationSettings = {
       ...settings,
       email: {
@@ -54,12 +50,10 @@ const NotificationSettings = () => {
     form.reset(updatedSettings);
   }, [settings, form]);
 
-  // Custom wrapper for requestPermission to return boolean
   const handleRequestPermission = async (): Promise<boolean> => {
     try {
       const result = await requestPermission();
-      // Extract just the boolean value from the result
-      return !!result.granted;  // Convert to boolean
+      return !!result.granted;
     } catch (error) {
       console.error("Error requesting permission:", error);
       return false;

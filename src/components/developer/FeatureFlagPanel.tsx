@@ -127,7 +127,7 @@ const FeatureFlagPanel: React.FC<FeatureFlagPanelProps> = ({
                       return (
                         <div key={key} className="flex items-center justify-between">
                           <div className="space-y-0.5">
-                            <div className="font-medium">{key.replaceAll('_', ' ')}</div>
+                            <div className="font-medium">{key.replace(/\_/g, ' ')}</div>
                             <div className="text-sm text-muted-foreground">
                               {FEATURE_DESCRIPTIONS[flagKey]}
                             </div>

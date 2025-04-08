@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { 
   Sheet, 
@@ -46,7 +45,6 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
     setPage
   } = useNotificationDisplay();
 
-  // Get feature flags
   const historyEnabled = useFeature("HISTORY_ENABLED");
   const paginatedLoading = useFeature("PAGINATED_LOADING");
   const virtualizedLists = useFeature("VIRTUALIZED_LISTS");
@@ -57,12 +55,10 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
   
   const allNotifications = notifications;
   
-  // Handle notification actions
   const handleNotificationAction = (id: string, action: 'view' | 'dismiss') => {
     handleAction(id, action);
     
     if (action === 'view') {
-      // Close the notification center when viewing a specific notification
       setOpen(false);
     }
   };
@@ -146,7 +142,7 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
                 emptyMessage="No unread notifications"
                 virtualized={virtualizedLists}
                 showPagination={paginatedLoading && pagination.totalPages > 1}
-                currentPage={pagination.page}
+                currentPage={pagination.currentPage}
                 totalPages={pagination.totalPages}
                 onPageChange={setPage}
               />
@@ -162,7 +158,7 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
                 emptyMessage="No notifications"
                 virtualized={virtualizedLists}
                 showPagination={paginatedLoading && pagination.totalPages > 1}
-                currentPage={pagination.page}
+                currentPage={pagination.currentPage}
                 totalPages={pagination.totalPages}
                 onPageChange={setPage}
               />

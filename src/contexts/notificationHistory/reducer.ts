@@ -15,12 +15,13 @@ export type NotificationHistoryAction =
   | { type: 'LOAD_HISTORY_SUCCESS'; payload: { records: NotificationRecord[]; totalItems: number } }
   | { type: 'LOAD_HISTORY_ERROR'; payload: Error }
   | { type: 'ADD_NOTIFICATION'; payload: NotificationRecord }
-  | { type: 'UPDATE_NOTIFICATION_STATUS'; payload: { id: string; status: string } }
-  | { type: 'ADD_NOTIFICATION_ACTION'; payload: { id: string; action: { type: NotificationAction; timestamp: number } } }
+  | { type: 'UPDATE_STATUS'; payload: { id: string; status: string } }
+  | { type: 'ADD_ACTION'; payload: { id: string; action: { type: NotificationAction; timestamp: number } } }
   | { type: 'CLEAR_HISTORY' }
   | { type: 'SET_PAGE'; payload: number }
   | { type: 'SET_PAGE_SIZE'; payload: number }
-  | { type: 'CLEANUP_NOTIFICATIONS'; payload: { removedIds: string[] } };
+  | { type: 'REMOVE_NOTIFICATIONS'; payload: { ids: string[] } }
+  | { type: 'LOAD_HISTORY'; payload: NotificationRecord[] };
 
 // Initial state for notification history
 export const initialState: NotificationHistoryState = {
@@ -41,7 +42,7 @@ const calculateTotalPages = (totalItems: number, pageSize: number): number => {
 };
 
 // Reducer for notification history
-export const notificationHistoryReducer = (
+export const reducer = (
   state: NotificationHistoryState,
   action: NotificationHistoryAction
 ): NotificationHistoryState => {
@@ -84,7 +85,7 @@ export const notificationHistoryReducer = (
           totalPages: calculateTotalPages(state.pagination.totalItems + 1, state.pagination.pageSize)
         }
       };
-    case 'UPDATE_NOTIFICATION_STATUS':
+    case 'UPDATE_STATUS':
       return {
         ...state,
         records: state.records.map(record => 
@@ -93,7 +94,7 @@ export const notificationHistoryReducer = (
             : record
         )
       };
-    case 'ADD_NOTIFICATION_ACTION':
+    case 'ADD_ACTION':
       return {
         ...state,
         records: state.records.map(record => 
@@ -116,9 +117,9 @@ export const notificationHistoryReducer = (
           totalPages: 1
         }
       };
-    case 'CLEANUP_NOTIFICATIONS': {
-      const { removedIds } = action.payload;
-      const updatedRecords = state.records.filter(record => !removedIds.includes(record.id));
+    case 'REMOVE_NOTIFICATIONS': {
+      const { ids } = action.payload;
+      const updatedRecords = state.records.filter(record => !ids.includes(record.id));
       
       return {
         ...state,
@@ -134,6 +135,16 @@ export const notificationHistoryReducer = (
         }
       };
     }
+    case 'LOAD_HISTORY':
+      return {
+        ...state,
+        records: action.payload,
+        pagination: {
+          ...state.pagination,
+          totalItems: action.payload.length,
+          totalPages: calculateTotalPages(action.payload.length, state.pagination.pageSize)
+        }
+      };
     case 'SET_PAGE':
       return {
         ...state,
