@@ -1,5 +1,6 @@
 
 import { ServiceWorkerConfig } from '@/types/notifications/serviceWorkerTypes';
+import { vi } from 'vitest';
 
 /**
  * Test utility to mock service worker registration
@@ -10,36 +11,36 @@ export const mockServiceWorkerRegistration = () => {
     waiting: null,
     active: {
       state: 'activated',
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      postMessage: jest.fn()
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      postMessage: vi.fn()
     },
     scope: '/',
     updatefound: false,
     onupdatefound: null,
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    update: jest.fn().mockResolvedValue(undefined),
-    unregister: jest.fn().mockResolvedValue(true),
-    showNotification: jest.fn().mockResolvedValue(undefined),
-    getNotifications: jest.fn().mockResolvedValue([]),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    update: vi.fn().mockResolvedValue(undefined),
+    unregister: vi.fn().mockResolvedValue(true),
+    showNotification: vi.fn().mockResolvedValue(undefined),
+    getNotifications: vi.fn().mockResolvedValue([]),
     sync: {
-      register: jest.fn().mockResolvedValue(undefined),
-      getTags: jest.fn().mockResolvedValue(['sync-reminders'])
+      register: vi.fn().mockResolvedValue(undefined),
+      getTags: vi.fn().mockResolvedValue(['sync-reminders'])
     }
   };
 
   // Mock the navigator.serviceWorker
   Object.defineProperty(global.navigator, 'serviceWorker', {
     value: {
-      register: jest.fn().mockResolvedValue(registration),
-      getRegistration: jest.fn().mockResolvedValue(registration),
+      register: vi.fn().mockResolvedValue(registration),
+      getRegistration: vi.fn().mockResolvedValue(registration),
       ready: Promise.resolve(registration),
       controller: {
-        postMessage: jest.fn()
+        postMessage: vi.fn()
       },
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn()
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn()
     },
     configurable: true
   });
@@ -75,14 +76,14 @@ export const mockServiceWorkerMessaging = () => {
   
   // Mock postMessage
   if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-    navigator.serviceWorker.controller.postMessage = jest.fn((message) => {
+    navigator.serviceWorker.controller.postMessage = vi.fn((message) => {
       messages.push(message);
     });
   }
   
   // Mock addEventListener
   const originalAddEventListener = navigator.serviceWorker.addEventListener;
-  navigator.serviceWorker.addEventListener = jest.fn((event, callback) => {
+  navigator.serviceWorker.addEventListener = vi.fn((event, callback) => {
     if (event === 'message') {
       listeners.push(callback);
     }
@@ -103,9 +104,9 @@ export const mockServiceWorkerMessaging = () => {
     simulateMessage,
     cleanup: () => {
       if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-        (navigator.serviceWorker.controller.postMessage as jest.Mock).mockRestore();
+        (navigator.serviceWorker.controller.postMessage as ReturnType<typeof vi.fn>).mockRestore();
       }
-      (navigator.serviceWorker.addEventListener as jest.Mock).mockRestore();
+      (navigator.serviceWorker.addEventListener as ReturnType<typeof vi.fn>).mockRestore();
     }
   };
 };
@@ -140,7 +141,7 @@ export const mockOfflineEnvironment = () => {
   });
   
   // Mock fetch to fail with network error
-  global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+  global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
   
   return {
     cleanup: () => {
@@ -167,7 +168,7 @@ export const mockOfflineEnvironment = () => {
         writable: true,
         value: false
       });
-      global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+      global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
       
       // Dispatch offline event
       window.dispatchEvent(new Event('offline'));
