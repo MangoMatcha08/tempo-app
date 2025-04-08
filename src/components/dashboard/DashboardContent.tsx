@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import CurrentPeriodIndicator from "@/components/dashboard/CurrentPeriodIndicator";
 import QuickActionsBar from "@/components/dashboard/QuickActionsBar";
@@ -10,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import ReminderLoadingState from "./ReminderLoadingState";
 import { Button } from "@/components/ui/button";
+import { useFeature } from "@/contexts/FeatureFlagContext";
 
 // Define extended reminder type with UI-specific properties
 export type UIEnhancedReminder = UIReminder;
@@ -32,6 +34,9 @@ interface DashboardContentProps {
   loadedCount: number;
   onLoadMore: () => void;
   isRefreshing?: boolean;
+  currentPage?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
 }
 
 const DashboardContent = ({
@@ -51,10 +56,16 @@ const DashboardContent = ({
   totalCount,
   loadedCount,
   onLoadMore,
-  isRefreshing = false
+  isRefreshing = false,
+  currentPage = 1,
+  totalPages = 1,
+  onPageChange
 }: DashboardContentProps) => {
   const [selectedReminder, setSelectedReminder] = useState<UIEnhancedReminder | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  
+  // Check feature flag for pagination
+  const isPaginationEnabled = useFeature('PAGINATED_LOADING');
 
   const handleEditReminder = (reminder: UIEnhancedReminder) => {
     setSelectedReminder(reminder);
@@ -143,6 +154,12 @@ const DashboardContent = ({
             upcomingReminders={upcomingReminders} 
             onCompleteReminder={onCompleteReminder}
             onEditReminder={handleEditReminder}
+            paginationEnabled={isPaginationEnabled}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={onPageChange}
+            onLoadMore={hasMoreReminders ? onLoadMore : undefined}
+            isLoading={isLoading}
           />
           
           {/* Completed reminders section above the progress visualization */}
@@ -162,7 +179,8 @@ const DashboardContent = ({
         </div>
       </div>
 
-      {hasMoreReminders && (
+      {/* Show loading state only when we're not using pagination */}
+      {!isPaginationEnabled && hasMoreReminders && (
         <ReminderLoadingState 
           isLoading={isLoading && !isRefreshing}
           hasMoreReminders={hasMoreReminders}

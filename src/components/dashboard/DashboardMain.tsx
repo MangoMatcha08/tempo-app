@@ -1,37 +1,34 @@
 
-import React, { useState } from "react";
-import DashboardHeader from "./DashboardHeader";
-import DashboardContent from "./DashboardContent";
-import DashboardModals from "./DashboardModals";
-import DashboardSidebar from "./DashboardSidebar";
-import DeveloperPanel from "@/components/developer/DeveloperPanel";
-import { UIEnhancedReminder } from "./DashboardContent";
-import { ReminderStats } from "@/hooks/reminders/reminder-stats";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { useState, useCallback } from 'react';
+import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import DashboardContent from '@/components/dashboard/DashboardContent';
+import AddReminderDialog from '@/components/dashboard/AddReminderDialog';
+import VoiceNoteDialog from '@/components/dashboard/VoiceNoteDialog'; 
+import { UIReminder } from '@/types/reminderTypes';
+import { ReminderStats } from '@/types/statsTypes';
+import { useNotificationHandler } from '@/hooks/notifications/useNotificationHandler';
+import { useReminderPagination } from '@/hooks/reminders/useReminderPagination';
+import { useFeature } from '@/contexts/FeatureFlagContext';
 
 interface DashboardMainProps {
-  reminders: UIEnhancedReminder[];
+  reminders: UIReminder[];
   loading: boolean;
-  isRefreshing?: boolean;
-  urgentReminders: UIEnhancedReminder[];
-  upcomingReminders: UIEnhancedReminder[];
-  completedReminders: UIEnhancedReminder[];
+  isRefreshing: boolean;
+  urgentReminders: UIReminder[];
+  upcomingReminders: UIReminder[];
+  completedReminders: UIReminder[];
   reminderStats: ReminderStats;
-  handleCompleteReminder: (id: string) => void;
-  handleUndoComplete: (id: string) => void;
+  handleCompleteReminder: (id: string) => Promise<boolean>;
+  handleUndoComplete: (id: string) => Promise<boolean>;
   addReminder: (reminder: any) => Promise<boolean>;
-  updateReminder: (reminder: UIEnhancedReminder) => void;
+  updateReminder: (reminder: UIReminder) => Promise<boolean>;
   loadMoreReminders: () => void;
   refreshReminders: () => Promise<boolean>;
   hasMore: boolean;
   totalCount: number;
-  hasError?: boolean;
-  addToBatchComplete?: (id: string) => void;
-  addToBatchUpdate?: (reminder: UIEnhancedReminder) => void;
+  hasError: boolean;
+  addToBatchComplete?: (id: string, complete: boolean) => void;
+  addToBatchUpdate?: (reminder: UIReminder) => void;
   deleteReminder?: (id: string) => Promise<boolean>;
   batchDeleteReminders?: (ids: string[]) => Promise<boolean>;
 }
@@ -52,100 +49,118 @@ const DashboardMain = ({
   refreshReminders,
   hasMore,
   totalCount,
-  hasError = false,
+  hasError,
   addToBatchComplete,
   addToBatchUpdate,
   deleteReminder,
   batchDeleteReminders
 }: DashboardMainProps) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [modalState, setModalState] = useState({
-    quickReminder: false,
-    voiceReminder: false
+  const [addReminderOpen, setAddReminderOpen] = useState(false);
+  const [voiceNoteOpen, setVoiceNoteOpen] = useState(false);
+  const { sendNotification } = useNotificationHandler();
+  
+  // Check feature flags
+  const usePaginationFeature = useFeature('PAGINATED_LOADING');
+  
+  // Use pagination hook if the feature is enabled
+  const paginatedReminders = useReminderPagination({
+    filterCompleted: false,
+    orderBy: 'dueDate',
+    orderDirection: 'asc'
   });
-  const { user } = useAuth();
+  
+  // Decide whether to use pagination or the traditional approach
+  const shouldUsePagination = usePaginationFeature;
+  
+  const handleNewReminder = useCallback(() => {
+    setAddReminderOpen(true);
+  }, []);
 
-  const toggleSidebar = () => setSidebarOpen(prev => !prev);
+  const handleNewVoiceNote = useCallback(() => {
+    setVoiceNoteOpen(true);
+  }, []);
 
-  const openModal = (modalName: keyof typeof modalState) => {
-    setModalState(prev => ({ ...prev, [modalName]: true }));
-  };
+  const handleAddReminder = useCallback(async (reminder: any) => {
+    const success = await addReminder(reminder);
+    
+    if (success) {
+      // Show notification on success
+      sendNotification({
+        title: "Reminder Added",
+        body: `"${reminder.title}" has been added to your reminders.`,
+        type: "success"
+      });
+    }
+    
+    return success;
+  }, [addReminder, sendNotification]);
 
-  const closeModal = (modalName: keyof typeof modalState) => {
-    setModalState(prev => ({ ...prev, [modalName]: false }));
-  };
+  const handleClearAllCompleted = useCallback(async () => {
+    if (!batchDeleteReminders || completedReminders.length === 0) return;
+    
+    const ids = completedReminders.map(reminder => reminder.id);
+    const success = await batchDeleteReminders(ids);
+    
+    if (success) {
+      sendNotification({
+        title: "Reminders Cleared",
+        body: `${ids.length} completed ${ids.length === 1 ? 'reminder' : 'reminders'} cleared.`,
+        type: "info"
+      });
+    }
+  }, [batchDeleteReminders, completedReminders, sendNotification]);
+
+  const handleClearCompleted = useCallback(async (id: string) => {
+    if (!deleteReminder) return;
+    
+    const success = await deleteReminder(id);
+    
+    if (success) {
+      sendNotification({
+        title: "Reminder Removed",
+        body: "The completed reminder has been removed.",
+        type: "info"
+      });
+    }
+  }, [deleteReminder, sendNotification]);
 
   return (
-    <SidebarProvider>
-      <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
-        {/* Sidebar */}
-        <DashboardSidebar />
+    <DashboardLayout>
+      <DashboardContent
+        urgentReminders={urgentReminders}
+        upcomingReminders={shouldUsePagination ? paginatedReminders.items : upcomingReminders}
+        completedReminders={completedReminders}
+        onCompleteReminder={handleCompleteReminder}
+        onUndoComplete={handleUndoComplete}
+        onNewReminder={handleNewReminder}
+        onNewVoiceNote={handleNewVoiceNote}
+        onUpdateReminder={updateReminder}
+        onClearAllCompleted={handleClearAllCompleted}
+        onClearCompleted={handleClearCompleted}
+        isLoading={shouldUsePagination ? paginatedReminders.isLoading : loading}
+        hasError={hasError}
+        hasMoreReminders={shouldUsePagination ? paginatedReminders.hasMore : hasMore}
+        totalCount={shouldUsePagination ? paginatedReminders.totalItems : totalCount}
+        loadedCount={reminders.length}
+        onLoadMore={shouldUsePagination ? paginatedReminders.loadMore : loadMoreReminders}
+        isRefreshing={isRefreshing}
+        currentPage={paginatedReminders.currentPage}
+        totalPages={paginatedReminders.totalPages}
+        onPageChange={paginatedReminders.goToPage}
+      />
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <DashboardHeader
-            pageTitle="Dashboard"
-            onAddReminder={() => openModal('quickReminder')}
-          />
-          
-          {/* Mobile Menu Toggle */}
-          <div className="lg:hidden p-4 pb-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={toggleSidebar}
-              className="mb-4"
-            >
-              <Menu className="h-4 w-4 mr-2" />
-              Menu
-            </Button>
-          </div>
-
-          {/* Scrollable Content */}
-          <div 
-            className={cn(
-              "flex-1 overflow-y-auto px-4 pb-12 pt-0 lg:px-8",
-              sidebarOpen ? "lg:ml-0" : "lg:ml-0"
-            )}
-          >
-            <DashboardContent
-              urgentReminders={urgentReminders}
-              upcomingReminders={upcomingReminders}
-              completedReminders={completedReminders}
-              onCompleteReminder={handleCompleteReminder}
-              onUndoComplete={handleUndoComplete}
-              onNewReminder={() => openModal('quickReminder')}
-              onNewVoiceNote={() => openModal('voiceReminder')}
-              onUpdateReminder={updateReminder}
-              onClearAllCompleted={batchDeleteReminders ? 
-                () => batchDeleteReminders(completedReminders.map(r => r.id)) : 
-                undefined
-              }
-              onClearCompleted={deleteReminder}
-              isLoading={loading}
-              hasError={!!hasError}
-              hasMoreReminders={hasMore}
-              totalCount={totalCount}
-              loadedCount={reminders.length}
-              onLoadMore={loadMoreReminders}
-              isRefreshing={isRefreshing}
-            />
-          </div>
-        </div>
-
-        {/* Modals */}
-        <DashboardModals
-          showQuickReminderModal={modalState.quickReminder}
-          setShowQuickReminderModal={(open: boolean) => setModalState(prev => ({ ...prev, quickReminder: open }))}
-          showVoiceRecorderModal={modalState.voiceReminder}
-          setShowVoiceRecorderModal={(open: boolean) => setModalState(prev => ({ ...prev, voiceReminder: open }))}
-          onReminderCreated={addReminder}
-        />
-
-        {/* Developer Panel */}
-        <DeveloperPanel />
-      </div>
-    </SidebarProvider>
+      <AddReminderDialog
+        open={addReminderOpen}
+        onOpenChange={setAddReminderOpen}
+        onAddReminder={handleAddReminder}
+      />
+      
+      <VoiceNoteDialog
+        open={voiceNoteOpen}
+        onOpenChange={setVoiceNoteOpen}
+        onAddReminder={handleAddReminder}
+      />
+    </DashboardLayout>
   );
 };
 

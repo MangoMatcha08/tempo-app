@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { 
   Sheet, 
@@ -27,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useFeature } from "@/contexts/FeatureFlagContext";
+import { useNotificationPagination } from "@/hooks/notifications/useNotificationPagination";
 
 interface NotificationCenterProps {
   className?: string;
@@ -34,32 +36,53 @@ interface NotificationCenterProps {
 
 const NotificationCenter = ({ className }: NotificationCenterProps) => {
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('unread');
+  
   const { 
-    notifications, 
     markAsRead, 
     handleAction,
     markAllAsRead, 
     unreadCount,
     clearHistory,
-    pagination, 
-    setPage
   } = useNotificationDisplay();
+
+  // Use our pagination hooks for unread and all notifications
+  const unreadNotifications = useNotificationPagination({ 
+    unreadOnly: true,
+    orderBy: 'timestamp', 
+    orderDirection: 'desc'
+  });
+  
+  const allNotifications = useNotificationPagination({
+    unreadOnly: false,
+    orderBy: 'timestamp',
+    orderDirection: 'desc'
+  });
+  
+  // Get the current pagination based on active tab
+  const currentPagination = activeTab === 'unread' ? unreadNotifications : allNotifications;
 
   const historyEnabled = useFeature("HISTORY_ENABLED");
   const paginatedLoading = useFeature("PAGINATED_LOADING");
   const virtualizedLists = useFeature("VIRTUALIZED_LISTS");
+  const infiniteScrollEnabled = useFeature("INFINITE_SCROLL");
 
-  const unreadNotifications = notifications.filter(
-    n => n.status !== 'received' && n.status !== 'clicked'
-  );
-  
-  const allNotifications = notifications;
-  
   const handleNotificationAction = (id: string, action: 'view' | 'dismiss') => {
     handleAction(id, action);
     
     if (action === 'view') {
       setOpen(false);
+    }
+  };
+  
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    
+    // Reset pagination when switching tabs
+    if (value === 'unread') {
+      unreadNotifications.resetPagination();
+    } else {
+      allNotifications.resetPagination();
     }
   };
 
@@ -120,7 +143,7 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
         
         <Separator className="my-4" />
         
-        <Tabs defaultValue="unread">
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="grid grid-cols-2 mb-4">
             <TabsTrigger value="unread" className="relative">
               Unread
@@ -136,15 +159,17 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
           <TabsContent value="unread" className="mt-0">
             <ScrollArea className="h-[calc(100vh-180px)] pr-4">
               <NotificationList 
-                notifications={unreadNotifications} 
+                notifications={unreadNotifications.items} 
                 onAction={handleNotificationAction}
                 onMarkRead={markAsRead}
                 emptyMessage="No unread notifications"
                 virtualized={virtualizedLists}
-                showPagination={paginatedLoading && pagination.totalPages > 1}
-                currentPage={pagination.currentPage}
-                totalPages={pagination.totalPages}
-                onPageChange={setPage}
+                loading={unreadNotifications.isLoading}
+                showPagination={paginatedLoading && unreadNotifications.totalPages > 1}
+                currentPage={unreadNotifications.currentPage}
+                totalPages={unreadNotifications.totalPages}
+                onPageChange={unreadNotifications.goToPage}
+                onLoadMore={infiniteScrollEnabled ? unreadNotifications.loadMore : undefined}
               />
             </ScrollArea>
           </TabsContent>
@@ -152,21 +177,28 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
           <TabsContent value="all" className="mt-0">
             <ScrollArea className="h-[calc(100vh-180px)] pr-4">
               <NotificationList 
-                notifications={allNotifications} 
+                notifications={allNotifications.items} 
                 onAction={handleNotificationAction}
                 onMarkRead={markAsRead}
                 emptyMessage="No notifications"
                 virtualized={virtualizedLists}
-                showPagination={paginatedLoading && pagination.totalPages > 1}
-                currentPage={pagination.currentPage}
-                totalPages={pagination.totalPages}
-                onPageChange={setPage}
+                loading={allNotifications.isLoading}
+                showPagination={paginatedLoading && allNotifications.totalPages > 1}
+                currentPage={allNotifications.currentPage}
+                totalPages={allNotifications.totalPages}
+                onPageChange={allNotifications.goToPage}
+                onLoadMore={infiniteScrollEnabled ? allNotifications.loadMore : undefined}
               />
             </ScrollArea>
           </TabsContent>
         </Tabs>
         
         <SheetFooter className="mt-4">
+          <div className="w-full text-xs text-muted-foreground text-center mb-2">
+            {currentPagination.totalItems > 0 && (
+              <>Showing {currentPagination.items.length} of {currentPagination.totalItems} notifications</>
+            )}
+          </div>
           <SheetClose asChild>
             <Button variant="secondary" className="w-full">Close</Button>
           </SheetClose>

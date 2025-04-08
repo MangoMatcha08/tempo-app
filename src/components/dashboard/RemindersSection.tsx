@@ -1,5 +1,6 @@
 
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { CheckCircle } from "lucide-react";
 import ReminderCard from "./ReminderCard";
 import ReminderListItem from "./ReminderListItem";
@@ -9,12 +10,21 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { UIReminder } from "@/types/reminderTypes";
 import { performanceMonitor } from '@/utils/performanceUtils';
 import AutoSizer from 'react-virtualized-auto-sizer';
+import { useFeature } from '@/contexts/FeatureFlagContext';
+import { useListPerformance } from '@/hooks/useListPerformance';
+import NotificationPagination from '../notifications/NotificationPagination';
 
 interface RemindersSectionProps {
   urgentReminders: UIReminder[];
   upcomingReminders: UIReminder[];
   onCompleteReminder: (id: string) => void;
   onEditReminder: (reminder: UIReminder) => void;
+  paginationEnabled?: boolean;
+  currentPage?: number; 
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
+  onLoadMore?: () => void;
+  isLoading?: boolean;
 }
 
 // Row renderer for the virtualized list
@@ -51,13 +61,33 @@ const RemindersSection = memo(({
   urgentReminders, 
   upcomingReminders, 
   onCompleteReminder,
-  onEditReminder
+  onEditReminder,
+  paginationEnabled = false,
+  currentPage = 1,
+  totalPages = 1,
+  onPageChange,
+  onLoadMore,
+  isLoading = false
 }: RemindersSectionProps) => {
   const isMobile = useIsMobile();
   const [stableUrgent, setStableUrgent] = useState(urgentReminders);
   const [stableUpcoming, setStableUpcoming] = useState(upcomingReminders);
   const listRef = useRef<List>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Check feature flags for pagination and infinite scroll
+  const paginationFeatureEnabled = useFeature('PAGINATED_LOADING');
+  const infiniteScrollEnabled = useFeature('INFINITE_SCROLL');
+  const shouldShowPagination = paginationEnabled && paginationFeatureEnabled && totalPages > 1;
+  const shouldShowLoadMore = onLoadMore && infiniteScrollEnabled && !shouldShowPagination;
+  
+  // Track list performance
+  const { trackScrollPerformance, getPerformanceMetrics, logMemoryUsage } = useListPerformance({
+    componentName: 'RemindersSection',
+    itemCount: stableUpcoming.length,
+    isVirtualized: shouldVirtualize,
+    enableMemoryLogging: true
+  });
   
   // Performance monitoring
   useEffect(() => {
@@ -66,17 +96,13 @@ const RemindersSection = memo(({
       upcomingCount: upcomingReminders.length
     });
     
-    // Track memory usage if available
-    if (window.performance && 'memory' in window.performance) {
-      console.log('Memory usage during RemindersSection render:', 
-        // @ts-ignore - memory is not in the standard TypeScript definitions
-        (window.performance.memory.usedJSHeapSize / 1048576).toFixed(2) + 'MB');
-    }
+    // Log memory usage for performance tracking
+    logMemoryUsage('initial-render');
     
     return () => {
       performanceMonitor.endMark(markId);
     };
-  }, [urgentReminders.length, upcomingReminders.length]);
+  }, [urgentReminders.length, upcomingReminders.length, logMemoryUsage]);
   
   // Use effect to stabilize the lists and prevent flickering
   useEffect(() => {
@@ -112,27 +138,13 @@ const RemindersSection = memo(({
   // Adjust row height based on device
   const rowHeight = useMemo(() => isMobile ? 72 : 64, [isMobile]);
   
-  // Measure scroll performance
-  const handleScroll = useMemo(() => {
-    let lastScrollTime = 0;
-    let scrollMarkId = '';
-    
-    return () => {
-      const now = Date.now();
-      
-      // Only measure performance if we haven't measured in the last 300ms
-      if (now - lastScrollTime > 300) {
-        if (scrollMarkId) performanceMonitor.endMark(scrollMarkId);
-        
-        scrollMarkId = performanceMonitor.startMark('reminder-list-scroll', 'notification-interaction', {
-          itemCount: stableUpcoming.length,
-          virtual: shouldVirtualize
-        });
-        
-        lastScrollTime = now;
-      }
-    };
-  }, [stableUpcoming.length, shouldVirtualize]);
+  // Log performance metrics when component re-renders
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const metrics = getPerformanceMetrics();
+      console.log('Reminder section performance:', metrics);
+    }
+  }, [getPerformanceMetrics]);
   
   return (
     <div className="space-y-4">
@@ -173,7 +185,7 @@ const RemindersSection = memo(({
                         itemCount={stableUpcoming.length}
                         itemSize={rowHeight}
                         itemData={listData}
-                        onScroll={handleScroll}
+                        onScroll={trackScrollPerformance}
                         className="scrollbar-thin scrollbar-thumb-rounded-md scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600"
                         overscanCount={3}
                       >
@@ -193,8 +205,48 @@ const RemindersSection = memo(({
                   />
                 ))
               )}
+              
+              {/* Show loading indicator if loading more */}
+              {isLoading && (
+                <div className="flex justify-center items-center py-4">
+                  <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
             </CardContent>
           </Card>
+          
+          {/* Pagination controls */}
+          {shouldShowPagination && onPageChange && (
+            <div className="mt-4">
+              <NotificationPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={onPageChange}
+                isLoading={isLoading}
+              />
+            </div>
+          )}
+          
+          {/* Load more button */}
+          {shouldShowLoadMore && (
+            <div className="flex justify-center mt-4">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={onLoadMore}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <span className="flex items-center">
+                    <span className="h-4 w-4 mr-2 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
+                    Loading more...
+                  </span>
+                ) : (
+                  "Load More Reminders"
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       )}
       

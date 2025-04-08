@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Pagination,
   PaginationContent,
@@ -9,13 +9,16 @@ import {
   PaginationPrevious,
   PaginationEllipsis,
 } from "@/components/ui/pagination";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { performanceMonitor } from '@/utils/performanceUtils';
 
 interface NotificationPaginationProps {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
   className?: string;
+  isLoading?: boolean;
+  disabled?: boolean;
 }
 
 const NotificationPagination = ({
@@ -23,6 +26,8 @@ const NotificationPagination = ({
   totalPages,
   onPageChange,
   className,
+  isLoading = false,
+  disabled = false,
 }: NotificationPaginationProps) => {
   // Don't render pagination if there's only one page
   if (totalPages <= 1) {
@@ -55,6 +60,61 @@ const NotificationPagination = ({
     return pages;
   };
 
+  // Track keyboard navigation and add event listeners
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle if pagination is enabled and not loading
+      if (disabled || isLoading) return;
+      
+      if (event.key === "ArrowLeft" && currentPage > 1) {
+        // Ensure we're not in an input field
+        if (
+          document.activeElement?.tagName !== "INPUT" &&
+          document.activeElement?.tagName !== "TEXTAREA"
+        ) {
+          onPageChange(currentPage - 1);
+          
+          // Log navigation performance
+          performanceMonitor.startMark(
+            `pagination-keyboard-prev-${Date.now()}`, 
+            'pagination-interaction',
+            { from: currentPage, to: currentPage - 1, method: 'keyboard' }
+          );
+        }
+      } else if (event.key === "ArrowRight" && currentPage < totalPages) {
+        // Ensure we're not in an input field
+        if (
+          document.activeElement?.tagName !== "INPUT" &&
+          document.activeElement?.tagName !== "TEXTAREA"
+        ) {
+          onPageChange(currentPage + 1);
+          
+          // Log navigation performance
+          performanceMonitor.startMark(
+            `pagination-keyboard-next-${Date.now()}`, 
+            'pagination-interaction',
+            { from: currentPage, to: currentPage + 1, method: 'keyboard' }
+          );
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [currentPage, totalPages, onPageChange, disabled, isLoading]);
+
+  // Log performance metrics when user changes page
+  const handlePageClick = (page: number) => {
+    performanceMonitor.startMark(
+      `pagination-click-${Date.now()}`, 
+      'pagination-interaction',
+      { from: currentPage, to: page, method: 'click' }
+    );
+    onPageChange(page);
+  };
+
   const pageNumbers = getPageNumbers();
 
   return (
@@ -63,8 +123,13 @@ const NotificationPagination = ({
         {/* Previous page button */}
         <PaginationItem>
           <PaginationPrevious
-            onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}
-            className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+            onClick={() => currentPage > 1 && handlePageClick(currentPage - 1)}
+            className={
+              currentPage === 1 || disabled || isLoading
+                ? "pointer-events-none opacity-50"
+                : "cursor-pointer"
+            }
+            aria-disabled={currentPage === 1 || disabled || isLoading}
           />
         </PaginationItem>
         
@@ -78,10 +143,18 @@ const NotificationPagination = ({
             <PaginationItem key={page}>
               <PaginationLink
                 isActive={page === currentPage}
-                onClick={() => onPageChange(page)}
-                className="cursor-pointer"
+                onClick={() => handlePageClick(page)}
+                className={disabled || isLoading ? "pointer-events-none" : "cursor-pointer"}
+                aria-disabled={disabled || isLoading}
               >
-                {page}
+                {isLoading && page === currentPage ? (
+                  <span className="flex items-center">
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    {page}
+                  </span>
+                ) : (
+                  page
+                )}
               </PaginationLink>
             </PaginationItem>
           )
@@ -90,8 +163,13 @@ const NotificationPagination = ({
         {/* Next page button */}
         <PaginationItem>
           <PaginationNext
-            onClick={() => currentPage < totalPages && onPageChange(currentPage + 1)}
-            className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+            onClick={() => currentPage < totalPages && handlePageClick(currentPage + 1)}
+            className={
+              currentPage === totalPages || disabled || isLoading
+                ? "pointer-events-none opacity-50"
+                : "cursor-pointer"
+            }
+            aria-disabled={currentPage === totalPages || disabled || isLoading}
           />
         </PaginationItem>
       </PaginationContent>
