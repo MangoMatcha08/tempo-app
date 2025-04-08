@@ -1,6 +1,5 @@
 
-import QuickReminderModal from "@/components/dashboard/QuickReminderModal";
-import VoiceRecorderModal from "@/components/dashboard/VoiceRecorderModal";
+import { AddReminderDialog, VoiceNoteDialog } from "./DialogAliases";
 import { UIReminder } from "@/types/reminderTypes";
 
 interface DashboardModalsProps {
@@ -20,13 +19,13 @@ const DashboardModals = ({
 }: DashboardModalsProps) => {
   return (
     <>
-      <QuickReminderModal
+      <AddReminderDialog
         open={showQuickReminderModal}
         onOpenChange={setShowQuickReminderModal}
         onReminderCreated={onReminderCreated}
       />
       
-      <VoiceRecorderModal
+      <VoiceNoteDialog
         open={showVoiceRecorderModal}
         onOpenChange={setShowVoiceRecorderModal}
         onReminderCreated={onReminderCreated}

@@ -1,9 +1,10 @@
 
 import { useState, useCallback } from "react";
-import QuickReminderModal from "./QuickReminderModal";
-import VoiceRecorderModal from "./VoiceRecorderModal";
-import EnhancedReminderCreator from "./EnhancedReminderCreator";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { 
+  AddReminderDialog, 
+  VoiceNoteDialog, 
+  EnhancedReminderDialog 
+} from "./DialogAliases";
 
 interface DashboardModalHandlerProps {
   addReminder: (reminder: any) => Promise<any>;
@@ -19,9 +20,8 @@ const DashboardModalHandler = ({
   refreshReminders,
   useMockData = false
 }: DashboardModalHandlerProps) => {
-  const [quickReminderOpen, setQuickReminderOpen] = useState(false);
-  const [voiceRecorderOpen, setVoiceRecorderOpen] = useState(false);
   const [enhancedReminderOpen, setEnhancedReminderOpen] = useState(false);
+  const [voiceRecorderOpen, setVoiceRecorderOpen] = useState(false);
 
   // Open the enhanced reminder modal
   const openQuickReminderModal = useCallback(() => {
@@ -56,21 +56,15 @@ const DashboardModalHandler = ({
   // Modal components to be rendered
   const modalComponents = (
     <>
-      {/* Enhanced Reminder Creator in a Dialog */}
-      <Dialog open={enhancedReminderOpen} onOpenChange={setEnhancedReminderOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <EnhancedReminderCreator
-            onReminderCreated={(reminder) => {
-              handleReminderCreated(reminder);
-              setEnhancedReminderOpen(false);
-            }}
-            onCancel={() => setEnhancedReminderOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* Enhanced Reminder Dialog */}
+      <EnhancedReminderDialog
+        open={enhancedReminderOpen}
+        onOpenChange={setEnhancedReminderOpen}
+        onReminderCreated={handleReminderCreated}
+      />
 
-      {/* Voice Recorder Modal */}
-      <VoiceRecorderModal
+      {/* Voice Note Dialog */}
+      <VoiceNoteDialog
         open={voiceRecorderOpen}
         onOpenChange={setVoiceRecorderOpen}
         onReminderCreated={handleReminderCreated}
