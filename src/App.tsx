@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
@@ -12,7 +13,6 @@ import RegisterPage from '@/pages/auth/RegisterPage';
 import RemindersPage from '@/pages/RemindersPage';
 import SettingsPage from '@/pages/SettingsPage';
 import DeveloperPanel from '@/components/developer/DeveloperPanel';
-import { useFeatureFlags } from '@/contexts/FeatureFlagContext';
 
 function App() {
   return (
