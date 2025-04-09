@@ -1,11 +1,11 @@
-import { initializeApp } from 'firebase/app';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-import { getAnalytics } from "firebase/analytics";
-import { getAuth, signInAnonymously } from "firebase/auth";
-import { getFirestore, doc, setDoc } from "firebase/firestore";
-import { FirebaseMessagingPayload } from '@/types/notifications/serviceWorkerTypes';
-import { logEvent } from "firebase/analytics";
-import { FirebaseIOSPushLogger } from '@/lib/firebase/analytics';
+import { getToken, onMessage } from 'firebase/messaging';
+import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { initializeFirebase, messaging, firestore, vapidKey } from './firebase';
+import { defaultNotificationSettings } from '@/types/notifications/settingsTypes';
+import { httpsCallable, getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+
+// Debug flag for messaging operations
+export const DEBUG_MESSAGING = process.env.NODE_ENV === 'development';
 
 // Initialize Firebase services
 const firebaseConfig = {
@@ -19,7 +19,7 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase app
-const app = initializeApp(firebaseConfig);
+const app = initializeFirebase(firebaseConfig);
 const analytics = getAnalytics(app);
 
 // Initialize Firebase Authentication

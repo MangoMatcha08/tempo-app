@@ -11,6 +11,7 @@ import {
 import { Reminder } from '@/types/reminderTypes';
 import { NotificationDeliveryStatus } from '@/types/notifications/notificationHistoryTypes';
 import { browserDetection } from '@/utils/browserDetection';
+import { ToastActionElement } from "@/components/ui/toast";
 
 // This function handles mapping between different toast variant systems
 function mapToastVariant(variant: InternalToastOptions['variant'] = 'default'): "default" | "destructive" {
@@ -34,15 +35,37 @@ export function useNotificationToast() {
   const { toast: shadcnToast } = useToast();
   
   // Show toast with proper variant mapping
-  const showToast = useCallback((options: InternalToastOptions) => {
-    const { variant, ...rest } = options;
-    
-    // Map the variant to the appropriate shadcn/ui variant
-    shadcnToast({
-      ...rest,
-      variant: mapToastVariant(variant)
-    });
-  }, [shadcnToast]);
+  const showToast = useCallback(
+    ({ variant = 'default', title, description, duration, action, onDismiss, onAutoClose }) => {
+      // Convert the action object to a ToastActionElement if it exists
+      let toastAction: ToastActionElement | undefined = undefined;
+      
+      if (action) {
+        // Using toast directly which correctly handles the action
+        toast({
+          variant,
+          title,
+          description,
+          duration,
+          action: action,
+          onDismiss,
+          onAutoClose,
+        });
+        return;
+      }
+      
+      // If no action, use regular toast
+      toast({
+        variant,
+        title,
+        description,
+        duration,
+        onDismiss,
+        onAutoClose,
+      });
+    },
+    [shadcnToast]
+  );
   
   // Show notification based on a reminder object
   const showNotification = useCallback((reminder: Reminder) => {

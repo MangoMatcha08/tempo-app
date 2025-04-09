@@ -37,12 +37,10 @@ export const getUserNotificationSettings = async (userId: string): Promise<Notif
   // Default settings that would normally be fetched from Firestore
   return {
     enabled: true,
-    channels: {
-      push: true,
-      email: false,
-      sms: false,
-      inApp: true
-    },
+    push: true,
+    email: false,
+    sms: false,
+    inApp: true,
     quietHours: {
       enabled: false,
       start: '22:00',

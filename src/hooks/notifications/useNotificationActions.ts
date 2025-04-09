@@ -11,9 +11,8 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  NotificationActions,
-  NotificationRecord, 
   NotificationAction,
+  NotificationRecord, 
   ServiceWorkerMessage
 } from './types';
 import { useNotificationHistory } from '@/contexts/notificationHistory';
@@ -23,7 +22,7 @@ import { useNotificationHistory } from '@/contexts/notificationHistory';
  * 
  * @returns Action handlers for notifications
  */
-export function useNotificationActions(): NotificationActions {
+export function useNotificationActions() {
   const navigate = useNavigate();
   const { updateNotificationStatus, addNotificationAction } = useNotificationHistory();
   
@@ -52,7 +51,7 @@ export function useNotificationActions(): NotificationActions {
    * @param notificationId ID of the notification
    * @param action The action to perform
    */
-  const handleAction = useCallback((notificationId: string, action: NotificationAction) => {
+  const handleAction = useCallback((notificationId: string, action: 'view' | 'dismiss' | 'complete' | 'snooze') => {
     // Record the action
     addNotificationAction(notificationId, action);
     

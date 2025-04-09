@@ -1,4 +1,3 @@
-
 /**
  * Unified notification type definitions
  * 
@@ -27,7 +26,7 @@ export {
 export type NotificationRecord = BaseNotificationRecord;
 
 // Extend base notification action to include additional actions
-export type NotificationAction = BaseNotificationAction | 'delete' | 'mark_read';
+export type NotificationAction = BaseNotificationAction;
 
 /**
  * Service worker message interface
@@ -327,10 +326,5 @@ export interface NotificationsAPI extends NotificationPermission {
   records: NotificationRecord[];
   loading: boolean;
   error: Error | null;
-  pagination: {
-    page: number;
-    pageSize: number;
-    totalPages: number;
-    totalItems: number;
-  };
+  pagination: PaginationInfo;
 }
