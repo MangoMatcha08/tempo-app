@@ -1,3 +1,4 @@
+
 import React, { useEffect, useReducer, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -161,11 +162,14 @@ const IOSPushStatusDashboard: React.FC = () => {
             <Smartphone className="mr-2 h-5 w-5" />
             iOS Push Status
           </CardTitle>
-          <Badge variant={
-            permissionGranted && serviceWorkerRegistered && isPWA 
-              ? "success" 
-              : "warning"
-          }>
+          <Badge 
+            variant="default"
+            className={
+              permissionGranted && serviceWorkerRegistered && isPWA 
+                ? "bg-green-500 hover:bg-green-600" 
+                : "bg-amber-500 hover:bg-amber-600"
+            }
+          >
             {permissionGranted && serviceWorkerRegistered && isPWA 
               ? "Ready" 
               : "Setup Required"}
