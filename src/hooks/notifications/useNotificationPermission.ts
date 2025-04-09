@@ -14,7 +14,7 @@ import {
 import { NotificationPermission } from './types';
 import { browserDetection } from '@/utils/browserDetection';
 import { iosPushLogger } from '@/utils/iosPushLogger';
-import { requestIOSPushPermission } from '@/utils/iosPermissionUtils';
+import { requestIOSPushPermission, resumePermissionFlow, shouldResumeFlow } from '@/utils/iosPermissionUtils';
 import { PermissionRequestResult } from '@/types/notifications';
 
 /**
@@ -32,8 +32,14 @@ export function useNotificationPermission(): NotificationPermission {
       iosPushLogger.logPermissionEvent('hook-request-start', {
         isIOSSafari: browserDetection.isIOSSafari(),
         isPWA: browserDetection.isIOSPWA(),
-        iosVersion: browserDetection.getIOSVersion()
+        iosVersion: browserDetection.getIOSVersion(),
+        resumeFlow: shouldResumeFlow()
       });
+      
+      // Check if we need to resume an interrupted flow
+      if (shouldResumeFlow()) {
+        return resumePermissionFlow();
+      }
       
       // Use iOS-specific permission flow that returns a compatible PermissionRequestResult
       return requestIOSPushPermission();
