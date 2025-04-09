@@ -101,8 +101,8 @@ export const IOSPermissionFlow: React.FC = () => {
   if (isIOSDevice && !iosSupport.supported) {
     return (
       <Card className="p-6 space-y-4">
-        <Alert variant="warning" className="mb-4">
-          <AlertTriangle className="h-4 w-4" />
+        <Alert variant="default" className="mb-4 bg-amber-50 border-amber-200">
+          <AlertTriangle className="h-4 w-4 text-amber-500" />
           <AlertTitle>Push Notifications Not Available</AlertTitle>
           <AlertDescription>
             {iosSupport.reason === 'Not running as PWA' ? (

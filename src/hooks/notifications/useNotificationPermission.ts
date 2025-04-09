@@ -14,7 +14,11 @@ import {
 import { NotificationPermission } from './types';
 import { browserDetection } from '@/utils/browserDetection';
 import { iosPushLogger } from '@/utils/iosPushLogger';
-import { requestIOSPushPermission, resumePermissionFlow, shouldResumeFlow } from '@/utils/iosPermissionUtils';
+import { 
+  requestIOSPushPermission, 
+  resumePermissionFlow 
+} from '@/utils/iosPermissionUtils';
+import { shouldResumeFlow } from '@/utils/iosPermissionFlowState';
 import { PermissionRequestResult } from '@/types/notifications';
 
 /**

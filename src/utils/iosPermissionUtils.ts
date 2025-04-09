@@ -11,8 +11,9 @@ import {
   shouldResumeFlow 
 } from './iosPermissionFlowState';
 import { setupIOSServiceWorker } from './iosServiceWorkerUtils';
-import { firebaseInitPromise, messaging } from '@/services/notifications/firebase';
+import { initializeFirebase, messaging } from '@/services/notifications/firebase';
 import { getToken } from 'firebase/messaging';
+import { ensureFirebaseInitialized } from '@/lib/firebase';
 
 /**
  * Request push permission specifically for iOS devices
@@ -117,7 +118,7 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
       saveFlowState(PermissionFlowStep.PERMISSION_GRANTED);
       
       // Wait for Firebase to initialize
-      await firebaseInitPromise;
+      await ensureFirebaseInitialized();
       
       // Add delay before token request
       await sleep(timingConfig?.tokenRequestDelay || 400);
@@ -297,7 +298,7 @@ async function requestPermissionAfterServiceWorker(): Promise<PermissionRequestR
 async function requestFCMTokenAfterPermission(): Promise<PermissionRequestResult> {
   try {
     // Wait for Firebase to initialize
-    await firebaseInitPromise;
+    await ensureFirebaseInitialized();
     
     // Get timing config
     const timingConfig = getCurrentDeviceTimingConfig();
