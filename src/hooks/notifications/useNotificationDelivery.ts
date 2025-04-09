@@ -6,11 +6,16 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { NotificationDeliveryManager, NotificationDeliveryResult } from '@/types/notifications/sharedTypes';
+import { 
+  NotificationDeliveryManager, 
+  NotificationDeliveryResult,
+  NotificationServices
+} from '@/types/notifications/sharedTypes';
 import { NotificationRecord } from '@/types/notifications/notificationHistoryTypes';
 import { useNotificationServices } from './useNotificationServices';
 import { useNotificationFeatures } from './useNotificationFeatures';
 import { useNotificationPermission } from './useNotificationPermission';
+import { NotificationMethod } from '@/utils/notificationCapabilities';
 
 /**
  * Extended interface for NotificationDeliveryManager to include missing methods
@@ -102,6 +107,52 @@ export function useNotificationDelivery() {
   const getRecommendedDeliveryMethod = useCallback((notification: NotificationRecord): string => {
     return extendedManager.getBestAvailableMethod(notification);
   }, [extendedManager]);
+
+  /**
+   * Get best method for delivering notifications
+   */
+  const getBestMethod = useCallback(() => {
+    return NotificationMethod.WEB_PUSH;
+  }, []);
+
+  /**
+   * Check if notification permission is granted
+   */
+  const isPermissionGranted = useCallback(() => {
+    return hasPermission('notifications');
+  }, [hasPermission]);
+
+  /**
+   * Request notification permission
+   */
+  const requestPermission = useCallback(async () => {
+    try {
+      const result = await useNotificationPermission().requestPermission();
+      return result.granted;
+    } catch (error) {
+      console.error('Failed to request permission:', error);
+      return false;
+    }
+  }, []);
+
+  /**
+   * Get platform information
+   */
+  const getPlatformInfo = useCallback(() => {
+    const userAgent = navigator.userAgent || '';
+    const isIOS = /iPad|iPhone|iPod/.test(userAgent);
+    const isAndroid = /Android/.test(userAgent);
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+    
+    return {
+      name: isIOS ? 'iOS' : isAndroid ? 'Android' : 'Desktop',
+      version: '',
+      isIOS,
+      isAndroid,
+      isDesktop: !isIOS && !isAndroid,
+      isPWA
+    };
+  }, []);
   
   // Return the hook API
   return {
@@ -111,5 +162,9 @@ export function useNotificationDelivery() {
     getRecommendedDeliveryMethod,
     delivering,
     lastResult,
+    getBestMethod,
+    isPermissionGranted,
+    requestPermission,
+    getPlatformInfo
   };
 }

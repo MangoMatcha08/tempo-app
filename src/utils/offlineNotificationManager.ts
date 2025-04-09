@@ -114,6 +114,31 @@ export const getLastSync = (): number => {
 };
 
 /**
+ * Mark last sync (alias for updateLastSync for API consistency)
+ */
+export const markLastSync = (): void => {
+  updateLastSync();
+};
+
+/**
+ * Check if sync is needed
+ */
+export const isSyncNeeded = (): boolean => {
+  const lastSync = getLastSync();
+  const now = Date.now();
+  // Consider sync needed if more than 30 minutes have passed
+  return (now - lastSync) > (30 * 60 * 1000);
+};
+
+/**
+ * Check if fallback delivery should be used
+ */
+export const shouldUseFallbackDelivery = (): boolean => {
+  // Use fallback delivery if offline
+  return typeof navigator !== 'undefined' && !navigator.onLine;
+};
+
+/**
  * Register for background sync if supported
  */
 export const registerOfflineSync = async (
@@ -154,5 +179,8 @@ export const offlineNotificationManager = {
   clearOfflineNotifications,
   updateLastSync,
   getLastSync,
-  registerOfflineSync
+  registerOfflineSync,
+  markLastSync,
+  isSyncNeeded,
+  shouldUseFallbackDelivery
 };

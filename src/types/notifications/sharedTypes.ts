@@ -1,4 +1,3 @@
-
 /**
  * Shared notification type definitions
  * 
@@ -83,3 +82,47 @@ export const DEFAULT_CLEANUP_CONFIG: NotificationCleanupConfig = {
   highPriorityMaxAgeDays: 90,
   cleanupInterval: 24
 };
+
+/**
+ * Notification delivery manager interface
+ * Handles the delivery of notifications through different channels
+ */
+export interface NotificationDeliveryManager {
+  deliver: (notification: any, channel: string) => Promise<NotificationDeliveryResult>;
+  getBestAvailableMethod: (notification: any) => string;
+}
+
+/**
+ * Result of a notification delivery attempt
+ */
+export interface NotificationDeliveryResult {
+  success: boolean;
+  id: string;
+  channel: string;
+  timestamp: number;
+  error?: string | null;
+}
+
+/**
+ * Extended interface for NotificationServices
+ */
+export interface NotificationServices {
+  // Existing properties will be kept
+  
+  // Add missing properties
+  deliveryManager: NotificationDeliveryManager;
+  services: Record<string, any>;
+}
+
+/**
+ * Extended interface for NotificationPermission
+ */
+export interface NotificationPermission {
+  // Existing properties
+  permissionGranted: boolean;
+  isSupported: boolean;
+  requestPermission: () => Promise<PermissionRequestResult>;
+  
+  // Add missing property
+  hasPermission: (type: string) => boolean;
+}

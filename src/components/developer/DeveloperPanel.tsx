@@ -38,8 +38,10 @@ const DeveloperPanel: React.FC<DeveloperPanelProps> = ({ className }) => {
           <DropdownMenuLabel>Developer Tools</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem asChild>
-              <FeatureFlagPanel triggerClassName="w-full justify-start" />
+            <DropdownMenuItem>
+              <div className="w-full justify-start">
+                <FeatureFlagPanel />
+              </div>
             </DropdownMenuItem>
             
             <DropdownMenuItem onClick={() => console.log('Clear local storage')}>
