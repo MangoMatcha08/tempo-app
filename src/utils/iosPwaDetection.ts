@@ -93,6 +93,12 @@ export function detectPWAStatus(): PWAInstallationStatus {
     confidenceScore += 1; // Supporting indicator
   }
   
+  // Method 7: Check if user marked the PWA as installed
+  if (localStorage.getItem('pwa-installed') === 'true') {
+    result.detectionMethod.push('user-confirmed-install');
+    confidenceScore += 2; // Good indicator
+  }
+  
   // Determine final status
   result.isPWA = result.isStandalone || (confidenceScore >= 3);
   
@@ -154,11 +160,21 @@ export function trackPWALaunch(): void {
   }
 }
 
+/**
+ * Mark that PWA has been successfully installed
+ * Call this after the user completes the installation process
+ */
+export function markPwaInstalled(): void {
+  localStorage.setItem('pwa-installed', 'true');
+  localStorage.setItem('pwa-installed-date', Date.now().toString());
+}
+
 export const iosPwaDetection = {
   detectPWAStatus,
   isRunningAsPwa,
   canInstallAsPwa,
-  trackPWALaunch
+  trackPWALaunch,
+  markPwaInstalled
 };
 
 export default iosPwaDetection;
