@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getUserNotificationSettings, updateUserNotificationSettings } from '@/services/notificationService';
 import { NotificationSettings } from '@/types/notifications/settingsTypes';
+import { ReminderPriority } from '@/types/reminderTypes';
 
 /**
  * Hook for managing notification settings
@@ -11,12 +12,12 @@ export function useNotificationSettings(userId: string = 'anonymous') {
     enabled: true,
     push: {
       enabled: true,
-      minPriority: 'low'
+      minPriority: ReminderPriority.LOW
     },
     email: {
       enabled: false,
       address: '',
-      minPriority: 'medium',
+      minPriority: ReminderPriority.MEDIUM,
       dailySummary: {
         enabled: false,
         timing: 'before'
@@ -24,7 +25,7 @@ export function useNotificationSettings(userId: string = 'anonymous') {
     },
     inApp: {
       enabled: true,
-      minPriority: 'low'
+      minPriority: ReminderPriority.LOW
     },
     quietHours: {
       enabled: false,

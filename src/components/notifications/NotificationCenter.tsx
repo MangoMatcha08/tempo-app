@@ -68,7 +68,7 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
 
   // Fixed to call markAllAsRead directly
   const handleMarkAllAsRead = () => {
-    markAllAsRead(unreadNotifications);
+    markAllAsRead();
   };
 
   return (

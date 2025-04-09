@@ -1,4 +1,3 @@
-
 import { 
   initializeMessaging, 
   requestNotificationPermission, 
@@ -8,6 +7,7 @@ import {
 } from './messaging/messagingService';
 
 import { NotificationSettings } from '@/types/notifications/settingsTypes';
+import { ReminderPriority } from '@/types/reminderTypes';
 
 // Ensure firebase is initialized once
 import { ensureFirebaseInitialized } from '@/lib/firebase';
@@ -47,12 +47,12 @@ export const getUserNotificationSettings = async (userId: string): Promise<Notif
     enabled: true,
     push: {
       enabled: true,
-      minPriority: "low" // Compatible with NotificationSettings type
+      minPriority: ReminderPriority.LOW // Updated to use enum
     },
     email: {
       enabled: false,
       address: '',
-      minPriority: "medium", // Compatible with NotificationSettings type
+      minPriority: ReminderPriority.MEDIUM, // Updated to use enum
       dailySummary: {
         enabled: false,
         timing: 'before'
@@ -60,7 +60,7 @@ export const getUserNotificationSettings = async (userId: string): Promise<Notif
     },
     inApp: {
       enabled: true,
-      minPriority: "low" // Compatible with NotificationSettings type
+      minPriority: ReminderPriority.LOW // Updated to use enum
     },
     quietHours: {
       enabled: false,
