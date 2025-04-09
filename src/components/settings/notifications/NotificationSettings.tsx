@@ -36,8 +36,9 @@ const NotificationSettings = () => {
     inApp: {
       enabled: settings.inApp?.enabled ?? false,
       minPriority: settings.inApp?.minPriority ?? ReminderPriority.LOW,
-      toast: settings.inApp?.toast ?? false,
-      notificationCenter: settings.inApp?.notificationCenter ?? false
+      // Use default values for extended properties instead of accessing them from settings
+      toast: false,
+      notificationCenter: false
     }
   };
   
@@ -61,8 +62,9 @@ const NotificationSettings = () => {
       inApp: {
         enabled: settings.inApp?.enabled ?? false,
         minPriority: settings.inApp?.minPriority ?? ReminderPriority.LOW,
-        toast: settings.inApp?.toast ?? false,
-        notificationCenter: settings.inApp?.notificationCenter ?? false
+        // Use default values for extended properties
+        toast: false,
+        notificationCenter: false
       }
     };
     
@@ -94,6 +96,7 @@ const NotificationSettings = () => {
         inApp: {
           enabled: data.inApp.enabled,
           minPriority: data.inApp.minPriority,
+          // Include the extended properties when updating settings
           toast: data.inApp.toast,
           notificationCenter: data.inApp.notificationCenter
         },
