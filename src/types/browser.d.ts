@@ -29,4 +29,12 @@ interface Permissions {
 // Extending Navigator interface to include permissions
 interface Navigator {
   permissions?: Permissions;
+  // Add standalone property for iOS PWA detection
+  standalone?: boolean;
+}
+
+// Extending Window interface for browser detection
+interface Window {
+  // Add MSStream property for IE detection
+  MSStream?: any;
 }

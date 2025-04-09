@@ -9,7 +9,7 @@ export const browserDetection = {
   isIOS: (): boolean => {
     if (typeof navigator === 'undefined') return false;
     const ua = navigator.userAgent;
-    return /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+    return /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
   },
   
   // Check if browser is Safari
@@ -26,7 +26,7 @@ export const browserDetection = {
   
   // Check if iOS PWA
   isIOSPWA: (): boolean => {
-    return browserDetection.isIOS() && (typeof window !== 'undefined' && window.navigator.standalone === true);
+    return browserDetection.isIOS() && (typeof window !== 'undefined' && (navigator as any).standalone === true);
   },
   
   // Get iOS version

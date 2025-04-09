@@ -1,4 +1,3 @@
-
 /**
  * Notification Permission Type Definitions
  * 
@@ -21,6 +20,8 @@ export interface PermissionRequestResult {
   token?: string | null;
   /** Any error that occurred during the permission request */
   error?: Error;
+  /** Reason why permission was not granted, if applicable */
+  reason?: string;
 }
 
 /**

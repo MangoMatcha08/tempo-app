@@ -301,8 +301,7 @@ export const toggleServiceWorkerImplementation = async (useEnhanced: boolean) =>
   return false;
 };
 
-// Export new iOS-specific utilities
+// Export browser detection utilities
 export {
-  pingServiceWorker,
   browserDetection
 };

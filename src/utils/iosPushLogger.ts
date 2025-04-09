@@ -34,7 +34,7 @@ export const iosPushLogger = {
     this.context.safariVersion = safariMatch ? `${safariMatch[1]}.${safariMatch[2]}` : 'unknown';
     
     // Check installation mode
-    this.context.installationMode = window.navigator.standalone ? 'standalone' : 'browser';
+    this.context.installationMode = (navigator as any).standalone ? 'standalone' : 'browser';
     
     // Check push support
     this.context.pushSupported = 'PushManager' in window && 

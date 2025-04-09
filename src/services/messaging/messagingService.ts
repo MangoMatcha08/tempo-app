@@ -1,11 +1,16 @@
 
 import { initializeApp } from 'firebase/app';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+import { getMessaging, getToken, onMessage, GetTokenOptions } from 'firebase/messaging';
 import { firebaseConfig } from '@/lib/firebase/config';
 import { FirebaseMessagingPayload } from '@/types/notifications/serviceWorkerTypes';
 import { sendTestNotification } from '@/lib/firebase/functions';
 import { browserDetection } from '@/utils/browserDetection';
 import { iosPushLogger } from '@/utils/iosPushLogger';
+
+// Extended GetTokenOptions interface to include forceRefresh
+interface ExtendedGetTokenOptions extends GetTokenOptions {
+  forceRefresh?: boolean;
+}
 
 // Initialize Firebase app if it hasn't been initialized already
 let messaging: any;
@@ -77,8 +82,8 @@ export const getFCMToken = async (): Promise<string | null> => {
       const currentToken = await getToken(messaging, {
         vapidKey: formattedVapidKey,
         serviceWorkerRegistration: registration,
-        forceRefresh: true // This helps ensure Safari gets a fresh token
-      });
+        forceRefresh: true // Using the extended interface
+      } as ExtendedGetTokenOptions);
       
       if (currentToken) {
         iosPushLogger.logPushEvent('token-received', { 
