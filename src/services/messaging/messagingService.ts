@@ -6,11 +6,15 @@ import { FirebaseMessagingPayload } from '@/types/notifications/serviceWorkerTyp
 import { sendTestNotification } from '@/lib/firebase/functions';
 import { browserDetection } from '@/utils/browserDetection';
 import { iosPushLogger } from '@/utils/iosPushLogger';
+import { registerServiceWorker, waitForServiceWorkerReady } from '@/utils/serviceWorkerRegistration';
 
 // Extended GetTokenOptions interface to include forceRefresh
 interface ExtendedGetTokenOptions extends GetTokenOptions {
   forceRefresh?: boolean;
 }
+
+// Debug flag for verbose logging
+export const DEBUG_MESSAGING = true;
 
 // Initialize Firebase app if it hasn't been initialized already
 let messaging: any;
@@ -68,8 +72,30 @@ export const getFCMToken = async (): Promise<string | null> => {
     if (browserDetection.isIOS()) {
       iosPushLogger.logPushEvent('token-request-start');
       
+      // For iOS, register the service worker with appropriate options
+      try {
+        await registerServiceWorker({
+          clearExistingWorkers: false,
+          iOS: {
+            waitBeforeTokenRequest: 1500 // longer wait for iOS
+          }
+        });
+      } catch (swError) {
+        console.error('Service worker registration error:', swError);
+        iosPushLogger.logServiceWorkerEvent('registration-error-during-token', {
+          error: swError instanceof Error ? swError.message : String(swError)
+        });
+        
+        // Continue despite error - the service worker might be registered already
+      }
+      
       // iOS requires the service worker to be ready
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await waitForServiceWorkerReady();
+      
+      if (!registration) {
+        iosPushLogger.logPushEvent('no-service-worker-ready');
+        throw new Error('No service worker registration available');
+      }
       
       // iOS Safari needs VAPID key without padding
       const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || 
@@ -96,12 +122,24 @@ export const getFCMToken = async (): Promise<string | null> => {
       }
     } else {
       // Standard token request for other browsers
+      
+      // Register service worker first
+      try {
+        await registerServiceWorker();
+      } catch (error) {
+        console.warn('Service worker registration error:', error);
+        // Continue despite error - the service worker might be registered already
+      }
+      
+      // Get the token
       const currentToken = await getToken(messaging, {
         vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY
       });
       
       if (currentToken) {
-        console.log('FCM Token:', currentToken.substring(0, 5) + '...');
+        if (DEBUG_MESSAGING) {
+          console.log('FCM Token:', currentToken.substring(0, 5) + '...');
+        }
         return currentToken;
       } else {
         console.log('No registration token available');
@@ -121,8 +159,8 @@ export const getFCMToken = async (): Promise<string | null> => {
 };
 
 /**
- * Request permission and get FCM token
- * @returns Promise with the FCM token
+ * Request permission and get FCM token with enhanced iOS handling
+ * @returns Promise with the permission result
  */
 export const requestNotificationPermission = async (): Promise<string | null> => {
   // Check if notifications are supported
@@ -135,8 +173,27 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
     // For iOS, log the permission flow
     if (browserDetection.isIOS()) {
       iosPushLogger.logPermissionEvent('request-start', {
-        currentPermission: Notification.permission
+        currentPermission: Notification.permission,
+        isIOSSafari: browserDetection.isIOSSafari(),
+        isPWA: browserDetection.isIOSPWA(),
+        supportsWebPush: browserDetection.supportsIOSWebPush()
       });
+    }
+    
+    // Register service worker BEFORE permission request for iOS
+    if (browserDetection.isIOS() && browserDetection.supportsIOSWebPush()) {
+      try {
+        // For iOS we want to ensure service worker is registered before permission prompt
+        await registerServiceWorker({
+          clearExistingWorkers: false
+        });
+        
+        // Small delay to ensure service worker is ready
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (swError) {
+        console.warn('Pre-permission service worker registration error:', swError);
+        // Continue despite error
+      }
     }
     
     // Request permission
@@ -218,5 +275,6 @@ export const sendTestMessage = async (options: {
 
 // Export necessary functions
 export {
-  sendTestMessage as sendTestNotification
+  sendTestMessage as sendTestNotification,
+  DEBUG_MESSAGING
 };

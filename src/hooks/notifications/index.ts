@@ -1,25 +1,16 @@
 
 /**
- * Notification Hooks Entry Point
- * 
- * This file provides a centralized entry point for all notification-related hooks.
- * Use this file to import any notification functionality in your application.
+ * Notification hooks index
+ * Exports all notification-related hooks for easy importing
  * 
  * @module hooks/notifications
  */
 
-// Re-export main notification hook and types
-export * from './useNotifications';
+export * from './useNotificationPermission';
 export * from './types';
 
-// Export specialized hooks for advanced use cases
-export * from './useNotificationState';
-export * from './useNotificationDisplay';
-export * from './useNotificationActions';
-export * from './useNotificationPermission';
-export * from './useNotificationSettings';
-export * from './useNotificationServices';
-export * from './useNotificationFeatures';
-
-// Default export the main facade hook
-export { useNotifications as default } from './useNotifications';
+// These will be implemented in Phase 3
+// export * from './useNotificationDisplay';
+// export * from './useNotificationActions';
+// export * from './useNotificationState';
+// export * from './useNotifications';
