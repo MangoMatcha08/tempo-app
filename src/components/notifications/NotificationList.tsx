@@ -102,7 +102,7 @@ const NotificationList = ({
             <NotificationCard
               key={notification.id}
               notification={notification}
-              onAction={(action) => onAction(notification.id, action)}
+              onAction={(action) => onAction(notification.id, action as 'view' | 'dismiss')}
               onMarkRead={() => onMarkRead(notification.id)}
             />
           ))}
