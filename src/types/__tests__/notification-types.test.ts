@@ -53,6 +53,8 @@ describe('NotificationSettings types', () => {
       inApp: {
         enabled: true,
         minPriority: ReminderPriority.LOW,
+        toast: true,
+        notificationCenter: true
       },
     };
     

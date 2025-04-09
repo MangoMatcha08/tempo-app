@@ -32,6 +32,12 @@ const NotificationSettings = () => {
         enabled: settings.email?.dailySummary?.enabled ?? false,
         timing: settings.email?.dailySummary?.timing ?? 'after'
       }
+    },
+    inApp: {
+      enabled: settings.inApp?.enabled ?? false,
+      minPriority: settings.inApp?.minPriority ?? ReminderPriority.LOW,
+      toast: settings.inApp?.toast ?? false,
+      notificationCenter: settings.inApp?.notificationCenter ?? false
     }
   };
   
@@ -51,6 +57,12 @@ const NotificationSettings = () => {
           enabled: settings.email?.dailySummary?.enabled ?? false,
           timing: settings.email?.dailySummary?.timing ?? 'after'
         }
+      },
+      inApp: {
+        enabled: settings.inApp?.enabled ?? false,
+        minPriority: settings.inApp?.minPriority ?? ReminderPriority.LOW,
+        toast: settings.inApp?.toast ?? false,
+        notificationCenter: settings.inApp?.notificationCenter ?? false
       }
     };
     
@@ -79,7 +91,12 @@ const NotificationSettings = () => {
           dailySummary: data.email.dailySummary
         },
         push: data.push,
-        inApp: data.inApp,
+        inApp: {
+          enabled: data.inApp.enabled,
+          minPriority: data.inApp.minPriority,
+          toast: data.inApp.toast,
+          notificationCenter: data.inApp.notificationCenter
+        },
         quietHours: data.quietHours
       };
       
