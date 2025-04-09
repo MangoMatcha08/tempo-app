@@ -21,5 +21,8 @@ export * from './useNotificationSettings';
 export * from './useNotificationServices';
 export * from './useNotificationFeatures';
 
+// Export the new unified permissions hook
+export * from './useUnifiedPermissions';
+
 // Default export the main facade hook
 export { useNotifications as default } from './useNotifications';

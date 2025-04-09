@@ -1,5 +1,5 @@
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -10,7 +10,11 @@ import { iosPwaDetection } from '@/utils/iosPwaDetection';
 import { useNotificationPermission } from '@/hooks/notifications/useNotificationPermission';
 import { useServiceWorker } from '@/hooks/useServiceWorker';
 import { useStatusPolling } from '@/hooks/useStatusPolling';
-import { recordTelemetryEvent, getTelemetryStats } from '@/utils/iosPushTelemetry';
+import { recordTelemetryEvent, getTelemetryStats, flushTelemetryBatches } from '@/utils/iosPushTelemetry';
+
+// Components to break down the large dashboard
+import StatusIndicators from './IOSPushStatusIndicators';
+import TelemetryDisplay from './IOSPushTelemetryDisplay';
 
 const IOSPushStatusDashboard: React.FC = () => {
   const { permissionGranted, isSupported } = useNotificationPermission();
@@ -30,7 +34,7 @@ const IOSPushStatusDashboard: React.FC = () => {
   const iosVersion = browserDetection.getIOSVersion();
   const supportsPush = browserDetection.supportsIOSWebPush();
 
-  // Calculate overall status
+  // Calculate overall status with memoization
   const overallStatus = useMemo(() => {
     if (permissionGranted && serviceWorkerRegistered && isPWA) {
       return "ready";
@@ -45,11 +49,11 @@ const IOSPushStatusDashboard: React.FC = () => {
     }
   }, [permissionGranted, serviceWorkerRegistered, isPWA]);
   
-  // Define the polling function that will check statuses
-  const pollStatusFn = async () => {
+  // Define the polling function with useCallback for better performance
+  const pollStatusFn = useCallback(async () => {
     try {
       // Record status check in telemetry
-      await recordTelemetryEvent({
+      recordTelemetryEvent({
         eventType: 'status-check',
         isPWA: isPWA,
         iosVersion: iosVersion?.toString(),
@@ -70,7 +74,7 @@ const IOSPushStatusDashboard: React.FC = () => {
       
       // If we've reached a good state (everything working), return success
       if (permissionGranted && serviceWorkerRegistered && isPWA) {
-        await recordTelemetryEvent({
+        recordTelemetryEvent({
           eventType: 'status-check',
           isPWA: isPWA,
           iosVersion: iosVersion?.toString(),
@@ -83,7 +87,7 @@ const IOSPushStatusDashboard: React.FC = () => {
       return false;
     } catch (error) {
       console.error("Error polling status:", error);
-      await recordTelemetryEvent({
+      recordTelemetryEvent({
         eventType: 'error',
         isPWA: isPWA,
         iosVersion: iosVersion?.toString(),
@@ -95,7 +99,7 @@ const IOSPushStatusDashboard: React.FC = () => {
       });
       return false;
     }
-  };
+  }, [permissionGranted, serviceWorkerRegistered, isPWA, iosVersion, checkServiceWorkerStatus, serviceWorkerImplementation]);
   
   // Use the status polling hook
   const { state, manualRefresh } = useStatusPolling(
@@ -104,12 +108,25 @@ const IOSPushStatusDashboard: React.FC = () => {
     [permissionGranted, serviceWorkerRegistered, isPWA]
   );
   
-  // Load telemetry stats
+  // Load telemetry stats with debounce for better performance
   useEffect(() => {
+    let timeoutId: number;
     if (showTelemetry) {
-      setTelemetryStats(getTelemetryStats());
+      timeoutId = window.setTimeout(() => {
+        setTelemetryStats(getTelemetryStats());
+      }, 100);
     }
+    return () => {
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
   }, [showTelemetry, state.lastUpdated]);
+
+  // Flush telemetry batches on unmount
+  useEffect(() => {
+    return () => {
+      flushTelemetryBatches();
+    };
+  }, []);
   
   // If not on iOS 16.4+, don't show the dashboard
   if (!isIOS || !supportsPush) {
@@ -176,64 +193,13 @@ const IOSPushStatusDashboard: React.FC = () => {
           </div>
         </Alert>
 
-        {/* Status indicators */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* PWA Status */}
-          <div className="flex items-center gap-2 p-3 border rounded-md">
-            <div className="bg-slate-100 p-2 rounded-full">
-              <Smartphone className="h-4 w-4 text-slate-600" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium">PWA Installation</p>
-              <p className="text-xs text-muted-foreground">
-                {isPWA ? 'Installed' : 'Not installed'}
-              </p>
-            </div>
-            {isPWA ? (
-              <CheckCircle className="h-5 w-5 text-green-500" />
-            ) : (
-              <XCircle className="h-5 w-5 text-orange-500" />
-            )}
-          </div>
-          
-          {/* Permission Status */}
-          <div className="flex items-center gap-2 p-3 border rounded-md">
-            <div className="bg-slate-100 p-2 rounded-full">
-              <Info className="h-4 w-4 text-slate-600" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium">Push Permission</p>
-              <p className="text-xs text-muted-foreground">
-                {permissionGranted ? 'Granted' : 'Not granted'}
-              </p>
-            </div>
-            {permissionGranted ? (
-              <CheckCircle className="h-5 w-5 text-green-500" />
-            ) : (
-              <XCircle className="h-5 w-5 text-orange-500" />
-            )}
-          </div>
-          
-          {/* Service Worker Status */}
-          <div className="flex items-center gap-2 p-3 border rounded-md">
-            <div className="bg-slate-100 p-2 rounded-full">
-              <Wifi className="h-4 w-4 text-slate-600" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium">Service Worker</p>
-              <p className="text-xs text-muted-foreground">
-                {serviceWorkerRegistered 
-                  ? `Active (${serviceWorkerImplementation})` 
-                  : 'Not registered'}
-              </p>
-            </div>
-            {serviceWorkerRegistered ? (
-              <CheckCircle className="h-5 w-5 text-green-500" />
-            ) : (
-              <XCircle className="h-5 w-5 text-orange-500" />
-            )}
-          </div>
-        </div>
+        {/* Status indicators - extracted to a separate component */}
+        <StatusIndicators 
+          isPWA={isPWA} 
+          permissionGranted={permissionGranted} 
+          serviceWorkerRegistered={serviceWorkerRegistered}
+          serviceWorkerImplementation={serviceWorkerImplementation}
+        />
         
         {/* Action needed guidance */}
         {overallStatus !== "ready" && (
@@ -297,43 +263,9 @@ const IOSPushStatusDashboard: React.FC = () => {
           </button>
         </div>
         
-        {/* Telemetry stats display */}
+        {/* Telemetry display - extracted to a separate component */}
         {showTelemetry && telemetryStats && (
-          <div className="bg-slate-100 p-3 rounded-md text-xs space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="font-medium">Push Notification Telemetry</span>
-              <Badge variant="outline" className="text-[10px]">Diagnostic</Badge>
-            </div>
-            
-            <div className="space-y-1">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Events Recorded:</span>
-                <span>{telemetryStats.totalEvents}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Success Rate:</span>
-                <span>{(telemetryStats.successRate * 100).toFixed(0)}%</span>
-              </div>
-              {Object.keys(telemetryStats.errorBreakdown).length > 0 && (
-                <div className="pt-1">
-                  <span className="text-muted-foreground block mb-1">Error Breakdown:</span>
-                  <ul className="pl-3 space-y-1">
-                    {Object.entries(telemetryStats.errorBreakdown).map(([key, count]) => (
-                      <li key={key} className="flex justify-between">
-                        <span>{key}:</span>
-                        <span>{count}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-            
-            <div className="text-[10px] text-muted-foreground pt-1 flex items-center">
-              <ExternalLink className="h-3 w-3 mr-1" />
-              View debugging logs in console for more details
-            </div>
-          </div>
+          <TelemetryDisplay telemetryStats={telemetryStats} />
         )}
         
         {/* Error display */}
