@@ -37,10 +37,23 @@ export const getUserNotificationSettings = async (userId: string): Promise<Notif
   // Default settings that would normally be fetched from Firestore
   return {
     enabled: true,
-    push: true,
-    email: false,
-    sms: false,
-    inApp: true,
+    push: {
+      enabled: true,
+      minPriority: 'low'
+    },
+    email: {
+      enabled: false,
+      address: '',
+      minPriority: 'medium',
+      dailySummary: {
+        enabled: false,
+        timing: 'before'
+      }
+    },
+    inApp: {
+      enabled: true,
+      minPriority: 'low'
+    },
     quietHours: {
       enabled: false,
       start: '22:00',
@@ -52,7 +65,8 @@ export const getUserNotificationSettings = async (userId: string): Promise<Notif
       marketing: false
     },
     frequency: 'immediate',
-    grouping: 'none'
+    grouping: 'none',
+    sms: false
   };
 };
 

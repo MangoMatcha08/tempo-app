@@ -1,3 +1,4 @@
+
 import { useCallback, useMemo } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { useNotificationState } from './useNotificationState';
@@ -32,7 +33,7 @@ function mapToastVariant(variant: InternalToastOptions['variant'] = 'default'): 
  * Hook for displaying notifications as toasts
  */
 export function useNotificationToast() {
-  const { toast: shadcnToast } = useToast();
+  const { toast } = useToast();
   
   // Show toast with proper variant mapping
   const showToast = useCallback(
@@ -43,28 +44,28 @@ export function useNotificationToast() {
       if (action) {
         // Using toast directly which correctly handles the action
         toast({
-          variant,
+          variant: mapToastVariant(variant),
           title,
           description,
           duration,
           action: action,
-          onDismiss,
-          onAutoClose,
+          onDismiss: onDismiss || (() => {}),
+          onAutoClose: onAutoClose || (() => {})
         });
         return;
       }
       
       // If no action, use regular toast
       toast({
-        variant,
+        variant: mapToastVariant(variant),
         title,
         description,
         duration,
-        onDismiss,
-        onAutoClose,
+        onDismiss: onDismiss || (() => {}),
+        onAutoClose: onAutoClose || (() => {})
       });
     },
-    [shadcnToast]
+    [toast]
   );
   
   // Show notification based on a reminder object
@@ -79,6 +80,8 @@ export function useNotificationToast() {
       description,
       duration: 5000,
       variant: reminder.priority === 'high' ? 'error' : 'default',
+      onDismiss: () => {},
+      onAutoClose: () => {}
     });
   }, [showToast]);
   
@@ -99,6 +102,8 @@ export function useNotificationToast() {
       description: notification.body,
       variant,
       duration: 5000,
+      onDismiss: () => {},
+      onAutoClose: () => {}
     });
   }, [showToast]);
   
@@ -183,9 +188,9 @@ export function useNotificationDisplay(
     action: NotificationAction
   ) => {
     // Cast the action to the correct type if needed
-    const historyAction = action === 'delete' || action === 'mark_read' 
-      ? 'dismiss' // Use compatible action
-      : action;
+    const historyAction = action === 'view' || action === 'dismiss' 
+      ? action 
+      : (action === 'delete' || action === 'mark_read' ? 'dismiss' : action);
     
     // Add the action to the notification
     state.addNotificationAction(notificationId, historyAction);

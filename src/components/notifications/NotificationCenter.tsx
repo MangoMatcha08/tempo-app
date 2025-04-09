@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { 
   Sheet, 
@@ -67,9 +66,9 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
     }
   };
 
-  // Fixed this line to properly handle the onClick event
+  // Fixed to call markAllAsRead directly
   const handleMarkAllAsRead = () => {
-    markAllAsRead();
+    markAllAsRead(unreadNotifications);
   };
 
   return (

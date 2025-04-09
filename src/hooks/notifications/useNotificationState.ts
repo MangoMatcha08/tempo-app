@@ -8,7 +8,8 @@ import { useState, useCallback } from 'react';
 import {
   NotificationRecord as BaseNotificationRecord,
   NotificationAction as BaseNotificationAction,
-  NotificationDeliveryStatus
+  NotificationDeliveryStatus,
+  PaginationState
 } from '@/types/notifications/notificationHistoryTypes';
 import { 
   NotificationRecord,
@@ -66,10 +67,12 @@ export function useNotificationState(options: NotificationStateOptions = {}) {
   // Add an action to a notification
   const addNotificationAction = useCallback((id: string, action: NotificationAction) => {
     // Map our action type to the base type for compatibility
-    const baseAction: BaseNotificationAction = 
-      (action === 'delete' || action === 'mark_read') 
-        ? 'dismiss' 
-        : action;
+    let baseAction: BaseNotificationAction = action as BaseNotificationAction;
+    
+    // Handle special cases
+    if (action === 'delete' || action === 'mark_read') {
+      baseAction = 'dismiss';
+    }
     
     setRecords(prev => 
       prev.map(notification => 

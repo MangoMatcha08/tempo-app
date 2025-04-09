@@ -1,3 +1,4 @@
+
 /**
  * Unified notification type definitions
  * 
@@ -26,7 +27,7 @@ export {
 export type NotificationRecord = BaseNotificationRecord;
 
 // Extend base notification action to include additional actions
-export type NotificationAction = BaseNotificationAction;
+export type NotificationAction = BaseNotificationAction | 'delete' | 'mark_read';
 
 /**
  * Service worker message interface

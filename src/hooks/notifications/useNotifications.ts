@@ -2,86 +2,52 @@
 /**
  * Unified Notifications Hook
  * 
- * This facade hook provides a single entry point for all notification functionality.
- * It combines specialized hooks into one unified API.
- * 
- * @module hooks/notifications/useNotifications
+ * Combines all notification-related hooks into one
  */
 
-import { useMemo } from 'react';
-import { NotificationsAPI, NotificationDisplayOptions } from './types';
-import { useNotificationState } from './useNotificationState';
-import { useNotificationToast } from './useNotificationDisplay';
-import { useNotificationActions } from './useNotificationActions';
-import { useNotificationPermission } from './useNotificationPermission';
-import { useNotificationSettings } from './useNotificationSettings';
-import { useNotificationServices } from './useNotificationServices';
-import { useNotificationFeatures } from './useNotificationFeatures';
+import { useCallback } from 'react';
 import { useNotificationDisplay } from './useNotificationDisplay';
+import { useNotificationPermission } from '@/contexts/NotificationPermissionContext';
+import { Reminder } from '@/types/reminderTypes';
+import { NotificationRecord, ServiceWorkerMessage } from './types';
 
 /**
- * Unified hook for all notification functionality
- * 
- * @param options Optional display options
- * @returns Complete notification API
+ * Main hook for notifications functionality
  */
-export function useNotifications(
-  options: NotificationDisplayOptions = {}
-): NotificationsAPI {
-  // Get specialized functionality from individual hooks
-  const state = useNotificationState();
-  const display = useNotificationToast();
-  const actions = useNotificationActions();
+export function useNotifications() {
+  const display = useNotificationDisplay();
   const permission = useNotificationPermission();
-  const settings = useNotificationSettings();
-  const services = useNotificationServices();
-  const features = useNotificationFeatures();
   
-  // Use display hook with provided options
-  const displayWithOptions = useNotificationDisplay(options, state);
+  // Show a notification based on a reminder
+  const showNotification = useCallback((reminder: Reminder) => {
+    display.showNotification(reminder);
+  }, [display]);
   
-  // Calculate unread count
-  const unreadCount = displayWithOptions.unreadCount;
+  // Show a toast notification
+  const showToastNotification = useCallback((notification: NotificationRecord) => {
+    display.showToastNotification(notification);
+  }, [display]);
   
-  // Combine all functionality into one unified API
-  const api: NotificationsAPI = {
-    // State
-    ...state,
+  // Handle messages from the service worker
+  const handleServiceWorkerMessage = useCallback((message: ServiceWorkerMessage) => {
+    console.log('Received service worker message:', message);
     
-    // Display
+    if (message.type === 'NOTIFICATION_ACTION' && message.payload) {
+      const { notification, action } = message.payload;
+      
+      if (notification && action && notification.id) {
+        display.handleAction(notification.id, action as any);
+      }
+    }
+  }, [display]);
+  
+  return {
     ...display,
-    
-    // Actions
-    ...actions,
-    
-    // Permission
     ...permission,
-    
-    // Settings
-    ...settings,
-    
-    // Services
-    ...services,
-    
-    // Features
-    ...features,
-    
-    // Additional properties from display options
-    unreadCount
+    showNotification,
+    handleServiceWorkerMessage,
+    showToastNotification,
   };
-  
-  return api;
 }
 
-// Export everything for direct imports
-export * from './types';
-export * from './useNotificationState';
-export * from './useNotificationDisplay';
-export * from './useNotificationActions';
-export * from './useNotificationPermission';
-export * from './useNotificationSettings';
-export * from './useNotificationServices';
-export * from './useNotificationFeatures';
-
-// Default export for convenience
 export default useNotifications;
