@@ -1,231 +1,90 @@
 
 /**
- * Notification Strategy Pattern
+ * Notification Strategy
  * 
- * This pattern defines a family of algorithms for notification delivery,
- * encapsulates each one, and makes them interchangeable.
+ * This module implements the strategy pattern for notification delivery
+ * It chooses the best available notification channel based on device capabilities
  */
 
-import { NotificationRecord } from '@/types/notifications';
-import { NotificationMethod } from '@/utils/notificationCapabilities';
-import { getPlatformAdapter } from '@/adapters/platform/PlatformAdapter';
+import { NotificationRecord } from '@/types/notifications/notificationHistoryTypes';
+import { browserDetection } from '@/utils/browserDetection';
+import { offlineNotificationManager } from '@/utils/offlineNotificationManager';
+import { FallbackNotificationStrategy } from './FallbackNotificationStrategy';
 
-// Result of notification delivery attempt
-export interface NotificationResult {
+/**
+ * Result of notification delivery attempt
+ */
+export interface NotificationDeliveryResult {
   success: boolean;
-  method: NotificationMethod;
-  error?: Error;
+  id: string;
+  channel: string;
   timestamp: number;
-  notificationId?: string;
+  duration?: number;
+  error?: string;
 }
 
-// Base notification strategy
-export interface NotificationStrategy {
-  deliver(notification: NotificationRecord): Promise<NotificationResult>;
-  canDeliver(): boolean;
-  getPriority(): number; // Higher number = higher priority
-  getMethod(): NotificationMethod;
+/**
+ * Interface for notification delivery strategies
+ */
+export interface NotificationDeliveryStrategy {
+  deliver(notification: NotificationRecord): Promise<NotificationDeliveryResult>;
+  canDeliver(notification: NotificationRecord): boolean;
 }
 
-// Web Push notification strategy
-export class WebPushStrategy implements NotificationStrategy {
-  async deliver(notification: NotificationRecord): Promise<NotificationResult> {
-    try {
-      if (!this.canDeliver()) {
-        throw new Error('Web Push notifications not supported');
-      }
-      
-      // In a real implementation, this would use the Push API
-      console.log('Delivering notification via Web Push:', notification);
-      
-      // Simulate success for now
-      return {
-        success: true,
-        method: NotificationMethod.WEB_PUSH,
-        timestamp: Date.now(),
-        notificationId: notification.id
-      };
-    } catch (error) {
-      console.error('Error delivering Web Push notification:', error);
-      return {
-        success: false,
-        method: NotificationMethod.WEB_PUSH,
-        error: error instanceof Error ? error : new Error('Unknown error'),
-        timestamp: Date.now(),
-        notificationId: notification.id
-      };
-    }
-  }
-  
-  canDeliver(): boolean {
-    const adapter = getPlatformAdapter();
-    return (
-      adapter.supportsFeature('webPush') && 
-      adapter.isPermissionGranted('webPush')
-    );
-  }
-  
-  getPriority(): number {
-    return 100; // Highest priority
-  }
-  
-  getMethod(): NotificationMethod {
-    return NotificationMethod.WEB_PUSH;
-  }
-}
-
-// Service Worker notification strategy
-export class ServiceWorkerStrategy implements NotificationStrategy {
-  async deliver(notification: NotificationRecord): Promise<NotificationResult> {
-    try {
-      if (!this.canDeliver()) {
-        throw new Error('Service Worker notifications not supported');
-      }
-      
-      // In a real implementation, this would use the Notifications API via Service Worker
-      console.log('Delivering notification via Service Worker:', notification);
-      
-      // Simulate success for now
-      return {
-        success: true,
-        method: NotificationMethod.SERVICE_WORKER,
-        timestamp: Date.now(),
-        notificationId: notification.id
-      };
-    } catch (error) {
-      console.error('Error delivering Service Worker notification:', error);
-      return {
-        success: false,
-        method: NotificationMethod.SERVICE_WORKER,
-        error: error instanceof Error ? error : new Error('Unknown error'),
-        timestamp: Date.now(),
-        notificationId: notification.id
-      };
-    }
-  }
-  
-  canDeliver(): boolean {
-    const adapter = getPlatformAdapter();
-    return (
-      adapter.supportsFeature('serviceWorker') && 
-      adapter.supportsFeature('notifications') && 
-      adapter.isPermissionGranted('notifications')
-    );
-  }
-  
-  getPriority(): number {
-    return 80;
-  }
-  
-  getMethod(): NotificationMethod {
-    return NotificationMethod.SERVICE_WORKER;
-  }
-}
-
-// In-app notification strategy (Toast or alert)
-export class InAppStrategy implements NotificationStrategy {
-  async deliver(notification: NotificationRecord): Promise<NotificationResult> {
-    try {
-      console.log('Delivering notification via In-App:', notification);
-      
-      // This would typically dispatch an action to show a toast/alert
-      // For now, we'll just simulate success
-      return {
-        success: true,
-        method: NotificationMethod.IN_APP,
-        timestamp: Date.now(),
-        notificationId: notification.id
-      };
-    } catch (error) {
-      console.error('Error delivering In-App notification:', error);
-      return {
-        success: false,
-        method: NotificationMethod.IN_APP,
-        error: error instanceof Error ? error : new Error('Unknown error'),
-        timestamp: Date.now(),
-        notificationId: notification.id
-      };
-    }
-  }
-  
-  canDeliver(): boolean {
-    return true; // In-app notifications are always available
-  }
-  
-  getPriority(): number {
-    return 40; // Lower priority
-  }
-  
-  getMethod(): NotificationMethod {
-    return NotificationMethod.IN_APP;
-  }
-}
-
-// Fallback notification strategy
-export class FallbackStrategy implements NotificationStrategy {
-  async deliver(notification: NotificationRecord): Promise<NotificationResult> {
-    console.log('Using fallback notification method for:', notification);
-    return {
-      success: true,
-      method: NotificationMethod.FALLBACK,
-      timestamp: Date.now(),
-      notificationId: notification.id
-    };
-  }
-  
-  canDeliver(): boolean {
-    return true; // Fallback is always available
-  }
-  
-  getPriority(): number {
-    return 0; // Lowest priority
-  }
-  
-  getMethod(): NotificationMethod {
-    return NotificationMethod.FALLBACK;
-  }
-}
-
-// Context class that selects and uses the appropriate strategy
-export class NotificationDeliveryContext {
-  private strategies: NotificationStrategy[] = [];
+/**
+ * Main notification delivery manager
+ * Uses the strategy pattern to select the best delivery method
+ */
+class NotificationDeliveryManager {
+  private strategies: NotificationDeliveryStrategy[] = [];
+  private fallbackStrategy: NotificationDeliveryStrategy;
   
   constructor() {
-    // Register all available strategies in priority order
-    this.registerStrategy(new WebPushStrategy());
-    this.registerStrategy(new ServiceWorkerStrategy());
-    this.registerStrategy(new InAppStrategy());
-    this.registerStrategy(new FallbackStrategy());
+    // Initialize with fallback strategy
+    this.fallbackStrategy = new FallbackNotificationStrategy();
   }
   
-  registerStrategy(strategy: NotificationStrategy): void {
+  /**
+   * Register a delivery strategy
+   */
+  registerStrategy(strategy: NotificationDeliveryStrategy): void {
     this.strategies.push(strategy);
-    // Sort by priority (highest first)
-    this.strategies.sort((a, b) => b.getPriority() - a.getPriority());
   }
   
-  async deliverNotification(notification: NotificationRecord): Promise<NotificationResult> {
-    // Find the highest priority strategy that can deliver
+  /**
+   * Deliver a notification using the best available strategy
+   */
+  async deliverNotification(notification: NotificationRecord): Promise<NotificationDeliveryResult> {
+    // Check if we should use fallback delivery
+    if (offlineNotificationManager.shouldUseFallbackDelivery()) {
+      console.log('Using fallback delivery for notification');
+      return this.fallbackStrategy.deliver(notification);
+    }
+    
+    // Find the first strategy that can deliver this notification
     for (const strategy of this.strategies) {
-      if (strategy.canDeliver()) {
-        return strategy.deliver(notification);
+      if (strategy.canDeliver(notification)) {
+        try {
+          return await strategy.deliver(notification);
+        } catch (error) {
+          console.error('Strategy delivery failed, trying next', error);
+        }
       }
     }
     
-    // If no strategy can deliver, use the fallback
-    const fallback = new FallbackStrategy();
-    return fallback.deliver(notification);
-  }
-  
-  getBestAvailableMethod(): NotificationMethod {
-    for (const strategy of this.strategies) {
-      if (strategy.canDeliver()) {
-        return strategy.getMethod();
-      }
-    }
-    return NotificationMethod.FALLBACK;
+    // If all strategies fail, use fallback
+    console.log('All delivery strategies failed, using fallback');
+    return this.fallbackStrategy.deliver(notification);
   }
 }
 
-// Export a singleton instance
-export const notificationDelivery = new NotificationDeliveryContext();
+// Create and export singleton instance
+export const notificationDelivery = new NotificationDeliveryManager();
+
+// Helper function to initialize strategies
+export function initializeNotificationStrategies(): void {
+  // Register strategies here when implemented
+  // This would typically happen in the app initialization
+}
+
+export default notificationDelivery;
