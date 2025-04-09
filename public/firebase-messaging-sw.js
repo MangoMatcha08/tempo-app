@@ -48,28 +48,9 @@ function callFirebaseFunction(action, data) {
   })
   .catch(error => {
     console.error('Error calling Firebase function:', error);
-    // Store failed requests for retry when online
-    return storeFailedRequest(action, data);
+    // Cache the failed request for retry when online
+    return { success: false, error: error.message };
   });
-}
-
-/**
- * Store failed requests for retry
- */
-function storeFailedRequest(action, data) {
-  return self.registration.sync.register('sync-notification-actions')
-    .then(() => {
-      return self.registration.sync.getTags();
-    })
-    .then(tags => {
-      console.log('Registered sync tags:', tags);
-      // Could store in IndexedDB for more robust handling
-      return { success: false, offlineQueued: true };
-    })
-    .catch(err => {
-      console.error('Sync registration failed:', err);
-      return { success: false, error: err.message };
-    });
 }
 
 /**
@@ -191,17 +172,6 @@ self.addEventListener('notificationclick', function(event) {
 });
 
 /**
- * Handle sync events for offline actions
- */
-self.addEventListener('sync', function(event) {
-  if (event.tag === 'sync-notification-actions') {
-    console.log('[firebase-messaging-sw.js] Attempting to sync pending actions');
-    // In a production app, you would retrieve actions from IndexedDB
-    // and process them here
-  }
-});
-
-/**
  * Handle push events from FCM
  */
 self.addEventListener('push', function(event) {
@@ -220,5 +190,79 @@ self.addEventListener('push', function(event) {
     messaging.onBackgroundMessage(payload);
   } catch (e) {
     console.error('[firebase-messaging-sw.js] Error handling push event:', e);
+  }
+});
+
+// Basic offline caching for app shell (simple version compatible with iOS)
+const CACHE_NAME = 'tempo-cache-v1';
+const STATIC_ASSETS = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/favicon.ico',
+];
+
+// Install event - cache static assets
+self.addEventListener('install', (event) => {
+  console.log('[Service Worker] Installing Service Worker');
+  
+  // Skip waiting to ensure the new service worker activates immediately
+  self.skipWaiting();
+  
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        console.log('[Service Worker] Caching static assets');
+        return cache.addAll(STATIC_ASSETS);
+      })
+      .catch((error) => {
+        console.error('[Service Worker] Cache installation failed:', error);
+      })
+  );
+});
+
+// Activate event - clean up old caches
+self.addEventListener('activate', (event) => {
+  console.log('[Service Worker] Activating Service Worker');
+  
+  // Take control of all clients
+  event.waitUntil(clients.claim());
+  
+  // Remove outdated caches
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('[Service Worker] Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
+
+// Handle messages from clients
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+  
+  // Respond to ping messages with iOS info
+  if (event.data && event.data.type === 'PING') {
+    const client = event.source;
+    client.postMessage({
+      type: 'PONG',
+      payload: {
+        timestamp: Date.now(),
+        version: 'consolidated-sw-v1',
+        capabilities: {
+          push: 'supported',
+          notifications: 'supported',
+          actions: self.registration.showNotification && self.Notification && self.Notification.maxActions > 0
+        }
+      }
+    });
   }
 });

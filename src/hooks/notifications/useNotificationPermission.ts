@@ -12,6 +12,8 @@ import {
   useNotificationPermission as usePermissionContext
 } from '@/contexts/NotificationPermissionContext';
 import { NotificationPermission } from './types';
+import { browserDetection } from '@/utils/browserDetection';
+import { iosPushLogger } from '@/utils/iosPushLogger';
 
 /**
  * Hook for notification permission management
@@ -21,10 +23,25 @@ import { NotificationPermission } from './types';
 export function useNotificationPermission(): NotificationPermission {
   const context = usePermissionContext();
   
-  // Forward methods from context with appropriate typing
+  // Enhanced request permission function with iOS support
+  const requestPermission = useCallback(async () => {
+    // For iOS, add additional logging
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logPermissionEvent('hook-request-start', {
+        isIOSSafari: browserDetection.isIOSSafari(),
+        isPWA: browserDetection.isIOSPWA(),
+        iosVersion: browserDetection.getIOSVersion()
+      });
+    }
+    
+    // Call the original requestPermission with proper context
+    return context.requestPermission();
+  }, [context.requestPermission]);
+  
+  // Forward methods from context with appropriate typing and iOS enhancement
   return {
     permissionGranted: context.permissionGranted,
     isSupported: context.isSupported,
-    requestPermission: context.requestPermission
+    requestPermission: requestPermission
   };
 }

@@ -3,6 +3,8 @@
 import { initializeApp } from 'firebase/app';
 import { getMessaging, isSupported } from 'firebase/messaging';
 import { getFirestore } from 'firebase/firestore';
+import { browserDetection } from '@/utils/browserDetection';
+import { iosPushLogger } from '@/utils/iosPushLogger';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -15,7 +17,7 @@ const firebaseConfig = {
   measurementId: 'G-WW90RJ28BH'
 };
 
-// FCM Vapid Key
+// FCM Vapid Key - Ensure no padding for iOS
 export const vapidKey = 'BJ9HWzAxfk1jKtkGfoKYMauaVfMatIkqw0cCEwQ1WBH7cn5evFO_saWfpvXAVy5710DTOpSUoXsKk8LWGQK7lBU';
 
 // Initialize Firebase
@@ -58,26 +60,73 @@ export const initializeFirebase = async () => {
       
       firebaseInitialized = true;
       
-      // Register service worker for push if not already registered
+      // Register service worker for push with iOS-specific handling
       if ('serviceWorker' in navigator) {
         try {
+          // Log that we're starting service worker registration
+          if (browserDetection.isIOS()) {
+            iosPushLogger.logServiceWorkerEvent('registration-start', { 
+              isIOS: true, 
+              iosSafari: browserDetection.isIOSSafari() 
+            });
+          }
+          
+          // For iOS, we need to be explicit about the service worker and scope
+          const swOptions = browserDetection.isIOS() ? 
+            { scope: '/' } : 
+            undefined;
+          
           const existingSW = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
           if (!existingSW) {
-            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-              scope: '/'
-            });
+            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', swOptions);
             console.log('Service worker registered:', registration);
+            
+            if (browserDetection.isIOS()) {
+              iosPushLogger.logServiceWorkerEvent('registration-success', {
+                scope: registration.scope,
+                updateViaCache: registration.updateViaCache
+              });
+            }
           } else {
             console.log('Existing service worker found');
+            
+            if (browserDetection.isIOS()) {
+              iosPushLogger.logServiceWorkerEvent('existing-found', {
+                scope: existingSW.scope,
+                state: existingSW.active?.state || 'unknown'
+              });
+              
+              // Ensure the correct scope on iOS
+              if (!existingSW.scope.endsWith('/')) {
+                console.warn('Service worker scope is not root, this may cause issues on iOS');
+                iosPushLogger.logServiceWorkerEvent('scope-warning', {
+                  currentScope: existingSW.scope,
+                  recommendedScope: '/'
+                });
+              }
+            }
           }
         } catch (swError) {
           console.error('Service worker registration failed:', swError);
+          
+          if (browserDetection.isIOS()) {
+            iosPushLogger.logServiceWorkerEvent('registration-failed', { 
+              error: swError instanceof Error ? swError.message : String(swError)
+            });
+          }
         }
       }
       
       return { messaging, firestore };
     } catch (error) {
       console.error('Error initializing Firebase:', error);
+      
+      if (browserDetection.isIOS()) {
+        iosPushLogger.logPushEvent('firebase-init-error', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+      
       return { messaging: null, firestore: null };
     }
   }

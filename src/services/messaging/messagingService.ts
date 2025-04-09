@@ -4,6 +4,8 @@ import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { firebaseConfig } from '@/lib/firebase/config';
 import { FirebaseMessagingPayload } from '@/types/notifications/serviceWorkerTypes';
 import { sendTestNotification } from '@/lib/firebase/functions';
+import { browserDetection } from '@/utils/browserDetection';
+import { iosPushLogger } from '@/utils/iosPushLogger';
 
 // Initialize Firebase app if it hasn't been initialized already
 let messaging: any;
@@ -47,7 +49,7 @@ export const setupForegroundMessageListener = (
 };
 
 /**
- * Gets the FCM token for the current device
+ * Gets the FCM token for the current device with special handling for iOS
  * @returns Promise with the token
  */
 export const getFCMToken = async (): Promise<string | null> => {
@@ -57,21 +59,58 @@ export const getFCMToken = async (): Promise<string | null> => {
   }
   
   try {
-    // Get token
-    const currentToken = await getToken(messaging, {
-      vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY
-    });
-    
-    if (currentToken) {
-      // Save the token to your backend
-      console.log('FCM Token:', currentToken);
-      return currentToken;
+    // For iOS we need to ensure service worker is ready and token options are correct
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logPushEvent('token-request-start');
+      
+      // iOS requires the service worker to be ready
+      const registration = await navigator.serviceWorker.ready;
+      
+      // iOS Safari needs VAPID key without padding
+      const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || 
+        'BJ9HWzAxfk1jKtkGfoKYMauaVfMatIkqw0cCEwQ1WBH7cn5evFO_saWfpvXAVy5710DTOpSUoXsKk8LWGQK7lBU';
+      
+      // Remove any potential padding for iOS
+      const formattedVapidKey = vapidKey.replace(/=/g, '');
+      
+      // Get token with iOS-specific options
+      const currentToken = await getToken(messaging, {
+        vapidKey: formattedVapidKey,
+        serviceWorkerRegistration: registration,
+        forceRefresh: true // This helps ensure Safari gets a fresh token
+      });
+      
+      if (currentToken) {
+        iosPushLogger.logPushEvent('token-received', { 
+          tokenPrefix: currentToken.substring(0, 5) + '...'
+        });
+        return currentToken;
+      } else {
+        iosPushLogger.logPushEvent('token-empty');
+        return null;
+      }
     } else {
-      console.log('No registration token available');
-      return null;
+      // Standard token request for other browsers
+      const currentToken = await getToken(messaging, {
+        vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY
+      });
+      
+      if (currentToken) {
+        console.log('FCM Token:', currentToken.substring(0, 5) + '...');
+        return currentToken;
+      } else {
+        console.log('No registration token available');
+        return null;
+      }
     }
   } catch (error) {
-    console.error('Error getting FCM token:', error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('Error getting FCM token:', errorMsg);
+    
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logPushEvent('token-error', { error: errorMsg });
+    }
+    
     return null;
   }
 };
@@ -88,17 +127,40 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
   }
   
   try {
+    // For iOS, log the permission flow
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logPermissionEvent('request-start', {
+        currentPermission: Notification.permission
+      });
+    }
+    
     // Request permission
     const permission = await Notification.requestPermission();
     
     if (permission === 'granted') {
+      // For iOS, log the successful permission
+      if (browserDetection.isIOS()) {
+        iosPushLogger.logPermissionEvent('granted');
+      }
+      
       // Get FCM token
       return await getFCMToken();
     }
     
+    // For iOS, log the denied permission
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logPermissionEvent('denied');
+    }
+    
     return null;
   } catch (error) {
-    console.error('Error requesting notification permission:', error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('Error requesting notification permission:', errorMsg);
+    
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logPermissionEvent('error', { error: errorMsg });
+    }
+    
     return null;
   }
 };
@@ -108,7 +170,7 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
  */
 export const saveTokenToFirestore = async (userId: string, token: string): Promise<void> => {
   // Implementation would go here
-  console.log(`Saving token ${token} for user ${userId}`);
+  console.log(`Saving token ${token.substring(0, 5)}... for user ${userId}`);
 };
 
 /**
@@ -122,9 +184,29 @@ export const sendTestMessage = async (options: {
   includeDeviceInfo?: boolean;
 }): Promise<any> => {
   try {
-    return await sendTestNotification(options);
+    // For iOS, add device info and log the test attempt
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logPushEvent('test-notification-request', { options });
+      
+      // Always include device info for iOS for debugging
+      options.includeDeviceInfo = true;
+    }
+    
+    const result = await sendTestNotification(options);
+    
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logPushEvent('test-notification-result', { result });
+    }
+    
+    return result;
   } catch (error) {
-    console.error('Error sending test notification:', error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('Error sending test notification:', errorMsg);
+    
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logPushEvent('test-notification-error', { error: errorMsg });
+    }
+    
     throw error;
   }
 };
