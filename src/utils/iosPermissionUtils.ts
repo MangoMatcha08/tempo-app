@@ -1,12 +1,13 @@
 
 import { browserDetection } from './browserDetection';
 import { iosPushLogger } from './iosPushLogger';
+import { PermissionRequestResult } from '@/types/notifications/sharedTypes';
 
 /**
  * Request push permission specifically for iOS devices
  * This handles the special requirements for iOS 16.4+ web push
  */
-export async function requestIOSPushPermission() {
+export async function requestIOSPushPermission(): Promise<PermissionRequestResult> {
   try {
     // Check if we're on iOS first
     if (!browserDetection.isIOS()) {
@@ -73,7 +74,7 @@ export async function requestIOSPushPermission() {
     // Return error information
     return { 
       granted: false, 
-      error: error instanceof Error ? error.message : String(error),
+      error: error instanceof Error ? error : String(error),
       reason: 'Error requesting permission'
     };
   }

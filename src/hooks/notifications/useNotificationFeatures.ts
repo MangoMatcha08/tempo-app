@@ -9,9 +9,8 @@
 
 import { useCallback } from 'react';
 import { useFeature } from '@/contexts/FeatureFlagContext';
-import { NOTIFICATION_FEATURES } from '@/types/notifications';
+import { NOTIFICATION_FEATURES, FeatureFlags } from '@/types/notifications/featureFlags';
 import { NotificationFeatures } from './types';
-import { FeatureFlags } from '@/types/notifications/featureFlags';
 
 /**
  * Check if a string is a valid feature flag key

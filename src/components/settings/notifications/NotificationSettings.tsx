@@ -13,7 +13,7 @@ import InAppNotifications from "./InAppNotifications";
 import NotificationCleanupSettings from "../NotificationCleanupSettings";
 import { Button } from "@/components/ui/button";
 import { ReminderPriority } from "@/types/reminderTypes";
-import { NOTIFICATION_FEATURES } from "@/types/notifications/index";
+import { NOTIFICATION_FEATURES } from "@/types/notifications/featureFlags";
 
 const NotificationSettings = () => {
   const { toast } = useToast();

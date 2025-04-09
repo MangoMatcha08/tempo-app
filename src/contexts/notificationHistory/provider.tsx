@@ -1,4 +1,3 @@
-
 import React, { useReducer, useCallback, useEffect, useState } from 'react';
 import { NotificationHistoryContext } from './context';
 import { reducer, initialState } from './reducer';
@@ -6,7 +5,7 @@ import { NotificationAction } from '@/types/notifications/notificationHistoryTyp
 import { 
   DEFAULT_CLEANUP_CONFIG, 
   NotificationCleanupConfig 
-} from '@/types/notifications/serviceWorkerTypes';
+} from '@/types/notifications/sharedTypes';
 import { useFeatureFlags } from '@/contexts/FeatureFlagContext';
 
 const LOCAL_STORAGE_KEY = 'notification_history';

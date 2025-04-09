@@ -60,3 +60,8 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
  * Storage key for persisted feature flags
  */
 export const FEATURE_FLAGS_STORAGE_KEY = 'app_feature_flags';
+
+/**
+ * Export constant for feature flag checks in components
+ */
+export const NOTIFICATION_FEATURES = DEFAULT_FEATURE_FLAGS;

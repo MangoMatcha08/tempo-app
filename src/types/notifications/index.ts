@@ -27,5 +27,5 @@ export {
 };
 
 // Types re-exported from other modules for convenience
-export { NotificationType } from '@/types/reminderTypes';
+export type { NotificationType } from '@/types/reminderTypes';
 export type { Reminder } from '@/types/reminderTypes';

@@ -4,8 +4,8 @@ import {
   NotificationRecord,
   NotificationAction,
   NotificationHistoryState,
-  NotificationCleanupConfig 
 } from '@/types/notifications/notificationHistoryTypes';
+import { NotificationCleanupConfig } from '@/types/notifications/sharedTypes';
 import { initialState } from './reducer';
 
 // Context for notification history
