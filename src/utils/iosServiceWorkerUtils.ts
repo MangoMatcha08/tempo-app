@@ -1,5 +1,7 @@
+
 import { browserDetection } from './browserDetection';
 import { iosPushLogger } from './iosPushLogger';
+import { sleep, timeout, withRetry } from './iosPermissionTimings';
 
 interface ServiceWorkerRegistrationResult {
   success: boolean;
@@ -32,17 +34,25 @@ export const registerServiceWorkerForIOS = async (): Promise<ServiceWorkerRegist
       ? { scope: '/' } // Explicit scope for iOS
       : undefined;
     
-    // Register the service worker
-    const registration = await navigator.serviceWorker.register(
-      '/firebase-messaging-sw.js',
-      registrationOptions
+    // Use retry mechanism for iOS
+    const registration = await withRetry(
+      async () => {
+        return await navigator.serviceWorker.register(
+          '/firebase-messaging-sw.js',
+          registrationOptions
+        );
+      },
+      browserDetection.isIOS() ? {
+        maxRetries: 3,
+        baseDelayMs: 800
+      } : undefined
     );
     
     console.log('Service worker registration successful with scope:', registration.scope);
     
     // For iOS, wait until the service worker is activated
     if (browserDetection.isIOS() && registration.installing) {
-      await new Promise<void>(resolve => {
+      await timeout(new Promise<void>(resolve => {
         const installingWorker = registration.installing;
         installingWorker?.addEventListener('statechange', () => {
           if (installingWorker.state === 'activated') {
@@ -53,20 +63,31 @@ export const registerServiceWorkerForIOS = async (): Promise<ServiceWorkerRegist
             resolve();
           }
         });
-        
-        // Timeout after 10 seconds
-        setTimeout(() => {
-          console.warn('Service worker activation timed out for iOS');
-          resolve();
-        }, 10000);
-      });
+      }), 15000, 'Service worker activation timeout');
     }
     
-    // Log successful registration for iOS
+    // For iOS, verify that service worker is controlling the page
     if (browserDetection.isIOS()) {
+      // If not controlling, wait for it to take control
+      if (!navigator.serviceWorker.controller) {
+        try {
+          await timeout(new Promise<void>(resolve => {
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+              console.log('Service worker now controlling the page');
+              resolve();
+            }, { once: true });
+          }), 5000, 'Controller change timeout');
+        } catch (error) {
+          console.warn('Timed out waiting for service worker to control page:', error);
+          // Continue anyway as this isn't critical
+        }
+      }
+      
+      // Log successful registration for iOS
       iosPushLogger.logServiceWorkerEvent('registration-success', {
         scope: registration.scope,
-        scriptURL: registration.active?.scriptURL || 'unknown'
+        scriptURL: registration.active?.scriptURL || 'unknown',
+        controlling: !!navigator.serviceWorker.controller
       });
     }
     
@@ -163,6 +184,7 @@ export const cleanupExistingServiceWorkers = async (): Promise<boolean> => {
  * 1. Clean up any existing service workers
  * 2. Register the Firebase service worker with proper scope
  * 3. Wait for activation
+ * 4. Ensure the service worker is controlling the page
  */
 export const setupIOSServiceWorker = async (): Promise<ServiceWorkerRegistrationResult> => {
   if (!browserDetection.isIOS()) {
@@ -173,8 +195,164 @@ export const setupIOSServiceWorker = async (): Promise<ServiceWorkerRegistration
   await cleanupExistingServiceWorkers();
   
   // Add delay for iOS Safari to process the unregistration
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await sleep(500);
   
   // Step 2 & 3: Register and wait for activation
-  return registerServiceWorkerForIOS();
+  const registrationResult = await registerServiceWorkerForIOS();
+  
+  if (!registrationResult.success) {
+    return registrationResult;
+  }
+  
+  // Step 4: Verify page control (iOS sometimes needs a reload)
+  if (!navigator.serviceWorker.controller) {
+    iosPushLogger.logServiceWorkerEvent('controller-missing', {});
+    
+    // For PWA, we can try to force controller activation
+    if (browserDetection.isIOSPWA()) {
+      try {
+        // Send message to service worker to claim clients
+        registrationResult.registration?.active?.postMessage({
+          type: 'CLAIM_CLIENTS'
+        });
+        
+        // Wait briefly for controller to be set
+        await sleep(300);
+      } catch (error) {
+        console.warn('Error requesting client claim:', error);
+      }
+    }
+  }
+  
+  return registrationResult;
 };
+
+/**
+ * Enhanced service worker message channel for iOS
+ */
+export class IOSServiceWorkerMessenger {
+  private _messageChannel: MessageChannel | null = null;
+  private _connected = false;
+  private _messageQueue: { type: string; payload: any }[] = [];
+  
+  constructor() {
+    // Setup listener for service worker changes
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        console.log('Controller changed, resetting messenger');
+        this._connected = false;
+        this._setupChannel();
+      });
+    }
+  }
+  
+  /**
+   * Set up message channel to service worker
+   */
+  private _setupChannel(): void {
+    if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) {
+      return;
+    }
+    
+    this._messageChannel = new MessageChannel();
+    this._messageChannel.port1.onmessage = this._handleMessage.bind(this);
+    
+    // Send init message to establish connection
+    navigator.serviceWorker.controller.postMessage(
+      { type: 'INIT_CHANNEL' },
+      [this._messageChannel.port2]
+    );
+    
+    // Mark as connected
+    this._connected = true;
+    
+    // Process any queued messages
+    this._processQueue();
+  }
+  
+  /**
+   * Handle incoming messages from service worker
+   */
+  private _handleMessage(event: MessageEvent): void {
+    const { type, payload } = event.data || {};
+    
+    if (type === 'READY') {
+      console.log('Service worker messenger ready');
+    } else if (type === 'ERROR') {
+      console.error('Service worker reported error:', payload);
+    }
+  }
+  
+  /**
+   * Process queued messages
+   */
+  private _processQueue(): void {
+    if (!this._connected || !navigator.serviceWorker.controller) return;
+    
+    // Send all queued messages
+    while (this._messageQueue.length > 0) {
+      const message = this._messageQueue.shift();
+      if (message) {
+        this.sendMessage(message.type, message.payload);
+      }
+    }
+  }
+  
+  /**
+   * Send message to service worker
+   */
+  public sendMessage(type: string, payload?: any): boolean {
+    if (!('serviceWorker' in navigator)) return false;
+    
+    // If not connected yet, set up channel
+    if (!this._connected) {
+      if (navigator.serviceWorker.controller) {
+        this._setupChannel();
+      } else {
+        // Queue message for when controller is available
+        this._messageQueue.push({ type, payload });
+        return true;
+      }
+    }
+    
+    // Send message
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type, payload });
+      return true;
+    }
+    
+    return false;
+  }
+  
+  /**
+   * Check if service worker is ready
+   */
+  public async checkReady(): Promise<boolean> {
+    if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) {
+      return false;
+    }
+    
+    return new Promise((resolve) => {
+      const channel = new MessageChannel();
+      let timeoutId: number;
+      
+      // Set up response handler
+      channel.port1.onmessage = (event) => {
+        if (timeoutId) clearTimeout(timeoutId);
+        resolve(event.data?.ready === true);
+      };
+      
+      // Send ping message
+      navigator.serviceWorker.controller.postMessage(
+        { type: 'PING' },
+        [channel.port2]
+      );
+      
+      // Set timeout
+      timeoutId = window.setTimeout(() => resolve(false), 3000);
+    });
+  }
+}
+
+// Export singleton instance
+export const serviceWorkerMessenger = new IOSServiceWorkerMessenger();

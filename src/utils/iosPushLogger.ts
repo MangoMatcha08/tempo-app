@@ -1,122 +1,157 @@
-
+/**
+ * iOS Push Notification Logger
+ * 
+ * Special logging utilities for iOS push notification debug and telemetry
+ */
 import { browserDetection } from './browserDetection';
 
-/**
- * Enhanced logger for iOS push notification debugging
- */
-export const iosPushLogger = {
-  // Context information
-  context: {
-    deviceType: null as string | null,
-    iosVersion: null as string | null,
-    safariVersion: null as string | null,
-    installationMode: null as 'standalone' | 'browser' | null,
-    pushSupported: null as boolean | null
-  },
+// Only enable detailed logging in development or if debug flag is set
+const ENABLE_DETAILED_LOGGING = process.env.NODE_ENV === 'development' || 
+                              process.env.VITE_DEBUG_IOS_PUSH === 'true';
+
+interface LogEvent {
+  timestamp: number;
+  category: 'permission' | 'service-worker' | 'token' | 'performance' | 'error';
+  event: string;
+  data?: any;
+}
+
+// Keep a log history
+let logHistory: LogEvent[] = [];
+const MAX_LOG_HISTORY = 100;
+
+// Record a log event
+const recordEvent = (category: LogEvent['category'], event: string, data?: any) => {
+  // Skip detailed logs in production unless explicitly enabled
+  if (!ENABLE_DETAILED_LOGGING && category !== 'error') return;
   
-  // Initialize with device detection
-  init(): void {
-    if (typeof window === 'undefined') return;
-    
-    // Detect iOS
-    if (!browserDetection.isIOS()) {
-      this.context.deviceType = 'non-ios';
-      return;
+  // Create log entry
+  const logEvent: LogEvent = {
+    timestamp: Date.now(),
+    category,
+    event,
+    data: {
+      ...data,
+      iosVersion: browserDetection.getIOSVersion(),
+      isPwa: browserDetection.isIOSPWA()
     }
-    
-    // Get iOS version
-    const ua = navigator.userAgent;
-    const match = ua.match(/OS (\d+)_(\d+)_?(\d+)?/);
-    this.context.iosVersion = match ? `${match[1]}.${match[2]}` : 'unknown';
-    
-    // Get Safari version
-    const safariMatch = ua.match(/Version\/(\d+)\.(\d+)/);
-    this.context.safariVersion = safariMatch ? `${safariMatch[1]}.${safariMatch[2]}` : 'unknown';
-    
-    // Check installation mode
-    this.context.installationMode = (navigator as any).standalone ? 'standalone' : 'browser';
-    
-    // Check push support
-    this.context.pushSupported = 'PushManager' in window && 
-                                parseFloat(this.context.iosVersion || '0') >= 16.4;
-    
-    console.log('iOS Push Logger initialized:', this.context);
-  },
+  };
   
-  // Log push-related events with iOS context
-  logPushEvent(eventName: string, data: Record<string, any> = {}): void {
-    const logData = {
-      event: eventName,
-      timestamp: new Date().toISOString(),
-      context: this.context,
-      ...data
-    };
-    
-    // Log to console with special formatting for iOS events
-    console.log(
-      `%c iOS Push Event: ${eventName}`,
-      'background: #0070C9; color: white; padding: 2px 5px; border-radius: 3px;',
-      logData
-    );
-    
-    // Could also send to analytics or remote logging service
-    if (eventName.includes('error') || eventName.includes('fail')) {
-      this.reportError(eventName, logData);
-    }
-  },
+  // Add to history
+  logHistory.unshift(logEvent);
   
-  // Specialized error reporting for iOS push issues
-  reportError(errorType: string, errorData: Record<string, any>): void {
-    console.error(`iOS Push Error [${errorType}]:`, errorData);
-    
-    // Classify iOS-specific errors
-    let errorCategory = 'unknown';
-    if (errorData.error?.message?.includes('permission')) {
-      errorCategory = 'permission';
-    } else if (errorData.error?.message?.includes('token')) {
-      errorCategory = 'token';
-    } else if (errorData.error?.message?.includes('service worker')) {
-      errorCategory = 'service-worker';
-    }
-    
-    // Add specific iOS error details
-    const enhancedErrorData = {
-      ...errorData,
-      errorCategory,
-      iosSpecific: browserDetection.isIOS(),
-      recommendedAction: this.getRecommendedAction(errorCategory)
-    };
-    
-    // In the future, this could send to an error tracking service
-    console.warn('Enhanced error data:', enhancedErrorData);
-  },
+  // Trim history if needed
+  if (logHistory.length > MAX_LOG_HISTORY) {
+    logHistory = logHistory.slice(0, MAX_LOG_HISTORY);
+  }
   
-  // Get specific recommendations based on error type
-  getRecommendedAction(errorCategory: string): string {
-    switch(errorCategory) {
-      case 'permission':
-        return 'Verify user gesture triggered permission request';
-      case 'token':
-        return 'Check VAPID key format and FCM configuration';
-      case 'service-worker':
-        return 'Ensure service worker is registered with correct scope';
-      default:
-        return 'Check Safari Web Inspector for detailed error information';
-    }
-  },
-  
-  // Log service worker lifecycle events
-  logServiceWorkerEvent(event: string, details: Record<string, any> = {}): void {
-    this.logPushEvent(`sw-${event}`, details);
-  },
-  
-  // Log permission flow events
-  logPermissionEvent(state: string, details: Record<string, any> = {}): void {
-    this.logPushEvent(`permission-${state}`, details);
+  // Output to console in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[iOS Push] [${category}] ${event}`, logEvent.data);
   }
 };
 
-// Initialize logger immediately when imported
-if (typeof window !== 'undefined') {
-  iosPushLogger.init();
-}
+/**
+ * Log permission-related events
+ */
+const logPermissionEvent = (event: string, data?: any) => {
+  recordEvent('permission', event, data);
+};
+
+/**
+ * Log service worker events
+ */
+const logServiceWorkerEvent = (event: string, data?: any) => {
+  recordEvent('service-worker', event, data);
+};
+
+/**
+ * Log performance events
+ */
+const logPerformanceEvent = (event: string, data?: any) => {
+  recordEvent('performance', event, data);
+};
+
+/**
+ * Log token-related events
+ */
+const logPushEvent = (event: string, data?: any) => {
+  recordEvent('token', event, data);
+};
+
+/**
+ * Log error events
+ */
+const logErrorEvent = (event: string, error: any, additionalData?: any) => {
+  recordEvent('error', event, {
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+    ...additionalData
+  });
+};
+
+/**
+ * Get log history
+ */
+const getLogHistory = (): LogEvent[] => {
+  return [...logHistory];
+};
+
+/**
+ * Clear log history
+ */
+const clearLogHistory = (): void => {
+  logHistory = [];
+};
+
+/**
+ * Export formatted logs as JSON
+ */
+const exportLogs = (): string => {
+  return JSON.stringify(logHistory, null, 2);
+};
+
+/**
+ * Create a performance marker
+ */
+const createPerformanceMarker = (name: string): () => number => {
+  const startTime = performance.now();
+  logPerformanceEvent(`${name}-start`, { startTime });
+  
+  return () => {
+    const endTime = performance.now();
+    const duration = endTime - startTime;
+    logPerformanceEvent(`${name}-end`, { startTime, endTime, duration });
+    return duration;
+  };
+};
+
+/**
+ * Log memory usage
+ */
+const logMemoryUsage = () => {
+  if (performance && 'memory' in performance) {
+    const memory = (performance as any).memory;
+    logPerformanceEvent('memory-usage', {
+      jsHeapSizeLimit: memory.jsHeapSizeLimit,
+      totalJSHeapSize: memory.totalJSHeapSize,
+      usedJSHeapSize: memory.usedJSHeapSize
+    });
+  }
+};
+
+// Export the logger
+export const iosPushLogger = {
+  logPermissionEvent,
+  logServiceWorkerEvent,
+  logPushEvent,
+  logErrorEvent,
+  logPerformanceEvent,
+  getLogHistory,
+  clearLogHistory,
+  exportLogs,
+  createPerformanceMarker,
+  logMemoryUsage
+};
+
+export default iosPushLogger;
