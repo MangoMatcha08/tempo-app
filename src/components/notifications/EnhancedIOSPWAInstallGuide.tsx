@@ -1,107 +1,82 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Steps } from "@/components/ui/steps";
-import { Info, Share, PlusSquare, Home } from "lucide-react";
+import { Info, Share, PlusSquare, Home, AlertTriangle } from "lucide-react";
 import { browserDetection } from "@/utils/browserDetection";
 import { iosPwaDetection } from "@/utils/iosPwaDetection";
 import { recordTelemetryEvent } from "@/utils/iosPushTelemetry";
+import { DeviceSpecificInstructions } from "./DeviceSpecificInstructions";
+import useInstallProgress from "@/hooks/use-install-progress";
 
 interface EnhancedIOSPWAInstallGuideProps {
   onDismiss: () => void;
   onComplete?: () => void;
 }
 
-const EnhancedIOSPWAInstallGuide: React.FC<EnhancedIOSPWAInstallGuideProps> = ({ 
+const EnhancedIOSPWAInstallGuide: React.FC<EnhancedIOSPWAInstallGuideProps> = ({
   onDismiss,
   onComplete
 }) => {
-  const [activeStep, setActiveStep] = useState(0);
-  const [isExpanded, setIsExpanded] = useState(false);
-  
-  // Don't show if not iOS Safari or already in PWA mode
-  if (!browserDetection.isIOSSafari() || browserDetection.isIOSPWA()) {
-    return null;
-  }
-  
-  const installSteps = [
-    {
-      title: "Tap Share",
-      description: "Tap the Share button in Safari",
-      icon: <Share className="h-4 w-4" />
-    },
-    {
-      title: "Add to Home Screen",
-      description: "Scroll down and tap 'Add to Home Screen'",
-      icon: <PlusSquare className="h-4 w-4" />
-    },
-    {
-      title: "Confirm Installation",
-      description: "Tap 'Add' in the top right corner",
-      icon: <PlusSquare className="h-4 w-4" />
-    },
-    {
-      title: "Open from Home Screen",
-      description: "Find and tap the new app icon on your home screen",
-      icon: <Home className="h-4 w-4" />
-    }
-  ];
-  
-  const handleExpand = () => {
-    setIsExpanded(true);
+  const {
+    currentStep,
+    error,
+    nextStep,
+    previousStep,
+    handleError
+  } = useInstallProgress();
+
+  useEffect(() => {
     recordTelemetryEvent({
       eventType: 'pwa-install',
       isPWA: false,
       timestamp: Date.now(),
       result: 'started',
       metadata: {
-        action: 'guide-expanded'
+        iosVersion: browserDetection.getIOSVersion()?.toString()
       }
     });
-  };
-  
-  const handleNextStep = () => {
-    if (activeStep < installSteps.length - 1) {
-      setActiveStep(activeStep + 1);
-      recordTelemetryEvent({
-        eventType: 'pwa-install',
-        isPWA: false,
-        timestamp: Date.now(),
-        result: 'progress',
-        metadata: {
-          step: activeStep + 1,
-          totalSteps: installSteps.length
-        }
-      });
-    } else {
-      // Mark as installed in localStorage
-      iosPwaDetection.markPwaInstalled();
-      
-      // Record completion
-      recordTelemetryEvent({
-        eventType: 'pwa-install',
-        isPWA: false,
-        timestamp: Date.now(),
-        result: 'success',
-        metadata: {
-          completed: true
-        }
-      });
-      
-      // Call completion handler if provided
-      if (onComplete) {
-        onComplete();
-      }
-      
-      // Dismiss the guide
-      onDismiss();
+  }, []);
+
+  const installSteps = [
+    {
+      title: "Begin Installation",
+      description: "Start the installation process",
+      icon: <Share className="h-4 w-4" />
+    },
+    {
+      title: "Add to Home",
+      description: "Add the app to your home screen",
+      icon: <PlusSquare className="h-4 w-4" />
+    },
+    {
+      title: "Complete Setup",
+      description: "Finish the installation",
+      icon: <Home className="h-4 w-4" />
     }
+  ];
+
+  const handleComplete = () => {
+    iosPwaDetection.markPwaInstalled();
+    recordTelemetryEvent({
+      eventType: 'pwa-install',
+      isPWA: false,
+      timestamp: Date.now(),
+      result: 'success'
+    });
+    if (onComplete) {
+      onComplete();
+    }
+    onDismiss();
   };
-  
-  if (!isExpanded) {
-    // Compact version (initial state)
+
+  if (!browserDetection.isIOSSafari() || browserDetection.isIOSPWA()) {
+    return null;
+  }
+
+  if (!currentStep) {
     return (
       <Alert className="my-4 border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/50">
         <Info className="h-4 w-4 text-amber-600 dark:text-amber-500" />
@@ -111,15 +86,15 @@ const EnhancedIOSPWAInstallGuide: React.FC<EnhancedIOSPWAInstallGuideProps> = ({
         <AlertDescription className="text-amber-700 dark:text-amber-400">
           <p>On iOS, push notifications require installing as an app on your home screen.</p>
           <div className="flex gap-2 mt-3">
-            <Button 
-              onClick={handleExpand} 
+            <Button
+              onClick={nextStep}
               className="bg-amber-600 hover:bg-amber-700 text-white"
             >
               Show Me How
             </Button>
-            <Button 
-              onClick={onDismiss} 
-              variant="outline" 
+            <Button
+              onClick={onDismiss}
+              variant="outline"
               className="border-amber-600 text-amber-600 hover:bg-amber-100"
             >
               Later
@@ -129,10 +104,9 @@ const EnhancedIOSPWAInstallGuide: React.FC<EnhancedIOSPWAInstallGuideProps> = ({
       </Alert>
     );
   }
-  
-  // Expanded step-by-step guide
+
   return (
-    <Card className="my-4 border-amber-300 overflow-hidden">
+    <Card className="my-4 border-amber-300">
       <CardHeader className="bg-amber-50 dark:bg-amber-950/30">
         <CardTitle className="text-amber-800 dark:text-amber-500 flex items-center gap-2">
           <Info className="h-5 w-5" />
@@ -143,31 +117,37 @@ const EnhancedIOSPWAInstallGuide: React.FC<EnhancedIOSPWAInstallGuideProps> = ({
         <div className="space-y-6">
           <Steps
             steps={installSteps}
-            activeStep={activeStep}
+            activeStep={currentStep - 1}
             className="max-w-md mx-auto"
           />
           
-          <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-950/20 rounded-md">
-            <h4 className="font-medium text-amber-800 dark:text-amber-500 mb-2">
-              {installSteps[activeStep].title}
-            </h4>
-            <p className="text-amber-700 dark:text-amber-400">
-              {installSteps[activeStep].description}
-            </p>
-          </div>
+          <DeviceSpecificInstructions currentStep={currentStep - 1} />
+
+          {error && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Installation Error</AlertTitle>
+              <AlertDescription>
+                {error}
+                <p className="mt-2 text-sm">
+                  Try refreshing the page or check your internet connection.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
       </CardContent>
       <CardFooter className="flex justify-between border-t bg-muted/20 px-6 py-4">
-        <Button 
-          variant="outline" 
-          onClick={onDismiss}
+        <Button
+          variant="outline"
+          onClick={previousStep}
         >
-          Cancel
+          Back
         </Button>
-        <Button 
-          onClick={handleNextStep}
+        <Button
+          onClick={currentStep >= installSteps.length ? handleComplete : nextStep}
         >
-          {activeStep < installSteps.length - 1 ? "Next Step" : "Done"}
+          {currentStep >= installSteps.length ? "Done" : "Next Step"}
         </Button>
       </CardFooter>
     </Card>
