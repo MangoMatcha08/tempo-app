@@ -17,6 +17,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster as SonnerToaster } from "sonner";
 import { ensureFirebaseInitialized } from "@/lib/firebase";
+import ErrorBoundary from "@/components/error-boundary/ErrorBoundary";
+import { errorTelemetry } from "@/utils/errorTelemetry";
 
 // Ensure Firebase is initialized before React components
 ensureFirebaseInitialized();
@@ -37,34 +39,64 @@ function App() {
   // Ensure we have a stable reference to queryClient
   const [queryClientInstance] = useState(() => queryClient);
 
+  // Handle app-level errors caught by error boundary
+  const handleAppError = (error: Error, errorInfo: React.ErrorInfo) => {
+    // Log to console for development
+    console.error("App-level error caught:", error, errorInfo);
+    
+    // Report to telemetry
+    errorTelemetry.reportError({
+      message: "An unexpected error occurred in the application UI",
+      severity: "high",
+      recoverable: false,
+      technicalDetails: `${error.toString()}\n${errorInfo.componentStack}`,
+      source: "app-root",
+      timestamp: Date.now(),
+    });
+  };
+
   return (
     <React.StrictMode>
-      <QueryClientProvider client={queryClientInstance}>
-        <FeatureFlagProvider>
-          <AuthProvider>
-            <FirestoreProvider>
-              <ScheduleProvider>
-                <NotificationProvider>
-                  <Router>
-                    <Routes>
-                      <Route path="/" element={<Index />} />
-                      <Route path="/dashboard" element={<Dashboard />} />
-                      <Route path="/schedule" element={<Schedule />} />
-                      <Route path="/settings" element={<Settings />} />
-                      <Route path="/404" element={<NotFound />} />
-                      <Route path="*" element={<Navigate to="/404" replace />} />
-                    </Routes>
-                    <Toaster />
-                    <SonnerToaster position="top-right" closeButton />
-                    <OfflineNotification />
-                    <PwaInstallPrompt />
-                  </Router>
-                </NotificationProvider>
-              </ScheduleProvider>
-            </FirestoreProvider>
-          </AuthProvider>
-        </FeatureFlagProvider>
-      </QueryClientProvider>
+      <ErrorBoundary onError={handleAppError}>
+        <QueryClientProvider client={queryClientInstance}>
+          <FeatureFlagProvider>
+            <AuthProvider>
+              <FirestoreProvider>
+                <ScheduleProvider>
+                  <NotificationProvider>
+                    <Router>
+                      <Routes>
+                        <Route path="/" element={<Index />} />
+                        <Route path="/dashboard" element={
+                          <ErrorBoundary>
+                            <Dashboard />
+                          </ErrorBoundary>
+                        } />
+                        <Route path="/schedule" element={
+                          <ErrorBoundary>
+                            <Schedule />
+                          </ErrorBoundary>
+                        } />
+                        <Route path="/settings" element={
+                          <ErrorBoundary>
+                            <Settings />
+                          </ErrorBoundary>
+                        } />
+                        <Route path="/404" element={<NotFound />} />
+                        <Route path="*" element={<Navigate to="/404" replace />} />
+                      </Routes>
+                      <Toaster />
+                      <SonnerToaster position="top-right" closeButton />
+                      <OfflineNotification />
+                      <PwaInstallPrompt />
+                    </Router>
+                  </NotificationProvider>
+                </ScheduleProvider>
+              </FirestoreProvider>
+            </AuthProvider>
+          </FeatureFlagProvider>
+        </QueryClientProvider>
+      </ErrorBoundary>
     </React.StrictMode>
   );
 }
