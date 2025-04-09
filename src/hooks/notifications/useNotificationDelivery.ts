@@ -7,7 +7,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { NotificationRecord } from '@/types/notifications';
+import { NotificationRecord, NotificationDeliveryStatus } from '@/types/notifications';
 import { notificationDelivery } from '@/strategies/notification/NotificationStrategy';
 import { notificationService, useNotificationService } from '@/services/notification/NotificationService';
 import { getPlatformAdapter } from '@/adapters/platform/PlatformAdapter';
@@ -90,10 +90,10 @@ export function useNotificationDelivery() {
       title: notificationData.title,
       body: notificationData.description || '',
       timestamp: Date.now(),
-      type: reminder.type || 'default',
+      type: reminder.type || 'default', // Add default value for type
       reminderId: reminder.id,
       priority: reminder.priority,
-      status: 'created',
+      status: NotificationDeliveryStatus.PENDING, // Changed from string literal to enum
       channels: []
     };
     

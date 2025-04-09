@@ -1,3 +1,4 @@
+
 import React, { useEffect } from "react";
 import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
@@ -20,13 +21,16 @@ const NotificationSettings = () => {
   const { settings, updateSettings } = useNotificationSettings();
   const { permissionGranted, requestPermission } = useNotificationPermission();
   
+  // Create a properly extended settings object with all required properties
   const extendedSettings: ExtendedNotificationSettings = {
     ...settings,
     email: {
-      ...settings.email,
+      enabled: settings.email?.enabled ?? false,
+      address: settings.email?.address ?? '',
+      minPriority: settings.email?.minPriority ?? ReminderPriority.HIGH,
       dailySummary: {
-        enabled: settings.email?.dailySummary?.enabled || false,
-        timing: settings.email?.dailySummary?.timing || 'after'
+        enabled: settings.email?.dailySummary?.enabled ?? false,
+        timing: settings.email?.dailySummary?.timing ?? 'after'
       }
     }
   };
@@ -36,13 +40,16 @@ const NotificationSettings = () => {
   });
 
   React.useEffect(() => {
+    // Make sure we have all required properties when updating form values
     const updatedSettings: ExtendedNotificationSettings = {
       ...settings,
       email: {
-        ...settings.email,
+        enabled: settings.email?.enabled ?? false,
+        address: settings.email?.address ?? '',
+        minPriority: settings.email?.minPriority ?? ReminderPriority.HIGH,
         dailySummary: {
-          enabled: settings.email?.dailySummary?.enabled || false,
-          timing: settings.email?.dailySummary?.timing || 'after'
+          enabled: settings.email?.dailySummary?.enabled ?? false,
+          timing: settings.email?.dailySummary?.timing ?? 'after'
         }
       }
     };
@@ -62,9 +69,23 @@ const NotificationSettings = () => {
 
   const onSubmit = async (data: ExtendedNotificationSettings) => {
     try {
-      await updateSettings(data);
+      // Convert back to regular NotificationSettings before updating
+      const updatedSettings = {
+        enabled: data.enabled,
+        email: {
+          enabled: data.email.enabled,
+          address: data.email.address,
+          minPriority: data.email.minPriority,
+          dailySummary: data.email.dailySummary
+        },
+        push: data.push,
+        inApp: data.inApp,
+        quietHours: data.quietHours
+      };
       
-      console.log("Notification settings saved:", data);
+      await updateSettings(updatedSettings);
+      
+      console.log("Notification settings saved:", updatedSettings);
       toast({
         title: "Settings saved",
         description: "Your notification preferences have been updated",

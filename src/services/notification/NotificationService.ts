@@ -16,8 +16,8 @@ import { formatReminderForNotification } from '@/utils/notificationUtils';
 export class NotificationService {
   async sendNotification(notification: NotificationRecord): Promise<boolean> {
     try {
-      // Update status to sending
-      this.updateStatus(notification.id, NotificationDeliveryStatus.SENDING);
+      // Update status to pending (was incorrectly using SENDING before)
+      this.updateStatus(notification.id, NotificationDeliveryStatus.PENDING);
       
       // Use the notification strategy to send
       const result = await notificationDelivery.deliverNotification(notification);
@@ -55,10 +55,10 @@ export class NotificationService {
       title: notificationData.title,
       body: notificationData.description || '',
       timestamp: Date.now(),
-      type: reminder.type || 'default',
+      type: reminder.type || 'default', // Provide default value if type doesn't exist
       reminderId: reminder.id,
       priority: reminder.priority,
-      status: NotificationDeliveryStatus.CREATED,
+      status: NotificationDeliveryStatus.PENDING, // Changed from CREATED to PENDING
       channels: [] // Will be determined by the strategy
     };
     
@@ -91,7 +91,7 @@ export function useNotificationService() {
     // Add to history first
     history.addNotification({
       ...notification,
-      status: NotificationDeliveryStatus.CREATED
+      status: NotificationDeliveryStatus.PENDING // Changed from CREATED to PENDING
     });
     
     // Then send

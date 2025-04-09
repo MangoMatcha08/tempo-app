@@ -51,8 +51,8 @@ export class WebPlatformAdapter extends PlatformAdapter {
     const capabilities = getPlatformCapabilities();
     
     return {
-      name: capabilities.platform,
-      version: capabilities.osVersion,
+      name: capabilities.isIOS ? 'iOS' : capabilities.isAndroid ? 'Android' : 'Web',
+      version: capabilities.iosVersion !== null ? String(capabilities.iosVersion) : null,
       isIOS: capabilities.isIOS,
       isAndroid: capabilities.isAndroid,
       isDesktop: !capabilities.isMobile,

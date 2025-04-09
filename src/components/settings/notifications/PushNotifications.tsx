@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ExtendedNotificationSettings } from "./types";
+import { ExtendedNotificationSettings, FormFieldPath } from "./types";
 
 interface PushNotificationsProps {
   control: Control<ExtendedNotificationSettings>;
@@ -31,7 +31,7 @@ const PushNotifications = ({
       <CardContent className="space-y-4">
         <FormField
           control={control}
-          name="push.enabled"
+          name="push.enabled" as={FormFieldPath}
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between space-y-0">
               <div className="space-y-0.5">
@@ -42,7 +42,7 @@ const PushNotifications = ({
               </div>
               <FormControl>
                 <Switch
-                  checked={field.value}
+                  checked={!!field.value}
                   onCheckedChange={field.onChange}
                   disabled={!enabled}
                 />
@@ -53,7 +53,7 @@ const PushNotifications = ({
 
         <FormField
           control={control}
-          name="push.urgentOnly"
+          name="push.minPriority" as={FormFieldPath}
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between space-y-0">
               <div className="space-y-0.5">
@@ -64,7 +64,7 @@ const PushNotifications = ({
               </div>
               <FormControl>
                 <Switch
-                  checked={field.value}
+                  checked={!!field.value}
                   onCheckedChange={field.onChange}
                   disabled={!enabled || !pushEnabled}
                 />
