@@ -1,118 +1,102 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { FeatureFlags, DEFAULT_FEATURE_FLAGS, FEATURE_FLAGS_STORAGE_KEY } from '@/types/notifications/featureFlags';
 
-// Context interface for feature flags
+// Define the feature flags interface
+export interface FeatureFlags {
+  VIRTUALIZED_LISTS: boolean;
+  PAGINATED_LOADING: boolean;
+  HISTORY_ENABLED: boolean;
+  QUIET_HOURS: boolean;
+  IOS_PUSH_NOTIFICATIONS: boolean;
+  ENHANCED_SERVICE_WORKER: boolean;
+  DEBUG_MODE: boolean;
+  [key: string]: boolean;
+}
+
+// Default feature flags
+const defaultFeatureFlags: FeatureFlags = {
+  VIRTUALIZED_LISTS: true,
+  PAGINATED_LOADING: true,
+  HISTORY_ENABLED: true,
+  QUIET_HOURS: false,
+  IOS_PUSH_NOTIFICATIONS: true,
+  ENHANCED_SERVICE_WORKER: false,
+  DEBUG_MODE: process.env.NODE_ENV === 'development'
+};
+
+// Context for feature flags
 interface FeatureFlagContextType {
   flags: FeatureFlags;
-  setFlag: (flagName: keyof FeatureFlags, value: boolean) => void;
-  resetFlags: () => void;
-  devMode: boolean;
-  toggleDevMode: () => void;
+  setFeatureFlag: (flag: keyof FeatureFlags, value: boolean) => void;
+  resetFeatureFlags: () => void;
 }
 
-// Create the context with default values
 const FeatureFlagContext = createContext<FeatureFlagContextType>({
-  flags: DEFAULT_FEATURE_FLAGS,
-  setFlag: () => {},
-  resetFlags: () => {},
-  devMode: false,
-  toggleDevMode: () => {}
+  flags: defaultFeatureFlags,
+  setFeatureFlag: () => {},
+  resetFeatureFlags: () => {}
 });
 
-interface FeatureFlagProviderProps {
-  children: React.ReactNode;
-  initialFlags?: Partial<FeatureFlags>;
-}
+// Provider component
+export const FeatureFlagProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
+  const [flags, setFlags] = useState<FeatureFlags>(defaultFeatureFlags);
 
-export const FeatureFlagProvider: React.FC<FeatureFlagProviderProps> = ({ 
-  children, 
-  initialFlags = {} 
-}) => {
-  // Load flags from localStorage or use defaults
-  const loadPersistedFlags = (): FeatureFlags => {
-    if (typeof window === 'undefined') return { ...DEFAULT_FEATURE_FLAGS, ...initialFlags };
-    
+  // Load flags from localStorage on mount
+  useEffect(() => {
     try {
-      const storedFlags = localStorage.getItem(FEATURE_FLAGS_STORAGE_KEY);
+      const storedFlags = localStorage.getItem('featureFlags');
       if (storedFlags) {
-        const parsedFlags = JSON.parse(storedFlags);
-        return { ...DEFAULT_FEATURE_FLAGS, ...parsedFlags, ...initialFlags };
+        setFlags(prev => ({
+          ...prev,
+          ...JSON.parse(storedFlags)
+        }));
       }
     } catch (error) {
-      console.error('Error loading feature flags from storage:', error);
+      console.error('Error loading feature flags from localStorage:', error);
     }
-    
-    return { ...DEFAULT_FEATURE_FLAGS, ...initialFlags };
-  };
-  
-  const [flags, setFlags] = useState<FeatureFlags>(loadPersistedFlags());
-  const [devMode, setDevMode] = useState<boolean>(flags.DEV_MODE || false);
-  
-  // Persist flags to localStorage when they change
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(FEATURE_FLAGS_STORAGE_KEY, JSON.stringify(flags));
-    }
-  }, [flags]);
-  
-  // Update a single flag
-  const setFlag = (flagName: keyof FeatureFlags, value: boolean) => {
+  }, []);
+
+  // Update a specific feature flag
+  const setFeatureFlag = (flag: keyof FeatureFlags, value: boolean) => {
     setFlags(prev => {
-      const newFlags = { ...prev, [flagName]: value };
+      const newFlags = { ...prev, [flag]: value };
       
-      // If we're disabling DEV_MODE, update the state
-      if (flagName === 'DEV_MODE') {
-        setDevMode(value);
+      // Save to localStorage
+      try {
+        localStorage.setItem('featureFlags', JSON.stringify(newFlags));
+      } catch (error) {
+        console.error('Error saving feature flags to localStorage:', error);
       }
       
       return newFlags;
     });
   };
-  
-  // Reset all flags to default values
-  const resetFlags = () => {
-    setFlags(DEFAULT_FEATURE_FLAGS);
-    setDevMode(DEFAULT_FEATURE_FLAGS.DEV_MODE);
+
+  // Reset all feature flags to their default values
+  const resetFeatureFlags = () => {
+    setFlags(defaultFeatureFlags);
+    try {
+      localStorage.setItem('featureFlags', JSON.stringify(defaultFeatureFlags));
+    } catch (error) {
+      console.error('Error saving feature flags to localStorage:', error);
+    }
   };
-  
-  // Toggle developer mode
-  const toggleDevMode = () => {
-    setDevMode(prev => {
-      const newValue = !prev;
-      setFlag('DEV_MODE', newValue);
-      return newValue;
-    });
-  };
-  
+
   return (
-    <FeatureFlagContext.Provider 
-      value={{ 
-        flags, 
-        setFlag, 
-        resetFlags,
-        devMode,
-        toggleDevMode
-      }}
-    >
+    <FeatureFlagContext.Provider value={{ flags, setFeatureFlag, resetFeatureFlags }}>
       {children}
     </FeatureFlagContext.Provider>
   );
 };
 
-// Custom hook to use feature flags
-export const useFeatureFlags = () => {
-  const context = useContext(FeatureFlagContext);
-  
-  if (context === undefined) {
-    throw new Error('useFeatureFlags must be used within a FeatureFlagProvider');
-  }
-  
-  return context;
-};
+// Hook to use feature flags
+export const useFeatureFlags = () => useContext(FeatureFlagContext);
 
-// Hook to check if a specific feature is enabled
+// Simplified hook to check if a specific feature is enabled
 export const useFeature = (featureName: keyof FeatureFlags): boolean => {
   const { flags } = useFeatureFlags();
-  return flags[featureName];
+  return flags[featureName] || false;
 };
+
+// Export for type usage
+export type { FeatureFlags };

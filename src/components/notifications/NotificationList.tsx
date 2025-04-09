@@ -102,8 +102,8 @@ const NotificationList = ({
             <NotificationCard
               key={notification.id}
               notification={notification}
-              onAction={onAction}
-              onMarkRead={onMarkRead}
+              onAction={(action) => onAction(notification.id, action)}
+              onMarkRead={() => onMarkRead(notification.id)}
             />
           ))}
         </div>

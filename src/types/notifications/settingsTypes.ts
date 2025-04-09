@@ -66,6 +66,17 @@ export interface NotificationSettings {
     /** Minimum priority level for showing in-app notifications */
     minPriority: ReminderPriority;
   };
+  /** Quiet hours settings to prevent notifications during specific times */
+  quietHours?: {
+    /** Whether quiet hours are enabled */
+    enabled: boolean;
+    /** Start time in 24-hour format (HH:MM) */
+    startTime?: string;
+    /** End time in 24-hour format (HH:MM) */
+    endTime?: string;
+    /** Days of the week (0 = Sunday, 1 = Monday, etc.) */
+    daysOfWeek?: number[];
+  };
 }
 
 /**
@@ -92,5 +103,11 @@ export const defaultNotificationSettings: NotificationSettings = {
   inApp: {
     enabled: true,
     minPriority: ReminderPriority.LOW
+  },
+  quietHours: {
+    enabled: false,
+    startTime: '22:00',
+    endTime: '07:00',
+    daysOfWeek: [0, 1, 2, 3, 4, 5, 6]
   }
 };
