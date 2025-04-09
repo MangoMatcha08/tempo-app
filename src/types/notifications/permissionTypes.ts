@@ -1,3 +1,4 @@
+
 /**
  * Notification Permission Type Definitions
  * 
@@ -19,9 +20,13 @@ export interface PermissionRequestResult {
   /** The FCM token if permission was granted and token was generated */
   token?: string | null;
   /** Any error that occurred during the permission request */
-  error?: Error;
+  error?: Error | string;
   /** Reason why permission was not granted, if applicable */
   reason?: string;
+  /** Whether to show PWA installation prompt (iOS specific) */
+  shouldPromptPwaInstall?: boolean;
+  /** iOS version if relevant */
+  iosVersion?: string;
 }
 
 /**

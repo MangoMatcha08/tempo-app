@@ -18,7 +18,7 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
     iosPushLogger.logPermissionEvent('ios-permission-request-start');
     
     // Check iOS version - Push requires 16.4 or higher
-    const iosVersionString = browserDetection.getIOSVersion() || '0';
+    const iosVersionString = String(browserDetection.getIOSVersion() || '0');
     const iosVersion = parseFloat(iosVersionString);
     
     if (iosVersion < 16.4) {
@@ -93,7 +93,7 @@ export function checkIOSPushSupport() {
   }
   
   // Check iOS version
-  const iosVersionString = browserDetection.getIOSVersion() || '0';
+  const iosVersionString = String(browserDetection.getIOSVersion() || '0');
   const iosVersion = parseFloat(iosVersionString);
   
   // iOS 16.4+ is required for web push

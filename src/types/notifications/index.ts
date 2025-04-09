@@ -8,24 +8,22 @@
  * @module types/notifications
  */
 
-// Re-export all notification types
+// Re-export from sharedTypes (the source of truth for shared types)
+export { 
+  type BaseNotificationPayload,
+  type PermissionRequestResult,
+  type ServiceWorkerMessage,
+  type NotificationCleanupConfig,
+  DEFAULT_CLEANUP_CONFIG
+} from './sharedTypes';
+
+// Re-export other module-specific types
 export * from './notificationHistoryTypes';
 export * from './permissionTypes';
 export * from './serviceWorkerTypes';
 export * from './settingsTypes';
-export * from './sharedTypes';
 export * from './featureFlags';
 
-// Handle conflicting exports - use more specific names
-import { NotificationCleanupConfig as HistoryCleanupConfig } from './notificationHistoryTypes';
-import { NotificationCleanupConfig as ServiceWorkerCleanupConfig } from './serviceWorkerTypes';
-
-// Re-export with disambiguated names
-export { 
-  HistoryCleanupConfig, 
-  ServiceWorkerCleanupConfig 
-};
-
-// Types re-exported from other modules for convenience
+// Re-export types from other modules for convenience
 export type { NotificationType } from '@/types/reminderTypes';
 export type { Reminder } from '@/types/reminderTypes';

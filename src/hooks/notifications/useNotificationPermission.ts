@@ -15,7 +15,7 @@ import { NotificationPermission } from './types';
 import { browserDetection } from '@/utils/browserDetection';
 import { iosPushLogger } from '@/utils/iosPushLogger';
 import { requestIOSPushPermission } from '@/utils/iosPermissionUtils';
-import { PermissionRequestResult } from '@/types/notifications/sharedTypes';
+import { PermissionRequestResult } from '@/types/notifications';
 
 /**
  * Hook for notification permission management

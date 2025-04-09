@@ -12,10 +12,10 @@ import { NotificationHistoryProvider, useNotificationHistory } from './notificat
 import { setupForegroundMessageListener } from '@/services/messaging/messagingService';
 import { 
   ServiceWorkerMessage,
-  NotificationType,
   NotificationDeliveryStatus,
-  NotificationChannel
+  NotificationChannel,
 } from '@/types/notifications';
+import { NotificationType } from '@/types/reminderTypes';
 import { ToastAction } from '@/components/ui/toast';
 
 interface NotificationContextType {

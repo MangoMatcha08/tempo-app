@@ -58,7 +58,7 @@ export const iosPwaDetection = {
     }
     
     // Only show for iOS 16.4+
-    const iosVersionString = browserDetection.getIOSVersion() || '0';
+    const iosVersionString = String(browserDetection.getIOSVersion() || '0');
     const iosVersion = parseFloat(iosVersionString);
     return iosVersion >= 16.4;
   }
