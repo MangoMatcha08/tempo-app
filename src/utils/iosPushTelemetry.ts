@@ -1,3 +1,4 @@
+
 /**
  * iOS Push Notification Telemetry
  * 
@@ -12,7 +13,7 @@ import { IOSPushErrorCategory } from './iosErrorHandler';
  * Structure for telemetry events
  */
 export interface TelemetryEvent {
-  eventType: 'permission-request' | 'sw-registration' | 'token-acquisition' | 'error' | 'recovery-action' | 'pwa-install';
+  eventType: 'permission-request' | 'sw-registration' | 'token-acquisition' | 'error' | 'recovery-action' | 'pwa-install' | 'status-check';
   iosVersion?: string;
   isPWA: boolean;
   timestamp: number;
