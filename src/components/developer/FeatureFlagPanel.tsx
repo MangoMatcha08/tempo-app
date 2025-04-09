@@ -1,175 +1,76 @@
-
 import React from 'react';
 import { useFeatureFlags } from '@/contexts/FeatureFlagContext';
-import { FeatureFlags } from '@/types/notifications/featureFlags';
-import { 
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  SheetFooter,
-  SheetClose
-} from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { AlertCircle, Cog, Flag } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 
-// Feature descriptions for the UI
-const FEATURE_DESCRIPTIONS: Record<keyof FeatureFlags, string> = {
-  HISTORY_ENABLED: "Store notification history for later viewing",
-  QUIET_HOURS_ENABLED: "Allow users to set quiet hours for notifications",
+// Feature flag descriptions - adding the missing entries
+const FEATURE_DESCRIPTIONS: Record<string, string> = {
+  // Core notification features
+  HISTORY_ENABLED: "Enable notification history tracking",
+  QUIET_HOURS_ENABLED: "Enable quiet hours mode",
   BULK_ACTIONS_ENABLED: "Enable bulk actions for notifications",
   NOTIFICATION_GROUPING: "Group similar notifications together",
+  
+  // Performance & reliability features
   AUTO_CLEANUP: "Automatically clean up old notifications",
-  VIRTUALIZED_LISTS: "Use virtualized lists for better performance with large datasets",
-  PAGINATED_LOADING: "Load notifications in pages rather than all at once",
-  ADVANCED_CACHE: "Use advanced caching strategies for offline access",
-  DEV_MODE: "Enable developer tools and additional logging",
-  VERBOSE_LOGGING: "Log detailed information to the console"
+  VIRTUALIZED_LISTS: "Use virtualized lists for performance",
+  PAGINATED_LOADING: "Enable paginated loading for notifications",
+  ADVANCED_CACHE: "Use advanced caching strategies",
+  
+  // iOS-specific features
+  IOS_PWA_FALLBACK: "Enable fallback for iOS PWA limitations",
+  IOS_PUSH_SUPPORT: "Enhanced support for iOS push notifications",
+  
+  // Offline & sync features
+  BACKGROUND_SYNC: "Enable background syncing of data",
+  OFFLINE_NOTIFICATIONS: "Enable offline notification support",
+  SHOW_SYNC_NOTIFICATIONS: "Show notifications for sync events",
+  
+  // Developer features
+  DEV_MODE: "Enable developer mode",
+  VERBOSE_LOGGING: "Enable verbose logging",
+  
+  // Other features
+  IOS_VERSION_ROLLOUT: "iOS version-based feature rollout"
 };
 
-// Group categories for organization
-const FEATURE_GROUPS = {
-  "Core Features": [
-    "HISTORY_ENABLED",
-    "QUIET_HOURS_ENABLED", 
-    "BULK_ACTIONS_ENABLED",
-    "NOTIFICATION_GROUPING"
-  ],
-  "Performance Optimizations": [
-    "VIRTUALIZED_LISTS",
-    "PAGINATED_LOADING", 
-    "ADVANCED_CACHE",
-    "AUTO_CLEANUP"
-  ],
-  "Developer Tools": [
-    "DEV_MODE",
-    "VERBOSE_LOGGING"
-  ]
-};
-
-interface FeatureFlagPanelProps {
-  className?: string;
-  triggerClassName?: string;
-}
-
-const FeatureFlagPanel: React.FC<FeatureFlagPanelProps> = ({ 
-  className,
-  triggerClassName
-}) => {
-  const { flags, setFlag, resetFlags, devMode } = useFeatureFlags();
-
-  // Handle switch toggle for a feature flag
-  const handleToggle = (flagName: keyof FeatureFlags) => {
-    setFlag(flagName, !flags[flagName]);
-  };
-
-  // Reset all flags to defaults
-  const handleReset = () => {
-    if (window.confirm('Reset all feature flags to default values?')) {
-      resetFlags();
-    }
-  };
-
+const FeatureFlagPanel = () => {
+  const { flags, setFlag, resetFlags, devMode, toggleDevMode } = useFeatureFlags();
+  
   return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className={triggerClassName}
-        >
-          <Flag className="h-4 w-4 mr-2" />
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex justify-between items-center">
           Feature Flags
-          {devMode && (
-            <Badge variant="default" className="ml-2">DEV</Badge>
-          )}
-        </Button>
-      </SheetTrigger>
-      <SheetContent className={`sm:max-w-md ${className}`}>
-        <SheetHeader>
-          <SheetTitle className="flex items-center">
-            <Flag className="h-5 w-5 mr-2" />
-            Feature Flags
-          </SheetTitle>
-        </SheetHeader>
-        
-        <ScrollArea className="h-[calc(100vh-140px)] pr-4 my-4">
-          <div className="space-y-6">
-            {Object.entries(FEATURE_GROUPS).map(([groupName, featureKeys]) => (
-              <Card key={groupName}>
-                <CardHeader className="pb-3">
-                  <CardTitle>{groupName}</CardTitle>
-                  <CardDescription>
-                    {groupName === "Performance Optimizations" 
-                      ? "Improve application performance and resource usage"
-                      : groupName === "Developer Tools"
-                      ? "Tools for development and debugging"
-                      : "Core notification system functionality"
-                    }
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {featureKeys.map(key => {
-                      const flagKey = key as keyof FeatureFlags;
-                      return (
-                        <div key={key} className="flex items-center justify-between">
-                          <div className="space-y-0.5">
-                            <div className="font-medium">{key.replace(/\_/g, ' ')}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {FEATURE_DESCRIPTIONS[flagKey]}
-                            </div>
-                          </div>
-                          <Switch 
-                            checked={flags[flagKey]} 
-                            onCheckedChange={() => handleToggle(flagKey)} 
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-
-            <div className="bg-muted p-3 rounded-md">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div className="text-sm text-muted-foreground">
-                  <p>Feature flags are stored in your browser. Disabling critical features may cause unexpected behavior.</p>
-                </div>
-              </div>
-            </div>
+          <Button variant="secondary" size="sm" onClick={resetFlags}>Reset to Defaults</Button>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="mb-4">
+          <div className="flex items-center space-x-2 mb-4">
+            <Switch id="devMode" checked={devMode} onCheckedChange={toggleDevMode} />
+            <Label htmlFor="devMode">Developer Mode {devMode ? 'Enabled' : 'Disabled'}</Label>
           </div>
-        </ScrollArea>
+        </div>
         
-        <Separator className="my-4" />
-        
-        <SheetFooter className="flex justify-between sm:justify-between">
-          <Button 
-            variant="outline" 
-            onClick={handleReset}
-          >
-            Reset to defaults
-          </Button>
-          <SheetClose asChild>
-            <Button>Done</Button>
-          </SheetClose>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        <div className="space-y-4">
+          {Object.keys(flags).map((flag) => (
+            <div key={flag} className="flex items-center justify-between border-b pb-2">
+              <div>
+                <h3 className="font-medium">{flag}</h3>
+                <p className="text-sm text-muted-foreground">{FEATURE_DESCRIPTIONS[flag] || "No description available"}</p>
+              </div>
+              <Switch
+                checked={flags[flag]}
+                onCheckedChange={(checked) => setFlag(flag, checked)}
+              />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

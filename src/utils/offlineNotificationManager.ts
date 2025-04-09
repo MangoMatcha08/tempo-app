@@ -2,176 +2,157 @@
 /**
  * Offline Notification Manager
  * 
- * Handles storing and synchronizing notifications when device is offline
- * Provides fallback mechanisms for delivering notifications without push
+ * Manages storing and synchronizing notifications while offline
  */
 
-import { 
-  NotificationRecord, 
-  NotificationDeliveryStatus 
-} from '@/types/notifications/notificationHistoryTypes';
-import { browserDetection } from './browserDetection';
-import { iosPushLogger } from './iosPushLogger';
+import { NotificationRecord } from '@/types/notifications/notificationHistoryTypes';
 
 // Storage keys
 const OFFLINE_NOTIFICATIONS_KEY = 'offline_notifications';
 const LAST_SYNC_KEY = 'last_notification_sync';
 
 /**
- * Store a notification for later delivery when offline
+ * Interface for the background sync registration
  */
-export function storeOfflineNotification(notification: NotificationRecord): void {
+interface BackgroundSyncOptions {
+  minInterval?: number;
+  maxRetries?: number;
+}
+
+/**
+ * Extended ServiceWorkerRegistration interface
+ */
+interface ExtendedServiceWorkerRegistration extends ServiceWorkerRegistration {
+  sync?: {
+    register: (tag: string) => Promise<void>;
+  };
+}
+
+/**
+ * Store a notification for offline handling
+ */
+export const storeOfflineNotification = (notification: NotificationRecord): void => {
   try {
     // Get existing offline notifications
     const existingNotifications = getOfflineNotifications();
     
-    // Add new notification
-    existingNotifications.push({
-      ...notification,
-      pendingSince: Date.now(),
-      syncAttempts: 0,
-      status: NotificationDeliveryStatus.PENDING
-    });
+    // Add new notification (avoid duplicates)
+    const updatedNotifications = existingNotifications.find(n => n.id === notification.id)
+      ? existingNotifications
+      : [...existingNotifications, notification];
     
-    // Store back to storage
-    localStorage.setItem(OFFLINE_NOTIFICATIONS_KEY, JSON.stringify(existingNotifications));
+    // Save to storage
+    localStorage.setItem(OFFLINE_NOTIFICATIONS_KEY, JSON.stringify(updatedNotifications));
     
-    iosPushLogger.logPushEvent('stored-offline-notification', { 
-      id: notification.id, 
-      title: notification.title 
-    });
+    console.log(`Stored notification ${notification.id} for offline handling`);
   } catch (error) {
-    iosPushLogger.logErrorEvent('failed-store-offline-notification', error);
+    console.error('Failed to store offline notification:', error);
   }
-}
+};
 
 /**
  * Get all stored offline notifications
  */
-export function getOfflineNotifications(): Array<NotificationRecord & { 
-  pendingSince?: number; 
-  syncAttempts?: number;
-}> {
+export const getOfflineNotifications = (): NotificationRecord[] => {
   try {
     const stored = localStorage.getItem(OFFLINE_NOTIFICATIONS_KEY);
     return stored ? JSON.parse(stored) : [];
   } catch (error) {
-    iosPushLogger.logErrorEvent('failed-get-offline-notifications', error);
+    console.error('Failed to retrieve offline notifications:', error);
     return [];
   }
-}
+};
 
 /**
  * Remove a notification from offline storage
  */
-export function removeOfflineNotification(id: string): void {
+export const removeOfflineNotification = (notificationId: string): void => {
   try {
-    const notifications = getOfflineNotifications();
-    const filtered = notifications.filter(n => n.id !== id);
-    localStorage.setItem(OFFLINE_NOTIFICATIONS_KEY, JSON.stringify(filtered));
+    const existingNotifications = getOfflineNotifications();
+    const updatedNotifications = existingNotifications.filter(n => n.id !== notificationId);
+    localStorage.setItem(OFFLINE_NOTIFICATIONS_KEY, JSON.stringify(updatedNotifications));
+    console.log(`Removed notification ${notificationId} from offline storage`);
   } catch (error) {
-    iosPushLogger.logErrorEvent('failed-remove-offline-notification', error, { id });
+    console.error('Failed to remove offline notification:', error);
   }
-}
+};
 
 /**
- * Check if synchronization of notifications is needed
+ * Clear all offline notifications
  */
-export function isSyncNeeded(): boolean {
-  // If there are offline notifications, sync is needed
-  const offlineNotifications = getOfflineNotifications();
-  if (offlineNotifications.length > 0) {
-    return true;
+export const clearOfflineNotifications = (): void => {
+  try {
+    localStorage.removeItem(OFFLINE_NOTIFICATIONS_KEY);
+    console.log('Cleared all offline notifications');
+  } catch (error) {
+    console.error('Failed to clear offline notifications:', error);
   }
-  
-  // Check when last sync was performed
-  const lastSync = localStorage.getItem(LAST_SYNC_KEY);
-  if (!lastSync) {
-    return true;
-  }
-  
-  // If last sync was more than a day ago, sync is needed
-  const lastSyncTime = parseInt(lastSync, 10);
-  const oneDayMs = 24 * 60 * 60 * 1000;
-  return Date.now() - lastSyncTime > oneDayMs;
-}
+};
 
 /**
- * Mark last sync time
+ * Update last sync timestamp
  */
-export function markLastSync(): void {
-  localStorage.setItem(LAST_SYNC_KEY, Date.now().toString());
-}
+export const updateLastSync = (): void => {
+  try {
+    localStorage.setItem(LAST_SYNC_KEY, Date.now().toString());
+  } catch (error) {
+    console.error('Failed to update last sync timestamp:', error);
+  }
+};
 
 /**
- * Register offline notifications for sync when online
+ * Get last sync timestamp
  */
-export async function registerOfflineSync(): Promise<boolean> {
-  if ('serviceWorker' in navigator && 'SyncManager' in window) {
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      await registration.sync.register('sync-notifications');
-      return true;
-    } catch (error) {
-      iosPushLogger.logErrorEvent('failed-register-sync', error);
+export const getLastSync = (): number => {
+  try {
+    const timestamp = localStorage.getItem(LAST_SYNC_KEY);
+    return timestamp ? parseInt(timestamp, 10) : 0;
+  } catch (error) {
+    console.error('Failed to get last sync timestamp:', error);
+    return 0;
+  }
+};
+
+/**
+ * Register for background sync if supported
+ */
+export const registerOfflineSync = async (
+  options: BackgroundSyncOptions = {}
+): Promise<boolean> => {
+  try {
+    // Check if the browser supports service workers and background sync
+    if (!('serviceWorker' in navigator)) {
+      console.log('Service Workers not supported');
       return false;
     }
-  }
-  
-  return false;
-}
 
-/**
- * Check if the notification system should use fallback delivery
- * Helpful for scenarios where push notifications are not available
- */
-export function shouldUseFallbackDelivery(): boolean {
-  // Always use fallback on iOS PWAs
-  if (browserDetection.isIOSPWA()) {
-    return true;
-  }
-  
-  // Use fallback if push permission denied
-  if ('Notification' in window && Notification.permission === 'denied') {
-    return true;
-  }
-  
-  // Use fallback if offline
-  if (!navigator.onLine) {
-    return true;
-  }
-  
-  return false;
-}
+    // Get service worker registration
+    const registration = await navigator.serviceWorker.ready;
+    const extendedRegistration = registration as ExtendedServiceWorkerRegistration;
 
-/**
- * Deliver a notification using fallback mechanism
- * This is used when push notifications are not available
- */
-export function deliverFallbackNotification(notification: NotificationRecord): boolean {
-  try {
-    // Store for delivery when app is next opened
-    storeOfflineNotification(notification);
-    
-    // Mark last delivery time for polling mechanism
-    localStorage.setItem('last_fallback_delivery', Date.now().toString());
-    
+    // Check if sync is supported
+    if (!extendedRegistration.sync) {
+      console.log('Background Sync not supported');
+      return false;
+    }
+
+    // Register for sync
+    await extendedRegistration.sync.register('sync-notifications');
+    console.log('Registered for background sync');
     return true;
   } catch (error) {
-    iosPushLogger.logErrorEvent('failed-fallback-delivery', error);
+    console.error('Failed to register for background sync:', error);
     return false;
   }
-}
+};
 
+// Export all functions as an object for easier importing
 export const offlineNotificationManager = {
   storeOfflineNotification,
   getOfflineNotifications,
   removeOfflineNotification,
-  isSyncNeeded,
-  markLastSync,
-  registerOfflineSync,
-  shouldUseFallbackDelivery,
-  deliverFallbackNotification
+  clearOfflineNotifications,
+  updateLastSync,
+  getLastSync,
+  registerOfflineSync
 };
-
-export default offlineNotificationManager;
