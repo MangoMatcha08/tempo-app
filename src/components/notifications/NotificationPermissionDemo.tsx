@@ -62,7 +62,7 @@ export function NotificationPermissionDemo() {
           <h2 className="text-xl font-semibold">iOS Push Notification Setup</h2>
           
           {!supportsIOSWebPush && (
-            <Alert variant="warning">
+            <Alert>
               <AlertTitle>Unsupported iOS Version</AlertTitle>
               <AlertDescription>
                 Your iOS version ({iosVersion}) doesn't support web push notifications.
