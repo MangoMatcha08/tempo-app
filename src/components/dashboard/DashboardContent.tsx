@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import ReminderLoadingState from "./ReminderLoadingState";
 import { Button } from "@/components/ui/button";
+import IOSPushInstallDemo from '@/components/notifications/IOSPushInstallDemo';
 
 // Define extended reminder type with UI-specific properties
 export type UIEnhancedReminder = UIReminder;
@@ -178,6 +179,11 @@ const DashboardContent = ({
         onOpenChange={setEditDialogOpen}
         onSave={handleSaveReminder}
       />
+
+      {/* Add the iOS Push Installation Demo */}
+      <div className="mt-6">
+        <IOSPushInstallDemo />
+      </div>
     </>
   );
 };
