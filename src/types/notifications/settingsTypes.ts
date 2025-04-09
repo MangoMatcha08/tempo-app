@@ -66,30 +66,6 @@ export interface NotificationSettings {
     /** Minimum priority level for showing in-app notifications */
     minPriority: ReminderPriority;
   };
-  /** Quiet hours settings to prevent notifications during specific hours */
-  quietHours: {
-    /** Whether quiet hours are enabled */
-    enabled: boolean;
-    /** When quiet hours start (24-hour format) */
-    start: string;
-    /** When quiet hours end (24-hour format) */
-    end: string;
-  };
-  /** Categories of notifications to receive */
-  categories: {
-    /** Whether to receive reminder notifications */
-    reminders: boolean;
-    /** Whether to receive system notifications */
-    system: boolean;
-    /** Whether to receive marketing notifications */
-    marketing: boolean;
-  };
-  /** How frequently to send batched notifications */
-  frequency: string;
-  /** How to group notifications */
-  grouping: string;
-  /** Whether to enable SMS notifications */
-  sms: boolean;
 }
 
 /**
@@ -116,18 +92,5 @@ export const defaultNotificationSettings: NotificationSettings = {
   inApp: {
     enabled: true,
     minPriority: ReminderPriority.LOW
-  },
-  quietHours: {
-    enabled: false,
-    start: "22:00",
-    end: "08:00"
-  },
-  categories: {
-    reminders: true,
-    system: true,
-    marketing: false
-  },
-  frequency: "immediate",
-  grouping: "none",
-  sms: false
+  }
 };

@@ -1,36 +1,25 @@
 
-// Re-export all hooks from the notification module
-export * from './useNotificationDisplay';
-export * from './useNotificationState';
-export * from './useNotificationActions';
-export * from './useNotificationFeatures';
+/**
+ * Notification Hooks Entry Point
+ * 
+ * This file provides a centralized entry point for all notification-related hooks.
+ * Use this file to import any notification functionality in your application.
+ * 
+ * @module hooks/notifications
+ */
+
+// Re-export main notification hook and types
+export * from './useNotifications';
 export * from './types';
 
-// Add missing hooks exports
+// Export specialized hooks for advanced use cases
+export * from './useNotificationState';
+export * from './useNotificationDisplay';
+export * from './useNotificationActions';
 export * from './useNotificationPermission';
 export * from './useNotificationSettings';
 export * from './useNotificationServices';
-export * from './useNotifications';
+export * from './useNotificationFeatures';
 
-// For default imports
-import useNotificationDisplay from './useNotificationDisplay';
-import { useNotificationState } from './useNotificationState';
-import { useNotificationActions } from './useNotificationActions';
-import useNotificationFeatures from './useNotificationFeatures';
-// Add missing imports
-import { useNotificationPermission } from './useNotificationPermission';
-import { useNotificationSettings } from './useNotificationSettings';
-import { useNotificationServices } from './useNotificationServices';
-import { useNotifications } from './useNotifications';
-
-export {
-  useNotificationDisplay as default,
-  useNotificationState,
-  useNotificationActions,
-  useNotificationFeatures,
-  // Add missing exports
-  useNotificationPermission,
-  useNotificationSettings,
-  useNotificationServices,
-  useNotifications
-};
+// Default export the main facade hook
+export { useNotifications as default } from './useNotifications';

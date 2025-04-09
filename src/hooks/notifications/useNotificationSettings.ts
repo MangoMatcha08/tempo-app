@@ -1,97 +1,30 @@
 
-import { useState, useEffect, useCallback } from 'react';
-import { getUserNotificationSettings, updateUserNotificationSettings } from '@/services/notificationService';
-import { NotificationSettings } from '@/types/notifications/settingsTypes';
-import { ReminderPriority } from '@/types/reminderTypes';
+/**
+ * Notification Settings Hook
+ * 
+ * Provides access to notification settings and methods to update them
+ * 
+ * @module hooks/notifications/useNotificationSettings
+ */
+
+import { useCallback } from 'react';
+import { 
+  useNotificationSettings as useSettingsContext
+} from '@/contexts/NotificationSettingsContext';
+import { NotificationSettingsManagement } from './types';
 
 /**
- * Hook for managing notification settings
+ * Hook for notification settings management
+ * 
+ * @returns Settings state and methods
  */
-export function useNotificationSettings(userId: string = 'anonymous') {
-  const [settings, setSettings] = useState<NotificationSettings>({
-    enabled: true,
-    push: {
-      enabled: true,
-      minPriority: ReminderPriority.LOW
-    },
-    email: {
-      enabled: false,
-      address: '',
-      minPriority: ReminderPriority.MEDIUM,
-      dailySummary: {
-        enabled: false,
-        timing: 'before'
-      }
-    },
-    inApp: {
-      enabled: true,
-      minPriority: ReminderPriority.LOW
-    },
-    quietHours: {
-      enabled: false,
-      start: '22:00',
-      end: '08:00'
-    },
-    categories: {
-      reminders: true,
-      system: true,
-      marketing: false
-    },
-    frequency: 'immediate',
-    grouping: 'none',
-    sms: false
-  });
+export function useNotificationSettings(): NotificationSettingsManagement {
+  const context = useSettingsContext();
   
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<Error | null>(null);
-  
-  // Load settings on mount
-  useEffect(() => {
-    async function loadSettings() {
-      if (!userId) return;
-      
-      try {
-        setLoading(true);
-        const userSettings = await getUserNotificationSettings(userId);
-        setSettings(userSettings);
-        setError(null);
-      } catch (err) {
-        console.error('Error loading notification settings:', err);
-        setError(err instanceof Error ? err : new Error('Failed to load notification settings'));
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    loadSettings();
-  }, [userId]);
-  
-  // Update settings
-  const updateSettings = useCallback(async (newSettings: Partial<NotificationSettings>) => {
-    if (!userId) return false;
-    
-    try {
-      setLoading(true);
-      const updatedSettings = { ...settings, ...newSettings };
-      await updateUserNotificationSettings(userId, updatedSettings);
-      setSettings(updatedSettings);
-      setError(null);
-      return true;
-    } catch (err) {
-      console.error('Error updating notification settings:', err);
-      setError(err instanceof Error ? err : new Error('Failed to update notification settings'));
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, settings]);
-  
+  // Forward methods from context with appropriate typing
   return {
-    settings,
-    updateSettings,
-    loading,
-    error
+    settings: context.settings,
+    updateSettings: context.updateSettings,
+    resetToDefaults: context.resetToDefaults
   };
 }
-
-export default useNotificationSettings;

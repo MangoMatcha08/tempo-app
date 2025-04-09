@@ -1,118 +1,222 @@
 
-import { getToken, onMessage } from 'firebase/messaging';
-import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
-import { getAnalytics, logEvent } from 'firebase/analytics';
-import { getAuth, signInAnonymously } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getMessaging } from 'firebase/messaging';
-import { defaultNotificationSettings } from '@/types/notifications/settingsTypes';
-import { httpsCallable, getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { initializeApp } from 'firebase/app';
+import { getMessaging, getToken, onMessage, GetTokenOptions } from 'firebase/messaging';
+import { firebaseConfig } from '@/lib/firebase/config';
+import { FirebaseMessagingPayload } from '@/types/notifications/serviceWorkerTypes';
+import { sendTestNotification } from '@/lib/firebase/functions';
+import { browserDetection } from '@/utils/browserDetection';
 import { iosPushLogger } from '@/utils/iosPushLogger';
 
-// Debug flag for messaging operations
-export const DEBUG_MESSAGING = process.env.NODE_ENV === 'development';
+// Extended GetTokenOptions interface to include forceRefresh
+interface ExtendedGetTokenOptions extends GetTokenOptions {
+  forceRefresh?: boolean;
+}
 
-// Create a basic Firebase configuration object
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
-};
+// Initialize Firebase app if it hasn't been initialized already
+let messaging: any;
 
-// Stub for Firebase initialization - we'll implement this later
-const initializeFirebase = (config = null) => {
-  console.log('Firebase initialization called with config:', config || 'default');
-  return null; // Returning null for now
-};
-
-// Create stubs for missing services
-const analytics = getAnalytics ? getAnalytics() : null;
-const auth = null;
-const db = null;
-const messaging = null;
-const vapidKey = 'your-vapid-key';
-
-// Set analytics for iosPushLogger
-if (iosPushLogger && analytics) {
-  iosPushLogger.analytics = analytics;
+try {
+  if (typeof window !== 'undefined') {
+    const firebaseApp = initializeApp(firebaseConfig);
+    messaging = getMessaging(firebaseApp);
+  }
+} catch (error) {
+  console.error('Error initializing Firebase Messaging:', error);
 }
 
 /**
- * Initializes Firebase Cloud Messaging and requests notification permission.
- * @returns {Promise<string | null>} The FCM token if permission is granted, otherwise null.
+ * Sets up a listener for messages while the app is in the foreground
+ * @param callback Function to be called when a message is received
+ * @returns Unsubscribe function
  */
-export const initializeMessaging = async (): Promise<string | null> => {
-  console.log('Initialization of messaging requested');
-  return null;
+export const setupForegroundMessageListener = (
+  callback: (payload: FirebaseMessagingPayload) => void
+): (() => void) => {
+  if (!messaging) {
+    console.warn('Messaging not initialized, cannot setup foreground listener');
+    return () => {};
+  }
+
+  try {
+    // Set up message handler
+    const unsubscribe = onMessage(messaging, (payload: any) => {
+      console.log('Received foreground message:', payload);
+      
+      // Call the provided callback
+      callback(payload);
+    });
+    
+    return unsubscribe;
+  } catch (error) {
+    console.error('Error setting up foreground message listener:', error);
+    return () => {};
+  }
 };
 
 /**
- * Requests notification permission from the user.
- * @returns {Promise<NotificationPermission>} The permission granted by the user.
+ * Gets the FCM token for the current device with special handling for iOS
+ * @returns Promise with the token
  */
-export const requestNotificationPermission = async (): Promise<NotificationPermission> => {
-  console.log('Permission requested');
-  return 'denied';
+export const getFCMToken = async (): Promise<string | null> => {
+  if (!messaging) {
+    console.warn('Messaging not initialized, cannot get FCM token');
+    return null;
+  }
+  
+  try {
+    // For iOS we need to ensure service worker is ready and token options are correct
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logPushEvent('token-request-start');
+      
+      // iOS requires the service worker to be ready
+      const registration = await navigator.serviceWorker.ready;
+      
+      // iOS Safari needs VAPID key without padding
+      const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || 
+        'BJ9HWzAxfk1jKtkGfoKYMauaVfMatIkqw0cCEwQ1WBH7cn5evFO_saWfpvXAVy5710DTOpSUoXsKk8LWGQK7lBU';
+      
+      // Remove any potential padding for iOS
+      const formattedVapidKey = vapidKey.replace(/=/g, '');
+      
+      // Get token with iOS-specific options
+      const currentToken = await getToken(messaging, {
+        vapidKey: formattedVapidKey,
+        serviceWorkerRegistration: registration,
+        forceRefresh: true // Using the extended interface
+      } as ExtendedGetTokenOptions);
+      
+      if (currentToken) {
+        iosPushLogger.logPushEvent('token-received', { 
+          tokenPrefix: currentToken.substring(0, 5) + '...'
+        });
+        return currentToken;
+      } else {
+        iosPushLogger.logPushEvent('token-empty');
+        return null;
+      }
+    } else {
+      // Standard token request for other browsers
+      const currentToken = await getToken(messaging, {
+        vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY
+      });
+      
+      if (currentToken) {
+        console.log('FCM Token:', currentToken.substring(0, 5) + '...');
+        return currentToken;
+      } else {
+        console.log('No registration token available');
+        return null;
+      }
+    }
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('Error getting FCM token:', errorMsg);
+    
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logPushEvent('token-error', { error: errorMsg });
+    }
+    
+    return null;
+  }
 };
 
 /**
- * Sets up a listener for foreground messages.
- * @param {(payload: any) => void} callback The callback function to handle foreground messages.
- * @returns {() => void} A function to unsubscribe from the foreground message listener.
+ * Request permission and get FCM token
+ * @returns Promise with the FCM token
  */
-export const setupForegroundMessageListener = (callback: (payload: any) => void): () => void => {
-  console.log('Setting up foreground message listener');
-  return () => {};
+export const requestNotificationPermission = async (): Promise<string | null> => {
+  // Check if notifications are supported
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    console.warn('Notifications not supported in this browser');
+    return null;
+  }
+  
+  try {
+    // For iOS, log the permission flow
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logPermissionEvent('request-start', {
+        currentPermission: Notification.permission
+      });
+    }
+    
+    // Request permission
+    const permission = await Notification.requestPermission();
+    
+    if (permission === 'granted') {
+      // For iOS, log the successful permission
+      if (browserDetection.isIOS()) {
+        iosPushLogger.logPermissionEvent('granted');
+      }
+      
+      // Get FCM token
+      return await getFCMToken();
+    }
+    
+    // For iOS, log the denied permission
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logPermissionEvent('denied');
+    }
+    
+    return null;
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('Error requesting notification permission:', errorMsg);
+    
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logPermissionEvent('error', { error: errorMsg });
+    }
+    
+    return null;
+  }
 };
 
 /**
- * Saves the FCM token to Firestore.
- * @param {string} userId The ID of the user.
- * @param {string} token The FCM token to save.
- * @returns {Promise<void>}
+ * Save FCM token to Firestore
  */
 export const saveTokenToFirestore = async (userId: string, token: string): Promise<void> => {
-  console.log('Saving token to Firestore', { userId, token });
-  return Promise.resolve();
+  // Implementation would go here
+  console.log(`Saving token ${token.substring(0, 5)}... for user ${userId}`);
 };
 
 /**
- * Sends a test notification using Firebase Cloud Messaging.
- * @param {object} options - Options for sending the test notification.
- * @param {string} options.type - The type of notification to send ('push' or 'email').
- * @param {string} [options.email] - The email address to send the notification to (required if type is 'email').
- * @param {boolean} [options.includeDeviceInfo] - Whether to include device information in the notification payload.
- * @returns {Promise<boolean>} - A promise that resolves to true if the notification was sent successfully, or false otherwise.
+ * Sends a test notification using the Firebase sendTestNotification function
+ * @param options Test notification options
+ * @returns Promise with the test result
  */
-export const sendTestNotification = async (options: { 
-  type: 'push' | 'email'; 
-  email?: string; 
-  includeDeviceInfo?: boolean 
-}): Promise<boolean> => {
-  console.log('Sending test notification with options:', options);
-  
-  if (analytics) {
-    logEvent(analytics, 'test_notification_sent', {
-      type: options.type,
-      includeDeviceInfo: options.includeDeviceInfo || false
-    });
+export const sendTestMessage = async (options: { 
+  type: 'push' | 'email';
+  email?: string;
+  includeDeviceInfo?: boolean;
+}): Promise<any> => {
+  try {
+    // For iOS, add device info and log the test attempt
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logPushEvent('test-notification-request', { options });
+      
+      // Always include device info for iOS for debugging
+      options.includeDeviceInfo = true;
+    }
+    
+    const result = await sendTestNotification(options);
+    
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logPushEvent('test-notification-result', { result });
+    }
+    
+    return result;
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('Error sending test notification:', errorMsg);
+    
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logPushEvent('test-notification-error', { error: errorMsg });
+    }
+    
+    throw error;
   }
-  
-  return true;
 };
 
-/**
- * Logs a notification permission event to Firebase Analytics.
- * @param {string} eventName - The name of the event to log.
- * @param {object} eventParams - The parameters to include with the event.
- * @returns {void}
- */
-export const logNotificationPermissionEvent = (eventName: string, eventParams: object): void => {
-  if (analytics) {
-    logEvent(analytics, eventName, eventParams);
-  }
+// Export necessary functions
+export {
+  sendTestMessage as sendTestNotification
 };

@@ -1,91 +1,55 @@
 
+// Re-export notification service functionality
+import { initializeFirebase } from './notifications/firebase';
 import { 
-  initializeMessaging, 
-  requestNotificationPermission, 
+  NotificationSettings, 
+  defaultNotificationSettings 
+} from '@/types/notifications/settingsTypes';
+import { 
+  getUserNotificationSettings, 
+  updateUserNotificationSettings, 
+  shouldSendNotification 
+} from './notifications/settings';
+import {
   setupForegroundMessageListener,
+  requestNotificationPermission,
   saveTokenToFirestore,
-  sendTestNotification as sendTestNotificationService
+  sendTestNotification
 } from './messaging/messagingService';
 
-import { NotificationSettings } from '@/types/notifications/settingsTypes';
-import { ReminderPriority } from '@/types/reminderTypes';
+// Import the functions
+import { sendTestNotification as sendTestNotificationFn } from '@/lib/firebase/functions';
 
-// Ensure firebase is initialized once
-import { ensureFirebaseInitialized } from '@/lib/firebase';
-let firebaseInitialized = false;
+// Re-export the type
+export type { NotificationSettings };
 
-// Promise to track firebase initialization
-export const firebaseInitPromise = new Promise<void>(resolve => {
-  if (firebaseInitialized) {
-    resolve();
-  } else {
-    firebaseInitialized = ensureFirebaseInitialized();
-    resolve();
-  }
+// Initialize Firebase when this module is loaded, but do it async to not block
+const firebaseInitPromise = initializeFirebase().catch(err => {
+  console.error('Failed to initialize Firebase:', err);
+  return false;
 });
 
-// Re-export the functions from messagingService
+// Export all functionality
 export {
-  initializeMessaging,
+  defaultNotificationSettings,
+  getUserNotificationSettings,
+  updateUserNotificationSettings,
   requestNotificationPermission,
+  saveTokenToFirestore,
+  sendTestNotification,
   setupForegroundMessageListener,
-  saveTokenToFirestore
+  shouldSendNotification,
+  sendTestNotificationFn,
+  firebaseInitPromise
 };
 
-// Export test notification with type correction
-export const sendTestNotification = async (options: { 
-  type: 'push' | 'email'; 
-  email?: string; 
-  includeDeviceInfo?: boolean 
-}): Promise<boolean> => {
-  return sendTestNotificationService(options);
+// Export default object with consistent naming
+export default {
+  requestNotificationPermission,
+  getUserNotificationSettings,
+  updateUserNotificationSettings,
+  sendTestNotification,
+  setupForegroundMessageListener,
+  shouldSendNotification,
+  sendTestNotificationFn
 };
-
-// Add missing functions required by NotificationSettingsContext
-export const getUserNotificationSettings = async (userId: string): Promise<NotificationSettings> => {
-  // Default settings that would normally be fetched from Firestore
-  return {
-    enabled: true,
-    push: {
-      enabled: true,
-      minPriority: ReminderPriority.LOW // Updated to use enum
-    },
-    email: {
-      enabled: false,
-      address: '',
-      minPriority: ReminderPriority.MEDIUM, // Updated to use enum
-      dailySummary: {
-        enabled: false,
-        timing: 'before'
-      }
-    },
-    inApp: {
-      enabled: true,
-      minPriority: ReminderPriority.LOW // Updated to use enum
-    },
-    quietHours: {
-      enabled: false,
-      start: '22:00',
-      end: '08:00'
-    },
-    categories: {
-      reminders: true,
-      system: true,
-      marketing: false
-    },
-    frequency: 'immediate',
-    grouping: 'none',
-    sms: false
-  };
-};
-
-export const updateUserNotificationSettings = async (
-  userId: string, 
-  settings: NotificationSettings
-): Promise<void> => {
-  // This would normally save settings to Firestore
-  console.log(`Updating notification settings for user ${userId}:`, settings);
-  return Promise.resolve();
-};
-
-// Additional utility functions can be added here

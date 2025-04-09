@@ -14,9 +14,6 @@ export const iosPushLogger = {
     pushSupported: null as boolean | null
   },
   
-  // Add the analytics property to fix the error
-  analytics: null as any,
-  
   // Initialize with device detection
   init(): void {
     if (typeof window === 'undefined') return;

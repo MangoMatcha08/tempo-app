@@ -1,32 +1,57 @@
 
+/**
+ * Notification Services Hook
+ * 
+ * Provides access to notification-related services like cleanup,
+ * testing, and service worker interactions.
+ * 
+ * @module hooks/notifications/useNotificationServices
+ */
+
 import { useCallback } from 'react';
-import { sendTestNotification } from '@/services/notificationService';
+import { useNotificationHistory } from '@/contexts/notificationHistory';
+import { NotificationServices } from './types';
+import { sendTestNotification as sendTestNotificationFn } from '@/lib/firebase/functions';
 
 /**
- * Hook for notification services like sending test notifications
+ * Hook for notification services
+ * 
+ * @returns Notification service functions
  */
-export function useNotificationServices() {
-  // Send a test notification
+export function useNotificationServices(): NotificationServices {
+  const history = useNotificationHistory();
+  
+  // Forward methods from context
+  const {
+    cleanupConfig,
+    updateCleanupConfig,
+    cleanupNotifications,
+    runAutomaticCleanup
+  } = history;
+  
+  /**
+   * Send a test notification
+   * @param options Configuration options for the test notification
+   * @returns Promise that resolves when the notification is sent
+   */
   const sendTestNotification = useCallback(async (options: { 
-    type: 'push' | 'email'; 
+    type: "push" | "email"; 
     email?: string; 
     includeDeviceInfo?: boolean 
   }) => {
     try {
-      if (options.type === 'email' && !options.email) {
-        throw new Error('Email is required for sending email notifications');
-      }
-      
-      return await sendTestNotification(options);
-    } catch (err) {
-      console.error('Error sending test notification:', err);
-      throw err;
+      return await sendTestNotificationFn(options);
+    } catch (error) {
+      console.error('Error sending test notification:', error);
+      throw error;
     }
   }, []);
-  
+
   return {
+    cleanupConfig,
+    updateCleanupConfig,
+    cleanupNotifications,
+    runAutomaticCleanup,
     sendTestNotification
   };
 }
-
-export default useNotificationServices;

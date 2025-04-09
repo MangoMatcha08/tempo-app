@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from "react";
 import { useNotificationDisplay } from "@/hooks/useNotificationDisplay";
 import { useNavigate } from "react-router-dom";
 import NotificationList from "@/components/notifications/NotificationList";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Filter, Clock, CheckCheck, Check } from "lucide-react";
+import { ArrowLeft, Filter, Clock, CheckCheck } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import {
   Select,
@@ -188,8 +189,8 @@ const NotificationHistory = () => {
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {unreadCount > 0 && (
-                <DropdownMenuItem onClick={() => markAllAsRead()}>
-                  <Check className="h-4 w-4 mr-2" />
+                <DropdownMenuItem onClick={markAllAsRead}>
+                  <CheckCheck className="h-4 w-4 mr-2" />
                   Mark all as read
                 </DropdownMenuItem>
               )}

@@ -2,131 +2,69 @@
 /**
  * Notification State Management Hook
  * 
- * Handles the state of all notifications in the application
+ * Manages the core state of notifications, including records, pagination,
+ * and CRUD operations.
+ * 
+ * @module hooks/notifications/useNotificationState
  */
-import { useState, useCallback } from 'react';
-import {
-  NotificationRecord as BaseNotificationRecord,
-  NotificationAction as BaseNotificationAction,
-  NotificationDeliveryStatus,
-  PaginationState
-} from '@/types/notifications/notificationHistoryTypes';
+
+import { useCallback } from 'react';
+import { useNotificationHistory } from '@/contexts/notificationHistory';
 import { 
+  NotificationState, 
+  NotificationStateOptions,
   NotificationRecord,
   NotificationAction,
-  PaginationInfo,
-  NotificationStateOptions
+  NotificationDeliveryStatus
 } from './types';
 
 /**
  * Hook for managing notification state
+ * 
+ * @param options Configuration options
+ * @returns Notification state and actions
  */
-export function useNotificationState(options: NotificationStateOptions = {}) {
-  // Default options
-  const {
-    initialPage = 1,
-    initialPageSize = 10,
-    autoLoad = true
-  } = options;
-
-  // State for notifications
-  const [records, setRecords] = useState<NotificationRecord[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+export function useNotificationState(options: NotificationStateOptions = {}): NotificationState {
+  const history = useNotificationHistory();
   
-  // Pagination state
-  const [pagination, setPagination] = useState<PaginationInfo>({
-    currentPage: initialPage,
-    pageSize: initialPageSize,
-    totalPages: 1,
-    totalItems: 0
-  });
-
-  // Add a notification to the state
+  // Forward methods from context with appropriate typing
   const addNotification = useCallback((notification: NotificationRecord) => {
-    // Ensure the notification has required fields for compatibility
-    const completeNotification = {
-      ...notification,
-      priority: notification.priority || 'normal',
-    } as BaseNotificationRecord;
-    
-    setRecords(prev => [completeNotification, ...prev]);
-  }, []);
-
-  // Update notification status
+    history.addNotification(notification);
+  }, [history]);
+  
   const updateNotificationStatus = useCallback((id: string, status: NotificationDeliveryStatus) => {
-    setRecords(prev => 
-      prev.map(notification => 
-        notification.id === id 
-          ? { ...notification, status } 
-          : notification
-      )
-    );
-  }, []);
-
-  // Add an action to a notification
+    history.updateNotificationStatus(id, status);
+  }, [history]);
+  
   const addNotificationAction = useCallback((id: string, action: NotificationAction) => {
-    // Map our action type to the base type for compatibility
-    let baseAction: BaseNotificationAction = action as BaseNotificationAction;
-    
-    // Handle special cases
-    if (action === 'delete' || action === 'mark_read') {
-      baseAction = 'dismiss';
-    }
-    
-    setRecords(prev => 
-      prev.map(notification => 
-        notification.id === id 
-          ? { 
-              ...notification, 
-              actions: [
-                ...(notification.actions || []), 
-                { type: baseAction, timestamp: Date.now() }
-              ]
-            } 
-          : notification
-      )
-    );
-  }, []);
-
-  // Clear notification history
+    history.addNotificationAction(id, action);
+  }, [history]);
+  
   const clearHistory = useCallback(() => {
-    setRecords([]);
-  }, []);
-
-  // Load notification history
+    history.clearHistory();
+  }, [history]);
+  
   const loadHistory = useCallback(async () => {
-    setLoading(true);
-    try {
-      // In a real implementation, this would load from storage or API
-      setLoading(false);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error(String(err)));
-      setLoading(false);
-    }
-  }, []);
-
-  // Set current page for pagination
+    await history.loadHistory();
+  }, [history]);
+  
   const setPage = useCallback((page: number) => {
-    setPagination(prev => ({
-      ...prev,
-      currentPage: page
-    }));
-  }, []);
-
-  // Set page size for pagination
+    history.setPage(page);
+  }, [history]);
+  
   const setPageSize = useCallback((size: number) => {
-    setPagination(prev => ({
-      ...prev,
-      pageSize: size
-    }));
-  }, []);
+    history.setPageSize(size);
+  }, [history]);
 
+  // Return the combined state and actions
   return {
-    records,
-    loading,
-    error,
-    pagination,
+    // State
+    records: history.records,
+    loading: history.loading,
+    error: history.error,
+    pagination: history.pagination,
+    
+    // Actions
     addNotification,
     updateNotificationStatus,
     addNotificationAction,
@@ -136,5 +74,3 @@ export function useNotificationState(options: NotificationStateOptions = {}) {
     setPageSize
   };
 }
-
-export default useNotificationState;

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { requestNotificationPermission } from '@/services/notificationService';
 import { PermissionRequestResult } from '@/types/notifications/permissionTypes';
@@ -6,7 +5,6 @@ import { PermissionRequestResult } from '@/types/notifications/permissionTypes';
 export const useNotificationPermission = () => {
   const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
   const [isSupported, setIsSupported] = useState<boolean>(true);
-  const [loading, setLoading] = useState<boolean>(false);
 
   // Check initial permission status
   useEffect(() => {
@@ -22,18 +20,13 @@ export const useNotificationPermission = () => {
   }, []);
 
   // Request notification permission
-  const requestPermission = async (): Promise<PermissionRequestResult> => {
-    setLoading(true);
+  const requestPermission = async (): Promise<boolean> => {
     try {
       // Check if Notification API is supported
       if (typeof window === 'undefined' || !('Notification' in window)) {
         console.log('Notifications not supported in this browser');
         setIsSupported(false);
-        setLoading(false);
-        return {
-          granted: false,
-          error: new Error('Notifications not supported in this browser')
-        };
+        throw new Error('Notifications not supported in this browser');
       }
       
       // Log the current permission status
@@ -46,38 +39,23 @@ export const useNotificationPermission = () => {
         console.log('Permission request result token:', token);
         const granted = !!token;
         setPermissionGranted(granted);
-        setLoading(false);
-        return {
-          granted,
-          token: token || null
-        };
+        return granted;
       } else {
         // For devices where permission is already granted, 
         // we still want to register the FCM token for this device
         console.log('Permission already granted, registering token');
         const token = await requestNotificationPermission();
-        setLoading(false);
-        return {
-          granted: true,
-          token: token || null
-        };
+        return !!token;
       }
     } catch (error) {
       console.error('Error requesting notification permission:', error);
-      setLoading(false);
-      return {
-        granted: false,
-        error: error instanceof Error ? error : new Error('Unknown error')
-      };
+      return false;
     }
   };
 
   return {
     permissionGranted,
     isSupported,
-    loading,
     requestPermission
   };
 };
-
-export default useNotificationPermission;
