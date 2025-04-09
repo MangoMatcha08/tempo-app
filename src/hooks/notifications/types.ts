@@ -1,7 +1,31 @@
+/**
+ * Unified notification type definitions
+ * 
+ * @module hooks/notifications/types
+ */
 
-import { PermissionRequestResult } from '@/types/notifications/permissionTypes';
+import { 
+  NotificationRecord as BaseNotificationRecord,
+  NotificationAction as BaseNotificationAction,
+  NotificationDeliveryStatus,
+  PaginationState
+} from '@/types/notifications/notificationHistoryTypes';
 import { Reminder, ReminderPriority } from '@/types/reminderTypes';
 import { NotificationType, NotificationChannel } from '@/types/notifications';
+import { PermissionRequestResult } from '@/types/notifications/permissionTypes';
+
+// Re-export key types
+export { 
+  NotificationDeliveryStatus,
+  NotificationType,
+  NotificationChannel
+};
+
+// Extend the base notification record to maintain compatibility
+export type NotificationRecord = BaseNotificationRecord;
+
+// Extend base notification action to include additional actions
+export type NotificationAction = BaseNotificationAction | 'delete' | 'mark_read';
 
 /**
  * Notification permission interface
@@ -53,78 +77,8 @@ export interface NotificationDisplayOptions {
 }
 
 /**
- * Notification record interface
- */
-export interface NotificationRecord {
-  /** Unique identifier */
-  id: string;
-  
-  /** Title of the notification */
-  title: string;
-  
-  /** Body content of the notification */
-  body: string;
-  
-  /** Timestamp when the notification was created */
-  timestamp: number;
-  
-  /** Type of notification */
-  type: NotificationType;
-  
-  /** Related reminder ID if applicable */
-  reminderId?: string;
-  
-  /** Priority of the notification */
-  priority?: ReminderPriority;
-  
-  /** Current delivery status */
-  status: NotificationDeliveryStatus;
-  
-  /** Channels this notification was sent through */
-  channels: NotificationChannel[];
-  
-  /** Additional metadata */
-  meta?: Record<string, any>;
-}
-
-/**
- * Action that can be taken on a notification
- */
-export type NotificationAction = 'view' | 'dismiss' | 'snooze' | 'delete' | 'mark_read';
-
-/**
- * Notification delivery status
- */
-export enum NotificationDeliveryStatus {
-  PENDING = 'pending',
-  SENT = 'sent',
-  DELIVERED = 'delivered',
-  RECEIVED = 'received',
-  CLICKED = 'clicked',
-  FAILED = 'failed'
-}
-
-/**
- * Service worker message interface
- */
-export interface ServiceWorkerMessage {
-  /** Type of message */
-  type: string;
-  
-  /** Message payload */
-  payload?: {
-    reminderId?: string;
-    action?: string;
-    notification?: {
-      id: string;
-      [key: string]: any;
-    };
-    [key: string]: any;
-  };
-}
-
-/**
  * Toast options for notification display
+ * Compatible with both shadcn/ui and sonner
  */
 export interface ToastOptions {
   /** Title of the toast */
@@ -134,7 +88,7 @@ export interface ToastOptions {
   description?: string;
   
   /** Type of toast (styling) */
-  type?: 'default' | 'success' | 'error' | 'warning' | 'info';
+  variant?: 'default' | 'destructive' | 'success' | 'error' | 'warning' | 'info';
   
   /** Duration in milliseconds */
   duration?: number;
@@ -167,6 +121,16 @@ export interface NotificationDisplay {
 }
 
 /**
+ * Pagination interface compatible with both formats
+ */
+export interface PaginationInfo {
+  currentPage: number;
+  pageSize: number;
+  totalPages: number;
+  totalItems: number;
+}
+
+/**
  * Notification state interface for the hook result
  */
 export interface NotificationStateInterface {
@@ -180,12 +144,38 @@ export interface NotificationStateInterface {
   error: Error | null;
   
   /** Pagination information */
-  pagination: {
-    page: number;
-    pageSize: number;
-    totalPages: number;
-    totalItems: number;
-  };
+  pagination: PaginationInfo;
+}
+
+/**
+ * Notification cleanup configuration
+ */
+export interface NotificationCleanupConfig {
+  /** Whether cleanup is enabled */
+  enabled: boolean;
+  
+  /** Maximum age of notifications in milliseconds */
+  maxAge: number;
+  
+  /** Maximum number of notifications to keep */
+  maxCount: number;
+  
+  /** Whether to keep high priority notifications */
+  keepImportant: boolean;
+}
+
+/**
+ * Result of a notification cleanup operation
+ */
+export interface CleanupResult {
+  /** Total number of notifications removed */
+  totalRemoved: number;
+  
+  /** Number removed due to age */
+  byAge: number;
+  
+  /** Number removed due to count limit */
+  byCount: number;
 }
 
 /**

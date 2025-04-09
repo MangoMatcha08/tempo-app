@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useNotificationFeatures } from "@/hooks/notifications/useNotificationFeatures";
+import { NotificationRecord } from "@/types/notifications/notificationHistoryTypes";
 
 interface NotificationCenterProps {
   className?: string;
@@ -51,11 +52,12 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
   const historyEnabled = isFeatureEnabled("HISTORY_ENABLED");
   const paginatedLoading = isFeatureEnabled("PAGINATED_LOADING");
 
+  // Cast to the correct type to satisfy TypeScript
   const unreadNotifications = notifications.filter(
     n => n.status !== 'received' && n.status !== 'clicked'
-  );
+  ) as NotificationRecord[];
   
-  const allNotifications = notifications;
+  const allNotifications = notifications as NotificationRecord[];
   
   const handleNotificationAction = (id: string, action: 'view' | 'dismiss') => {
     handleAction(id, action);
@@ -144,7 +146,7 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
                 emptyMessage="No unread notifications"
                 virtualized={virtualizedListsEnabled}
                 showPagination={paginatedLoading && pagination.totalPages > 1}
-                currentPage={pagination.currentPage}
+                currentPage={pagination.currentPage || 1}
                 totalPages={pagination.totalPages}
                 onPageChange={setPage}
               />
@@ -160,7 +162,7 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
                 emptyMessage="No notifications"
                 virtualized={virtualizedListsEnabled}
                 showPagination={paginatedLoading && pagination.totalPages > 1}
-                currentPage={pagination.currentPage}
+                currentPage={pagination.currentPage || 1}
                 totalPages={pagination.totalPages}
                 onPageChange={setPage}
               />

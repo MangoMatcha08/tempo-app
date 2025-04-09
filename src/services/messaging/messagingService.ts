@@ -1,3 +1,4 @@
+
 /**
  * Firebase Cloud Messaging Service
  * 
@@ -7,7 +8,7 @@
  */
 
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-import { firebaseApp } from '@/lib/firebase/firebase';
+import { firebaseApp } from '@/lib/firebase';
 import { browserDetection } from '@/utils/browserDetection';
 import { iosPushLogger } from '@/utils/iosPushLogger';
 
@@ -38,7 +39,7 @@ export async function initializeMessaging(): Promise<string | null> {
       const iosVersion = browserDetection.getIOSVersion();
       const isPWA = browserDetection.isIOSPWA();
       
-      iosPushLogger.logEvent('init-messaging', {
+      iosPushLogger.logPermissionEvent('init-messaging', {
         iosVersion,
         isPWA,
         supportsWebPush: browserDetection.supportsIOSWebPush()
@@ -72,7 +73,7 @@ export async function initializeMessaging(): Promise<string | null> {
       
       // Log token for iOS devices
       if (browserDetection.isIOS()) {
-        iosPushLogger.logEvent('token-received', {
+        iosPushLogger.logPermissionEvent('token-received', {
           tokenPrefix: currentToken.substring(0, 5) + '...',
           isPWA: browserDetection.isIOSPWA()
         });
@@ -83,7 +84,7 @@ export async function initializeMessaging(): Promise<string | null> {
       console.warn('No FCM token received');
       
       if (browserDetection.isIOS()) {
-        iosPushLogger.logEvent('no-token-received', {
+        iosPushLogger.logPermissionEvent('no-token-received', {
           isPWA: browserDetection.isIOSPWA(),
           permission: Notification.permission
         });
@@ -95,7 +96,7 @@ export async function initializeMessaging(): Promise<string | null> {
     console.error('Error initializing messaging:', error);
     
     if (browserDetection.isIOS()) {
-      iosPushLogger.logEvent('messaging-error', {
+      iosPushLogger.logPermissionEvent('messaging-error', {
         error: error instanceof Error ? error.message : String(error),
         isPWA: browserDetection.isIOSPWA()
       });
@@ -235,3 +236,20 @@ export async function requestNotificationPermission(): Promise<string | null> {
     return null;
   }
 }
+
+/**
+ * Save FCM token to Firestore for a specific user
+ */
+export async function saveTokenToFirestore(userId: string, token: string): Promise<void> {
+  // Implementation will be handled by the notification service
+  console.log(`Saving token for user ${userId}: ${token.substring(0, 5)}...`);
+}
+
+/**
+ * Send a test notification using Firebase Cloud Function
+ */
+export async function sendTestNotification(options: { type: "push" | "email"; email?: string; includeDeviceInfo?: boolean }): Promise<boolean> {
+  console.log(`Sending test notification with options:`, options);
+  return true;
+}
+

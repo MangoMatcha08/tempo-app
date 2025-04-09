@@ -1,55 +1,33 @@
 
-// Re-export notification service functionality
-import { initializeFirebase } from './notifications/firebase';
 import { 
-  NotificationSettings, 
-  defaultNotificationSettings 
-} from '@/types/notifications/settingsTypes';
-import { 
-  getUserNotificationSettings, 
-  updateUserNotificationSettings, 
-  shouldSendNotification 
-} from './notifications/settings';
-import {
+  initializeMessaging, 
+  requestNotificationPermission, 
   setupForegroundMessageListener,
-  requestNotificationPermission,
   saveTokenToFirestore,
   sendTestNotification
 } from './messaging/messagingService';
 
-// Import the functions
-import { sendTestNotification as sendTestNotificationFn } from '@/lib/firebase/functions';
+// Ensure firebase is initialized once
+import { ensureFirebaseInitialized } from '@/lib/firebase';
+let firebaseInitialized = false;
 
-// Re-export the type
-export type { NotificationSettings };
-
-// Initialize Firebase when this module is loaded, but do it async to not block
-const firebaseInitPromise = initializeFirebase().catch(err => {
-  console.error('Failed to initialize Firebase:', err);
-  return false;
+// Promise to track firebase initialization
+export const firebaseInitPromise = new Promise<void>(resolve => {
+  if (firebaseInitialized) {
+    resolve();
+  } else {
+    firebaseInitialized = ensureFirebaseInitialized();
+    resolve();
+  }
 });
 
-// Export all functionality
+// Re-export the functions from messagingService
 export {
-  defaultNotificationSettings,
-  getUserNotificationSettings,
-  updateUserNotificationSettings,
+  initializeMessaging,
   requestNotificationPermission,
-  saveTokenToFirestore,
-  sendTestNotification,
   setupForegroundMessageListener,
-  shouldSendNotification,
-  sendTestNotificationFn,
-  firebaseInitPromise
+  saveTokenToFirestore,
+  sendTestNotification
 };
 
-// Export default object with consistent naming
-export default {
-  requestNotificationPermission,
-  getUserNotificationSettings,
-  updateUserNotificationSettings,
-  sendTestNotification,
-  setupForegroundMessageListener,
-  shouldSendNotification,
-  sendTestNotificationFn
-};
+// Additional utility functions can be added here

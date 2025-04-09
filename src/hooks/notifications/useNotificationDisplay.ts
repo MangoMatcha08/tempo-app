@@ -1,257 +1,83 @@
-
-/**
- * Notification Display Hook
- * 
- * Provides functions for displaying notifications to the user
- * using a standardized toast interface.
- * 
- * @module hooks/notifications/useNotificationDisplay
- */
-
-import { useCallback, useState, useEffect } from 'react';
-import { toast } from 'sonner';
-import { useToast } from '@/hooks/use-toast';
+import { useCallback, useMemo } from 'react';
+import { useToast } from '@/components/ui/use-toast';
+import { useNotificationState } from './useNotificationState';
+import { useNotificationActions } from './useNotificationActions';
 import { 
-  NotificationDisplay, 
+  NotificationRecord, 
+  NotificationAction,
   NotificationDisplayOptions,
-  ToastOptions,
-  NotificationStateInterface,
-  NotificationRecord,
-  NotificationDeliveryStatus,
-  NotificationAction
+  ToastOptions as InternalToastOptions
 } from './types';
 import { Reminder } from '@/types/reminderTypes';
-import { formatReminderForNotification, getPriorityToastVariant } from '@/utils/notificationUtils';
-import { useNotificationState } from './useNotificationState';
-import { useNotificationHistory } from '@/contexts/notificationHistory';
-import { NOTIFICATION_FEATURES } from '@/types/notifications';
-import { useFeature } from '@/contexts/FeatureFlagContext';
+import { NotificationDeliveryStatus } from '@/types/notifications/notificationHistoryTypes';
+import { browserDetection } from '@/utils/browserDetection';
 
-/**
- * Hook for filtered notification display
- * 
- * @param options Display options like limit and filters
- * @param state Optional notification state, if not provided will use internal state
- * @returns Filtered notifications and display functions
- */
-export function useNotificationDisplay(
-  options: NotificationDisplayOptions = {},
-  state?: NotificationStateInterface
-) {
-  // Use provided state or get from context
-  const notificationState = useNotificationState();
-  const records = state?.records || notificationState.records;
-  const loading = state?.loading || notificationState.loading;
-  const error = state?.error || notificationState.error;
-  const pagination = state?.pagination || notificationState.pagination;
-  
-  const { limit = 50, filter } = options;
-  const { 
-    updateNotificationStatus,
-    addNotificationAction,
-    clearHistory: clearHistoryContext,
-    setPage,
-    setPageSize
-  } = useNotificationHistory();
-  
-  const [filteredRecords, setFilteredRecords] = useState<NotificationRecord[]>([]);
-  
-  // Feature flags
-  const virtualizedListsEnabled = useFeature("VIRTUALIZED_LISTS");
-  const paginatedLoading = useFeature("PAGINATED_LOADING");
-  
-  // Apply filters and limit to records
-  useEffect(() => {
-    let filtered = [...records];
-    
-    if (filter) {
-      filtered = filtered.filter(filter);
-    }
-    
-    // Sort by timestamp, newest first
-    filtered.sort((a, b) => b.timestamp - a.timestamp);
-    
-    // Apply limit if specified and pagination not needed
-    if (limit && limit < filtered.length && !paginatedLoading) {
-      filtered = filtered.slice(0, limit);
-    }
-    
-    setFilteredRecords(filtered);
-  }, [records, limit, filter, paginatedLoading]);
-  
-  /**
-   * Mark a notification as read
-   * @param notificationId ID of the notification to mark as read
-   */
-  const markAsRead = useCallback((notificationId: string) => {
-    updateNotificationStatus(notificationId, 'received');
-  }, [updateNotificationStatus]);
-  
-  /**
-   * Handle a notification action
-   * @param notificationId ID of the notification
-   * @param action The action to perform
-   */
-  const handleAction = useCallback((notificationId: string, action: NotificationAction) => {
-    addNotificationAction(notificationId, action);
-    
-    // Update status based on action
-    if (action === 'view' || action === 'dismiss') {
-      updateNotificationStatus(notificationId, action === 'view' ? 'clicked' : 'received');
-    }
-  }, [addNotificationAction, updateNotificationStatus]);
-  
-  /**
-   * Mark all notifications as read
-   */
-  const markAllAsRead = useCallback(() => {
-    filteredRecords.forEach(record => {
-      if (record.status !== 'received' && record.status !== 'clicked') {
-        updateNotificationStatus(record.id, 'received');
-      }
-    });
-  }, [filteredRecords, updateNotificationStatus]);
-  
-  /**
-   * Clear all notification history
-   * Asks for confirmation before clearing
-   */
-  const clearHistory = useCallback(() => {
-    if (window.confirm("Are you sure you want to clear all notification history?")) {
-      clearHistoryContext();
-    }
-  }, [clearHistoryContext]);
-  
-  // Count unread notifications
-  const unreadCount = filteredRecords.filter(
-    n => n.status !== 'received' && n.status !== 'clicked'
-  ).length;
-  
-  return {
-    notifications: filteredRecords,
-    loading,
-    error,
-    markAsRead,
-    handleAction,
-    markAllAsRead,
-    clearHistory,
-    unreadCount,
-    pagination,
-    setPage,
-    setPageSize,
-    virtualizedListsEnabled
-  };
+// This function handles mapping between different toast variant systems
+function mapToastVariant(variant: InternalToastOptions['variant'] = 'default'): "default" | "destructive" {
+  // Map from our internal type to shadcn/ui type
+  switch (variant) {
+    case 'error':
+      return 'destructive';
+    case 'success':
+    case 'warning':
+    case 'info':
+      return 'default';
+    default:
+      return variant as "default" | "destructive";
+  }
 }
 
 /**
- * Hook for notification display functionality
- * 
- * Provides methods to display notifications through toasts
- * 
- * @returns Notification display functions
+ * Hook for displaying notifications as toasts
  */
-export function useNotificationToast(): NotificationDisplay {
-  const { toast: uiToast } = useToast();
-  const { updateNotificationStatus } = useNotificationHistory();
+export function useNotificationToast() {
+  const { toast: shadcnToast } = useToast();
   
-  /**
-   * Show a standardized toast notification
-   * @param options Toast configuration options
-   */
-  const showToast = useCallback((options: ToastOptions) => {
-    const { 
-      title, 
-      description, 
-      type = 'default',
-      duration = 5000,
-      action,
-      onDismiss,
-      onAutoClose
-    } = options;
+  // Show toast with proper variant mapping
+  const showToast = useCallback((options: InternalToastOptions) => {
+    const { variant, ...rest } = options;
     
-    // Map our common type to shadcn/ui variant (which has fewer options)
-    const shadcnVariant = type === 'success' || type === 'warning' ? 'default' : type;
+    // Map the variant to the appropriate shadcn/ui variant
+    shadcnToast({
+      ...rest,
+      variant: mapToastVariant(variant)
+    });
+  }, [shadcnToast]);
+  
+  // Show notification based on a reminder object
+  const showNotification = useCallback((reminder: Reminder) => {
+    // Format the reminder as a notification
+    const title = reminder.title || 'Reminder';
+    const description = reminder.description || '';
     
-    // For shadcn/ui toast
-    uiToast({
+    // Show as toast
+    showToast({
       title,
       description,
-      variant: shadcnVariant,
-      duration,
-      // Handle action differently for shadcn/ui
-      action: action ? {
-        // Create an action component with the label and onClick handler
-        // @ts-ignore - This is compatible with shadcn Toast API
-        children: action.label,
-        onClick: action.onClick
-      } : undefined,
+      duration: 5000,
+      variant: reminder.priority === 'high' ? 'error' : 'default',
     });
-    
-    // For Sonner toast (which supports more variants)
-    toast(title, {
-      description,
-      duration,
-      action: action ? {
-        label: action.label,
-        onClick: action.onClick
-      } : undefined,
-      onDismiss,
-      onAutoClose
-    });
-  }, [uiToast]);
-  
-  /**
-   * Show notification based on reminder
-   * @param reminder The reminder to show notification for
-   */
-  const showNotification = useCallback((reminder: Reminder) => {
-    const formattedNotification = formatReminderForNotification(reminder);
-    
-    if (formattedNotification) {
-      showToast({
-        title: formattedNotification.title,
-        description: formattedNotification.description,
-        type: getPriorityToastVariant(reminder.priority),
-        duration: 5000
-      });
-    }
   }, [showToast]);
   
-  /**
-   * Show a toast notification with actions
-   * @param notification The notification record to display
-   */
+  // Show toast notification from a notification record
   const showToastNotification = useCallback((notification: NotificationRecord) => {
-    // Mark notification as displayed
-    updateNotificationStatus(notification.id, 'sent');
+    // Map priority to variant
+    let variant: InternalToastOptions['variant'] = 'default';
     
-    // Display toast
+    if (notification.priority === 'high') {
+      variant = 'error';
+    } else if (notification.priority === 'medium') {
+      variant = 'warning';
+    }
+    
+    // Show toast with mapped variant
     showToast({
       title: notification.title,
       description: notification.body,
+      variant,
       duration: 5000,
-      action: {
-        label: 'View',
-        onClick: () => {
-          // Handle action
-          updateNotificationStatus(notification.id, 'clicked');
-          
-          // Navigate to reminder if ID exists
-          if (notification.reminderId) {
-            window.location.href = `/dashboard/reminders/${notification.reminderId}`;
-          }
-        }
-      },
-      onDismiss: () => {
-        // Mark as received when dismissed
-        updateNotificationStatus(notification.id, 'received');
-      },
-      onAutoClose: () => {
-        // Mark as received when auto-closed
-        updateNotificationStatus(notification.id, 'received');
-      }
     });
-  }, [updateNotificationStatus, showToast]);
+  }, [showToast]);
   
   return {
     showToast,
@@ -259,3 +85,123 @@ export function useNotificationToast(): NotificationDisplay {
     showToastNotification
   };
 }
+
+/**
+ * Hook for displaying notifications with filtering and pagination
+ * 
+ * @param options Display options
+ * @param stateOverride Optional state override for testing
+ */
+export function useNotificationDisplay(
+  options: NotificationDisplayOptions = {},
+  stateOverride?: ReturnType<typeof useNotificationState>
+) {
+  // Get notification state and actions
+  const state = stateOverride || useNotificationState();
+  const actions = useNotificationActions();
+  const toast = useNotificationToast();
+  
+  // Extract options with defaults
+  const {
+    maxCount = 100,
+    limit,
+    filter,
+    iOS = {
+      useNativeInPWA: true,
+      groupByType: true
+    }
+  } = options;
+  
+  // Apply filters and limits to notifications
+  const notifications = useMemo(() => {
+    let filtered = state.records;
+    
+    // Apply custom filter if provided
+    if (filter) {
+      filtered = filtered.filter(filter);
+    }
+    
+    // Apply limit if provided
+    if (limit && limit > 0) {
+      filtered = filtered.slice(0, limit);
+    }
+    
+    return filtered;
+  }, [state.records, filter, limit]);
+  
+  // Calculate unread count
+  const unreadCount = useMemo(() => {
+    return notifications.filter(n => 
+      n.status !== NotificationDeliveryStatus.RECEIVED && 
+      n.status !== NotificationDeliveryStatus.CLICKED
+    ).length;
+  }, [notifications]);
+  
+  // Mark notification as read
+  const markAsRead = useCallback((notificationId: string) => {
+    state.updateNotificationStatus(notificationId, NotificationDeliveryStatus.RECEIVED);
+  }, [state]);
+  
+  // Mark all notifications as read
+  const markAllAsRead = useCallback((notificationsToMark?: NotificationRecord[]) => {
+    const toMark = notificationsToMark || notifications;
+    
+    toMark.forEach(notification => {
+      if (notification.status !== NotificationDeliveryStatus.RECEIVED &&
+          notification.status !== NotificationDeliveryStatus.CLICKED) {
+        state.updateNotificationStatus(notification.id, NotificationDeliveryStatus.RECEIVED);
+      }
+    });
+  }, [notifications, state]);
+  
+  // Handle notification action
+  const handleAction = useCallback((
+    notificationId: string, 
+    action: NotificationAction
+  ) => {
+    // Cast the action to the correct type if needed
+    const historyAction = action === 'delete' || action === 'mark_read' 
+      ? 'dismiss' // Use compatible action
+      : action;
+    
+    // Add the action to the notification
+    state.addNotificationAction(notificationId, historyAction);
+    
+    // Update status based on action
+    if (action === 'view') {
+      state.updateNotificationStatus(notificationId, NotificationDeliveryStatus.CLICKED);
+    } else if (action === 'dismiss' || action === 'delete' || action === 'mark_read') {
+      state.updateNotificationStatus(notificationId, NotificationDeliveryStatus.RECEIVED);
+    }
+    
+    // If this is a view action, find the notification and handle navigation
+    if (action === 'view') {
+      const notification = notifications.find(n => n.id === notificationId);
+      if (notification?.reminderId) {
+        // In a real app, this would navigate to the reminder
+        console.log(`Navigate to reminder: ${notification.reminderId}`);
+      }
+    }
+  }, [notifications, state]);
+  
+  // Determine if virtualized lists should be used
+  const virtualizedListsEnabled = useMemo(() => {
+    // Use virtualization for large lists or on mobile devices
+    const isMobile = browserDetection.isIOS() || /Android/i.test(navigator.userAgent);
+    return notifications.length > 20 || isMobile;
+  }, [notifications.length]);
+  
+  return {
+    ...state,
+    ...toast,
+    ...actions,
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    handleAction,
+    virtualizedListsEnabled
+  };
+}
+
+export default useNotificationDisplay;
