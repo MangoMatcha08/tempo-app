@@ -6,21 +6,39 @@
  * @module hooks/notifications
  */
 
-// Export type definitions first
-export * from './types';
+// Export type definitions first (without re-exporting from multiple sources)
+export type {
+  NotificationRecord,
+  NotificationAction,
+  NotificationDeliveryStatus,
+  NotificationType,
+  NotificationChannel,
+  NotificationPermission,
+  NotificationDisplayOptions,
+  ToastOptions,
+  NotificationDisplay,
+  PaginationInfo,
+  NotificationStateInterface,
+  NotificationCleanupConfig,
+  CleanupResult,
+  NotificationState,
+  NotificationStateOptions,
+  NotificationActions,
+  NotificationFeatures,
+  NotificationServices,
+  NotificationSettingsManagement,
+  NotificationsAPI
+} from './types';
 
-// Export each hook
-export * from './useNotificationPermission';
-export * from './useNotificationSettings';
-export * from './useNotificationServices';
-export * from './useNotificationState';
-export * from './useNotificationDisplay';
-export * from './useNotificationActions';
-export * from './useNotificationFeatures';
-export * from './useNotifications';
-
-// Export compatibility types to maintain backward compatibility
-export * from '@/types/notifications';
+// Export each hook directly without re-exporting their exports
+export { useNotificationPermission } from './useNotificationPermission';
+export { useNotificationSettings } from './useNotificationSettings';
+export { useNotificationServices } from './useNotificationServices';
+export { useNotificationState } from './useNotificationState';
+export { useNotificationDisplay, useNotificationToast } from './useNotificationDisplay';
+export { useNotificationActions } from './useNotificationActions';
+export { useNotificationFeatures } from './useNotificationFeatures';
+export { useNotifications } from './useNotifications';
 
 // These will be implemented in Phase 3
-// export * from './useNotificationPagination';
+// export { useNotificationPagination } from './useNotificationPagination';

@@ -67,6 +67,11 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
     }
   };
 
+  // Fixed this line to properly handle the onClick event
+  const handleMarkAllAsRead = () => {
+    markAllAsRead();
+  };
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
@@ -98,13 +103,13 @@ const NotificationCenter = ({ className }: NotificationCenterProps) => {
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                   {unreadCount > 0 && (
-                    <DropdownMenuItem onClick={markAllAsRead}>
+                    <DropdownMenuItem onClick={handleMarkAllAsRead}>
                       <Check className="h-4 w-4 mr-2" />
                       Mark all as read
                     </DropdownMenuItem>
                   )}
                   {historyEnabled && (
-                    <DropdownMenuItem onClick={clearHistory}>
+                    <DropdownMenuItem onClick={() => clearHistory()}>
                       <Clock className="h-4 w-4 mr-2" />
                       Clear history
                     </DropdownMenuItem>

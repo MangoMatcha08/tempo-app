@@ -1,3 +1,4 @@
+
 /**
  * Unified notification type definitions
  * 
@@ -13,6 +14,7 @@ import {
 import { Reminder, ReminderPriority } from '@/types/reminderTypes';
 import { NotificationType, NotificationChannel } from '@/types/notifications';
 import { PermissionRequestResult } from '@/types/notifications/permissionTypes';
+import { AppMessage } from '@/types/notifications/serviceWorkerTypes';
 
 // Re-export key types
 export { 
@@ -26,6 +28,33 @@ export type NotificationRecord = BaseNotificationRecord;
 
 // Extend base notification action to include additional actions
 export type NotificationAction = BaseNotificationAction | 'delete' | 'mark_read';
+
+/**
+ * Service worker message interface
+ */
+export interface ServiceWorkerMessage {
+  /** Type of message being sent from service worker to app */
+  type: 'NOTIFICATION_CLICKED' | 'NOTIFICATION_CLOSED' | 'NOTIFICATION_ACTION' | 
+        'READY' | 'SYNC_COMPLETE' | 'SYNC_FAILED' | 'CACHE_MAINTENANCE_COMPLETE' |
+        'CACHE_STATS' | 'CLEANUP_COMPLETE';
+  /** Additional data associated with the message */
+  payload?: {
+    /** Associated reminder ID */
+    reminderId?: string;
+    /** Action taken on the notification */
+    action?: BaseNotificationAction;
+    /** The notification record */
+    notification?: NotificationRecord;
+    /** Whether the operation was successful */
+    success?: boolean;
+    /** Error message if operation failed */
+    error?: string;
+    /** Service worker version */
+    version?: string;
+    /** Timestamp of the operation */
+    timestamp?: number;
+  };
+}
 
 /**
  * Notification permission interface

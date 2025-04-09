@@ -14,7 +14,7 @@ import {
   NotificationActions,
   NotificationRecord, 
   NotificationAction,
-  ServiceWorkerMessage 
+  ServiceWorkerMessage
 } from './types';
 import { useNotificationHistory } from '@/contexts/notificationHistory';
 
