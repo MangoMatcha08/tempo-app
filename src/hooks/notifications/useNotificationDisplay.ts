@@ -1,6 +1,5 @@
-
 import { useCallback, useMemo } from 'react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { useNotificationState } from './useNotificationState';
 import { useNotificationActions } from './useNotificationActions';
 import { 
@@ -37,32 +36,17 @@ export function useNotificationToast() {
   
   // Show toast with proper variant mapping
   const showToast = useCallback(
-    ({ variant = 'default', title, description, duration, action, onDismiss, onAutoClose }) => {
+    ({ variant = 'default', title, description, duration, action }) => {
       // Convert the action object to a ToastActionElement if it exists
-      let toastAction: ToastActionElement | undefined = undefined;
+      let toastAction: ToastActionElement | undefined = action;
       
-      if (action) {
-        // Using toast directly which correctly handles the action
-        toast({
-          variant: mapToastVariant(variant),
-          title,
-          description,
-          duration,
-          action: action,
-          onDismiss: onDismiss || (() => {}),
-          onAutoClose: onAutoClose || (() => {})
-        });
-        return;
-      }
-      
-      // If no action, use regular toast
+      // Use toast with properly mapped variant
       toast({
-        variant: mapToastVariant(variant),
+        variant: mapToastVariant(variant as "default" | "destructive" | "success" | "error" | "warning" | "info"),
         title,
         description,
         duration,
-        onDismiss: onDismiss || (() => {}),
-        onAutoClose: onAutoClose || (() => {})
+        action: toastAction
       });
     },
     [toast]
@@ -80,15 +64,14 @@ export function useNotificationToast() {
       description,
       duration: 5000,
       variant: reminder.priority === 'high' ? 'error' : 'default',
-      onDismiss: () => {},
-      onAutoClose: () => {}
+      action: undefined
     });
   }, [showToast]);
   
   // Show toast notification from a notification record
   const showToastNotification = useCallback((notification: NotificationRecord) => {
     // Map priority to variant
-    let variant: InternalToastOptions['variant'] = 'default';
+    let variant: "default" | "error" | "warning" = 'default';
     
     if (notification.priority === 'high') {
       variant = 'error';
@@ -102,8 +85,7 @@ export function useNotificationToast() {
       description: notification.body,
       variant,
       duration: 5000,
-      onDismiss: () => {},
-      onAutoClose: () => {}
+      action: undefined
     });
   }, [showToast]);
   
@@ -171,10 +153,8 @@ export function useNotificationDisplay(
   }, [state]);
   
   // Mark all notifications as read
-  const markAllAsRead = useCallback((notificationsToMark?: NotificationRecord[]) => {
-    const toMark = notificationsToMark || notifications;
-    
-    toMark.forEach(notification => {
+  const markAllAsRead = useCallback(() => {
+    notifications.forEach(notification => {
       if (notification.status !== NotificationDeliveryStatus.RECEIVED &&
           notification.status !== NotificationDeliveryStatus.CLICKED) {
         state.updateNotificationStatus(notification.id, NotificationDeliveryStatus.RECEIVED);

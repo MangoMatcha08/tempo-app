@@ -4,7 +4,7 @@ import {
   requestNotificationPermission, 
   setupForegroundMessageListener,
   saveTokenToFirestore,
-  sendTestNotification
+  sendTestNotification as sendTestNotificationService
 } from './messaging/messagingService';
 
 import { NotificationSettings } from '@/types/notifications/settingsTypes';
@@ -28,8 +28,16 @@ export {
   initializeMessaging,
   requestNotificationPermission,
   setupForegroundMessageListener,
-  saveTokenToFirestore,
-  sendTestNotification
+  saveTokenToFirestore
+};
+
+// Export test notification with type correction
+export const sendTestNotification = async (options: { 
+  type: 'push' | 'email'; 
+  email?: string; 
+  includeDeviceInfo?: boolean 
+}): Promise<boolean> => {
+  return sendTestNotificationService(options);
 };
 
 // Add missing functions required by NotificationSettingsContext
@@ -39,12 +47,12 @@ export const getUserNotificationSettings = async (userId: string): Promise<Notif
     enabled: true,
     push: {
       enabled: true,
-      minPriority: 'low'
+      minPriority: "low" // Compatible with NotificationSettings type
     },
     email: {
       enabled: false,
       address: '',
-      minPriority: 'medium',
+      minPriority: "medium", // Compatible with NotificationSettings type
       dailySummary: {
         enabled: false,
         timing: 'before'
@@ -52,7 +60,7 @@ export const getUserNotificationSettings = async (userId: string): Promise<Notif
     },
     inApp: {
       enabled: true,
-      minPriority: 'low'
+      minPriority: "low" // Compatible with NotificationSettings type
     },
     quietHours: {
       enabled: false,

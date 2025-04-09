@@ -1,13 +1,13 @@
 
 import { getToken, onMessage } from 'firebase/messaging';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
-import { getAnalytics } from 'firebase/analytics';
+import { getAnalytics, logEvent } from 'firebase/analytics';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getMessaging } from 'firebase/messaging';
 import { defaultNotificationSettings } from '@/types/notifications/settingsTypes';
 import { httpsCallable, getFunctions, connectFunctionsEmulator } from 'firebase/functions';
-import { logEvent } from 'firebase/analytics';
+import { iosPushLogger } from '@/utils/iosPushLogger';
 
 // Debug flag for messaging operations
 export const DEBUG_MESSAGING = process.env.NODE_ENV === 'development';
@@ -30,41 +30,16 @@ const initializeFirebase = (config = null) => {
 };
 
 // Create stubs for missing services
-const analytics = null;
+const analytics = getAnalytics ? getAnalytics() : null;
 const auth = null;
 const db = null;
 const messaging = null;
+const vapidKey = 'your-vapid-key';
 
-// Simple logger for iOS push notifications
-class IOSPushLogger {
-  constructor(analytics) {
-    this.analytics = analytics;
-  }
-  
-  logPermissionEvent(eventName, eventParams = {}) {
-    console.log(`iOS Push Permission Event: ${eventName}`, eventParams);
-    if (this.analytics) {
-      logEvent(this.analytics, `ios_push_${eventName}`, eventParams);
-    }
-  }
-  
-  logServiceWorkerEvent(eventName, eventParams = {}) {
-    console.log(`iOS Service Worker Event: ${eventName}`, eventParams);
-    if (this.analytics) {
-      logEvent(this.analytics, `ios_sw_${eventName}`, eventParams);
-    }
-  }
-  
-  logPushEvent(eventName, eventParams = {}) {
-    console.log(`iOS Push Event: ${eventName}`, eventParams);
-    if (this.analytics) {
-      logEvent(this.analytics, `ios_push_${eventName}`, eventParams);
-    }
-  }
+// Set analytics for iosPushLogger
+if (iosPushLogger && analytics) {
+  iosPushLogger.analytics = analytics;
 }
-
-// Create an instance of the logger
-const iosPushLogger = new IOSPushLogger(analytics);
 
 /**
  * Initializes Firebase Cloud Messaging and requests notification permission.
@@ -113,7 +88,11 @@ export const saveTokenToFirestore = async (userId: string, token: string): Promi
  * @param {boolean} [options.includeDeviceInfo] - Whether to include device information in the notification payload.
  * @returns {Promise<boolean>} - A promise that resolves to true if the notification was sent successfully, or false otherwise.
  */
-export const sendTestNotification = async (options: { type: 'push' | 'email'; email?: string; includeDeviceInfo?: boolean }): Promise<boolean> => {
+export const sendTestNotification = async (options: { 
+  type: 'push' | 'email'; 
+  email?: string; 
+  includeDeviceInfo?: boolean 
+}): Promise<boolean> => {
   console.log('Sending test notification with options:', options);
   
   if (analytics) {
