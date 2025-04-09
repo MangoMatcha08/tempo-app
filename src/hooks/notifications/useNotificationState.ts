@@ -33,7 +33,7 @@ export function useNotificationState(options: NotificationStateOptions = {}): No
   }, [history]);
   
   const updateNotificationStatus = useCallback((id: string, status: NotificationDeliveryStatus) => {
-    history.updateNotificationStatus(id, status);
+    history.updateNotificationStatus(id, status as string);
   }, [history]);
   
   const addNotificationAction = useCallback((id: string, action: NotificationAction) => {
@@ -59,10 +59,15 @@ export function useNotificationState(options: NotificationStateOptions = {}): No
   // Return the combined state and actions
   return {
     // State
-    records: history.records,
-    loading: history.loading,
-    error: history.error,
-    pagination: history.pagination,
+    records: history.records || [],
+    loading: history.loading || false,
+    error: history.error || null,
+    pagination: history.pagination || {
+      currentPage: 1,
+      pageSize: 20,
+      totalPages: 1,
+      totalItems: 0
+    },
     
     // Actions
     addNotification,

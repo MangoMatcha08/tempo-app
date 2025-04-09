@@ -2,7 +2,8 @@ import {
   NotificationRecord,
   NotificationHistoryState,
   NotificationAction,
-  PaginationState
+  PaginationState,
+  NotificationDeliveryStatus
 } from '@/types/notifications/notificationHistoryTypes';
 import { ReminderPriority } from '@/types/reminderTypes';
 

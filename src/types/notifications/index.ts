@@ -1,52 +1,31 @@
 
 /**
- * Central notification types module
+ * Centralized exports for notification types
  * 
- * This file serves as the main entry point for all notification-related type definitions.
- * It re-exports types from domain-specific modules to provide a clean, organized API
- * for consuming notification types throughout the application.
+ * This file re-exports all notification types from various modules
+ * to provide a single import point.
  * 
  * @module types/notifications
  */
 
-// Re-export notification types from their respective files
-export * from './settingsTypes';
+// Re-export all notification types
 export * from './notificationHistoryTypes';
 export * from './permissionTypes';
 export * from './serviceWorkerTypes';
-export * from './featureFlags';
+export * from './settingsTypes';
 export * from './sharedTypes';
+export * from './featureFlags';
 
-/**
- * Re-export NotificationType from reminderTypes for backward compatibility
- * @note This enum is primarily defined in reminderTypes.ts but commonly used
- * in notification contexts. In the future, consider using types from sharedTypes.ts
- */
-export { NotificationType } from '../reminderTypes';
+// Handle conflicting exports - use more specific names
+import { NotificationCleanupConfig as HistoryCleanupConfig } from './notificationHistoryTypes';
+import { NotificationCleanupConfig as ServiceWorkerCleanupConfig } from './serviceWorkerTypes';
 
-/**
- * Feature flag constants for notification functionality
- * Controls which notification features are enabled in the application
- */
-export const NOTIFICATION_FEATURES = {
-  /** Whether notification history is enabled */
-  HISTORY_ENABLED: true,
-  /** Whether quiet hours functionality is enabled */
-  QUIET_HOURS_ENABLED: false,
-  /** Whether bulk actions on notifications are enabled */
-  BULK_ACTIONS_ENABLED: false,
-  /** Whether notification grouping is enabled */
-  NOTIFICATION_GROUPING: false,
-  /** Whether virtualized lists are used for performance */
-  VIRTUALIZED_LISTS: true,
-  /** Whether paginated loading is used for notification lists */
-  PAGINATED_LOADING: true,
-  /** Whether advanced caching is enabled */
-  ADVANCED_CACHE: true,
-  /** Whether automatic cleanup of old notifications is enabled */
-  AUTO_CLEANUP: true
+// Re-export with disambiguated names
+export { 
+  HistoryCleanupConfig, 
+  ServiceWorkerCleanupConfig 
 };
 
-// Re-export notification permission context for convenience
-import { NotificationPermissionProvider, useNotificationPermission } from '../../contexts/NotificationPermissionContext';
-export { NotificationPermissionProvider, useNotificationPermission };
+// Types re-exported from other modules for convenience
+export { NotificationType } from '@/types/reminderTypes';
+export type { Reminder } from '@/types/reminderTypes';

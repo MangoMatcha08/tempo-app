@@ -1,75 +1,45 @@
 
 /**
- * Shared Type Definitions Between Reminders and Notifications
+ * Shared notification type definitions
  * 
- * This file documents and re-exports types that are shared between
- * the reminder and notification domains. It aims to clarify the relationship
- * between these domains and provide a single source of truth for shared types.
+ * This module contains type definitions that are shared across
+ * multiple notification-related modules.
  * 
  * @module types/notifications/sharedTypes
  */
 
-import { 
-  NotificationType, 
-  ReminderPriority,
-  Reminder
-} from '@/types/reminderTypes';
-
-// Re-export from reminderTypes for now, but consider moving these
-// to this file in a future refactoring
-export { 
-  NotificationType, 
-  ReminderPriority 
-};
+import { NotificationDeliveryStatus } from './notificationHistoryTypes';
 
 /**
- * Maps reminder priorities to notification importance levels
- * Used to determine how notifications should be displayed
+ * Base notification payload structure
  */
-export enum NotificationImportance {
-  LOW = "low",
-  MEDIUM = "medium",
-  HIGH = "high",
-  URGENT = "urgent"
+export interface BaseNotificationPayload {
+  title: string;
+  body: string;
+  icon?: string;
+  badge?: string;
+  image?: string;
+  timestamp?: number;
+  tag?: string;
 }
 
 /**
- * Maps reminder priorities to notification importance
- * @param priority - The reminder priority to map
- * @returns The corresponding notification importance
+ * Permission request result interface
+ * Used for both standard and iOS-specific permission requests
  */
-export function mapPriorityToImportance(priority: ReminderPriority): NotificationImportance {
-  switch (priority) {
-    case ReminderPriority.HIGH:
-      return NotificationImportance.HIGH;
-    case ReminderPriority.MEDIUM:
-      return NotificationImportance.MEDIUM;
-    case ReminderPriority.LOW:
-      return NotificationImportance.LOW;
-    default:
-      return NotificationImportance.MEDIUM;
-  }
+export interface PermissionRequestResult {
+  granted: boolean;
+  reason?: string;
+  token?: string;
+  error?: any;
+  shouldPromptPwaInstall?: boolean;
+  iosVersion?: string;
 }
 
 /**
- * Reminder-notification relationship type
- * Defines how a reminder relates to notifications
+ * Basic message structure for service worker communication
  */
-export interface ReminderNotificationMapping {
-  reminderId: string;
-  notificationIds: string[];
-  lastNotified?: number; // timestamp
+export interface ServiceWorkerMessage {
+  type: string;
+  payload?: any;
 }
-
-/**
- * @note This documents the relationship between reminders and notifications.
- * In our current architecture:
- * - Reminders are the source data for notifications
- * - NotificationType enum (from reminderTypes.ts) defines types of notifications
- * - ReminderPriority (from reminderTypes.ts) determines notification urgency
- * 
- * Future refactoring should consider:
- * 1. Moving shared enums to this file
- * 2. Creating a clear separation between domains
- * 3. Developing a consistent approach to type organization
- */

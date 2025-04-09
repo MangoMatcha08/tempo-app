@@ -9,16 +9,21 @@
  */
 
 import { ReminderPriority } from '@/types/reminderTypes';
+import { NotificationType } from '@/types/reminderTypes';
+import { NotificationChannel } from '@/types/notifications/settingsTypes';
 
 /**
  * Status of a notification delivery
  */
-export type NotificationDeliveryStatus = 
-  | 'pending'   // Notification is queued for delivery
-  | 'sent'      // Notification has been sent to delivery service
-  | 'delivered' // Notification has been delivered to the user
-  | 'read'      // User has seen the notification
-  | 'failed';   // Notification delivery failed
+export enum NotificationDeliveryStatus {
+  PENDING = 'pending',
+  SENT = 'sent',
+  DELIVERED = 'delivered',
+  READ = 'read',
+  FAILED = 'failed',
+  RECEIVED = 'received',
+  CLICKED = 'clicked'
+}
 
 /**
  * A record of a notification that has been sent
@@ -40,13 +45,40 @@ export interface NotificationRecord {
   status: NotificationDeliveryStatus;
   
   /** Type of notification */
-  type: string;
+  type: string | NotificationType;
   
   /** Priority level */
   priority: ReminderPriority;
   
   /** Target ID (e.g., reminder ID) */
-  targetId?: string;
+  reminderId?: string;
+  
+  /** User ID */
+  userId?: string;
+  
+  /** Delivery channels */
+  channels?: NotificationChannel[];
+  
+  /** Source ID */
+  sourceId?: string | null;
+  
+  /** Source type */
+  sourceType?: string | NotificationType;
+  
+  /** Actions performed on this notification */
+  actions?: Array<{
+    type: NotificationAction;
+    timestamp: number;
+  }>;
+  
+  /** Image URL */
+  image?: string | null;
+  
+  /** Whether notification has been read */
+  read?: boolean;
+  
+  /** When notification was read */
+  readAt?: number | null;
   
   /** Deep link to open when clicking the notification */
   deepLink?: string;
@@ -66,6 +98,23 @@ export type NotificationAction =
   | 'delete';   // Delete the notification permanently
 
 /**
+ * Add missing state interfaces
+ */
+export interface PaginationState {
+  currentPage: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export interface NotificationHistoryState {
+  records: NotificationRecord[];
+  loading: boolean;
+  error: Error | null;
+  pagination: PaginationState;
+}
+
+/**
  * Notification cleanup configuration
  */
 export interface NotificationCleanupConfig {
@@ -78,11 +127,20 @@ export interface NotificationCleanupConfig {
   /** Maximum number of notifications to keep */
   maxCount: number;
   
+  /** Maximum age in hours (for backward compatibility) */
+  maxAge?: number;
+  
   /** Whether to exclude high priority notifications from cleanup */
   excludeHighPriority: boolean;
   
   /** Maximum age for high priority notifications (in days) */
   highPriorityMaxAgeDays: number;
+  
+  /** How often to run cleanup (in hours) */
+  cleanupInterval?: number;
+  
+  /** Timestamp of last cleanup */
+  lastCleanup?: number;
 }
 
 /**

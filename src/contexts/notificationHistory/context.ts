@@ -1,15 +1,16 @@
 
 import { createContext, useContext } from 'react';
 import { 
-  NotificationHistoryState, 
-  NotificationAction 
+  NotificationRecord,
+  NotificationAction,
+  NotificationHistoryState,
+  NotificationCleanupConfig 
 } from '@/types/notifications/notificationHistoryTypes';
 import { initialState } from './reducer';
-import { NotificationCleanupConfig } from '@/types/notifications/serviceWorkerTypes';
 
 // Context for notification history
 export interface NotificationHistoryContextType extends NotificationHistoryState {
-  addNotification: (notification: NotificationHistoryState['records'][0]) => void;
+  addNotification: (notification: NotificationRecord) => void;
   updateNotificationStatus: (id: string, status: string) => void;
   addNotificationAction: (id: string, action: NotificationAction) => void;
   clearHistory: () => void;
@@ -43,18 +44,18 @@ export const NotificationHistoryContext = createContext<NotificationHistoryConte
   setPageSize: () => {},
   cleanupConfig: {
     enabled: true,
-    maxAge: 30,
+    maxAgeDays: 30,
     maxCount: 200,
-    keepHighPriority: true,
-    highPriorityMaxAge: 90,
+    excludeHighPriority: true,
+    highPriorityMaxAgeDays: 90,
     cleanupInterval: 24
   },
   updateCleanupConfig: () => ({
     enabled: true,
-    maxAge: 30,
+    maxAgeDays: 30,
     maxCount: 200,
-    keepHighPriority: true,
-    highPriorityMaxAge: 90,
+    excludeHighPriority: true,
+    highPriorityMaxAgeDays: 90,
     cleanupInterval: 24
   }),
   cleanupNotifications: async () => ({ totalRemoved: 0, byAge: 0, byCount: 0 }),
