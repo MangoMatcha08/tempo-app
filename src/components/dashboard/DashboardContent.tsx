@@ -11,6 +11,7 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 import ReminderLoadingState from "./ReminderLoadingState";
 import { Button } from "@/components/ui/button";
 import IOSPushInstallDemo from '@/components/notifications/IOSPushInstallDemo';
+import NotificationMethodInfo from '@/components/notifications/NotificationMethodInfo';
 
 // Define extended reminder type with UI-specific properties
 export type UIEnhancedReminder = UIReminder;
@@ -68,7 +69,6 @@ const DashboardContent = ({
     setEditDialogOpen(false);
   };
 
-  // If there's an error loading reminders, show an alert with a retry option
   if (hasError) {
     return (
       <div className="space-y-4">
@@ -90,7 +90,6 @@ const DashboardContent = ({
           </AlertDescription>
         </Alert>
         
-        {/* Keep the quick actions bar available even in error state */}
         <QuickActionsBar 
           onNewReminder={onNewReminder}
           onNewVoiceNote={onNewVoiceNote}
@@ -99,7 +98,6 @@ const DashboardContent = ({
     );
   }
 
-  // Show a full-page loading state only on initial load, not on background refreshes
   if (isLoading && loadedCount === 0 && !isRefreshing) {
     return (
       <div className="space-y-4">
@@ -123,7 +121,6 @@ const DashboardContent = ({
     <>
       <CurrentPeriodIndicator />
       
-      {/* Subtle refresh indicator at the top */}
       {isRefreshing && (
         <div className="flex items-center justify-end pb-1">
           <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin mr-1"></div>
@@ -137,7 +134,6 @@ const DashboardContent = ({
       />
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-        {/* Primary content - 2/3 width on desktop */}
         <div className="md:col-span-2 space-y-4 md:space-y-6">
           <RemindersSection 
             urgentReminders={urgentReminders} 
@@ -146,7 +142,6 @@ const DashboardContent = ({
             onEditReminder={handleEditReminder}
           />
           
-          {/* Completed reminders section above the progress visualization */}
           <CompletedRemindersSection 
             reminders={completedReminders}
             onUndoComplete={onUndoComplete}
@@ -157,9 +152,8 @@ const DashboardContent = ({
           <ProgressVisualization />
         </div>
         
-        {/* Secondary content - 1/3 width on desktop */}
-        <div>
-          {/* This column is reserved for future content */}
+        <div className="space-y-4">
+          <NotificationMethodInfo />
         </div>
       </div>
 
@@ -180,7 +174,6 @@ const DashboardContent = ({
         onSave={handleSaveReminder}
       />
 
-      {/* Add the iOS Push Installation Demo */}
       <div className="mt-6">
         <IOSPushInstallDemo />
       </div>

@@ -1,8 +1,8 @@
 
-import React from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import React from "react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface PermissionAlertProps {
   permissionGranted: boolean;
@@ -17,21 +17,37 @@ const PermissionAlert = ({
   pushEnabled,
   requestPermission
 }: PermissionAlertProps) => {
-  // If notifications are disabled or permissions are granted, don't show alert
-  if (!masterEnabled || !pushEnabled || permissionGranted) return null;
+  const [requesting, setRequesting] = React.useState(false);
+  
+  const handleRequestPermission = async () => {
+    setRequesting(true);
+    try {
+      await requestPermission();
+    } finally {
+      setRequesting(false);
+    }
+  };
+  
+  // Only show if notifications are enabled but permission isn't granted
+  if (!masterEnabled || !pushEnabled || permissionGranted) {
+    return null;
+  }
   
   return (
-    <Alert variant="default" className="bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900 dark:border-yellow-800 dark:text-yellow-300">
+    <Alert variant="default">
       <AlertTriangle className="h-4 w-4" />
-      <AlertDescription className="flex items-center justify-between flex-wrap">
-        <span>Push notifications require browser permission.</span>
+      <AlertTitle>Notification Permission Required</AlertTitle>
+      <AlertDescription className="flex flex-col gap-2">
+        <p>
+          You need to grant notification permission to receive push notifications.
+        </p>
         <Button 
-          onClick={requestPermission}
-          variant="outline"
-          size="sm"
-          className="mt-2 sm:mt-0"
+          size="sm" 
+          onClick={handleRequestPermission}
+          disabled={requesting}
+          className="self-start"
         >
-          Enable Notifications
+          {requesting ? "Requesting..." : "Request Permission"}
         </Button>
       </AlertDescription>
     </Alert>

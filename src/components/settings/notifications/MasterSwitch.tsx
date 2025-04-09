@@ -1,7 +1,14 @@
 
-import { FormField, FormItem, FormLabel, FormControl, FormDescription } from "@/components/ui/form";
-import { Switch } from "@/components/ui/switch";
+import React from "react";
 import { Control } from "react-hook-form";
+import { 
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+} from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
 import { ExtendedNotificationSettings } from "./types";
 
 interface MasterSwitchProps {
@@ -16,7 +23,7 @@ const MasterSwitch = ({ control }: MasterSwitchProps) => {
       render={({ field }) => (
         <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
           <div className="space-y-0.5">
-            <FormLabel className="text-base">Master Switch</FormLabel>
+            <FormLabel className="text-base">Notifications</FormLabel>
             <FormDescription>
               Enable or disable all notifications
             </FormDescription>
