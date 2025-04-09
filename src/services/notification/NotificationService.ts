@@ -1,4 +1,3 @@
-
 /**
  * Notification Service
  * 
@@ -55,7 +54,7 @@ export class NotificationService {
       title: notificationData.title,
       body: notificationData.description || '',
       timestamp: Date.now(),
-      type: reminder.type || 'default', // Provide default value if type doesn't exist
+      type: reminder.type ?? 'default', // Using nullish coalescing for type property
       reminderId: reminder.id,
       priority: reminder.priority,
       status: NotificationDeliveryStatus.PENDING, // Changed from CREATED to PENDING

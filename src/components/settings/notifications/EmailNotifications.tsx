@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ExtendedNotificationSettings, FormFieldPath } from "./types";
+import { ExtendedNotificationSettings } from "./types";
 
 interface EmailNotificationsProps {
   control: Control<ExtendedNotificationSettings>;
@@ -41,7 +41,7 @@ const EmailNotifications = ({
       <CardContent className="space-y-4">
         <FormField
           control={control}
-          name="email.enabled" as={FormFieldPath}
+          name="email.enabled"
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between space-y-0">
               <div className="space-y-0.5">
@@ -64,7 +64,7 @@ const EmailNotifications = ({
         {/* Daily Summary Settings */}
         <FormField
           control={control}
-          name="email.dailySummary.enabled" as={FormFieldPath}
+          name="email.dailySummary.enabled"
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between space-y-0">
               <div className="space-y-0.5">
@@ -88,7 +88,7 @@ const EmailNotifications = ({
         {dailySummaryEnabled && (
           <FormField
             control={control}
-            name="email.dailySummary.timing" as={FormFieldPath}
+            name="email.dailySummary.timing"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Summary Timing</FormLabel>

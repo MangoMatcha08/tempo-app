@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ExtendedNotificationSettings, FormFieldPath } from "./types";
+import { ExtendedNotificationSettings } from "./types";
 
 interface InAppNotificationsProps {
   control: Control<ExtendedNotificationSettings>;
@@ -31,7 +31,7 @@ const InAppNotifications = ({
       <CardContent className="space-y-4">
         <FormField
           control={control}
-          name="inApp.enabled" as={FormFieldPath}
+          name="inApp.enabled"
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between space-y-0">
               <div className="space-y-0.5">
@@ -54,7 +54,7 @@ const InAppNotifications = ({
         {/* Toast notifications */}
         <FormField
           control={control}
-          name="inApp.minPriority" as={FormFieldPath}
+          name="inApp.toast"
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between space-y-0">
               <div className="space-y-0.5">
@@ -77,7 +77,7 @@ const InAppNotifications = ({
         {/* Notification center */}
         <FormField
           control={control}
-          name="inApp.minPriority" as={FormFieldPath}
+          name="inApp.notificationCenter"
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between space-y-0">
               <div className="space-y-0.5">

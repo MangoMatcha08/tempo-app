@@ -13,6 +13,12 @@ export interface ExtendedNotificationSettings extends NotificationSettings {
       timing: 'before' | 'after';
     };
   };
+  inApp: {
+    enabled: boolean;
+    minPriority: ReminderPriority;
+    toast: boolean;
+    notificationCenter: boolean;
+  };
 }
 
 /**
