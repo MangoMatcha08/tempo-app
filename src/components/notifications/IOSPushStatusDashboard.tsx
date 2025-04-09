@@ -1,148 +1,115 @@
 
-import React, { useEffect, useReducer, useCallback } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle, XCircle, Smartphone, RefreshCw, Info, AlertTriangle, Wifi } from "lucide-react";
+import { CheckCircle, XCircle, Smartphone, RefreshCw, Info, AlertTriangle, Wifi, FileWarning, HelpCircle, ExternalLink } from "lucide-react";
 import { browserDetection } from '@/utils/browserDetection';
 import { iosPwaDetection } from '@/utils/iosPwaDetection';
 import { useNotificationPermission } from '@/hooks/notifications/useNotificationPermission';
 import { useServiceWorker } from '@/hooks/useServiceWorker';
-
-// Status dashboard state type
-interface StatusDashboardState {
-  lastUpdated: number;
-  isPolling: boolean;
-  pollCount: number;
-  pollInterval: number;
-  error: string | null;
-  manualRefresh: boolean;
-}
-
-// Actions for the reducer
-type StatusDashboardAction = 
-  | { type: 'POLL_START' }
-  | { type: 'POLL_SUCCESS' }
-  | { type: 'POLL_FAILURE'; payload: string }
-  | { type: 'MANUAL_REFRESH' }
-  | { type: 'RESET_POLL_INTERVAL' }
-  | { type: 'INCREASE_POLL_INTERVAL' };
-
-// Initial state
-const initialState: StatusDashboardState = {
-  lastUpdated: 0,
-  isPolling: false,
-  pollCount: 0,
-  pollInterval: 5000, // Start with 5 seconds
-  error: null,
-  manualRefresh: false
-};
-
-// Reducer function for status dashboard state
-function statusDashboardReducer(state: StatusDashboardState, action: StatusDashboardAction): StatusDashboardState {
-  switch (action.type) {
-    case 'POLL_START':
-      return {
-        ...state,
-        isPolling: true,
-        manualRefresh: false
-      };
-    case 'POLL_SUCCESS':
-      return {
-        ...state,
-        lastUpdated: Date.now(),
-        isPolling: false,
-        pollCount: state.pollCount + 1,
-        error: null
-      };
-    case 'POLL_FAILURE':
-      return {
-        ...state,
-        isPolling: false,
-        error: action.payload
-      };
-    case 'MANUAL_REFRESH':
-      return {
-        ...state,
-        manualRefresh: true
-      };
-    case 'RESET_POLL_INTERVAL':
-      return {
-        ...state,
-        pollInterval: 5000 // Reset to initial interval
-      };
-    case 'INCREASE_POLL_INTERVAL':
-      // Exponential backoff - double the interval up to 2 minutes max
-      return {
-        ...state,
-        pollInterval: Math.min(state.pollInterval * 2, 120000)
-      };
-    default:
-      return state;
-  }
-}
+import { useStatusPolling } from '@/hooks/useStatusPolling';
+import { recordTelemetryEvent, getTelemetryStats } from '@/utils/iosPushTelemetry';
 
 const IOSPushStatusDashboard: React.FC = () => {
-  const [state, dispatch] = useReducer(statusDashboardReducer, initialState);
   const { permissionGranted, isSupported } = useNotificationPermission();
   const { 
     registered: serviceWorkerRegistered,
-    implementation: serviceWorkerImplementation
+    implementation: serviceWorkerImplementation,
+    checkStatus: checkServiceWorkerStatus
   } = useServiceWorker();
+  
+  // Track whether telemetry stats have been loaded
+  const [telemetryStats, setTelemetryStats] = useState<ReturnType<typeof getTelemetryStats> | null>(null);
+  const [showTelemetry, setShowTelemetry] = useState(false);
   
   // Check if this is an iOS device
   const isIOS = browserDetection.isIOS();
   const isPWA = iosPwaDetection.isRunningAsPwa();
   const iosVersion = browserDetection.getIOSVersion();
   const supportsPush = browserDetection.supportsIOSWebPush();
+
+  // Calculate overall status
+  const overallStatus = useMemo(() => {
+    if (permissionGranted && serviceWorkerRegistered && isPWA) {
+      return "ready";
+    } else if (!isPWA) {
+      return "needs-pwa";
+    } else if (!permissionGranted) {
+      return "needs-permission";
+    } else if (!serviceWorkerRegistered) {
+      return "needs-sw";
+    } else {
+      return "unknown";
+    }
+  }, [permissionGranted, serviceWorkerRegistered, isPWA]);
   
-  // Poll for status updates with exponential backoff
-  const pollStatus = useCallback(async () => {
-    if (state.isPolling) return;
-    
+  // Define the polling function that will check statuses
+  const pollStatusFn = async () => {
     try {
-      dispatch({ type: 'POLL_START' });
+      // Record status check in telemetry
+      await recordTelemetryEvent({
+        eventType: 'status-check',
+        isPWA: isPWA,
+        iosVersion: iosVersion?.toString(),
+        timestamp: Date.now(),
+        result: 'started',
+        metadata: {
+          overallStatus,
+          permissionGranted,
+          serviceWorkerRegistered,
+          implementation: serviceWorkerImplementation
+        }
+      });
       
-      // Wait to simulate actual polling to a server
-      // In a real implementation, you might check with the server
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // If we've reached a good state (everything working),
-      // reset the poll interval for future polls
-      if (permissionGranted && serviceWorkerRegistered && isPWA) {
-        dispatch({ type: 'RESET_POLL_INTERVAL' });
-      } else {
-        // Otherwise increase the interval for exponential backoff
-        dispatch({ type: 'INCREASE_POLL_INTERVAL' });
+      // Refresh service worker status
+      if ('serviceWorker' in navigator) {
+        await checkServiceWorkerStatus();
       }
       
-      dispatch({ type: 'POLL_SUCCESS' });
+      // If we've reached a good state (everything working), return success
+      if (permissionGranted && serviceWorkerRegistered && isPWA) {
+        await recordTelemetryEvent({
+          eventType: 'status-check',
+          isPWA: isPWA,
+          iosVersion: iosVersion?.toString(),
+          timestamp: Date.now(),
+          result: 'success'
+        });
+        return true;
+      }
+      
+      return false;
     } catch (error) {
-      dispatch({ 
-        type: 'POLL_FAILURE', 
-        payload: error instanceof Error ? error.message : 'Unknown error occurred' 
+      console.error("Error polling status:", error);
+      await recordTelemetryEvent({
+        eventType: 'error',
+        isPWA: isPWA,
+        iosVersion: iosVersion?.toString(),
+        timestamp: Date.now(),
+        result: 'failure',
+        metadata: {
+          error: error instanceof Error ? error.message : String(error)
+        }
       });
+      return false;
     }
-  }, [state.isPolling, permissionGranted, serviceWorkerRegistered, isPWA]);
+  };
   
-  // Effect for polling at the specified interval
+  // Use the status polling hook
+  const { state, manualRefresh } = useStatusPolling(
+    pollStatusFn,
+    isIOS && supportsPush,
+    [permissionGranted, serviceWorkerRegistered, isPWA]
+  );
+  
+  // Load telemetry stats
   useEffect(() => {
-    // Only poll if this is iOS and meets minimum version requirements
-    if (!isIOS || !supportsPush) return;
-    
-    const timer = setTimeout(pollStatus, state.pollInterval);
-    
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [isIOS, supportsPush, state.pollInterval, state.lastUpdated, pollStatus]);
-  
-  // Handle manual refresh
-  const handleRefresh = useCallback(() => {
-    dispatch({ type: 'MANUAL_REFRESH' });
-    pollStatus();
-  }, [pollStatus]);
+    if (showTelemetry) {
+      setTelemetryStats(getTelemetryStats());
+    }
+  }, [showTelemetry, state.lastUpdated]);
   
   // If not on iOS 16.4+, don't show the dashboard
   if (!isIOS || !supportsPush) {
@@ -153,6 +120,22 @@ const IOSPushStatusDashboard: React.FC = () => {
   const lastUpdatedText = state.lastUpdated 
     ? new Date(state.lastUpdated).toLocaleTimeString() 
     : 'Never';
+
+  // Get guidance text based on status
+  const getGuidanceText = () => {
+    switch (overallStatus) {
+      case "needs-pwa":
+        return "This app needs to be installed as a PWA (Add to Home Screen) to enable push notifications on iOS.";
+      case "needs-permission":
+        return "Push notification permission needs to be granted for this app.";
+      case "needs-sw":
+        return "Service worker registration is required for push notifications.";
+      case "ready":
+        return "All systems operational. Push notifications are ready to be received.";
+      default:
+        return "Check the status of each component to troubleshoot push notifications.";
+    }
+  };
 
   return (
     <Card className="mb-6">
@@ -181,6 +164,18 @@ const IOSPushStatusDashboard: React.FC = () => {
       </CardHeader>
       
       <CardContent className="space-y-4 pb-4">
+        {/* Guidance Alert */}
+        <Alert className={overallStatus === "ready" ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"}>
+          <div className="flex items-start">
+            {overallStatus === "ready" 
+              ? <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" /> 
+              : <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 mr-2 flex-shrink-0" />}
+            <AlertDescription className="text-sm">
+              {getGuidanceText()}
+            </AlertDescription>
+          </div>
+        </Alert>
+
         {/* Status indicators */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* PWA Status */}
@@ -240,6 +235,33 @@ const IOSPushStatusDashboard: React.FC = () => {
           </div>
         </div>
         
+        {/* Action needed guidance */}
+        {overallStatus !== "ready" && (
+          <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
+            <div className="flex items-start mb-2">
+              <HelpCircle className="h-5 w-5 text-blue-500 mt-0.5 mr-2 flex-shrink-0" />
+              <h4 className="text-sm font-medium text-blue-800">Next Steps</h4>
+            </div>
+            <ul className="list-disc pl-9 text-xs space-y-1 text-blue-700">
+              {!isPWA && (
+                <li>
+                  Install this app to your Home Screen through the Safari share menu
+                </li>
+              )}
+              {isPWA && !permissionGranted && (
+                <li>
+                  Grant push notification permission when prompted
+                </li>
+              )}
+              {isPWA && permissionGranted && !serviceWorkerRegistered && (
+                <li>
+                  Reload the app to register the service worker
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+        
         {/* Environment Info */}
         <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-md text-xs space-y-1">
           <div className="flex justify-between">
@@ -258,7 +280,61 @@ const IOSPushStatusDashboard: React.FC = () => {
             <span className="text-muted-foreground">Last Updated:</span>
             <span>{lastUpdatedText}</span>
           </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Update Interval:</span>
+            <span>{(state.pollInterval / 1000).toFixed(0)}s</span>
+          </div>
         </div>
+        
+        {/* Telemetry section - toggle */}
+        <div className="pt-2">
+          <button 
+            onClick={() => setShowTelemetry(!showTelemetry)}
+            className="text-xs flex items-center text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <FileWarning className="h-3 w-3 mr-1" />
+            {showTelemetry ? 'Hide Telemetry' : 'Show Telemetry'}
+          </button>
+        </div>
+        
+        {/* Telemetry stats display */}
+        {showTelemetry && telemetryStats && (
+          <div className="bg-slate-100 p-3 rounded-md text-xs space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="font-medium">Push Notification Telemetry</span>
+              <Badge variant="outline" className="text-[10px]">Diagnostic</Badge>
+            </div>
+            
+            <div className="space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Events Recorded:</span>
+                <span>{telemetryStats.totalEvents}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Success Rate:</span>
+                <span>{(telemetryStats.successRate * 100).toFixed(0)}%</span>
+              </div>
+              {Object.keys(telemetryStats.errorBreakdown).length > 0 && (
+                <div className="pt-1">
+                  <span className="text-muted-foreground block mb-1">Error Breakdown:</span>
+                  <ul className="pl-3 space-y-1">
+                    {Object.entries(telemetryStats.errorBreakdown).map(([key, count]) => (
+                      <li key={key} className="flex justify-between">
+                        <span>{key}:</span>
+                        <span>{count}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            
+            <div className="text-[10px] text-muted-foreground pt-1 flex items-center">
+              <ExternalLink className="h-3 w-3 mr-1" />
+              View debugging logs in console for more details
+            </div>
+          </div>
+        )}
         
         {/* Error display */}
         {state.error && (
@@ -269,15 +345,19 @@ const IOSPushStatusDashboard: React.FC = () => {
         )}
       </CardContent>
       
-      <CardFooter className="pt-1">
+      <CardFooter className="pt-1 flex items-center justify-between">
         <button 
           className="text-xs flex items-center text-muted-foreground hover:text-foreground transition-colors"
-          onClick={handleRefresh}
+          onClick={manualRefresh}
           disabled={state.isPolling}
         >
           <RefreshCw className={`h-3 w-3 mr-1 ${state.isPolling ? 'animate-spin' : ''}`} />
           {state.isPolling ? 'Refreshing...' : 'Refresh Status'}
         </button>
+        
+        <span className="text-xs text-muted-foreground">
+          Poll: {state.pollCount}
+        </span>
       </CardFooter>
     </Card>
   );
