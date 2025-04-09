@@ -7,11 +7,14 @@ import { useDashboardRefresh } from "@/hooks/reminders/use-dashboard-refresh";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardMain from "@/components/dashboard/DashboardMain";
 import { getUserFriendlyErrorMessage } from "@/lib/firebase/error-utils";
+import IOSPushStatusDashboard from "@/components/notifications/IOSPushStatusDashboard";
+import { browserDetection } from "@/utils/browserDetection";
 
 const Dashboard = () => {
   const [hasError, setHasError] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const isIOS = browserDetection.isIOS() && browserDetection.supportsIOSWebPush();
   
   const {
     reminders,
@@ -200,28 +203,31 @@ const Dashboard = () => {
   }, [clearCacheAndRefresh]);
 
   return (
-    <DashboardMain
-      reminders={reminders}
-      loading={loading}
-      isRefreshing={isRefreshing}
-      urgentReminders={urgentReminders}
-      upcomingReminders={upcomingReminders}
-      completedReminders={completedReminders}
-      reminderStats={reminderStats}
-      handleCompleteReminder={handleCompleteReminder}
-      handleUndoComplete={handleUndoComplete}
-      addReminder={handleAddReminder}
-      updateReminder={updateReminder}
-      loadMoreReminders={loadMoreReminders}
-      refreshReminders={refreshReminders}
-      hasMore={hasMore}
-      totalCount={totalCount}
-      hasError={hasError}
-      addToBatchComplete={addToBatchComplete}
-      addToBatchUpdate={addToBatchUpdate}
-      deleteReminder={handleDeleteReminder}
-      batchDeleteReminders={handleBatchDeleteReminders}
-    />
+    <>
+      {isIOS && <IOSPushStatusDashboard />}
+      <DashboardMain
+        reminders={reminders}
+        loading={loading}
+        isRefreshing={isRefreshing}
+        urgentReminders={urgentReminders}
+        upcomingReminders={upcomingReminders}
+        completedReminders={completedReminders}
+        reminderStats={reminderStats}
+        handleCompleteReminder={handleCompleteReminder}
+        handleUndoComplete={handleUndoComplete}
+        addReminder={handleAddReminder}
+        updateReminder={updateReminder}
+        loadMoreReminders={loadMoreReminders}
+        refreshReminders={refreshReminders}
+        hasMore={hasMore}
+        totalCount={totalCount}
+        hasError={hasError}
+        addToBatchComplete={addToBatchComplete}
+        addToBatchUpdate={addToBatchUpdate}
+        deleteReminder={handleDeleteReminder}
+        batchDeleteReminders={handleBatchDeleteReminders}
+      />
+    </>
   );
 };
 
