@@ -19,6 +19,7 @@ import { Toaster as SonnerToaster } from "sonner";
 import { ensureFirebaseInitialized } from "@/lib/firebase";
 import ErrorBoundary from "@/components/error-boundary/ErrorBoundary";
 import { errorTelemetry } from "@/utils/errorTelemetry";
+import { ErrorSeverity } from "@/hooks/useErrorHandler";
 
 // Ensure Firebase is initialized before React components
 ensureFirebaseInitialized();
@@ -47,7 +48,7 @@ function App() {
     // Report to telemetry
     errorTelemetry.reportError({
       message: "An unexpected error occurred in the application UI",
-      severity: "high",
+      severity: ErrorSeverity.HIGH,
       recoverable: false,
       technicalDetails: `${error.toString()}\n${errorInfo.componentStack}`,
       source: "app-root",

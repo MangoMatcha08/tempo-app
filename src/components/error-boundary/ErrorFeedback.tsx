@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ErrorResponse, ErrorSeverity } from '@/hooks/useErrorHandler';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -37,16 +36,14 @@ export const ErrorFeedback: React.FC<ErrorFeedbackProps> = ({
     }
   };
   
-  // Determine alert variant based on severity
+  // Determine alert variant based on severity - ensuring only supported variants are used
   const getAlertVariant = () => {
     switch(error.severity) {
       case ErrorSeverity.HIGH:
       case ErrorSeverity.FATAL:
         return "destructive";
       case ErrorSeverity.MEDIUM:
-        return "default";
       case ErrorSeverity.LOW:
-        return "outline";
       default:
         return "default";
     }

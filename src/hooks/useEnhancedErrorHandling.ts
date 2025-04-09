@@ -1,6 +1,6 @@
 
 import { useCallback } from 'react';
-import useErrorHandler, { ErrorResponse } from '@/hooks/useErrorHandler';
+import useErrorHandler, { ErrorResponse, ErrorSeverity } from '@/hooks/useErrorHandler';
 import { classifyIOSPushError, RecoveryAction } from '@/utils/iosErrorHandler';
 import { getUserFriendlyErrorMessage } from '@/lib/firebase/error-utils';
 import { errorTelemetry } from '@/utils/errorTelemetry';
@@ -21,7 +21,7 @@ export function useEnhancedErrorHandling() {
     // Convert to standard error response
     const errorResponse: ErrorResponse = {
       message: classifiedError.userMessage,
-      severity: classifiedError.category.includes('denied') ? 'medium' : 'high',
+      severity: classifiedError.category.includes('denied') ? ErrorSeverity.MEDIUM : ErrorSeverity.HIGH,
       recoverable: classifiedError.recoveryActions.length > 0,
       technicalDetails: classifiedError.technicalDetails,
       source: 'ios-push-notification',
@@ -42,7 +42,7 @@ export function useEnhancedErrorHandling() {
   const handleSpeechRecognitionError = useCallback((error: SpeechRecognitionErrorEvent) => {
     const errorResponse: ErrorResponse = {
       message: `Speech recognition error: ${error.error}`,
-      severity: error.error === 'no-speech' ? 'low' : 'medium',
+      severity: error.error === 'no-speech' ? ErrorSeverity.LOW : ErrorSeverity.MEDIUM,
       recoverable: ['no-speech', 'network', 'aborted'].includes(error.error),
       technicalDetails: `Speech recognition error: ${error.error} - ${error.message}`,
       source: 'speech-recognition',
@@ -64,7 +64,7 @@ export function useEnhancedErrorHandling() {
   const handleFirebaseError = useCallback((error: unknown) => {
     const errorResponse: ErrorResponse = {
       message: getUserFriendlyErrorMessage(error),
-      severity: 'medium',
+      severity: ErrorSeverity.MEDIUM,
       recoverable: true,
       technicalDetails: error instanceof Error ? error.message : String(error),
       source: 'firebase',
