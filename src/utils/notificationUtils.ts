@@ -2,7 +2,6 @@
 import { Reminder, ReminderPriority } from '@/types/reminderTypes';
 import { NotificationSettings } from '@/types/notifications';
 import { shouldSendNotification } from '@/services/notifications/settings';
-import { NotificationCleanupConfig, DEFAULT_CLEANUP_CONFIG } from '@/types/notifications';
 
 /**
  * Show notification based on reminder priority and user settings
@@ -68,31 +67,3 @@ export const formatReminderForNotification = (reminder: Reminder) => {
     priority: reminder.priority,
   };
 };
-
-/**
- * Ensures both new and legacy properties remain in sync
- */
-export function normalizeCleanupConfig(config: Partial<NotificationCleanupConfig>): NotificationCleanupConfig {
-  const normalized = { ...DEFAULT_CLEANUP_CONFIG, ...config };
-  
-  // Sync property pairs
-  if ('keepHighPriority' in config && config.keepHighPriority !== undefined) {
-    normalized.excludeHighPriority = !config.keepHighPriority;
-  } else if ('excludeHighPriority' in config && config.excludeHighPriority !== undefined) {
-    normalized.keepHighPriority = !config.excludeHighPriority;
-  }
-  
-  if ('highPriorityMaxAge' in config && config.highPriorityMaxAge !== undefined) {
-    normalized.highPriorityMaxAgeDays = config.highPriorityMaxAge;
-  } else if ('highPriorityMaxAgeDays' in config && config.highPriorityMaxAgeDays !== undefined) {
-    normalized.highPriorityMaxAge = config.highPriorityMaxAgeDays;
-  }
-  
-  if ('maxAge' in config && config.maxAge !== undefined) {
-    normalized.maxAgeDays = config.maxAge;
-  } else if ('maxAgeDays' in config && config.maxAgeDays !== undefined) {
-    normalized.maxAge = config.maxAgeDays;
-  }
-  
-  return normalized;
-}

@@ -21,11 +21,10 @@ import {
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { Input } from "@/components/ui/input";
-import { NotificationCleanupConfig } from "@/types/notifications";  // Import from the index file instead
+import { NotificationCleanupConfig } from "@/types/notifications/serviceWorkerTypes";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { normalizeCleanupConfig } from "@/utils/notificationUtils";
 
 const NotificationCleanupSettings = () => {
   const { 
@@ -52,9 +51,7 @@ const NotificationCleanupSettings = () => {
 
   const onSubmit = async (data: NotificationCleanupConfig) => {
     try {
-      // Normalize the config to ensure both property sets are in sync
-      const normalizedData = normalizeCleanupConfig(data);
-      updateCleanupConfig(normalizedData);
+      updateCleanupConfig(data);
       toast({
         title: "Settings saved",
         description: "Notification cleanup settings updated successfully"
@@ -145,7 +142,7 @@ const NotificationCleanupSettings = () => {
                           type="number"
                           min="1"
                           {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
+                          onChange={(e) => field.onChange(parseInt(e.target.value))}
                           disabled={!form.watch("enabled")}
                         />
                       </FormControl>
@@ -167,7 +164,7 @@ const NotificationCleanupSettings = () => {
                           type="number"
                           min="10"
                           {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
+                          onChange={(e) => field.onChange(parseInt(e.target.value))}
                           disabled={!form.watch("enabled")}
                         />
                       </FormControl>
@@ -213,7 +210,7 @@ const NotificationCleanupSettings = () => {
                           type="number"
                           min="1"
                           {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
+                          onChange={(e) => field.onChange(parseInt(e.target.value))}
                           disabled={!form.watch("enabled") || !form.watch("keepHighPriority")}
                         />
                       </FormControl>
@@ -237,7 +234,7 @@ const NotificationCleanupSettings = () => {
                         min="1"
                         max="168"
                         {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
+                        onChange={(e) => field.onChange(parseInt(e.target.value))}
                         disabled={!form.watch("enabled")}
                       />
                     </FormControl>
