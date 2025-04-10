@@ -16,8 +16,7 @@ import {
   NotificationDeliveryStatus as NotificationDeliveryStatusBase,
   NotificationCleanupConfig,
   PermissionRequestResult,
-  ServiceWorkerMessage as ServiceWorkerMessageBase,
-  NotificationPermission as NotificationPermissionBase
+  ServiceWorkerMessage as ServiceWorkerMessageBase
 } from '@/types/notifications';
 import { Reminder } from '@/types/reminderTypes';
 
@@ -27,7 +26,6 @@ export type NotificationAction = NotificationActionBase;
 export type NotificationDeliveryStatus = NotificationDeliveryStatusBase;
 export type NotificationSettings = NotificationSettingsBase;
 export type ServiceWorkerMessage = ServiceWorkerMessageBase;
-export type NotificationPermission = NotificationPermissionBase;
 
 /**
  * Core notification state interface
@@ -137,6 +135,16 @@ export interface NotificationActions {
   markAllAsRead: () => void;
   handleAction: (notificationId: string, action: NotificationAction) => void;
   handleServiceWorkerMessage: (message: ServiceWorkerMessage) => void;
+}
+
+/**
+ * Permission management interface
+ */
+export interface NotificationPermission {
+  permissionGranted: boolean;
+  isSupported: boolean;
+  requestPermission: () => Promise<PermissionRequestResult>;
+  hasPermission: () => boolean;
 }
 
 /**

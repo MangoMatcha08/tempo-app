@@ -24,6 +24,9 @@ export * from './serviceWorkerTypes';
 export * from './settingsTypes';
 export * from './featureFlags';
 
+// Export NotificationPermission for direct use
+export type { NotificationPermission } from '../hooks/notifications/types';
+
 // Re-export types from other modules for convenience
 export type { NotificationType } from '@/types/reminderTypes';
 export type { Reminder } from '@/types/reminderTypes';
