@@ -13,6 +13,7 @@ const NotificationPermissionContext = createContext<NotificationPermissionContex
   permissionGranted: false,
   isSupported: true,
   requestPermission: async () => ({ granted: false }),
+  hasPermission: () => false,
 });
 
 /**
@@ -142,10 +143,16 @@ export const NotificationPermissionProvider: React.FC<NotificationPermissionProv
     }
   };
 
+  // Check if permission is granted
+  const hasPermission = (): boolean => {
+    return permissionGranted;
+  };
+
   const value: NotificationPermissionContextState = {
     permissionGranted,
     isSupported,
-    requestPermission
+    requestPermission,
+    hasPermission
   };
 
   return (

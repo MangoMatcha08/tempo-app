@@ -60,8 +60,12 @@ export function useNotifications(
     // Settings
     ...settings,
     
-    // Services
-    ...services,
+    // Services (include all properties explicitly)
+    cleanupNotifications: services.cleanupNotifications,
+    runAutomaticCleanup: services.runAutomaticCleanup,
+    updateCleanupConfig: services.updateCleanupConfig,
+    sendTestNotification: services.sendTestNotification,
+    cleanupConfig: services.cleanupConfig,
     
     // Features
     ...features,

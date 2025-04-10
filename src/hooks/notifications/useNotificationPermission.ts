@@ -52,12 +52,18 @@ export function useNotificationPermission(): NotificationPermission {
     // For other platforms, use the standard permission flow
     return context.requestPermission();
   }, [context.requestPermission]);
+
+  // Check if permission is granted
+  const hasPermission = useCallback((): boolean => {
+    return context.hasPermission();
+  }, [context.hasPermission]);
   
   // Forward methods from context with appropriate typing and iOS enhancement
   return {
     permissionGranted: context.permissionGranted,
     isSupported: context.isSupported,
-    requestPermission: requestPermission
+    requestPermission,
+    hasPermission
   };
 }
 

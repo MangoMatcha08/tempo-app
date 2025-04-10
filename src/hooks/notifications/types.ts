@@ -144,6 +144,7 @@ export interface NotificationPermission {
   permissionGranted: boolean;
   isSupported: boolean;
   requestPermission: () => Promise<PermissionRequestResult>;
+  hasPermission: () => boolean;
 }
 
 /**

@@ -50,6 +50,8 @@ export interface NotificationPermissionContextState {
   isSupported: boolean;
   /** Function to request notification permission */
   requestPermission: () => Promise<PermissionRequestResult>;
+  /** Function to check if permission is granted */
+  hasPermission: () => boolean;
 }
 
 /**
