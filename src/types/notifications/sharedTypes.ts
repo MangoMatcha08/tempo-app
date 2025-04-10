@@ -47,7 +47,7 @@ export interface ServiceWorkerMessage {
  * Centralized definition to avoid conflicts
  */
 export interface NotificationCleanupConfig {
-  /** Whether to automatically clean up notifications */
+  /** Whether automatic cleanup is enabled */
   enabled: boolean;
   
   /** Maximum age of notifications to keep (in days) */
@@ -68,8 +68,14 @@ export interface NotificationCleanupConfig {
   /** Timestamp of last cleanup */
   lastCleanup?: number;
   
-  /** Maximum age in hours (for backward compatibility) */
+  /** @deprecated Use maxAgeDays instead */
   maxAge?: number;
+  
+  /** @deprecated Use excludeHighPriority instead (note: inverse logic) */
+  keepHighPriority?: boolean;
+  
+  /** @deprecated Use highPriorityMaxAgeDays instead */
+  highPriorityMaxAge?: number;
 }
 
 /**
@@ -81,5 +87,11 @@ export const DEFAULT_CLEANUP_CONFIG: NotificationCleanupConfig = {
   maxCount: 200,
   excludeHighPriority: true,
   highPriorityMaxAgeDays: 90,
-  cleanupInterval: 24
+  cleanupInterval: 24,
+  lastCleanup: 0,
+  
+  // Deprecated properties with matching values
+  maxAge: 30,
+  keepHighPriority: false, // Inverse of excludeHighPriority
+  highPriorityMaxAge: 90
 };

@@ -1,3 +1,4 @@
+
 import React, { useReducer, useCallback, useEffect, useState } from 'react';
 import { NotificationHistoryContext } from './context';
 import { reducer, initialState } from './reducer';
@@ -7,6 +8,7 @@ import {
   NotificationCleanupConfig 
 } from '@/types/notifications/sharedTypes';
 import { useFeatureFlags } from '@/contexts/FeatureFlagContext';
+import { normalizeCleanupConfig } from '@/utils/notificationUtils';
 
 const LOCAL_STORAGE_KEY = 'notification_history';
 const CLEANUP_CONFIG_KEY = 'notification_cleanup_config';
@@ -27,10 +29,7 @@ export const NotificationHistoryProvider: React.FC<NotificationHistoryProviderPr
       const storedConfig = localStorage.getItem(CLEANUP_CONFIG_KEY);
       if (storedConfig) {
         const parsedConfig = JSON.parse(storedConfig);
-        setCleanupConfig({
-          ...DEFAULT_CLEANUP_CONFIG,
-          ...parsedConfig
-        });
+        setCleanupConfig(normalizeCleanupConfig(parsedConfig));
       }
     } catch (error) {
       console.error('Error loading cleanup configuration:', error);
@@ -94,7 +93,10 @@ export const NotificationHistoryProvider: React.FC<NotificationHistoryProviderPr
 
   const updateCleanupConfig = useCallback((config: Partial<NotificationCleanupConfig>): NotificationCleanupConfig => {
     setCleanupConfig(prev => {
-      const newConfig = { ...prev, ...config };
+      const newConfig = normalizeCleanupConfig({
+        ...prev,
+        ...config
+      });
       return newConfig;
     });
     
@@ -104,18 +106,21 @@ export const NotificationHistoryProvider: React.FC<NotificationHistoryProviderPr
   const cleanupNotifications = useCallback(async (options?: {
     maxAge?: number;
     maxCount?: number;
-    keepHighPriority?: boolean;
-    highPriorityMaxAge?: number;
+    excludeHighPriority?: boolean;
+    highPriorityMaxAgeDays?: number;
   }) => {
     const now = Date.now();
-    const config = { ...cleanupConfig, ...options };
+    const config = normalizeCleanupConfig({
+      ...cleanupConfig,
+      ...options
+    });
     
     if (!config.enabled && !options) {
       return { totalRemoved: 0, byAge: 0, byCount: 0 };
     }
 
-    const maxAgeMs = (config.maxAge || 30) * 24 * 60 * 60 * 1000;
-    const highPriorityMaxAgeMs = (config.highPriorityMaxAge || 90) * 24 * 60 * 60 * 1000;
+    const maxAgeMs = (config.maxAgeDays || 30) * 24 * 60 * 60 * 1000;
+    const highPriorityMaxAgeMs = (config.highPriorityMaxAgeDays || 90) * 24 * 60 * 60 * 1000;
     
     let byAge = 0;
     let removedIds: string[] = [];
@@ -124,7 +129,7 @@ export const NotificationHistoryProvider: React.FC<NotificationHistoryProviderPr
       const age = now - notification.timestamp;
       const isHighPriority = notification.priority === 'high';
       
-      if (isHighPriority && config.keepHighPriority) {
+      if (isHighPriority && !config.excludeHighPriority) {
         if (age > highPriorityMaxAgeMs) {
           removedIds.push(notification.id);
           byAge++;

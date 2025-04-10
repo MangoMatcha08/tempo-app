@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { Input } from "@/components/ui/input";
-import { NotificationCleanupConfig } from "@/types/notifications/serviceWorkerTypes";
+import { NotificationCleanupConfig } from "@/types/notifications/sharedTypes";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -74,10 +74,10 @@ const NotificationCleanupSettings = () => {
       const formValues = form.getValues();
       
       const result = await cleanupNotifications({
-        maxAge: formValues.maxAge,
+        maxAge: formValues.maxAgeDays,
         maxCount: formValues.maxCount,
-        keepHighPriority: formValues.keepHighPriority,
-        highPriorityMaxAge: formValues.highPriorityMaxAge
+        excludeHighPriority: formValues.excludeHighPriority,
+        highPriorityMaxAgeDays: formValues.highPriorityMaxAgeDays
       });
       
       setCleanupResult(result);
@@ -133,7 +133,7 @@ const NotificationCleanupSettings = () => {
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="maxAge"
+                  name="maxAgeDays"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Max Age (days)</FormLabel>
@@ -178,7 +178,7 @@ const NotificationCleanupSettings = () => {
               
               <FormField
                 control={form.control}
-                name="keepHighPriority"
+                name="excludeHighPriority"
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                     <div className="space-y-0.5">
@@ -189,8 +189,8 @@ const NotificationCleanupSettings = () => {
                     </div>
                     <FormControl>
                       <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
+                        checked={!field.value}
+                        onCheckedChange={(value) => field.onChange(!value)}
                         disabled={!form.watch("enabled")}
                       />
                     </FormControl>
@@ -198,10 +198,10 @@ const NotificationCleanupSettings = () => {
                 )}
               />
               
-              {form.watch("keepHighPriority") && (
+              {!form.watch("excludeHighPriority") && (
                 <FormField
                   control={form.control}
-                  name="highPriorityMaxAge"
+                  name="highPriorityMaxAgeDays"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>High Priority Max Age (days)</FormLabel>
@@ -211,7 +211,7 @@ const NotificationCleanupSettings = () => {
                           min="1"
                           {...field}
                           onChange={(e) => field.onChange(parseInt(e.target.value))}
-                          disabled={!form.watch("enabled") || !form.watch("keepHighPriority")}
+                          disabled={!form.watch("enabled") || form.watch("excludeHighPriority")}
                         />
                       </FormControl>
                       <FormDescription>

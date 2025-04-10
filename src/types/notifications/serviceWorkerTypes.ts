@@ -1,6 +1,9 @@
-
 import { NotificationRecord } from './notificationHistoryTypes';
 import { NotificationAction } from './notificationHistoryTypes';
+import { NotificationCleanupConfig, DEFAULT_CLEANUP_CONFIG } from './sharedTypes';
+
+// Re-export for existing imports
+export { NotificationCleanupConfig, DEFAULT_CLEANUP_CONFIG };
 
 /**
  * Message payload from service worker to app
@@ -218,39 +221,6 @@ export interface CleanupStatistics {
   /** How long cleanup took to execute (milliseconds) */
   executionTime: number;
 }
-
-/**
- * Configuration for automatic notification cleanup
- * @interface
- */
-export interface NotificationCleanupConfig {
-  /** Whether automatic cleanup is enabled */
-  enabled: boolean;
-  /** Maximum age of notifications in days before cleanup */
-  maxAge: number;
-  /** Maximum number of notifications to keep */
-  maxCount: number;
-  /** Whether to keep high priority notifications longer */
-  keepHighPriority: boolean;
-  /** Maximum age for high priority notifications in days */
-  highPriorityMaxAge: number;
-  /** How often to run cleanup in hours */
-  cleanupInterval: number;
-  /** When the last cleanup ran (milliseconds since epoch) */
-  lastCleanup?: number;
-}
-
-/**
- * Default cleanup configuration
- */
-export const DEFAULT_CLEANUP_CONFIG: NotificationCleanupConfig = {
-  enabled: true,
-  maxAge: 30,            // 30 days
-  maxCount: 200,         // Keep last 200 notifications
-  keepHighPriority: true,
-  highPriorityMaxAge: 90, // 90 days for high priority
-  cleanupInterval: 24,    // Run cleanup daily
-};
 
 /**
  * Options for manual notification cleanup

@@ -6,8 +6,9 @@ import {
 import { 
   AppMessage, 
   ServiceWorkerMessage,
-  NotificationCleanupConfig
 } from '@/types/notifications/serviceWorkerTypes';
+import { NotificationCleanupConfig, DEFAULT_CLEANUP_CONFIG } from '@/types/notifications/sharedTypes';
+import { normalizeCleanupConfig } from '@/utils/notificationUtils';
 
 /**
  * Manages service worker operations with performance measurement
@@ -87,8 +88,22 @@ export class ServiceWorkerManager {
     cachingEnabled?: boolean;
     cacheMaintenanceInterval?: number;
     debug?: boolean;
-    cleanupConfig?: NotificationCleanupConfig;
+    cleanupConfig?: Partial<NotificationCleanupConfig>;
   }): Promise<boolean> {
+    // Ensure all required fields exist before sending
+    if (config.cleanupConfig) {
+      const fullConfig: NotificationCleanupConfig = normalizeCleanupConfig({
+        ...DEFAULT_CLEANUP_CONFIG,
+        ...config.cleanupConfig
+      });
+      
+      // Replace the partial config with the complete one
+      config = {
+        ...config,
+        cleanupConfig: fullConfig
+      };
+    }
+    
     return this.sendMessage({
       type: 'UPDATE_CONFIG',
       payload: { config }
