@@ -1,4 +1,3 @@
-
 /**
  * Notification Hooks Type Definitions
  * 
@@ -16,7 +15,8 @@ import {
   NotificationDeliveryStatus as NotificationDeliveryStatusBase,
   NotificationCleanupConfig,
   PermissionRequestResult,
-  ServiceWorkerMessage as ServiceWorkerMessageBase
+  ServiceWorkerMessage as ServiceWorkerMessageBase,
+  NotificationPermission as NotificationPermissionBase
 } from '@/types/notifications';
 import { Reminder } from '@/types/reminderTypes';
 
@@ -26,6 +26,7 @@ export type NotificationAction = NotificationActionBase;
 export type NotificationDeliveryStatus = NotificationDeliveryStatusBase;
 export type NotificationSettings = NotificationSettingsBase;
 export type ServiceWorkerMessage = ServiceWorkerMessageBase;
+export type NotificationPermission = NotificationPermissionBase;
 
 /**
  * Core notification state interface

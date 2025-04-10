@@ -38,6 +38,16 @@ export interface PermissionRequestResult {
 export type BrowserPermissionState = 'default' | 'granted' | 'denied' | 'unsupported';
 
 /**
+ * Interface for notification permission management
+ */
+export interface NotificationPermission {
+  permissionGranted: boolean;
+  isSupported: boolean;
+  requestPermission: () => Promise<PermissionRequestResult>;
+  hasPermission: () => boolean;
+}
+
+/**
  * Context state for notification permissions
  * Used in the NotificationPermissionContext
  * 
@@ -58,3 +68,4 @@ export interface NotificationPermissionContextState {
  * @deprecated Use BrowserPermissionState instead
  */
 export type NotificationPermissionState = BrowserPermissionState;
+
