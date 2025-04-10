@@ -1,4 +1,3 @@
-
 /**
  * Notification Hooks Type Definitions
  * 
@@ -137,6 +136,16 @@ export interface NotificationActions {
   markAllAsRead: () => void;
   handleAction: (notificationId: string, action: NotificationAction) => void;
   handleServiceWorkerMessage: (message: ServiceWorkerMessage) => void;
+}
+
+/**
+ * Permission management interface
+ */
+export interface NotificationPermission {
+  permissionGranted: boolean;
+  isSupported: boolean;
+  requestPermission: () => Promise<PermissionRequestResult>;
+  hasPermission: () => boolean;
 }
 
 /**
