@@ -66,12 +66,38 @@ export const sendTestNotification = async (options: {
   // Get device info if requested
   let deviceInfo = {};
   if (includeDeviceInfo) {
-    deviceInfo = {
-      userAgent: navigator.userAgent,
-      platform: navigator.platform,
-      language: navigator.language,
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    };
+    try {
+      // Basic device information that's safe to collect
+      deviceInfo = {
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        language: navigator.language,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        screenSize: `${window.screen.width}x${window.screen.height}`,
+        pixelRatio: window.devicePixelRatio,
+        vendor: navigator.vendor || 'unknown',
+      };
+      
+      // For push notifications, we can add extra diagnostic info
+      // but we need to be careful about imports to avoid runtime errors
+      if (type === 'push') {
+        // Instead of dynamic imports which can cause path resolution issues,
+        // we'll safely check for notification permissions without importing
+        if ('Notification' in window) {
+          Object.assign(deviceInfo, {
+            notificationPermission: Notification.permission,
+            serviceWorkerSupported: 'serviceWorker' in navigator,
+            serviceWorkerStatus: navigator.serviceWorker?.controller ? 'controlled' : 'not-controlled'
+          });
+        }
+      }
+    } catch (e) {
+      // If device info collection fails, provide a simple fallback
+      deviceInfo = {
+        error: 'Failed to collect device info',
+        errorMessage: e instanceof Error ? e.message : String(e)
+      };
+    }
   }
 
   // Add email if provided
@@ -84,7 +110,23 @@ export const sendTestNotification = async (options: {
     data.email = email;
   }
 
-  return await callFunction('sendTestNotification', data);
+  try {
+    return await callFunction('sendTestNotification', data);
+  } catch (error) {
+    // Create a more descriptive error for the UI
+    const contextualError = new Error(
+      error instanceof Error 
+        ? `Failed to send ${type} notification: ${error.message}`
+        : `Failed to send ${type} notification: ${String(error)}`
+    );
+    
+    // Preserve error properties if available
+    if (error instanceof Error) {
+      Object.assign(contextualError, error);
+    }
+    
+    throw contextualError;
+  }
 };
 
 // Helper function for explicit reminder notification
