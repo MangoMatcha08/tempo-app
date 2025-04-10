@@ -1,5 +1,5 @@
 
-import { ServiceWorkerConfig } from '@/types/notifications/serviceWorkerTypes';
+import { ServiceWorkerConfig } from '@/types/notifications';  // Import from the index file instead
 import { vi } from 'vitest';
 
 /**

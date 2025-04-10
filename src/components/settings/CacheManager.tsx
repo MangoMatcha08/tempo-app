@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Trash2, RefreshCw, BarChart3, Database, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
-import { CacheStatistics } from "@/types/notifications/serviceWorkerTypes";
+import { CacheStatistics } from "@/types/notifications";  // Import from the index file instead
 import { useServiceWorker } from "@/hooks/useServiceWorker";
 import { formatDistanceToNow } from "date-fns";
 

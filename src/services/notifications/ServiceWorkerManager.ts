@@ -1,4 +1,3 @@
-
 import { 
   performanceMonitor,
   notificationPerformance
@@ -7,7 +6,7 @@ import {
   AppMessage, 
   ServiceWorkerMessage,
   NotificationCleanupConfig
-} from '@/types/notifications/serviceWorkerTypes';
+} from '@/types/notifications';  // Import from the index file instead
 
 /**
  * Manages service worker operations with performance measurement
@@ -149,7 +148,7 @@ export class ServiceWorkerManager {
    * Register a listener for service worker messages with performance tracking
    */
   registerMessageListener(
-    callback: (message: ServiceWorkerMessage) => void
+    callback: (ServiceWorkerMessage) => void
   ): () => void {
     const wrappedCallback = (event: MessageEvent) => {
       const markId = performanceMonitor.startMark(

@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { Input } from "@/components/ui/input";
-import { NotificationCleanupConfig } from "@/types/notifications/serviceWorkerTypes";
+import { NotificationCleanupConfig } from "@/types/notifications";  // Import from the index file instead
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
