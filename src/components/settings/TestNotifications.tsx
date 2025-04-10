@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mail, BellRing, AlertTriangle, Loader2 } from "lucide-react";
+import { Mail, BellRing, AlertTriangle, Loader2, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { 
   useNotificationSettings,
@@ -12,12 +12,19 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const TestNotifications = () => {
   const [email, setEmail] = useState("");
   const [isEmailSending, setIsEmailSending] = useState(false);
   const [isPushSending, setIsPushSending] = useState(false);
   const [includeDeviceInfo, setIncludeDeviceInfo] = useState(true);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const { toast } = useToast();
   const { settings } = useNotificationSettings();
   const { permissionGranted, requestPermission } = useNotificationPermission();
@@ -35,6 +42,7 @@ const TestNotifications = () => {
     }
     
     setIsEmailSending(true);
+    setErrorDetails(null);
     
     try {
       // Call the Cloud Function for email test
@@ -53,11 +61,23 @@ const TestNotifications = () => {
       });
     } catch (error) {
       console.error("Error sending test email:", error);
+      
+      // Capture detailed error information
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : '';
+      
+      // Store detailed error for accordion
+      setErrorDetails(JSON.stringify({ 
+        message: errorMessage, 
+        stack: errorStack,
+        timestamp: new Date().toISOString()
+      }, null, 2));
+      
       toast({
         title: "Error",
-        description: `Failed to send test email: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        description: `Failed to send test email: ${errorMessage}`,
         variant: "destructive",
-        duration: 3000
+        duration: 5000
       });
     } finally {
       setIsEmailSending(false);
@@ -66,8 +86,8 @@ const TestNotifications = () => {
 
   const handleTestPush = async () => {
     if (!permissionGranted) {
-      const granted = await requestPermission();
-      if (!granted) {
+      const result = await requestPermission();
+      if (!result.granted) {
         toast({
           title: "Permission denied",
           description: "You need to allow notifications to test this feature",
@@ -79,12 +99,14 @@ const TestNotifications = () => {
     }
     
     setIsPushSending(true);
+    setErrorDetails(null);
     
     try {
-      // Call the Cloud Function for push test
+      // Call the Cloud Function for push test with debugging
+      console.log("Sending test push notification");
       const result = await sendTestNotification({
         type: 'push',
-        includeDeviceInfo
+        includeDeviceInfo: true // Always include for debugging
       });
       
       console.log("Test push notification result:", result);
@@ -96,11 +118,41 @@ const TestNotifications = () => {
       });
     } catch (error) {
       console.error("Error sending test push notification:", error);
+      
+      // Capture detailed error information
+      let errorMessage = 'Unknown error';
+      let errorDetails = {};
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        errorDetails = {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        };
+      } else if (typeof error === 'object' && error !== null) {
+        try {
+          errorDetails = { ...error };
+          errorMessage = String(error);
+        } catch (e) {
+          errorMessage = 'Unserializable error object';
+        }
+      } else {
+        errorMessage = String(error);
+      }
+      
+      // Store detailed error for accordion
+      setErrorDetails(JSON.stringify({ 
+        message: errorMessage, 
+        details: errorDetails,
+        timestamp: new Date().toISOString()
+      }, null, 2));
+      
       toast({
         title: "Error",
-        description: `Failed to send test push notification: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        description: `Failed to send test push notification: ${errorMessage}`,
         variant: "destructive",
-        duration: 3000
+        duration: 5000
       });
     } finally {
       setIsPushSending(false);
@@ -187,6 +239,24 @@ const TestNotifications = () => {
         )}
       </div>
       
+      {errorDetails && (
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="error-details">
+            <AccordionTrigger className="text-red-500 flex items-center">
+              <Info className="h-4 w-4 mr-2" />
+              Technical Error Details
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="bg-slate-100 dark:bg-slate-900 p-3 rounded-md">
+                <pre className="text-xs overflow-auto whitespace-pre-wrap max-h-64">
+                  {errorDetails}
+                </pre>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
+      
       <div className="space-y-2 pt-2 border-t">
         <div className="flex items-center justify-between">
           <Label htmlFor="include-device-info" className="text-sm font-medium">
@@ -205,15 +275,17 @@ const TestNotifications = () => {
       
       <Alert className="rounded-md bg-yellow-50 border border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800">
         <AlertTriangle className="h-4 w-4 text-yellow-800 dark:text-yellow-400" />
-        <AlertTitle className="text-yellow-800 dark:text-yellow-400">Testing information</AlertTitle>
+        <AlertTitle className="text-yellow-800 dark:text-yellow-400">Firebase Cloud Messaging</AlertTitle>
         <AlertDescription className="text-yellow-700 dark:text-yellow-500">
           <p className="mb-2">
-            Push notifications require browser support and permissions. If you don't receive notifications:
+            Common reasons for push notification failures:
           </p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Check that notifications are enabled in your browser settings</li>
-            <li>Make sure you're using a compatible browser (Chrome, Firefox, Edge, Safari)</li>
-            <li>If on mobile, notifications might be limited by your device settings</li>
+            <li>Firebase Cloud Messaging quota limits exceeded</li>
+            <li>Invalid FCM token or missing device token registration</li>
+            <li>Cloud Function errors or timeouts</li>
+            <li>Network connectivity issues</li>
+            <li>iOS specific: app not in foreground and no iOS configuration profile</li>
           </ul>
         </AlertDescription>
       </Alert>

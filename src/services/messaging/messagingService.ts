@@ -14,6 +14,7 @@ interface ExtendedGetTokenOptions extends GetTokenOptions {
 
 // Initialize Firebase app if it hasn't been initialized already
 let messaging: any;
+let initializationError: Error | null = null;
 
 try {
   if (typeof window !== 'undefined') {
@@ -22,6 +23,7 @@ try {
   }
 } catch (error) {
   console.error('Error initializing Firebase Messaging:', error);
+  initializationError = error instanceof Error ? error : new Error(String(error));
 }
 
 /**
@@ -59,8 +61,8 @@ export const setupForegroundMessageListener = (
  */
 export const getFCMToken = async (): Promise<string | null> => {
   if (!messaging) {
-    console.warn('Messaging not initialized, cannot get FCM token');
-    return null;
+    console.warn('Messaging not initialized, cannot get FCM token', initializationError);
+    throw new Error(`Firebase messaging not initialized: ${initializationError?.message || 'Unknown error'}`);
   }
   
   try {
@@ -69,21 +71,38 @@ export const getFCMToken = async (): Promise<string | null> => {
       iosPushLogger.logPushEvent('token-request-start');
       
       // iOS requires the service worker to be ready
-      const registration = await navigator.serviceWorker.ready;
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        console.log('Service worker ready:', registration.scope);
+      } catch (swError) {
+        console.error('Error with service worker:', swError);
+        iosPushLogger.logPushEvent('sw-error', { error: String(swError) });
+        throw new Error(`Service worker error: ${swError instanceof Error ? swError.message : String(swError)}`);
+      }
       
       // iOS Safari needs VAPID key without padding
       const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || 
         'BJ9HWzAxfk1jKtkGfoKYMauaVfMatIkqw0cCEwQ1WBH7cn5evFO_saWfpvXAVy5710DTOpSUoXsKk8LWGQK7lBU';
       
+      console.log('Using VAPID key:', vapidKey?.substring(0, 10) + '...');
+      
       // Remove any potential padding for iOS
       const formattedVapidKey = vapidKey.replace(/=/g, '');
       
       // Get token with iOS-specific options
-      const currentToken = await getToken(messaging, {
+      const tokenOptions: ExtendedGetTokenOptions = {
         vapidKey: formattedVapidKey,
-        serviceWorkerRegistration: registration,
-        forceRefresh: true // Using the extended interface
-      } as ExtendedGetTokenOptions);
+        serviceWorkerRegistration: await navigator.serviceWorker.ready,
+        forceRefresh: true
+      };
+      
+      console.log('Requesting token with options:', JSON.stringify({
+        vapidKey: tokenOptions.vapidKey?.substring(0, 10) + '...',
+        swScope: tokenOptions.serviceWorkerRegistration.scope,
+        forceRefresh: tokenOptions.forceRefresh
+      }));
+      
+      const currentToken = await getToken(messaging, tokenOptions);
       
       if (currentToken) {
         iosPushLogger.logPushEvent('token-received', { 
@@ -92,7 +111,7 @@ export const getFCMToken = async (): Promise<string | null> => {
         return currentToken;
       } else {
         iosPushLogger.logPushEvent('token-empty');
-        return null;
+        throw new Error('Token request succeeded but returned empty token');
       }
     } else {
       // Standard token request for other browsers
@@ -105,7 +124,7 @@ export const getFCMToken = async (): Promise<string | null> => {
         return currentToken;
       } else {
         console.log('No registration token available');
-        return null;
+        throw new Error('Token request succeeded but returned empty token');
       }
     }
   } catch (error) {
@@ -116,7 +135,7 @@ export const getFCMToken = async (): Promise<string | null> => {
       iosPushLogger.logPushEvent('token-error', { error: errorMsg });
     }
     
-    return null;
+    throw error; // Re-throw to propagate error up
   }
 };
 
@@ -128,7 +147,7 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
   // Check if notifications are supported
   if (typeof window === 'undefined' || !('Notification' in window)) {
     console.warn('Notifications not supported in this browser');
-    return null;
+    throw new Error('Notifications not supported in this browser');
   }
   
   try {
@@ -140,7 +159,9 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
     }
     
     // Request permission
+    console.log('Requesting notification permission...');
     const permission = await Notification.requestPermission();
+    console.log('Permission result:', permission);
     
     if (permission === 'granted') {
       // For iOS, log the successful permission
@@ -157,7 +178,7 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
       iosPushLogger.logPermissionEvent('denied');
     }
     
-    return null;
+    throw new Error(`Notification permission ${permission}`);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error('Error requesting notification permission:', errorMsg);
@@ -166,7 +187,7 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
       iosPushLogger.logPermissionEvent('error', { error: errorMsg });
     }
     
-    return null;
+    throw error; // Re-throw to propagate error up
   }
 };
 
@@ -189,6 +210,8 @@ export const sendTestMessage = async (options: {
   includeDeviceInfo?: boolean;
 }): Promise<any> => {
   try {
+    console.log('Preparing to send test notification with options:', options);
+    
     // For iOS, add device info and log the test attempt
     if (browserDetection.isIOS()) {
       iosPushLogger.logPushEvent('test-notification-request', { options });
@@ -197,7 +220,26 @@ export const sendTestMessage = async (options: {
       options.includeDeviceInfo = true;
     }
     
+    // Get current FCM token if this is a push notification
+    if (options.type === 'push') {
+      try {
+        const currentToken = await getFCMToken();
+        console.log('Current FCM token for test:', currentToken ? `${currentToken.substring(0, 5)}...` : 'No token');
+        
+        // If we got this far but don't have a token, that's a problem
+        if (!currentToken) {
+          throw new Error('No FCM token available for push notification test');
+        }
+      } catch (tokenError) {
+        console.error('Error getting token for test notification:', tokenError);
+        throw tokenError;
+      }
+    }
+    
+    // Send the test notification
+    console.log('Sending test notification via Firebase function');
     const result = await sendTestNotification(options);
+    console.log('Test notification result:', result);
     
     if (browserDetection.isIOS()) {
       iosPushLogger.logPushEvent('test-notification-result', { result });
@@ -209,11 +251,22 @@ export const sendTestMessage = async (options: {
     console.error('Error sending test notification:', errorMsg);
     
     if (browserDetection.isIOS()) {
-      iosPushLogger.logPushEvent('test-notification-error', { error: errorMsg });
+      iosPushLogger.logPushEvent('test-notification-error', { 
+        error: errorMsg,
+        stack: error instanceof Error ? error.stack : undefined
+      });
     }
     
     throw error;
   }
+};
+
+// Get messaging initialization status
+export const getMessagingStatus = () => {
+  return {
+    initialized: !!messaging,
+    error: initializationError ? initializationError.message : null
+  };
 };
 
 // Export necessary functions
