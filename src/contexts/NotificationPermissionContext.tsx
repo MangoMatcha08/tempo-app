@@ -1,9 +1,9 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   PermissionRequestResult,
   BrowserPermissionState, 
-  NotificationPermissionContextState,
-  NotificationPermission 
+  NotificationPermissionContextState 
 } from '@/types/notifications';
 import { requestNotificationPermission, firebaseInitPromise } from '@/services/notificationService';
 import { browserDetection } from '@/utils/browserDetection';
@@ -13,7 +13,6 @@ const NotificationPermissionContext = createContext<NotificationPermissionContex
   permissionGranted: false,
   isSupported: true,
   requestPermission: async () => ({ granted: false }),
-  hasPermission: () => false,
 });
 
 /**
@@ -143,26 +142,10 @@ export const NotificationPermissionProvider: React.FC<NotificationPermissionProv
     }
   };
 
-  /**
-   * Check if the application has permission for a specific notification type
-   * @param type The type of permission to check
-   * @returns Whether permission is granted for the specified type
-   */
-  const hasPermission = (type: string): boolean => {
-    // For now, we only support generic 'notifications' permission
-    if (type === 'notifications') {
-      return permissionGranted;
-    }
-    
-    // Other permission types can be added as needed
-    return false;
-  };
-
   const value: NotificationPermissionContextState = {
     permissionGranted,
     isSupported,
-    requestPermission,
-    hasPermission
+    requestPermission
   };
 
   return (

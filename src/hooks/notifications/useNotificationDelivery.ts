@@ -2,169 +2,144 @@
 /**
  * Notification Delivery Hook
  * 
- * Manages the delivery of notifications through various channels
+ * This hook combines the notification service, platform adapter, and strategy pattern
+ * to provide a unified interface for sending notifications.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { 
-  NotificationDeliveryManager, 
-  NotificationDeliveryResult,
-  NotificationServices
-} from '@/types/notifications/sharedTypes';
-import { NotificationRecord } from '@/types/notifications/notificationHistoryTypes';
-import { useNotificationServices } from './useNotificationServices';
-import { useNotificationFeatures } from './useNotificationFeatures';
-import { useNotificationPermission } from './useNotificationPermission';
+import { useState, useCallback } from 'react';
+import { NotificationRecord, NotificationDeliveryStatus } from '@/types/notifications';
+import { notificationDelivery } from '@/strategies/notification/NotificationStrategy';
+import { notificationService, useNotificationService } from '@/services/notification/NotificationService';
+import { getPlatformAdapter } from '@/adapters/platform/PlatformAdapter';
 import { NotificationMethod } from '@/utils/notificationCapabilities';
+import { Reminder } from '@/types/reminderTypes';
+import { formatReminderForNotification } from '@/utils/notificationUtils';
+import { useToast } from '@/hooks/use-toast';
 
-/**
- * Extended interface for NotificationDeliveryManager to include missing methods
- */
-interface ExtendedNotificationDeliveryManager extends NotificationDeliveryManager {
-  getBestAvailableMethod: (notification: NotificationRecord) => string;
+// Results interface
+export interface DeliveryAttempt {
+  notification: NotificationRecord;
+  success: boolean;
+  method: NotificationMethod;
+  error?: Error;
+  timestamp: number;
 }
 
-/**
- * Hook to manage notification delivery
- * 
- * @returns Notification delivery methods and state
- */
 export function useNotificationDelivery() {
-  const { deliveryManager, services } = useNotificationServices();
-  const { isFeatureEnabled } = useNotificationFeatures();
-  const { hasPermission } = useNotificationPermission();
+  const [deliveryHistory, setDeliveryHistory] = useState<DeliveryAttempt[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [lastDelivery, setLastDelivery] = useState<DeliveryAttempt | null>(null);
+  const { toast } = useToast();
   
-  const [delivering, setDelivering] = useState(false);
-  const [lastResult, setLastResult] = useState<NotificationDeliveryResult | null>(null);
+  const notificationSvc = useNotificationService();
   
-  const extendedManager = deliveryManager as ExtendedNotificationDeliveryManager;
-  
-  /**
-   * Deliver a notification using the best available channel
-   */
-  const deliverNotification = useCallback(async (notification: NotificationRecord): Promise<NotificationDeliveryResult> => {
-    setDelivering(true);
+  const deliverNotification = useCallback(async (
+    notification: NotificationRecord
+  ): Promise<boolean> => {
+    setLoading(true);
     
     try {
-      const channel = extendedManager.getBestAvailableMethod(notification);
-      const result = await deliveryManager.deliver(notification, channel);
+      // Use the notification service to send the notification
+      const result = await notificationSvc.sendNotification(notification);
       
-      setLastResult(result);
-      return result;
-    } catch (error) {
-      const errorResult: NotificationDeliveryResult = {
-        success: false,
-        id: notification.id,
-        channel: 'unknown',
-        timestamp: Date.now(),
-        error: error instanceof Error ? error.message : 'Unknown error'
+      // Create a record of the delivery attempt
+      const attempt: DeliveryAttempt = {
+        notification,
+        success: result,
+        method: notificationDelivery.getBestAvailableMethod(),
+        timestamp: Date.now()
       };
       
-      setLastResult(errorResult);
-      return errorResult;
-    } finally {
-      setDelivering(false);
-    }
-  }, [deliveryManager, extendedManager]);
-  
-  /**
-   * Get available delivery channels based on permissions and device capabilities
-   */
-  const availableChannels = useMemo(() => {
-    const channels = [];
-    
-    // Push notifications
-    if (hasPermission('notifications')) {
-      channels.push('push');
-    }
-    
-    // In-app notifications always available
-    channels.push('in-app');
-    
-    // Email if enabled in settings
-    if (isFeatureEnabled('EMAIL_NOTIFICATIONS')) {
-      channels.push('email');
-    }
-    
-    // SMS if enabled in settings
-    if (isFeatureEnabled('SMS_NOTIFICATIONS')) {
-      channels.push('sms');
-    }
-    
-    return channels;
-  }, [hasPermission, isFeatureEnabled]);
-  
-  /**
-   * Check if a specific notification delivery method is available
-   */
-  const isDeliveryMethodAvailable = useCallback((method: string): boolean => {
-    return availableChannels.includes(method);
-  }, [availableChannels]);
-  
-  /**
-   * Get the recommended delivery method for a notification
-   */
-  const getRecommendedDeliveryMethod = useCallback((notification: NotificationRecord): string => {
-    return extendedManager.getBestAvailableMethod(notification);
-  }, [extendedManager]);
-
-  /**
-   * Get best method for delivering notifications
-   */
-  const getBestMethod = useCallback(() => {
-    return NotificationMethod.WEB_PUSH;
-  }, []);
-
-  /**
-   * Check if notification permission is granted
-   */
-  const isPermissionGranted = useCallback(() => {
-    return hasPermission('notifications');
-  }, [hasPermission]);
-
-  /**
-   * Request notification permission
-   */
-  const requestPermission = useCallback(async () => {
-    try {
-      const result = await useNotificationPermission().requestPermission();
-      return result.granted;
+      setDeliveryHistory(prev => [attempt, ...prev]);
+      setLastDelivery(attempt);
+      
+      return result;
     } catch (error) {
-      console.error('Failed to request permission:', error);
+      console.error('Error delivering notification:', error);
+      
+      // Record the failed attempt
+      const attempt: DeliveryAttempt = {
+        notification,
+        success: false,
+        method: notificationDelivery.getBestAvailableMethod(),
+        error: error instanceof Error ? error : new Error(String(error)),
+        timestamp: Date.now()
+      };
+      
+      setDeliveryHistory(prev => [attempt, ...prev]);
+      setLastDelivery(attempt);
+      
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [notificationSvc]);
+  
+  const deliverReminderNotification = useCallback(async (
+    reminder: Reminder
+  ): Promise<boolean> => {
+    const notificationData = formatReminderForNotification(reminder);
+    
+    if (!notificationData) {
+      console.error('Could not format reminder for notification', reminder);
+      return false;
+    }
+    
+    const notification: NotificationRecord = {
+      id: `reminder-${reminder.id}-${Date.now()}`,
+      title: notificationData.title,
+      body: notificationData.description || '',
+      timestamp: Date.now(),
+      type: reminder.type ?? 'default', // Using nullish coalescing for type property
+      reminderId: reminder.id,
+      priority: reminder.priority,
+      status: NotificationDeliveryStatus.PENDING, // Changed from string literal to enum
+      channels: []
+    };
+    
+    const success = await deliverNotification(notification);
+    
+    if (success) {
+      toast({
+        title: notification.title,
+        description: notification.body,
+        duration: 5000,
+      });
+    }
+    
+    return success;
+  }, [deliverNotification, toast]);
+  
+  const requestPermission = useCallback(async (): Promise<boolean> => {
+    try {
+      return await notificationService.requestPermission();
+    } catch (error) {
+      console.error('Error requesting permission:', error);
       return false;
     }
   }, []);
-
-  /**
-   * Get platform information
-   */
-  const getPlatformInfo = useCallback(() => {
-    const userAgent = navigator.userAgent || '';
-    const isIOS = /iPad|iPhone|iPod/.test(userAgent);
-    const isAndroid = /Android/.test(userAgent);
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches;
-    
-    return {
-      name: isIOS ? 'iOS' : isAndroid ? 'Android' : 'Desktop',
-      version: '',
-      isIOS,
-      isAndroid,
-      isDesktop: !isIOS && !isAndroid,
-      isPWA
-    };
+  
+  const getBestMethod = useCallback((): NotificationMethod => {
+    return notificationDelivery.getBestAvailableMethod();
   }, []);
   
-  // Return the hook API
+  const isPermissionGranted = useCallback((): boolean => {
+    return notificationService.isPermissionGranted();
+  }, []);
+  
+  const getPlatformInfo = useCallback(() => {
+    return getPlatformAdapter().getPlatformInfo();
+  }, []);
+  
   return {
     deliverNotification,
-    availableChannels,
-    isDeliveryMethodAvailable,
-    getRecommendedDeliveryMethod,
-    delivering,
-    lastResult,
-    getBestMethod,
-    isPermissionGranted,
+    deliverReminderNotification,
     requestPermission,
-    getPlatformInfo
+    isPermissionGranted,
+    getBestMethod,
+    getPlatformInfo,
+    deliveryHistory,
+    lastDelivery,
+    loading
   };
 }

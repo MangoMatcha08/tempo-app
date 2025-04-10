@@ -1,72 +1,67 @@
 
 /**
- * Feature Flag Type Definitions
- * 
- * This module defines feature flags for the notification system
+ * Feature flag definitions for notification system
  */
 
 /**
- * Feature flag configuration
+ * Main feature flag type for notification-related features
+ * @interface
  */
 export interface FeatureFlags {
   // Core notification features
+  /** Whether notification history is enabled */
   HISTORY_ENABLED: boolean;
+  /** Whether quiet hours functionality is enabled */
   QUIET_HOURS_ENABLED: boolean;
+  /** Whether bulk actions on notifications are enabled */
   BULK_ACTIONS_ENABLED: boolean;
+  /** Whether notification grouping is enabled */
   NOTIFICATION_GROUPING: boolean;
-  
-  // Performance & reliability features
+  /** Whether automatic cleanup of old notifications is enabled */
   AUTO_CLEANUP: boolean;
+  
+  // Performance optimizations
+  /** Whether to use virtualized lists for performance */
   VIRTUALIZED_LISTS: boolean;
+  /** Whether to use pagination for loading notifications */
   PAGINATED_LOADING: boolean;
+  /** Whether to use advanced caching strategies */
   ADVANCED_CACHE: boolean;
   
-  // iOS-specific features
-  IOS_PWA_FALLBACK: boolean;
-  IOS_PUSH_SUPPORT: boolean;
-  
-  // Offline & sync features
-  BACKGROUND_SYNC: boolean;
-  OFFLINE_NOTIFICATIONS: boolean;
-  SHOW_SYNC_NOTIFICATIONS: boolean;
-  
   // Developer features
+  /** Whether developer mode is enabled */
   DEV_MODE: boolean;
+  /** Whether to enable verbose logging */
   VERBOSE_LOGGING: boolean;
-  
-  // Set a version rollout value based on iOS version for targeted features
-  IOS_VERSION_ROLLOUT: number;
 }
 
 /**
- * Default feature flag values
+ * Default feature flag values in production mode
  */
-export const NOTIFICATION_FEATURES: FeatureFlags = {
-  // Core features - generally enabled
+export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
+  // Core notification features
   HISTORY_ENABLED: true,
-  QUIET_HOURS_ENABLED: true,
-  BULK_ACTIONS_ENABLED: true,
-  NOTIFICATION_GROUPING: true,
-  
-  // Performance features - enabled by default
+  QUIET_HOURS_ENABLED: false,
+  BULK_ACTIONS_ENABLED: false,
+  NOTIFICATION_GROUPING: false,
   AUTO_CLEANUP: true,
+  
+  // Performance optimizations
   VIRTUALIZED_LISTS: true,
   PAGINATED_LOADING: true,
   ADVANCED_CACHE: true,
   
-  // iOS-specific features - enabled based on detection
-  IOS_PWA_FALLBACK: true,
-  IOS_PUSH_SUPPORT: true,
-  
-  // Offline & sync features - enabled by default
-  BACKGROUND_SYNC: true,
-  OFFLINE_NOTIFICATIONS: true,
-  SHOW_SYNC_NOTIFICATIONS: true,
-  
-  // Developer features - disabled by default
+  // Developer features
   DEV_MODE: false,
-  VERBOSE_LOGGING: false,
-  
-  // iOS version rollout - defaults to 0 (no restriction)
-  IOS_VERSION_ROLLOUT: 0
+  VERBOSE_LOGGING: false
 };
+
+/**
+ * Storage key for persisted feature flags
+ */
+export const FEATURE_FLAGS_STORAGE_KEY = 'app_feature_flags';
+
+/**
+ * Export constant for feature flag checks in components
+ */
+export const NOTIFICATION_FEATURES = DEFAULT_FEATURE_FLAGS;
