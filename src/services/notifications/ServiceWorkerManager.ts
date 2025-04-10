@@ -1,4 +1,3 @@
-
 import { 
   performanceMonitor,
   notificationPerformance
@@ -90,47 +89,49 @@ export class ServiceWorkerManager {
     debug?: boolean;
     cleanupConfig?: Partial<NotificationCleanupConfig>;
   }): Promise<boolean> {
-    if (config.cleanupConfig) {
+    // Extract cleanupConfig from the rest of the config properties
+    const { cleanupConfig, ...restConfig } = config;
+    
+    // Handle case where cleanupConfig is provided
+    if (cleanupConfig) {
       // Create a fully-formed config object with all required properties
       const fullConfig: NotificationCleanupConfig = {
         // Required properties with fallbacks
-        enabled: config.cleanupConfig.enabled ?? DEFAULT_CLEANUP_CONFIG.enabled,
-        maxAgeDays: config.cleanupConfig.maxAgeDays ?? DEFAULT_CLEANUP_CONFIG.maxAgeDays,
-        maxCount: config.cleanupConfig.maxCount ?? DEFAULT_CLEANUP_CONFIG.maxCount,
-        excludeHighPriority: config.cleanupConfig.excludeHighPriority ?? DEFAULT_CLEANUP_CONFIG.excludeHighPriority,
-        highPriorityMaxAgeDays: config.cleanupConfig.highPriorityMaxAgeDays ?? DEFAULT_CLEANUP_CONFIG.highPriorityMaxAgeDays,
+        enabled: cleanupConfig.enabled ?? DEFAULT_CLEANUP_CONFIG.enabled,
+        maxAgeDays: cleanupConfig.maxAgeDays ?? DEFAULT_CLEANUP_CONFIG.maxAgeDays,
+        maxCount: cleanupConfig.maxCount ?? DEFAULT_CLEANUP_CONFIG.maxCount,
+        excludeHighPriority: cleanupConfig.excludeHighPriority ?? DEFAULT_CLEANUP_CONFIG.excludeHighPriority,
+        highPriorityMaxAgeDays: cleanupConfig.highPriorityMaxAgeDays ?? DEFAULT_CLEANUP_CONFIG.highPriorityMaxAgeDays,
         
         // Optional properties
-        cleanupInterval: config.cleanupConfig.cleanupInterval ?? DEFAULT_CLEANUP_CONFIG.cleanupInterval,
-        lastCleanup: config.cleanupConfig.lastCleanup ?? DEFAULT_CLEANUP_CONFIG.lastCleanup,
+        cleanupInterval: cleanupConfig.cleanupInterval ?? DEFAULT_CLEANUP_CONFIG.cleanupInterval,
+        lastCleanup: cleanupConfig.lastCleanup ?? DEFAULT_CLEANUP_CONFIG.lastCleanup,
         
         // Legacy properties for backward compatibility
-        maxAge: config.cleanupConfig.maxAge ?? config.cleanupConfig.maxAgeDays ?? DEFAULT_CLEANUP_CONFIG.maxAgeDays,
-        keepHighPriority: config.cleanupConfig.keepHighPriority ?? 
-                         (config.cleanupConfig.excludeHighPriority !== undefined ? 
-                          !config.cleanupConfig.excludeHighPriority : !DEFAULT_CLEANUP_CONFIG.excludeHighPriority),
-        highPriorityMaxAge: config.cleanupConfig.highPriorityMaxAge ?? 
-                           config.cleanupConfig.highPriorityMaxAgeDays ?? DEFAULT_CLEANUP_CONFIG.highPriorityMaxAgeDays
+        maxAge: cleanupConfig.maxAge ?? cleanupConfig.maxAgeDays ?? DEFAULT_CLEANUP_CONFIG.maxAgeDays,
+        keepHighPriority: cleanupConfig.keepHighPriority ?? 
+                         (cleanupConfig.excludeHighPriority !== undefined ? 
+                          !cleanupConfig.excludeHighPriority : !DEFAULT_CLEANUP_CONFIG.excludeHighPriority),
+        highPriorityMaxAge: cleanupConfig.highPriorityMaxAge ?? 
+                           cleanupConfig.highPriorityMaxAgeDays ?? DEFAULT_CLEANUP_CONFIG.highPriorityMaxAgeDays
       };
       
-      // Create a completely new object with the correct property types
-      const typedMessageConfig = {
-        cachingEnabled: config.cachingEnabled,
-        cacheMaintenanceInterval: config.cacheMaintenanceInterval,
-        debug: config.debug,
-        cleanupConfig: fullConfig // Will be properly typed
-      };
-      
+      // Send message with the complete cleanupConfig
       return this.sendMessage({
         type: 'UPDATE_CONFIG',
-        payload: { config: typedMessageConfig }
+        payload: { 
+          config: {
+            ...restConfig,
+            cleanupConfig: fullConfig
+          }
+        }
       });
     }
     
-    // If no cleanupConfig provided, just pass the original
+    // If no cleanupConfig provided, send message without it
     return this.sendMessage({
       type: 'UPDATE_CONFIG',
-      payload: { config }
+      payload: { config: restConfig }
     });
   }
   
