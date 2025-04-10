@@ -1,3 +1,4 @@
+
 import { 
   performanceMonitor,
   notificationPerformance
@@ -89,33 +90,43 @@ export class ServiceWorkerManager {
     debug?: boolean;
     cleanupConfig?: Partial<NotificationCleanupConfig>;
   }): Promise<boolean> {
-    // Create a complete config from the partial one
+    // Create a new config object to avoid modifying the input
+    let messageConfig = { ...config };
+    
+    // If cleanupConfig exists, create a complete version with all required fields
     if (config.cleanupConfig) {
       const fullConfig: NotificationCleanupConfig = {
+        // Required fields with fallbacks to default values
         enabled: config.cleanupConfig.enabled ?? DEFAULT_CLEANUP_CONFIG.enabled,
         maxAgeDays: config.cleanupConfig.maxAgeDays ?? DEFAULT_CLEANUP_CONFIG.maxAgeDays,
         maxCount: config.cleanupConfig.maxCount ?? DEFAULT_CLEANUP_CONFIG.maxCount,
         excludeHighPriority: config.cleanupConfig.excludeHighPriority ?? DEFAULT_CLEANUP_CONFIG.excludeHighPriority,
         highPriorityMaxAgeDays: config.cleanupConfig.highPriorityMaxAgeDays ?? DEFAULT_CLEANUP_CONFIG.highPriorityMaxAgeDays,
+        
+        // Optional fields
         cleanupInterval: config.cleanupConfig.cleanupInterval ?? DEFAULT_CLEANUP_CONFIG.cleanupInterval,
         lastCleanup: config.cleanupConfig.lastCleanup ?? DEFAULT_CLEANUP_CONFIG.lastCleanup,
         
-        // Add deprecated properties for backward compatibility
-        maxAge: config.cleanupConfig.maxAgeDays ?? DEFAULT_CLEANUP_CONFIG.maxAgeDays,
-        keepHighPriority: config.cleanupConfig.excludeHighPriority !== undefined ? !config.cleanupConfig.excludeHighPriority : !DEFAULT_CLEANUP_CONFIG.excludeHighPriority,
-        highPriorityMaxAge: config.cleanupConfig.highPriorityMaxAgeDays ?? DEFAULT_CLEANUP_CONFIG.highPriorityMaxAgeDays
+        // Legacy properties for backward compatibility
+        maxAge: config.cleanupConfig.maxAge ?? config.cleanupConfig.maxAgeDays ?? DEFAULT_CLEANUP_CONFIG.maxAgeDays,
+        keepHighPriority: config.cleanupConfig.keepHighPriority ?? 
+                         (config.cleanupConfig.excludeHighPriority !== undefined ? 
+                          !config.cleanupConfig.excludeHighPriority : !DEFAULT_CLEANUP_CONFIG.excludeHighPriority),
+        highPriorityMaxAge: config.cleanupConfig.highPriorityMaxAge ?? 
+                           config.cleanupConfig.highPriorityMaxAgeDays ?? DEFAULT_CLEANUP_CONFIG.highPriorityMaxAgeDays
       };
       
-      // Replace the partial config with the complete one
-      config = {
+      // Replace partial config with complete one
+      messageConfig = {
         ...config,
         cleanupConfig: fullConfig
       };
     }
     
+    // Use the new config object with the complete cleanupConfig
     return this.sendMessage({
       type: 'UPDATE_CONFIG',
-      payload: { config }
+      payload: { config: messageConfig }
     });
   }
   
