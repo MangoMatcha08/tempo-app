@@ -95,7 +95,7 @@ export class ServiceWorkerManager {
     
     // If cleanupConfig exists, create a complete version with all required fields
     if (config.cleanupConfig) {
-      const fullConfig: NotificationCleanupConfig = {
+      const fullConfig = {
         // Required fields with fallbacks to default values
         enabled: config.cleanupConfig.enabled ?? DEFAULT_CLEANUP_CONFIG.enabled,
         maxAgeDays: config.cleanupConfig.maxAgeDays ?? DEFAULT_CLEANUP_CONFIG.maxAgeDays,
@@ -116,10 +116,12 @@ export class ServiceWorkerManager {
                            config.cleanupConfig.highPriorityMaxAgeDays ?? DEFAULT_CLEANUP_CONFIG.highPriorityMaxAgeDays
       };
       
-      // Replace partial config with complete one
+      // Replace partial config with complete one 
+      // Type assertion is necessary here because TypeScript doesn't recognize that we've added
+      // all required properties to make this a complete NotificationCleanupConfig
       messageConfig = {
         ...config,
-        cleanupConfig: fullConfig
+        cleanupConfig: fullConfig as NotificationCleanupConfig
       };
     }
     
