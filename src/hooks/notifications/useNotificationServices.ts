@@ -10,8 +10,33 @@
 
 import { useCallback } from 'react';
 import { useNotificationHistory } from '@/contexts/notificationHistory';
-import { NotificationServices } from './types';
+import { 
+  NotificationServices, 
+  NotificationDeliveryManager, 
+  NotificationDeliveryResult 
+} from '@/types/notifications/sharedTypes';
 import { sendTestNotification as sendTestNotificationFn } from '@/lib/firebase/functions';
+
+// Simple implementation of the delivery manager
+const createDeliveryManager = (): NotificationDeliveryManager => {
+  return {
+    deliver: async (notification, channel) => {
+      console.log(`Delivering notification via ${channel}:`, notification);
+      
+      // Simple implementation that always succeeds
+      return {
+        success: true,
+        id: notification.id || `notification-${Date.now()}`,
+        channel,
+        timestamp: Date.now()
+      };
+    },
+    getBestAvailableMethod: (notification) => {
+      // Default to in-app notifications as the fallback
+      return 'in-app';
+    }
+  };
+};
 
 /**
  * Hook for notification services
@@ -47,11 +72,27 @@ export function useNotificationServices(): NotificationServices {
     }
   }, []);
 
+  // Create delivery manager instance
+  const deliveryManager = createDeliveryManager();
+
+  // Create services record
+  const services = {
+    cleanup: {
+      cleanupNotifications,
+      runAutomaticCleanup
+    },
+    testing: {
+      sendTestNotification
+    }
+  };
+
   return {
     cleanupConfig,
     updateCleanupConfig,
     cleanupNotifications,
     runAutomaticCleanup,
-    sendTestNotification
+    sendTestNotification,
+    deliveryManager,
+    services
   };
 }
