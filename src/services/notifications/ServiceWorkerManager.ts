@@ -148,7 +148,7 @@ export class ServiceWorkerManager {
    * Register a listener for service worker messages with performance tracking
    */
   registerMessageListener(
-    callback: (ServiceWorkerMessage) => void
+    callback: (message: ServiceWorkerMessage) => void
   ): () => void {
     const wrappedCallback = (event: MessageEvent) => {
       const markId = performanceMonitor.startMark(

@@ -20,7 +20,7 @@ export {
 // Re-export other module-specific types
 export * from './notificationHistoryTypes';
 export * from './permissionTypes';
-export * from './serviceWorkerTypes';  // This line was already here, but the types weren't being exported from serviceWorkerTypes properly
+export * from './serviceWorkerTypes';  // This will now properly export all types
 export * from './settingsTypes';
 export * from './featureFlags';
 
