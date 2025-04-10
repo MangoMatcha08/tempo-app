@@ -3,7 +3,8 @@ import { NotificationAction } from './notificationHistoryTypes';
 import { NotificationCleanupConfig, DEFAULT_CLEANUP_CONFIG } from './sharedTypes';
 
 // Re-export for existing imports
-export { NotificationCleanupConfig, DEFAULT_CLEANUP_CONFIG };
+export type { NotificationCleanupConfig };
+export { DEFAULT_CLEANUP_CONFIG };
 
 /**
  * Message payload from service worker to app

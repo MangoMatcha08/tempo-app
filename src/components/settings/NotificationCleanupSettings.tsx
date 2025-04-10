@@ -76,8 +76,8 @@ const NotificationCleanupSettings = () => {
       const result = await cleanupNotifications({
         maxAge: formValues.maxAgeDays,
         maxCount: formValues.maxCount,
-        excludeHighPriority: formValues.excludeHighPriority,
-        highPriorityMaxAgeDays: formValues.highPriorityMaxAgeDays
+        keepHighPriority: !formValues.excludeHighPriority, // Inverse of excludeHighPriority
+        highPriorityMaxAge: formValues.highPriorityMaxAgeDays // Map to old property name
       });
       
       setCleanupResult(result);

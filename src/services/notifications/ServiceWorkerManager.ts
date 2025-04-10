@@ -1,4 +1,3 @@
-
 import { 
   performanceMonitor,
   notificationPerformance
@@ -90,12 +89,22 @@ export class ServiceWorkerManager {
     debug?: boolean;
     cleanupConfig?: Partial<NotificationCleanupConfig>;
   }): Promise<boolean> {
-    // Ensure all required fields exist before sending
+    // Create a complete config from the partial one
     if (config.cleanupConfig) {
-      const fullConfig: NotificationCleanupConfig = normalizeCleanupConfig({
-        ...DEFAULT_CLEANUP_CONFIG,
-        ...config.cleanupConfig
-      });
+      const fullConfig: NotificationCleanupConfig = {
+        enabled: config.cleanupConfig.enabled ?? DEFAULT_CLEANUP_CONFIG.enabled,
+        maxAgeDays: config.cleanupConfig.maxAgeDays ?? DEFAULT_CLEANUP_CONFIG.maxAgeDays,
+        maxCount: config.cleanupConfig.maxCount ?? DEFAULT_CLEANUP_CONFIG.maxCount,
+        excludeHighPriority: config.cleanupConfig.excludeHighPriority ?? DEFAULT_CLEANUP_CONFIG.excludeHighPriority,
+        highPriorityMaxAgeDays: config.cleanupConfig.highPriorityMaxAgeDays ?? DEFAULT_CLEANUP_CONFIG.highPriorityMaxAgeDays,
+        cleanupInterval: config.cleanupConfig.cleanupInterval ?? DEFAULT_CLEANUP_CONFIG.cleanupInterval,
+        lastCleanup: config.cleanupConfig.lastCleanup ?? DEFAULT_CLEANUP_CONFIG.lastCleanup,
+        
+        // Add deprecated properties for backward compatibility
+        maxAge: config.cleanupConfig.maxAgeDays ?? DEFAULT_CLEANUP_CONFIG.maxAgeDays,
+        keepHighPriority: config.cleanupConfig.excludeHighPriority !== undefined ? !config.cleanupConfig.excludeHighPriority : !DEFAULT_CLEANUP_CONFIG.excludeHighPriority,
+        highPriorityMaxAge: config.cleanupConfig.highPriorityMaxAgeDays ?? DEFAULT_CLEANUP_CONFIG.highPriorityMaxAgeDays
+      };
       
       // Replace the partial config with the complete one
       config = {
