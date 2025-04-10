@@ -12,8 +12,6 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import EmulatorTestPanel from "./EmulatorTestPanel";
-import { isDevelopment } from "@/utils/emulatorUtils";
 
 const TestNotifications = () => {
   const [email, setEmail] = useState("");
@@ -24,7 +22,6 @@ const TestNotifications = () => {
   const { settings } = useNotificationSettings();
   const { permissionGranted, requestPermission } = useNotificationPermission();
   const { sendTestNotification } = useNotificationServices();
-  const showDevTools = isDevelopment();
 
   const handleTestEmail = async () => {
     if (!email) {
@@ -112,9 +109,6 @@ const TestNotifications = () => {
 
   return (
     <div className="space-y-6">
-      {/* Show Emulator Test Panel in development mode */}
-      {showDevTools && <EmulatorTestPanel />}
-      
       <div className="space-y-2">
         <h3 className="text-sm font-medium">Test Email Notification</h3>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
