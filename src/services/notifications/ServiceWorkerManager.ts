@@ -1,3 +1,4 @@
+
 import { 
   performanceMonitor,
   notificationPerformance
@@ -7,6 +8,7 @@ import {
   ServiceWorkerMessage,
   NotificationCleanupConfig
 } from '@/types/notifications';  // Import from the index file instead
+import { normalizeCleanupConfig } from '@/utils/notificationUtils';
 
 /**
  * Manages service worker operations with performance measurement
@@ -86,11 +88,17 @@ export class ServiceWorkerManager {
     cachingEnabled?: boolean;
     cacheMaintenanceInterval?: number;
     debug?: boolean;
-    cleanupConfig?: NotificationCleanupConfig;
+    cleanupConfig?: Partial<NotificationCleanupConfig>;
   }): Promise<boolean> {
+    // Normalize the cleanup config to ensure all properties are in sync
+    const updatedConfig = {
+      ...config,
+      cleanupConfig: config.cleanupConfig ? normalizeCleanupConfig(config.cleanupConfig) : undefined
+    };
+    
     return this.sendMessage({
       type: 'UPDATE_CONFIG',
-      payload: { config }
+      payload: { config: updatedConfig }
     });
   }
   

@@ -224,20 +224,24 @@ export interface CleanupStatistics {
  * @interface
  */
 export interface NotificationCleanupConfig {
-  /** Whether automatic cleanup is enabled */
+  // Core properties
   enabled: boolean;
-  /** Maximum age of notifications in days before cleanup */
-  maxAge: number;
-  /** Maximum number of notifications to keep */
-  maxCount: number;
-  /** Whether to keep high priority notifications longer */
-  keepHighPriority: boolean;
-  /** Maximum age for high priority notifications in days */
-  highPriorityMaxAge: number;
-  /** How often to run cleanup in hours */
   cleanupInterval: number;
-  /** When the last cleanup ran (milliseconds since epoch) */
   lastCleanup?: number;
+  maxCount: number;
+  
+  // Standardize on these property names
+  keepHighPriority: boolean;
+  highPriorityMaxAge: number;
+  maxAge: number;
+  
+  // Temporary compatibility properties
+  /** @deprecated Use keepHighPriority instead (with inverted logic) */
+  excludeHighPriority?: boolean;
+  /** @deprecated Use highPriorityMaxAge instead */
+  highPriorityMaxAgeDays?: number;
+  /** @deprecated Use maxAge instead */
+  maxAgeDays?: number;
 }
 
 /**
@@ -250,6 +254,11 @@ export const DEFAULT_CLEANUP_CONFIG: NotificationCleanupConfig = {
   keepHighPriority: true,
   highPriorityMaxAge: 90, // 90 days for high priority
   cleanupInterval: 24,    // Run cleanup daily
+  
+  // Include compatibility properties with correct values
+  excludeHighPriority: false, // Inverse of keepHighPriority
+  maxAgeDays: 30,
+  highPriorityMaxAgeDays: 90
 };
 
 /**
