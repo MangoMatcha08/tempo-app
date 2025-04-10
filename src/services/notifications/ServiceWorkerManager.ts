@@ -90,20 +90,17 @@ export class ServiceWorkerManager {
     debug?: boolean;
     cleanupConfig?: Partial<NotificationCleanupConfig>;
   }): Promise<boolean> {
-    // Create a new config object to avoid modifying the input
-    let messageConfig = { ...config };
-    
-    // If cleanupConfig exists, create a complete version with all required fields
     if (config.cleanupConfig) {
-      const fullConfig = {
-        // Required fields with fallbacks to default values
+      // Create a fully-formed config object with all required properties
+      const fullConfig: NotificationCleanupConfig = {
+        // Required properties with fallbacks
         enabled: config.cleanupConfig.enabled ?? DEFAULT_CLEANUP_CONFIG.enabled,
         maxAgeDays: config.cleanupConfig.maxAgeDays ?? DEFAULT_CLEANUP_CONFIG.maxAgeDays,
         maxCount: config.cleanupConfig.maxCount ?? DEFAULT_CLEANUP_CONFIG.maxCount,
         excludeHighPriority: config.cleanupConfig.excludeHighPriority ?? DEFAULT_CLEANUP_CONFIG.excludeHighPriority,
         highPriorityMaxAgeDays: config.cleanupConfig.highPriorityMaxAgeDays ?? DEFAULT_CLEANUP_CONFIG.highPriorityMaxAgeDays,
         
-        // Optional fields
+        // Optional properties
         cleanupInterval: config.cleanupConfig.cleanupInterval ?? DEFAULT_CLEANUP_CONFIG.cleanupInterval,
         lastCleanup: config.cleanupConfig.lastCleanup ?? DEFAULT_CLEANUP_CONFIG.lastCleanup,
         
@@ -116,19 +113,24 @@ export class ServiceWorkerManager {
                            config.cleanupConfig.highPriorityMaxAgeDays ?? DEFAULT_CLEANUP_CONFIG.highPriorityMaxAgeDays
       };
       
-      // Replace partial config with complete one 
-      // Type assertion is necessary here because TypeScript doesn't recognize that we've added
-      // all required properties to make this a complete NotificationCleanupConfig
-      messageConfig = {
-        ...config,
-        cleanupConfig: fullConfig as NotificationCleanupConfig
+      // Create a completely new object with the correct property types
+      const typedMessageConfig = {
+        cachingEnabled: config.cachingEnabled,
+        cacheMaintenanceInterval: config.cacheMaintenanceInterval,
+        debug: config.debug,
+        cleanupConfig: fullConfig // Will be properly typed
       };
+      
+      return this.sendMessage({
+        type: 'UPDATE_CONFIG',
+        payload: { config: typedMessageConfig }
+      });
     }
     
-    // Use the new config object with the complete cleanupConfig
+    // If no cleanupConfig provided, just pass the original
     return this.sendMessage({
       type: 'UPDATE_CONFIG',
-      payload: { config: messageConfig }
+      payload: { config }
     });
   }
   
