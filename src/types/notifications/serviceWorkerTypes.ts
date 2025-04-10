@@ -1,4 +1,3 @@
-
 import { NotificationRecord } from './notificationHistoryTypes';
 import { NotificationAction } from './notificationHistoryTypes';
 
@@ -226,18 +225,33 @@ export interface CleanupStatistics {
 export interface NotificationCleanupConfig {
   /** Whether automatic cleanup is enabled */
   enabled: boolean;
-  /** Maximum age of notifications in days before cleanup */
-  maxAge: number;
-  /** Maximum number of notifications to keep */
-  maxCount: number;
-  /** Whether to keep high priority notifications longer */
-  keepHighPriority: boolean;
-  /** Maximum age for high priority notifications in days */
-  highPriorityMaxAge: number;
+  
   /** How often to run cleanup in hours */
   cleanupInterval: number;
+  
   /** When the last cleanup ran (milliseconds since epoch) */
   lastCleanup?: number;
+  
+  /** Maximum number of notifications to keep */
+  maxCount: number;
+  
+  /** Whether to keep high priority notifications longer */
+  keepHighPriority: boolean;
+  
+  /** Maximum age of notifications in days before cleanup */
+  maxAge: number;
+  
+  /** Maximum age for high priority notifications in days */
+  highPriorityMaxAge: number;
+  
+  /** @deprecated Use keepHighPriority instead (with inverted logic) */
+  excludeHighPriority?: boolean;
+  
+  /** @deprecated Use maxAge instead */
+  maxAgeDays?: number;
+  
+  /** @deprecated Use highPriorityMaxAge instead */
+  highPriorityMaxAgeDays?: number;
 }
 
 /**
@@ -245,11 +259,18 @@ export interface NotificationCleanupConfig {
  */
 export const DEFAULT_CLEANUP_CONFIG: NotificationCleanupConfig = {
   enabled: true,
-  maxAge: 30,            // 30 days
-  maxCount: 200,         // Keep last 200 notifications
+  cleanupInterval: 24,       // Run cleanup daily
+  maxCount: 200,             // Keep last 200 notifications
+  
+  // Primary properties
   keepHighPriority: true,
-  highPriorityMaxAge: 90, // 90 days for high priority
-  cleanupInterval: 24,    // Run cleanup daily
+  maxAge: 30,                // 30 days
+  highPriorityMaxAge: 90,    // 90 days for high priority
+  
+  // Compatibility properties (with correct inverted value for excludeHighPriority)
+  excludeHighPriority: false, // Inverse of keepHighPriority
+  maxAgeDays: 30,
+  highPriorityMaxAgeDays: 90
 };
 
 /**
