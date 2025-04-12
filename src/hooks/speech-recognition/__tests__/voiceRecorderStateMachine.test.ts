@@ -1,4 +1,3 @@
-
 import { renderHook, act } from '@testing-library/react';
 import { useVoiceRecorderStateMachine } from '../useVoiceRecorderStateMachine';
 import { vi, describe, it, expect } from 'vitest';
