@@ -1,7 +1,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import { ReminderPriority, NotificationTypes } from "./types";
-import { addMinutes, isPast, isFuture, addDays, isToday, isTomorrow } from "date-fns";
+import { NotificationTypes } from "./types";
+import { addMinutes, addDays } from "date-fns";
 import * as nodemailer from "nodemailer";
 
 // Initialize the Firebase Admin SDK
@@ -134,7 +134,7 @@ export const sendDailySummaries = functions.pubsub
  * Process a single reminder and send notifications if needed
  */
 async function processReminder(reminder: any, reminderId: string, notificationType: NotificationTypes) {
-  const { userId, title, description, priority, dueDate } = reminder;
+  const { userId, title, description, priority } = reminder;
   
   if (!userId) {
     console.log(`Reminder ${reminderId} has no userId, skipping notification`);
@@ -246,8 +246,14 @@ async function sendPushNotification(
     // Create notification payload
     const payload = createPushPayload(title, body, reminderId, priority, notificationType);
     
+    // Add tokens to payload for sendMulticast
+    const completePayload = {
+      tokens,
+      ...payload
+    };
+    
     // Send message using FCM
-    const response = await admin.messaging().sendMulticast(payload);
+    const response = await admin.messaging().sendMulticast(completePayload);
     console.log(
       `Successfully sent push notification: ${response.successCount} successful, ${response.failureCount} failed`
     );
@@ -813,7 +819,7 @@ export const handleNotificationAction = functions.https.onCall(
       );
     }
 
-    const { action, reminderId, userId, timestamp, snoozeMinutes } = data;
+    const { action, reminderId, userId, snoozeMinutes } = data;
     console.log(`Processing ${action} for reminder ${reminderId}`);
     
     try {
@@ -884,7 +890,9 @@ export const handleNotificationAction = functions.https.onCall(
 export const manualCheckReminders = functions.https.onRequest(
   async (req, res) => {
     try {
-      await checkUpcomingReminders();
+      // Pass required arguments to checkUpcomingReminders
+      const context = { eventId: 'manual-trigger', timestamp: new Date().toISOString(), params: {} };
+      await checkUpcomingReminders(null, context);
       res.status(200).send("Reminder check triggered successfully");
     } catch (error) {
       console.error("Error during manual reminder check:", error);
