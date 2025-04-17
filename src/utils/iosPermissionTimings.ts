@@ -1,11 +1,12 @@
+import { browserDetection } from './browserDetection';
+import { sleep, withRetry, type RetryOptions } from './retryUtils';
+
 /**
  * iOS Permission Timing Configuration
  * 
  * Provides optimized timing configurations for different iOS versions
  * to improve the reliability of push notification permission requests.
  */
-
-import { browserDetection } from './browserDetection';
 
 /**
  * Timing configuration for iOS permission flow
@@ -103,26 +104,9 @@ export const getCurrentDeviceTimingConfig = (): TimingConfig | null => {
 };
 
 /**
- * Sleep utility that returns a promise that resolves after the specified time
- */
-export const sleep = (ms: number): Promise<void> => 
-  new Promise(resolve => setTimeout(resolve, ms));
-
-/**
- * Timeout utility that returns a promise that rejects after the specified time
- */
-export const timeout = <T>(promise: Promise<T>, ms: number, errorMessage?: string): Promise<T> => {
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error(errorMessage || `Operation timed out after ${ms}ms`)), ms);
-  });
-  
-  return Promise.race([promise, timeoutPromise]);
-};
-
-/**
  * Get retry strategy based on iOS version
  */
-export const getRetryStrategy = (iosVersionStr: string) => {
+export const getRetryStrategy = (iosVersionStr: string): RetryOptions => {
   const iosVersion = parseFloat(iosVersionStr);
   
   // iOS 16.4-16.5 needs more retries with longer backoff
@@ -151,75 +135,5 @@ export const getRetryStrategy = (iosVersionStr: string) => {
   };
 };
 
-/**
- * Execute a function with exponential backoff retry
- */
-export const withRetry = async <T>(
-  fn: () => Promise<T>,
-  options?: {
-    maxRetries?: number;
-    baseDelayMs?: number;
-    backoffFactor?: number;
-    retryPredicate?: (error: any, attempt: number) => boolean;
-  }
-): Promise<T> => {
-  const iosVersionStr = String(browserDetection.getIOSVersion() || '0');
-  const defaultStrategy = getRetryStrategy(iosVersionStr);
-  
-  const maxRetries = options?.maxRetries ?? defaultStrategy.maxRetries;
-  const baseDelayMs = options?.baseDelayMs ?? defaultStrategy.baseDelayMs;
-  const backoffFactor = options?.backoffFactor ?? defaultStrategy.backoffFactor;
-  
-  let lastError: any;
-  
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      // Log retry attempt
-      if (attempt > 0) {
-        const delayMs = baseDelayMs * Math.pow(backoffFactor, attempt - 1);
-        iosPushLogger.logPushEvent('retry-attempt', {
-          attempt,
-          delayMs,
-          maxRetries,
-          iosVersion: iosVersionStr
-        });
-        await sleep(delayMs);
-      }
-      
-      return await fn();
-    } catch (error) {
-      lastError = error;
-      
-      if (attempt === maxRetries) break;
-      
-      const shouldRetry = options?.retryPredicate 
-        ? options.retryPredicate(error, attempt)
-        : true;
-      
-      if (!shouldRetry) {
-        iosPushLogger.logPushEvent('retry-aborted', {
-          attempt,
-          error: error instanceof Error ? error.message : String(error),
-          reason: 'retry-predicate-false'
-        });
-        break;
-      }
-      
-      // Log retry details
-      iosPushLogger.logPushEvent('retry-error', {
-        attempt,
-        error: error instanceof Error ? error.message : String(error),
-        nextAttemptDelay: baseDelayMs * Math.pow(backoffFactor, attempt),
-        remainingRetries: maxRetries - attempt
-      });
-    }
-  }
-  
-  // Log final failure
-  iosPushLogger.logPushEvent('retry-exhausted', {
-    totalAttempts: maxRetries + 1,
-    finalError: lastError instanceof Error ? lastError.message : String(lastError)
-  });
-  
-  throw lastError;
-};
+// Re-export the timeout utility
+export { timeout } from './retryUtils';
