@@ -11,7 +11,7 @@ import { getCurrentDeviceTimingConfig, sleep } from './iosPermissionTimings';
 import { checkIOSPushSupport } from './iosPermissionHelper';
 import { PermissionRequestResult, PermissionErrorReason } from '@/types/notifications';
 import { requestBasicPermission } from '@/services/notifications/permissionCore';
-import { ensureServiceWorker } from '@/services/notifications/serviceWorkerManager';
+import { ensureServiceWorker } from '@/services/notifications/ServiceWorkerManager';
 import { requestFCMToken } from '@/services/notifications/tokenManager';
 import { initializeFirebase, vapidKey } from '@/services/notifications/firebase';
 
