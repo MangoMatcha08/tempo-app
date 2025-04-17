@@ -330,7 +330,7 @@ export const getServiceWorkerStatus = async () => {
       return {
         supported: true,
         registered: !!registration,
-        implementation: 'ios-compatible',
+        implementation: SERVICE_WORKER_CONFIG.features?.useEnhancedImplementation ? 'enhanced' : 'legacy',
         version: registration?.active?.scriptURL || 'unknown',
         iosVersion: browserDetection.getIOSVersion(),
         iosSafari: browserDetection.isIOSSafari(),
@@ -342,7 +342,7 @@ export const getServiceWorkerStatus = async () => {
     return {
       supported: true,
       registered: !!registration,
-      implementation: SERVICE_WORKER_CONFIG.useEnhancedImplementation ? 'enhanced' : 'legacy',
+      implementation: SERVICE_WORKER_CONFIG.features?.useEnhancedImplementation ? 'enhanced' : 'legacy',
       version: registration?.active?.scriptURL || 'unknown'
     };
   } catch (error) {

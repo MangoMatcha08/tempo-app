@@ -65,6 +65,14 @@ export const SERVICE_WORKER_CONFIG = {
       postPermissionDelay: 500,
       registrationRetries: 1
     }
+  },
+
+  // Add features section with configurable flags
+  features: {
+    useEnhancedImplementation: false,  // Default to false for safety
+    backgroundSync: true,
+    notificationActions: true,
+    offlineSupport: true
   }
 };
 
@@ -99,27 +107,4 @@ export const getIOSTimingConfig = () => {
   
   // Fallback to default iOS timing
   return SERVICE_WORKER_CONFIG.timing.ios;
-};
-
-/**
- * Get optimal configuration for the current device
- */
-export const getCurrentDeviceConfig = () => {
-  const baseConfig = {
-    ...SERVICE_WORKER_CONFIG,
-    registrationOptions: getRegistrationOptions()
-  };
-
-  // Add iOS-specific timing if applicable
-  if (browserDetection.isIOS()) {
-    return {
-      ...baseConfig,
-      timing: {
-        ...SERVICE_WORKER_CONFIG.timing,
-        ios: getIOSTimingConfig()
-      }
-    };
-  }
-
-  return baseConfig;
 };
