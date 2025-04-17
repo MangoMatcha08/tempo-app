@@ -13,14 +13,37 @@ import { browserDetection } from './browserDetection';
 export const SERVICE_WORKER_CONFIG = {
   path: '/firebase-messaging-sw.js',
   scope: '/',
+  // Restore updateInterval
+  updateInterval: 30 * 60 * 1000, // 30 minutes
   timing: {
+    // Add back general timing properties
+    registrationTimeout: 15000,
+    activationDelay: 300,
+    controlTakeoverTimeout: 5000,
     ios: {
       postRegistrationDelay: 800,
       postPermissionDelay: 1000,
       registrationTimeout: 15000,
       registrationRetries: 3
     }
+  },
+  // Restore features property
+  features: {
+    useEnhancedImplementation: false,
+    backgroundSync: true,
+    notificationActions: true,
+    offlineSupport: true
   }
+};
+
+/**
+ * Get registration options based on current platform
+ */
+export const getRegistrationOptions = () => {
+  if (browserDetection.isIOS()) {
+    return { scope: SERVICE_WORKER_CONFIG.scope };
+  }
+  return {};
 };
 
 /**
