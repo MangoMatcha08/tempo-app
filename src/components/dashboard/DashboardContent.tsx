@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import CurrentPeriodIndicator from "@/components/dashboard/CurrentPeriodIndicator";
 import QuickActionsBar from "@/components/dashboard/QuickActionsBar";
@@ -12,7 +13,7 @@ import ReminderLoadingState from "./ReminderLoadingState";
 import { Button } from "@/components/ui/button";
 import IOSPushInstallDemo from '@/components/notifications/IOSPushInstallDemo';
 import NotificationMethodInfo from '@/components/notifications/NotificationMethodInfo';
-import IOSPermissionPrompt from '@/components/notifications/IOSPermissionPrompt';
+import { IOSPermissionPrompt } from '@/components/notifications/IOSPermissionPrompt';
 
 export type UIEnhancedReminder = UIReminder;
 
