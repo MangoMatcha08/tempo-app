@@ -11,7 +11,7 @@ const ENABLE_DETAILED_LOGGING = process.env.NODE_ENV === 'development' ||
 
 interface LogEvent {
   timestamp: number;
-  category: 'permission' | 'service-worker' | 'token' | 'performance' | 'error';
+  category: 'permission' | 'service-worker' | 'token' | 'performance' | 'error' | 'permission-flow';
   event: string;
   data?: any;
 }
@@ -20,21 +20,35 @@ interface LogEvent {
 let logHistory: LogEvent[] = [];
 const MAX_LOG_HISTORY = 100;
 
-// Record a log event
-const recordEvent = (category: LogEvent['category'], event: string, data?: any) => {
+// Add clear debug mode accessor
+export const isDebugMode = () => 
+  process.env.NODE_ENV === 'development' || 
+  localStorage.getItem('ios-push-debug') === 'true';
+
+// Record a log event with enhanced context
+const recordEvent = (category: LogEvent['category'], event: string, data: any = {}) => {
   // Skip detailed logs in production unless explicitly enabled
-  if (!ENABLE_DETAILED_LOGGING && category !== 'error') return;
+  if (!isDebugMode() && category !== 'error') return;
+  
+  // Add device context automatically
+  const enhancedData = {
+    ...data,
+    browser: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+    timestamp: Date.now(),
+    // Add iOS-specific information when applicable
+    ...(typeof navigator !== 'undefined' && browserDetection.isIOS() && {
+      iosVersion: browserDetection.getIOSVersion(),
+      isPwa: browserDetection.isIOSPWA(),
+      isSafari: browserDetection.isIOSSafari()
+    })
+  };
   
   // Create log entry
   const logEvent: LogEvent = {
     timestamp: Date.now(),
     category,
     event,
-    data: {
-      ...data,
-      iosVersion: browserDetection.getIOSVersion(),
-      isPwa: browserDetection.isIOSPWA()
-    }
+    data: enhancedData
   };
   
   // Add to history
@@ -49,6 +63,19 @@ const recordEvent = (category: LogEvent['category'], event: string, data?: any) 
   if (process.env.NODE_ENV === 'development') {
     console.log(`[iOS Push] [${category}] ${event}`, logEvent.data);
   }
+};
+
+// Add structured step logging
+export const logPermissionStep = (step: string, details: any = {}) => {
+  recordEvent('permission-flow', step, {
+    ...details,
+    timestamp: Date.now(),
+    documentVisibility: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+    notificationPermission: typeof Notification !== 'undefined' ? Notification.permission : 'unknown'
+  });
+  
+  // Console output for development
+  console.log(`[iOS Push] Step: ${step}`, details);
 };
 
 /**
@@ -112,16 +139,16 @@ const exportLogs = (): string => {
 };
 
 /**
- * Create a performance marker
+ * Create a performance marker for timing operations
  */
-const createPerformanceMarker = (name: string): () => number => {
+export const measureTiming = (label: string) => {
   const startTime = performance.now();
-  logPerformanceEvent(`${name}-start`, { startTime });
-  
   return () => {
-    const endTime = performance.now();
-    const duration = endTime - startTime;
-    logPerformanceEvent(`${name}-end`, { startTime, endTime, duration });
+    const duration = performance.now() - startTime;
+    logPerformanceEvent(`timing-${label}`, {
+      duration,
+      label
+    });
     return duration;
   };
 };
@@ -140,6 +167,15 @@ const logMemoryUsage = () => {
   }
 };
 
+// Add console warning for debugging to help developers
+if (typeof window !== 'undefined' && isDebugMode() && browserDetection.isIOS()) {
+  console.warn(
+    '[iOS Push] Debug mode enabled for iOS push notifications. ' +
+    'This will log detailed information about the permission flow. ' +
+    'Disable in production by removing localStorage.setItem("ios-push-debug", "true")'
+  );
+}
+
 // Export the logger
 export const iosPushLogger = {
   logPermissionEvent,
@@ -150,8 +186,10 @@ export const iosPushLogger = {
   getLogHistory,
   clearLogHistory,
   exportLogs,
-  createPerformanceMarker,
-  logMemoryUsage
+  measureTiming,
+  logMemoryUsage,
+  logPermissionStep,
+  isDebugMode
 };
 
 export default iosPushLogger;

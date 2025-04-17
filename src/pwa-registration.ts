@@ -1,6 +1,7 @@
 // Service Worker Registration and Update Management
 import { browserDetection } from './utils/browserDetection';
 import { iosPushLogger } from './utils/iosPushLogger';
+import { SERVICE_WORKER_CONFIG, getRegistrationOptions } from './utils/serviceWorkerConfig';
 
 interface CustomRegistration extends ServiceWorkerRegistration {
   sync?: {
@@ -8,84 +9,198 @@ interface CustomRegistration extends ServiceWorkerRegistration {
   };
 }
 
-// Configuration for service workers
-const SERVICE_WORKER_CONFIG = {
-  useEnhancedImplementation: false, // Feature flag to toggle implementation
-  updateCheckInterval: 30, // minutes
-  serviceWorkerPath: '/firebase-messaging-sw.js', // Use firebase-messaging-sw.js as the primary service worker
-  enhancedServiceWorkerPath: '/firebase-messaging-sw.js' // Point to the same SW for simplicity
+/**
+ * Promise-based timeout utility
+ */
+const timeout = <T>(promise: Promise<T>, ms: number, errorMessage?: string): Promise<T> => {
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error(errorMessage || `Operation timed out after ${ms}ms`)), ms);
+  });
+  
+  return Promise.race([promise, timeoutPromise]) as Promise<T>;
 };
 
+/**
+ * Sleep utility for delays
+ */
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
 // Register the service worker with iOS-specific handling
-export const registerServiceWorker = async () => {
-  if ('serviceWorker' in navigator) {
-    try {
-      // For iOS, log the registration attempt
-      if (browserDetection.isIOS()) {
-        iosPushLogger.logServiceWorkerEvent('registration-attempt', {
-          path: SERVICE_WORKER_CONFIG.serviceWorkerPath,
-          isIOSSafari: browserDetection.isIOSSafari(),
-          isPWA: browserDetection.isIOSPWA()
-        });
-      }
+export const registerServiceWorker = async (): Promise<ServiceWorkerRegistration | null> => {
+  if (!('serviceWorker' in navigator)) {
+    console.warn('Service workers are not supported in this browser');
+    return null;
+  }
+  
+  try {
+    // For iOS, log the registration attempt with enhanced detail
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logServiceWorkerEvent('registration-attempt', {
+        path: SERVICE_WORKER_CONFIG.path,
+        scope: SERVICE_WORKER_CONFIG.scope,
+        isIOSSafari: browserDetection.isIOSSafari(),
+        isPWA: browserDetection.isIOSPWA(),
+        iosVersion: browserDetection.getIOSVersion()
+      });
+    }
+    
+    // Check for existing registrations that might conflict
+    const existingRegistrations = await navigator.serviceWorker.getRegistrations();
+    let existingCorrectSW = null;
+    
+    // Log information about existing service workers
+    if (existingRegistrations.length > 0) {
+      console.log(`Found ${existingRegistrations.length} existing service worker(s)`);
       
-      // Check for existing registrations that might conflict
-      const existingRegistrations = await navigator.serviceWorker.getRegistrations();
-      
-      // iOS Safari may have issues with multiple service workers
-      if (browserDetection.isIOSSafari() && existingRegistrations.length > 0) {
-        console.log('Found existing service workers, checking for scope conflicts');
+      for (const reg of existingRegistrations) {
+        console.log(`- Service worker: ${reg.scope}, state: ${reg.active?.state || 'unknown'}`);
         
-        // Log information about existing service workers
-        for (const reg of existingRegistrations) {
-          console.log(`Existing service worker: ${reg.scope}, state: ${reg.active?.state || 'unknown'}`);
+        // Check if this is the service worker we want
+        if (reg.scope.endsWith(SERVICE_WORKER_CONFIG.scope)) {
+          existingCorrectSW = reg;
+          console.log('  (This is our target service worker)');
+        }
+        
+        // Log for iOS
+        if (browserDetection.isIOS()) {
+          iosPushLogger.logServiceWorkerEvent('existing-worker', {
+            scope: reg.scope,
+            scriptURL: reg.active?.scriptURL || 'unknown',
+            state: reg.active?.state || 'unknown',
+            isTarget: reg.scope.endsWith(SERVICE_WORKER_CONFIG.scope)
+          });
+        }
+      }
+    }
+    
+    // For iOS Safari, we may need to unregister conflicting service workers
+    if (browserDetection.isIOSSafari() && existingRegistrations.length > 0) {
+      // Look for service workers with wrong scope
+      const wrongScopeWorkers = existingRegistrations.filter(
+        reg => !reg.scope.endsWith(SERVICE_WORKER_CONFIG.scope)
+      );
+      
+      // Unregister wrong scope workers on iOS
+      if (wrongScopeWorkers.length > 0) {
+        console.log(`Unregistering ${wrongScopeWorkers.length} service worker(s) with wrong scope`);
+        
+        for (const reg of wrongScopeWorkers) {
+          await reg.unregister();
+          console.log(`Unregistered service worker with scope: ${reg.scope}`);
           
+          // Log for iOS
           if (browserDetection.isIOS()) {
-            iosPushLogger.logServiceWorkerEvent('existing-worker', {
-              scope: reg.scope,
-              scriptURL: reg.active?.scriptURL || 'unknown',
-              state: reg.active?.state || 'unknown'
+            iosPushLogger.logServiceWorkerEvent('unregistered-worker', {
+              scope: reg.scope
             });
           }
         }
       }
-      
-      // Registration options
-      const registrationOptions = browserDetection.isIOS() 
-        ? { scope: '/' } // Explicit scope for iOS
-        : undefined;
-      
-      // Register the service worker
-      const registration = await navigator.serviceWorker.register(
-        SERVICE_WORKER_CONFIG.serviceWorkerPath,
-        registrationOptions
-      );
-      console.log('Service worker registration complete with scope:', registration.scope);
-      
-      // For iOS, log successful registration
-      if (browserDetection.isIOS()) {
-        iosPushLogger.logServiceWorkerEvent('registration-success', {
-          scope: registration.scope,
-          scriptURL: registration.active?.scriptURL || registration.installing?.scriptURL || 'unknown'
-        });
-      }
-      
-      return registration;
-    } catch (error) {
-      console.error('Service worker registration failed:', error);
-      
-      // For iOS, log registration failure
-      if (browserDetection.isIOS()) {
-        iosPushLogger.logServiceWorkerEvent('registration-failed', {
-          error: error instanceof Error ? error.message : String(error)
-        });
-      }
-      
-      throw error;
     }
-  } else {
-    console.warn('Service workers are not supported in this browser');
-    throw new Error('Service workers not supported');
+    
+    // Use existing registration if active and controlled
+    if (existingCorrectSW && existingCorrectSW.active) {
+      console.log(`Using existing service worker: ${existingCorrectSW.scope}`);
+      
+      // Log for iOS
+      if (browserDetection.isIOS()) {
+        iosPushLogger.logServiceWorkerEvent('using-existing', {
+          scope: existingCorrectSW.scope,
+          active: !!existingCorrectSW.active,
+          controlling: !!navigator.serviceWorker.controller
+        });
+      }
+      
+      // Ensure it's controlling the page
+      if (!navigator.serviceWorker.controller) {
+        console.log('Service worker not controlling the page, waiting for control...');
+        
+        // Force the service worker to take control
+        await existingCorrectSW.update();
+        
+        // Wait for control takeover or timeout
+        await Promise.race([
+          new Promise<void>(resolve => {
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+              console.log('Service worker now controlling the page');
+              resolve();
+            }, { once: true });
+          }),
+          new Promise<void>(resolve => setTimeout(resolve, SERVICE_WORKER_CONFIG.timing.controlTakeoverTimeout))
+        ]);
+      }
+      
+      return existingCorrectSW;
+    }
+    
+    // Get platform-specific registration options
+    const options = getRegistrationOptions();
+    
+    console.log(`Registering new service worker with options:`, options);
+    
+    // Register with timeout
+    const registrationPromise = navigator.serviceWorker.register(
+      SERVICE_WORKER_CONFIG.path,
+      options
+    );
+    
+    const registration = await timeout<ServiceWorkerRegistration>(
+      registrationPromise,
+      SERVICE_WORKER_CONFIG.timing.registrationTimeout,
+      'Service worker registration timed out'
+    );
+    
+    console.log('Service worker registration successful with scope:', registration.scope);
+    
+    // For iOS, log successful registration with more details
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logServiceWorkerEvent('registration-success', {
+        scope: registration.scope,
+        scriptURL: registration.installing?.scriptURL || registration.active?.scriptURL || 'unknown',
+        state: registration.installing?.state || registration.active?.state || 'unknown'
+      });
+    }
+    
+    // Wait for the service worker to be activated if it's installing
+    if (registration.installing) {
+      console.log('Waiting for service worker to activate...');
+      
+      await new Promise<void>((resolve) => {
+        const stateChangeListener = (event: Event) => {
+          if ((event.target as ServiceWorker).state === 'activated') {
+            registration.installing?.removeEventListener('statechange', stateChangeListener);
+            resolve();
+          }
+        };
+        
+        registration.installing.addEventListener('statechange', stateChangeListener);
+        
+        // Also resolve if it's already activated somehow
+        if (registration.active) {
+          registration.installing.removeEventListener('statechange', stateChangeListener);
+          resolve();
+        }
+      });
+      
+      console.log('Service worker activated');
+      
+      // Wait a bit after activation (especially important for iOS)
+      await sleep(SERVICE_WORKER_CONFIG.timing.activationDelay);
+    }
+    
+    return registration;
+  } catch (error) {
+    console.error('Service worker registration failed:', error);
+    
+    // For iOS, log registration failure with detailed error
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logServiceWorkerEvent('registration-failed', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
+    }
+    
+    throw error;
   }
 };
 
@@ -105,7 +220,7 @@ export const checkForUpdates = async () => {
 };
 
 // Setup periodic update checks (time in minutes)
-export const setupPeriodicUpdateChecks = (intervalMinutes: number = SERVICE_WORKER_CONFIG.updateCheckInterval) => {
+export const setupPeriodicUpdateChecks = (intervalMinutes: number = SERVICE_WORKER_CONFIG.updateInterval / (60 * 1000)) => {
   // Convert minutes to milliseconds
   const interval = intervalMinutes * 60 * 1000;
   
@@ -277,9 +392,6 @@ export const pingServiceWorker = async (): Promise<any> => {
 // Toggle between service worker implementations
 export const toggleServiceWorkerImplementation = async (useEnhanced: boolean) => {
   try {
-    // Update the config
-    SERVICE_WORKER_CONFIG.useEnhancedImplementation = useEnhanced;
-    
     // Send message to both service workers
     const registration = await navigator.serviceWorker.ready;
     if (registration.active) {
