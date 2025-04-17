@@ -21,6 +21,12 @@ import {
 import { shouldResumeFlow } from '@/utils/iosPermissionFlowState';
 import { PermissionRequestResult, PermissionErrorReason } from '@/types/notifications/permissionTypes';
 import { toast } from "sonner";
+import { 
+  getCurrentBrowserPermission, 
+  savePermissionState,
+  addRequestToHistory,
+  isDebugModeEnabled
+} from '@/services/notifications/permissionTracker';
 
 /**
  * Hook for notification permission management
@@ -30,7 +36,24 @@ import { toast } from "sonner";
 export function useNotificationPermission(): NotificationPermission {
   const context = usePermissionContext();
   const [lastRequestTime, setLastRequestTime] = useState<number | null>(null);
+  const [debugMode, setDebugMode] = useState<boolean>(isDebugModeEnabled());
   
+  // Check for debug mode changes
+  useEffect(() => {
+    const checkDebugMode = () => {
+      setDebugMode(isDebugModeEnabled());
+    };
+    
+    // Check initially and set up interval
+    checkDebugMode();
+    const intervalId = setInterval(checkDebugMode, 5000);
+    
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, []);
+  
+  // Show toast for permission state changes
   useEffect(() => {
     // Check if we need to display a toast when the permission state changes
     if (context.permissionGranted && lastRequestTime) {
@@ -44,9 +67,15 @@ export function useNotificationPermission(): NotificationPermission {
     }
   }, [context.permissionGranted, lastRequestTime]);
   
-  // Enhanced request permission function with iOS support and better feedback
+  // Enhanced request permission function with iOS support, better feedback and tracking
   const requestPermission = useCallback(async (): Promise<PermissionRequestResult> => {
-    setLastRequestTime(Date.now());
+    const requestStartTime = Date.now();
+    setLastRequestTime(requestStartTime);
+    
+    if (debugMode) {
+      console.group('Permission Request');
+      console.log('Starting permission request');
+    }
     
     // For iOS, use the specialized iOS permission flow
     if (browserDetection.isIOS()) {
@@ -60,35 +89,103 @@ export function useNotificationPermission(): NotificationPermission {
       try {
         // Check if we need to resume an interrupted flow
         if (shouldResumeFlow()) {
-          return resumePermissionFlow();
+          const result = await resumePermissionFlow();
+          
+          // Store the result for tracking
+          const currentPermission = getCurrentBrowserPermission();
+          savePermissionState(result.granted, currentPermission);
+          addRequestToHistory(result);
+          
+          if (debugMode) {
+            console.log('Resumed iOS flow result:', result);
+            console.log('Current browser permission:', currentPermission);
+            console.groupEnd();
+          }
+          
+          return result;
         }
         
         // Use iOS-specific permission flow that returns a compatible PermissionRequestResult
-        return requestIOSPushPermission();
+        const result = await requestIOSPushPermission();
+        
+        // Store the result for tracking
+        const currentPermission = getCurrentBrowserPermission();
+        savePermissionState(result.granted, currentPermission);
+        addRequestToHistory(result);
+        
+        if (debugMode) {
+          console.log('iOS permission result:', result);
+          console.log('Current browser permission:', currentPermission);
+          console.groupEnd();
+        }
+        
+        return result;
       } catch (error) {
         iosPushLogger.logPermissionEvent('ios-hook-error', {
           error: error instanceof Error ? error.message : String(error)
         });
         
+        if (debugMode) {
+          console.error('iOS permission error:', error);
+          console.groupEnd();
+        }
+        
         // Return a structured error response
-        return {
+        const errorResult = {
           granted: false,
           error: error instanceof Error ? error : new Error(String(error)),
           reason: PermissionErrorReason.UNKNOWN_ERROR
         };
+        
+        // Still track the error
+        addRequestToHistory(errorResult);
+        
+        return errorResult;
       }
     }
     
     // For other platforms, use the standard permission flow
-    return context.requestPermission();
-  }, [context.requestPermission]);
+    try {
+      const result = await context.requestPermission();
+      
+      // Store the result for tracking
+      const currentPermission = getCurrentBrowserPermission();
+      savePermissionState(result.granted, currentPermission);
+      addRequestToHistory(result);
+      
+      if (debugMode) {
+        console.log('Standard permission result:', result);
+        console.log('Current browser permission:', currentPermission);
+        console.log('Request duration:', Date.now() - requestStartTime, 'ms');
+        console.groupEnd();
+      }
+      
+      return result;
+    } catch (error) {
+      if (debugMode) {
+        console.error('Standard permission error:', error);
+        console.groupEnd();
+      }
+      
+      const errorResult = {
+        granted: false,
+        error: error instanceof Error ? error : new Error(String(error)),
+        reason: PermissionErrorReason.UNKNOWN_ERROR
+      };
+      
+      // Still track the error
+      addRequestToHistory(errorResult);
+      
+      return errorResult;
+    }
+  }, [context.requestPermission, debugMode]);
 
   // Check if permission is granted with appropriate logging
   const hasPermission = useCallback((): boolean => {
     const permissionGranted = context.hasPermission();
     
     // Log the current permission state for debugging
-    if (browserDetection.isIOS()) {
+    if (browserDetection.isIOS() && debugMode) {
       iosPushLogger.logPermissionEvent('permission-check', {
         granted: permissionGranted,
         browserPermission: typeof Notification !== 'undefined' ? Notification.permission : 'unavailable'
@@ -96,7 +193,7 @@ export function useNotificationPermission(): NotificationPermission {
     }
     
     return permissionGranted;
-  }, [context.hasPermission]);
+  }, [context.hasPermission, debugMode]);
   
   // Forward methods from context with appropriate typing and iOS enhancement
   return {

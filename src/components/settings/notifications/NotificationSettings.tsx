@@ -1,171 +1,110 @@
 
-import React, { useEffect } from "react";
-import { Form } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
-import { useToast } from "@/hooks/use-toast";
-import { useNotificationSettings, useNotificationPermission } from "@/contexts/NotificationContext";
-import { ExtendedNotificationSettings } from "./types";
+import React, { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import MasterSwitch from "./MasterSwitch";
-import BrowserAlert from "./BrowserAlert";
+import ChannelSettings from "./ChannelSettings";
 import PermissionAlert from "./PermissionAlert";
-import EmailNotifications from "./EmailNotifications";
+import BrowserAlert from "./BrowserAlert";
 import PushNotifications from "./PushNotifications";
+import EmailNotifications from "./EmailNotifications";
 import InAppNotifications from "./InAppNotifications";
-import NotificationCleanupSettings from "../NotificationCleanupSettings";
+import PermissionDiagnostics from "./PermissionDiagnostics";
+import { usePermissionTracker } from "@/hooks/notifications/usePermissionTracker";
+import { useNotificationSettings } from "@/hooks/notifications/useNotificationSettings";
 import { Button } from "@/components/ui/button";
-import { ReminderPriority } from "@/types/reminderTypes";
-import { NOTIFICATION_FEATURES } from "@/types/notifications/featureFlags";
+import { Eye, EyeOff } from "lucide-react";
 
 const NotificationSettings = () => {
-  const { toast } = useToast();
-  const { settings, updateSettings } = useNotificationSettings();
-  const { permissionGranted, requestPermission } = useNotificationPermission();
+  const { requestPermission, permissionGranted, isSupported } = usePermissionTracker();
+  const { settings } = useNotificationSettings();
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
   
-  // Create a properly extended settings object with all required properties
-  const extendedSettings: ExtendedNotificationSettings = {
-    ...settings,
-    email: {
-      enabled: settings.email?.enabled ?? false,
-      address: settings.email?.address ?? '',
-      minPriority: settings.email?.minPriority ?? ReminderPriority.HIGH,
-      dailySummary: {
-        enabled: settings.email?.dailySummary?.enabled ?? false,
-        timing: settings.email?.dailySummary?.timing ?? 'after'
-      }
-    },
-    inApp: {
-      enabled: settings.inApp?.enabled ?? false,
-      minPriority: settings.inApp?.minPriority ?? ReminderPriority.LOW,
-      // Use default values for extended properties instead of accessing them from settings
-      toast: false,
-      notificationCenter: false
-    }
-  };
+  if (!settings) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Notification Settings</CardTitle>
+          <CardDescription>Loading settings...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-40 flex items-center justify-center">
+            <div className="animate-pulse text-muted-foreground">Loading notification settings...</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
   
-  const form = useForm<ExtendedNotificationSettings>({
-    defaultValues: extendedSettings
-  });
-
-  React.useEffect(() => {
-    // Make sure we have all required properties when updating form values
-    const updatedSettings: ExtendedNotificationSettings = {
-      ...settings,
-      email: {
-        enabled: settings.email?.enabled ?? false,
-        address: settings.email?.address ?? '',
-        minPriority: settings.email?.minPriority ?? ReminderPriority.HIGH,
-        dailySummary: {
-          enabled: settings.email?.dailySummary?.enabled ?? false,
-          timing: settings.email?.dailySummary?.timing ?? 'after'
-        }
-      },
-      inApp: {
-        enabled: settings.inApp?.enabled ?? false,
-        minPriority: settings.inApp?.minPriority ?? ReminderPriority.LOW,
-        // Use default values for extended properties
-        toast: false,
-        notificationCenter: false
-      }
-    };
-    
-    form.reset(updatedSettings);
-  }, [settings, form]);
-
-  const handleRequestPermission = async (): Promise<boolean> => {
-    try {
-      const result = await requestPermission();
-      return !!result.granted;
-    } catch (error) {
-      console.error("Error requesting permission:", error);
-      return false;
-    }
-  };
-
-  const onSubmit = async (data: ExtendedNotificationSettings) => {
-    try {
-      // Convert back to regular NotificationSettings before updating
-      const updatedSettings = {
-        enabled: data.enabled,
-        email: {
-          enabled: data.email.enabled,
-          address: data.email.address,
-          minPriority: data.email.minPriority,
-          dailySummary: data.email.dailySummary
-        },
-        push: data.push,
-        inApp: {
-          enabled: data.inApp.enabled,
-          minPriority: data.inApp.minPriority,
-          // Include the extended properties when updating settings
-          toast: data.inApp.toast,
-          notificationCenter: data.inApp.notificationCenter
-        },
-        quietHours: data.quietHours
-      };
-      
-      await updateSettings(updatedSettings);
-      
-      console.log("Notification settings saved:", updatedSettings);
-      toast({
-        title: "Settings saved",
-        description: "Your notification preferences have been updated",
-        duration: 3000
-      });
-    } catch (error) {
-      console.error("Error saving notification settings:", error);
-      toast({
-        title: "Error",
-        description: "Failed to save notification settings",
-        variant: "destructive",
-        duration: 3000
-      });
-    }
-  };
+  const { masterEnabled, pushEnabled, emailEnabled, inAppEnabled } = settings;
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <MasterSwitch control={form.control} />
-        
-        <BrowserAlert />
-        
-        <PermissionAlert 
-          permissionGranted={permissionGranted} 
-          masterEnabled={form.watch('enabled')} 
-          pushEnabled={form.watch('push.enabled')} 
-          requestPermission={handleRequestPermission}
-        />
-        
-        <div className="space-y-4">
-          <EmailNotifications 
-            control={form.control} 
-            enabled={form.watch('enabled')} 
-            emailEnabled={form.watch('email.enabled')}
-            dailySummaryEnabled={form.watch('email.dailySummary.enabled')}
+    <>
+      <Card className="mb-6">
+        <CardHeader>
+          <div className="flex justify-between">
+            <div>
+              <CardTitle>Notification Settings</CardTitle>
+              <CardDescription>Configure your notification preferences</CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDiagnostics(prev => !prev)}
+              className="h-8"
+            >
+              {showDiagnostics ? (
+                <>
+                  <EyeOff className="mr-2 h-4 w-4" />
+                  Hide Diagnostics
+                </>
+              ) : (
+                <>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Show Diagnostics
+                </>
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <MasterSwitch />
+          
+          <PermissionAlert
+            permissionGranted={permissionGranted}
+            masterEnabled={masterEnabled}
+            pushEnabled={pushEnabled}
+            requestPermission={requestPermission}
           />
           
-          <PushNotifications 
-            control={form.control} 
-            enabled={form.watch('enabled')} 
-            pushEnabled={form.watch('push.enabled')} 
-          />
+          <BrowserAlert permissionGranted={permissionGranted} isSupported={isSupported} />
           
-          <InAppNotifications 
-            control={form.control} 
-            enabled={form.watch('enabled')} 
-            inAppEnabled={form.watch('inApp.enabled')} 
-          />
-        </div>
-        
-        {NOTIFICATION_FEATURES.HISTORY_ENABLED && (
-          <NotificationCleanupSettings />
-        )}
-        
-        <Button type="submit">
-          Save Changes
-        </Button>
-      </form>
-    </Form>
+          <Tabs defaultValue="push" className="w-full">
+            <TabsList className="grid grid-cols-3 mb-4">
+              <TabsTrigger value="push">Push</TabsTrigger>
+              <TabsTrigger value="email">Email</TabsTrigger>
+              <TabsTrigger value="inapp">In-App</TabsTrigger>
+            </TabsList>
+            <TabsContent value="push">
+              <PushNotifications
+                enabled={masterEnabled && pushEnabled}
+                permissionGranted={permissionGranted}
+              />
+            </TabsContent>
+            <TabsContent value="email">
+              <EmailNotifications enabled={masterEnabled && emailEnabled} />
+            </TabsContent>
+            <TabsContent value="inapp">
+              <InAppNotifications enabled={masterEnabled && inAppEnabled} />
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+      
+      {showDiagnostics && (
+        <PermissionDiagnostics />
+      )}
+    </>
   );
 };
 
