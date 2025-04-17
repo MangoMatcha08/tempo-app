@@ -1,3 +1,4 @@
+
 /**
  * iOS Permission Utilities
  * 
@@ -78,7 +79,7 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
     // Start the flow and save initial state
     iosPushLogger.logPermissionStep('flow-started', {});
     saveFlowState(PermissionFlowStep.INITIAL, {
-      iosVersion: browserDetection.getIOSVersion()
+      iosVersion: String(browserDetection.getIOSVersion())
     });
     
     // Get timing configuration for this iOS version

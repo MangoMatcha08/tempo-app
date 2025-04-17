@@ -45,6 +45,7 @@ export enum PermissionErrorReason {
   // iOS-specific issues
   IOS_VERSION_UNSUPPORTED = 'ios-version-unsupported',
   PWA_REQUIRED = 'pwa-required',
+  NOT_PWA = 'not-pwa',
   
   // Token issues
   TOKEN_REQUEST_FAILED = 'token-request-failed',
@@ -55,7 +56,12 @@ export enum PermissionErrorReason {
   // Generic errors
   UNKNOWN_ERROR = 'unknown-error',
   TIMEOUT = 'timeout',
-  CONFIGURATION_ERROR = 'configuration-error'
+  CONFIGURATION_ERROR = 'configuration-error',
+  
+  // Process errors
+  INITIALIZATION_FAILED = 'initialization-failed',
+  PERMISSION_REQUEST_FAILED = 'permission-request-failed',
+  RESUME_FAILED = 'resume-failed'
 }
 
 /**

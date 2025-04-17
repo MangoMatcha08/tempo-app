@@ -89,6 +89,15 @@ export const iosPwaDetection = {
         ]
       };
     }
+  },
+  
+  /**
+   * Marks that the PWA has been installed
+   * Stores installation status in localStorage
+   */
+  markPwaInstalled: () => {
+    localStorage.setItem('pwa-installed', 'true');
+    localStorage.setItem('pwa-installed-date', Date.now().toString());
   }
 };
 
