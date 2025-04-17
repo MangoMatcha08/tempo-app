@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Info } from "lucide-react";
@@ -14,6 +15,7 @@ const BrowserAlert: React.FC<BrowserAlertProps> = ({
   const isBrowser = typeof window !== 'undefined';
   const isNotificationSupported = isBrowser && 'Notification' in window;
   
+  // Only show alert if notifications are not supported
   if (isNotificationSupported) {
     return null;
   }

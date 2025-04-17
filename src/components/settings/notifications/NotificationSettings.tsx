@@ -1,7 +1,9 @@
+
 import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useForm } from "react-hook-form";
+import { Form } from "@/components/ui/form";
 import MasterSwitch from "./MasterSwitch";
 import ChannelSettings from "./ChannelSettings";
 import PermissionAlert from "./PermissionAlert";
@@ -15,7 +17,6 @@ import { useNotificationSettings } from "@/hooks/notifications/useNotificationSe
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
 import { ExtendedNotificationSettings } from "./types";
-import { Form as FormProvider } from "@/components/ui/form";
 
 const NotificationSettings = () => {
   const { requestPermission, permissionGranted, isSupported } = usePermissionTracker();
@@ -78,7 +79,7 @@ const NotificationSettings = () => {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <FormProvider {...form}>
+          <Form {...form}>
             <MasterSwitch control={form.control} />
             
             <PermissionAlert
@@ -123,7 +124,7 @@ const NotificationSettings = () => {
                 />
               </TabsContent>
             </Tabs>
-          </FormProvider>
+          </Form>
         </CardContent>
       </Card>
       
