@@ -21,4 +21,5 @@ export interface PWACapabilities {
   supportsBackgroundSync: boolean;
   supportsPushAPI: boolean;
   hasServiceWorker: boolean;
+  isIOSPushCapable?: boolean; // New property for iOS push capability
 }
