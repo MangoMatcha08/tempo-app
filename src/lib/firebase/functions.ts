@@ -84,7 +84,25 @@ export const sendTestNotification = async (options: {
     data.email = email;
   }
 
-  return await callFunction('sendTestNotification', data);
+  try {
+    console.log("Sending test notification with data:", data);
+    // Use httpsCallable which handles CORS correctly, instead of direct fetch
+    return await callFunction('sendTestNotification', data);
+  } catch (error) {
+    console.error("Error sending test notification:", error);
+    
+    // Add more diagnostic information
+    if (error instanceof Error) {
+      console.error("Error details:", error.message);
+      
+      // Check if it's a CORS error
+      if (error.message.includes('CORS') || error.message.includes('network')) {
+        console.error("This appears to be a CORS or network error. Make sure your Firebase function has CORS configured properly.");
+      }
+    }
+    
+    throw error;
+  }
 };
 
 // Helper function for explicit reminder notification

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mail, BellRing, AlertTriangle, Loader2 } from "lucide-react";
+import { Mail, BellRing, AlertTriangle, Loader2, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { 
   useNotificationSettings,
@@ -18,6 +18,7 @@ const TestNotifications = () => {
   const [isEmailSending, setIsEmailSending] = useState(false);
   const [isPushSending, setIsPushSending] = useState(false);
   const [includeDeviceInfo, setIncludeDeviceInfo] = useState(true);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const { toast } = useToast();
   const { settings } = useNotificationSettings();
   const { permissionGranted, requestPermission } = useNotificationPermission();
@@ -35,8 +36,10 @@ const TestNotifications = () => {
     }
     
     setIsEmailSending(true);
+    setErrorDetails(null);
     
     try {
+      console.log("Sending test email notification to:", email);
       // Call the Cloud Function for email test
       const result = await sendTestNotification({ 
         type: 'email',
@@ -53,11 +56,27 @@ const TestNotifications = () => {
       });
     } catch (error) {
       console.error("Error sending test email:", error);
+      
+      // Extract more useful error information
+      let errorMessage = "Unknown error";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Check for CORS issues
+        if (errorMessage.includes('CORS') || errorMessage.includes('network')) {
+          setErrorDetails("CORS configuration issue detected. The server may not be configured to accept requests from this domain.");
+        }
+        // Check for Firebase errors
+        else if (errorMessage.includes('Firebase')) {
+          setErrorDetails("Firebase error: Make sure you're signed in and your Firebase project is correctly configured.");
+        }
+      }
+      
       toast({
         title: "Error",
-        description: `Failed to send test email: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        description: `Failed to send test email: ${errorMessage}`,
         variant: "destructive",
-        duration: 3000
+        duration: 5000
       });
     } finally {
       setIsEmailSending(false);
@@ -66,7 +85,10 @@ const TestNotifications = () => {
 
   const handleTestPush = async () => {
     if (!permissionGranted) {
+      console.log("Requesting notification permission...");
       const granted = await requestPermission();
+      console.log("Permission request result:", granted);
+      
       if (!granted) {
         toast({
           title: "Permission denied",
@@ -79,8 +101,10 @@ const TestNotifications = () => {
     }
     
     setIsPushSending(true);
+    setErrorDetails(null);
     
     try {
+      console.log("Sending test push notification");
       // Call the Cloud Function for push test
       const result = await sendTestNotification({
         type: 'push',
@@ -96,11 +120,27 @@ const TestNotifications = () => {
       });
     } catch (error) {
       console.error("Error sending test push notification:", error);
+      
+      // Extract more useful error information
+      let errorMessage = "Unknown error";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Check for CORS issues
+        if (errorMessage.includes('CORS') || errorMessage.includes('network')) {
+          setErrorDetails("CORS configuration issue detected. The server may not be configured to accept requests from this domain.");
+        }
+        // Check for Firebase errors
+        else if (errorMessage.includes('Firebase')) {
+          setErrorDetails("Firebase error: Make sure you're signed in and your Firebase project is correctly configured.");
+        }
+      }
+      
       toast({
         title: "Error",
-        description: `Failed to send test push notification: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        description: `Failed to send test push notification: ${errorMessage}`,
         variant: "destructive",
-        duration: 3000
+        duration: 5000
       });
     } finally {
       setIsPushSending(false);
@@ -109,6 +149,14 @@ const TestNotifications = () => {
 
   return (
     <div className="space-y-6">
+      {errorDetails && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error Details</AlertTitle>
+          <AlertDescription>{errorDetails}</AlertDescription>
+        </Alert>
+      )}
+      
       <div className="space-y-2">
         <h3 className="text-sm font-medium">Test Email Notification</h3>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
@@ -202,6 +250,22 @@ const TestNotifications = () => {
           When enabled, test notifications will include information about your current device.
         </p>
       </div>
+      
+      <Alert className="rounded-md bg-blue-50 border border-blue-200 dark:bg-blue-950 dark:border-blue-800">
+        <Info className="h-4 w-4 text-blue-800 dark:text-blue-400" />
+        <AlertTitle className="text-blue-800 dark:text-blue-400">Troubleshooting</AlertTitle>
+        <AlertDescription className="text-blue-700 dark:text-blue-500">
+          <p className="mb-2">
+            If you're experiencing issues with notifications:
+          </p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>Check that your Firebase project is correctly configured</li>
+            <li>Ensure your domain is allowed in Firebase CORS settings</li>
+            <li>Verify that notification permissions are granted in your browser</li>
+            <li>Try refreshing the page or using a different browser</li>
+          </ul>
+        </AlertDescription>
+      </Alert>
       
       <Alert className="rounded-md bg-yellow-50 border border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800">
         <AlertTriangle className="h-4 w-4 text-yellow-800 dark:text-yellow-400" />

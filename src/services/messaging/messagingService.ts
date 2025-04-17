@@ -1,4 +1,3 @@
-
 import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage, GetTokenOptions } from 'firebase/messaging';
 import { firebaseConfig } from '@/lib/firebase/config';
@@ -197,7 +196,12 @@ export const sendTestMessage = async (options: {
       options.includeDeviceInfo = true;
     }
     
+    console.log("Sending test message with options:", options);
+    // Import directly here to avoid circular dependency
+    const { sendTestNotification } = await import('@/lib/firebase/functions');
     const result = await sendTestNotification(options);
+    
+    console.log("Test notification result:", result);
     
     if (browserDetection.isIOS()) {
       iosPushLogger.logPushEvent('test-notification-result', { result });
@@ -217,6 +221,9 @@ export const sendTestMessage = async (options: {
 };
 
 // Export necessary functions
-export {
+export { 
+  setupForegroundMessageListener,
+  requestNotificationPermission,
+  saveTokenToFirestore,
   sendTestMessage as sendTestNotification
 };
