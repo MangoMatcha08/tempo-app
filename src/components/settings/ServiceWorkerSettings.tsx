@@ -11,6 +11,7 @@ import { AppMessage } from "@/types/notifications/serviceWorkerTypes";
 import { SERVICE_WORKER_FEATURES } from "@/types/notifications/serviceWorkerTypes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CacheManager from "./CacheManager";
+import ServiceWorkerDiagnostic from "./ServiceWorkerDiagnostic";
 import { useFeatureFlags } from "@/contexts/FeatureFlagContext";
 
 const ServiceWorkerSettings = () => {
@@ -56,6 +57,7 @@ const ServiceWorkerSettings = () => {
 
   // Determine if advanced cache features should be shown
   const showAdvancedCache = flags.ADVANCED_CACHE;
+  const showDiagnostics = true; // Always show diagnostics to help troubleshoot
 
   if (!supported) {
     return (
@@ -92,7 +94,7 @@ const ServiceWorkerSettings = () => {
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <CardContent>
-            <TabsList className="grid grid-cols-2 mb-4">
+            <TabsList className="grid grid-cols-3 mb-4">
               <TabsTrigger value="general">General</TabsTrigger>
               {showAdvancedCache && (
                 <TabsTrigger value="cache">
@@ -100,6 +102,10 @@ const ServiceWorkerSettings = () => {
                   Cache
                 </TabsTrigger>
               )}
+              <TabsTrigger value="diagnostics">
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Diagnostics
+              </TabsTrigger>
             </TabsList>
             
             {error && (
@@ -160,6 +166,12 @@ const ServiceWorkerSettings = () => {
             {showAdvancedCache && (
               <TabsContent value="cache" className="mt-0">
                 <CacheManager />
+              </TabsContent>
+            )}
+            
+            {showDiagnostics && (
+              <TabsContent value="diagnostics" className="mt-0">
+                <ServiceWorkerDiagnostic />
               </TabsContent>
             )}
           </CardContent>
