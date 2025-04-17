@@ -336,15 +336,15 @@ async function sendPushNotification(
     
     // Send messages in batches to avoid payload size limits
     const batchSize = 500;
-    const results: (string | FirebaseError)[] = []; // Explicitly type the results array
+    const results: (string | FirebaseError)[] = [];
     
     for (let i = 0; i < messages.length; i += batchSize) {
       const batch = messages.slice(i, i + batchSize);
       const batchResults = await Promise.all(
         batch.map(message => 
           admin.messaging().send(message)
-            .then(messageId => messageId) // Return message ID on success
-            .catch(error => error) // Return error object on failure
+            .then(messageId => messageId)
+            .catch(error => error)
         )
       );
       results.push(...batchResults);
@@ -358,7 +358,6 @@ async function sendPushNotification(
     
     tokens.forEach((token, idx) => {
       if (idx < results.length) {
-        // If there was an error (result is an error object, not a string message ID)
         if (typeof results[idx] !== 'string') {
           invalidTokens.push(token);
           failureCount++;
