@@ -1,62 +1,66 @@
+/**
+ * Hook for iOS permission flow
+ * 
+ * Updated to use the refactored permission utilities
+ */
 
 import { useState, useCallback } from 'react';
-import { useNotificationPermission } from './useNotificationPermission';
+import { 
+  requestIOSPushPermission, 
+  checkIOSPushSupport, 
+  resumePermissionFlow,
+  checkBrowserCapabilities 
+} from '@/utils/iosPermissionUtils';
 import { browserDetection } from '@/utils/browserDetection';
 import { iosPwaDetection } from '@/utils/iosPwaDetection';
-import { checkIOSPushSupport } from '@/utils/iosPermissionUtils';
+import { shouldResumeFlow } from '@/utils/iosPermissionFlowState';
 import { PermissionRequestResult } from '@/types/notifications';
 
 /**
- * Hook for managing iOS permission flow
- * Provides methods and state for iOS push notification permission flow
+ * Hook for managing the iOS permission flow
  */
 export function useIOSPermissionFlow() {
-  const { permissionGranted, requestPermission, isSupported } = useNotificationPermission();
   const [isRequesting, setIsRequesting] = useState(false);
-  const [lastResult, setLastResult] = useState<PermissionRequestResult | null>(null);
+  const [flowError, setFlowError] = useState<string | null>(null);
   
-  // Check if this is an iOS device
-  const isIOS = browserDetection.isIOS();
-  const isPWA = iosPwaDetection.isRunningAsPwa();
+  // Check iOS support and PWA status
   const iosSupport = checkIOSPushSupport();
+  const isPWA = iosPwaDetection.isRunningAsPwa();
   
-  // Should show PWA installation prompt
-  const shouldPromptPwaInstall = isIOS && !isPWA;
-  
-  // Start permission request flow
-  const startPermissionFlow = useCallback(async () => {
-    if (isRequesting) return null; // Don't allow multiple simultaneous requests
+  // Start the permission flow
+  const startPermissionFlow = useCallback(async (): Promise<PermissionRequestResult | null> => {
+    setIsRequesting(true);
+    setFlowError(null);
     
     try {
-      setIsRequesting(true);
-      const result = await requestPermission();
-      setLastResult(result);
-      return result;
+      // Check if we need to resume an interrupted flow
+      if (shouldResumeFlow()) {
+        return await resumePermissionFlow();
+      }
+      
+      // Start a new permission flow
+      return await requestIOSPushPermission();
+      
     } catch (error) {
-      const errorResult = { 
-        granted: false, 
-        error: error instanceof Error ? error : String(error)
+      setFlowError(error instanceof Error ? error.message : String(error));
+      return {
+        granted: false,
+        error: error instanceof Error ? error : new Error('Failed to start permission flow'),
+        reason: 'flow-failed'
       };
-      setLastResult(errorResult);
-      return errorResult;
     } finally {
       setIsRequesting(false);
     }
-  }, [isRequesting, requestPermission]);
+  }, []);
   
+  // Return values
   return {
-    // States
-    permissionGranted,
     isRequesting,
-    lastResult,
-    isIOS,
+    startPermissionFlow,
+    flowError,
     isPWA,
     iosSupport,
-    shouldPromptPwaInstall,
-    isSupported,
-    
-    // Actions
-    startPermissionFlow
+    shouldPromptPwaInstall: !isPWA && browserDetection.isIOS()
   };
 }
 
