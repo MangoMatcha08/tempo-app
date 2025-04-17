@@ -240,6 +240,7 @@ export class ServiceWorkerManager {
   }
 }
 
-// Export singleton instance and registration function
+// Export singleton instance, registration function, and alias
 export const serviceWorkerManager = new ServiceWorkerManager();
 export { registerServiceWorker };
+export { registerServiceWorker as ensureServiceWorker }; // Short-term fix to resolve import error
