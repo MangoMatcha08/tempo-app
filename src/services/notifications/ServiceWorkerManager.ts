@@ -9,6 +9,16 @@ import {
 import { NotificationCleanupConfig, DEFAULT_CLEANUP_CONFIG } from '@/types/notifications/sharedTypes';
 import { normalizeCleanupConfig } from '@/utils/notificationUtils';
 
+// Unified service worker registration function
+async function registerServiceWorker(): Promise<ServiceWorkerRegistration> {
+  try {
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    return registration;
+  } catch (error) {
+    throw error;
+  }
+}
+
 /**
  * Manages service worker operations with performance measurement
  */
@@ -230,5 +240,6 @@ export class ServiceWorkerManager {
   }
 }
 
-// Export singleton instance
+// Export singleton instance and registration function
 export const serviceWorkerManager = new ServiceWorkerManager();
+export { registerServiceWorker };
