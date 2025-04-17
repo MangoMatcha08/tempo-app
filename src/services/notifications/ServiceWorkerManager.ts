@@ -9,11 +9,18 @@ import {
 import { NotificationCleanupConfig, DEFAULT_CLEANUP_CONFIG } from '@/types/notifications/sharedTypes';
 import { normalizeCleanupConfig } from '@/utils/notificationUtils';
 
-// Unified service worker registration function
-async function registerServiceWorker(): Promise<ServiceWorkerRegistration> {
+// Unified service worker registration function with timeout support
+async function registerServiceWorker(timeout?: number): Promise<ServiceWorkerRegistration> {
   try {
-    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-    return registration;
+    if (timeout) {
+      return await Promise.race([
+        navigator.serviceWorker.register('/firebase-messaging-sw.js'),
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Service worker registration timed out')), timeout)
+        )
+      ]);
+    }
+    return await navigator.serviceWorker.register('/firebase-messaging-sw.js');
   } catch (error) {
     throw error;
   }
@@ -243,4 +250,4 @@ export class ServiceWorkerManager {
 // Export singleton instance, registration function, and alias
 export const serviceWorkerManager = new ServiceWorkerManager();
 export { registerServiceWorker };
-export { registerServiceWorker as ensureServiceWorker }; // Short-term fix to resolve import error
+export { registerServiceWorker as ensureServiceWorker };
