@@ -47,5 +47,55 @@ export const browserDetection = {
   supportsPushNotifications: (): boolean => {
     if (typeof window === 'undefined') return false;
     return 'PushManager' in window && 'serviceWorker' in navigator;
+  },
+  
+  // Get browser name
+  getBrowser: (): string => {
+    if (typeof navigator === 'undefined') return 'unknown';
+    
+    const ua = navigator.userAgent;
+    
+    if (ua.indexOf('Firefox') > -1) {
+      return 'Firefox';
+    } else if (ua.indexOf('SamsungBrowser') > -1) {
+      return 'Samsung Browser';
+    } else if (ua.indexOf('Opera') > -1 || ua.indexOf('OPR') > -1) {
+      return 'Opera';
+    } else if (ua.indexOf('Trident') > -1) {
+      return 'Internet Explorer';
+    } else if (ua.indexOf('Edge') > -1) {
+      return 'Edge (Legacy)';
+    } else if (ua.indexOf('Edg') > -1) {
+      return 'Edge (Chromium)';
+    } else if (ua.indexOf('Chrome') > -1) {
+      return 'Chrome';
+    } else if (ua.indexOf('Safari') > -1) {
+      return 'Safari';
+    } else {
+      return 'Unknown';
+    }
+  },
+  
+  // Get platform
+  getPlatform: (): string => {
+    if (typeof navigator === 'undefined') return 'unknown';
+    
+    if (browserDetection.isIOS()) {
+      return browserDetection.isIOSPWA() ? 'iOS (PWA)' : 'iOS';
+    }
+    
+    const ua = navigator.userAgent;
+    
+    if (/Android/.test(ua)) {
+      return 'Android';
+    } else if (/Mac/.test(ua)) {
+      return 'macOS';
+    } else if (/Windows/.test(ua)) {
+      return 'Windows';
+    } else if (/Linux/.test(ua)) {
+      return 'Linux';
+    } else {
+      return 'Unknown';
+    }
   }
 };

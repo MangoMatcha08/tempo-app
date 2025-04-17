@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useForm } from "react-hook-form";
 import MasterSwitch from "./MasterSwitch";
 import ChannelSettings from "./ChannelSettings";
 import PermissionAlert from "./PermissionAlert";
@@ -14,11 +15,18 @@ import { usePermissionTracker } from "@/hooks/notifications/usePermissionTracker
 import { useNotificationSettings } from "@/hooks/notifications/useNotificationSettings";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
+import { ExtendedNotificationSettings } from "./types";
+import { FormProvider } from "@/components/ui/form";
 
 const NotificationSettings = () => {
   const { requestPermission, permissionGranted, isSupported } = usePermissionTracker();
-  const { settings } = useNotificationSettings();
+  const { settings, updateSettings } = useNotificationSettings();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  
+  // Create form with current settings values
+  const form = useForm<ExtendedNotificationSettings>({
+    defaultValues: settings as ExtendedNotificationSettings,
+  });
   
   if (!settings) {
     return (
@@ -36,7 +44,12 @@ const NotificationSettings = () => {
     );
   }
   
-  const { masterEnabled, pushEnabled, emailEnabled, inAppEnabled } = settings;
+  // Extract important settings values
+  const masterEnabled = settings.enabled ?? false;
+  const pushEnabled = settings.push?.enabled ?? false;
+  const emailEnabled = settings.email?.enabled ?? false;
+  const inAppEnabled = settings.inApp?.enabled ?? false;
+  const dailySummaryEnabled = settings.email?.dailySummary?.enabled ?? false;
 
   return (
     <>
@@ -68,36 +81,48 @@ const NotificationSettings = () => {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <MasterSwitch />
-          
-          <PermissionAlert
-            permissionGranted={permissionGranted}
-            masterEnabled={masterEnabled}
-            pushEnabled={pushEnabled}
-            requestPermission={requestPermission}
-          />
-          
-          <BrowserAlert permissionGranted={permissionGranted} isSupported={isSupported} />
-          
-          <Tabs defaultValue="push" className="w-full">
-            <TabsList className="grid grid-cols-3 mb-4">
-              <TabsTrigger value="push">Push</TabsTrigger>
-              <TabsTrigger value="email">Email</TabsTrigger>
-              <TabsTrigger value="inapp">In-App</TabsTrigger>
-            </TabsList>
-            <TabsContent value="push">
-              <PushNotifications
-                enabled={masterEnabled && pushEnabled}
-                permissionGranted={permissionGranted}
-              />
-            </TabsContent>
-            <TabsContent value="email">
-              <EmailNotifications enabled={masterEnabled && emailEnabled} />
-            </TabsContent>
-            <TabsContent value="inapp">
-              <InAppNotifications enabled={masterEnabled && inAppEnabled} />
-            </TabsContent>
-          </Tabs>
+          <FormProvider {...form}>
+            <MasterSwitch control={form.control} />
+            
+            <PermissionAlert
+              permissionGranted={permissionGranted}
+              masterEnabled={masterEnabled}
+              pushEnabled={pushEnabled}
+              requestPermission={requestPermission}
+            />
+            
+            <BrowserAlert permissionGranted={permissionGranted} isSupported={isSupported} />
+            
+            <Tabs defaultValue="push" className="w-full">
+              <TabsList className="grid grid-cols-3 mb-4">
+                <TabsTrigger value="push">Push</TabsTrigger>
+                <TabsTrigger value="email">Email</TabsTrigger>
+                <TabsTrigger value="inapp">In-App</TabsTrigger>
+              </TabsList>
+              <TabsContent value="push">
+                <PushNotifications
+                  control={form.control}
+                  enabled={masterEnabled}
+                  pushEnabled={pushEnabled}
+                />
+              </TabsContent>
+              <TabsContent value="email">
+                <EmailNotifications
+                  control={form.control}
+                  enabled={masterEnabled}
+                  emailEnabled={emailEnabled}
+                  dailySummaryEnabled={dailySummaryEnabled}
+                />
+              </TabsContent>
+              <TabsContent value="inapp">
+                <InAppNotifications
+                  control={form.control}
+                  enabled={masterEnabled}
+                  inAppEnabled={inAppEnabled}
+                />
+              </TabsContent>
+            </Tabs>
+          </FormProvider>
         </CardContent>
       </Card>
       

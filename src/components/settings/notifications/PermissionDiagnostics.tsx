@@ -167,7 +167,7 @@ const PermissionDiagnostics = ({ expanded = false }: PermissionDiagnosticsProps)
         
         {/* Sync warning if needed */}
         {status.syncRequired && (
-          <Alert variant="warning" className="bg-amber-50 text-amber-800 border-amber-200">
+          <Alert variant="default" className="bg-amber-50 text-amber-800 border-amber-200">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Permission State Mismatch</AlertTitle>
             <AlertDescription>
