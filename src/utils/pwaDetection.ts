@@ -1,6 +1,10 @@
-
 import { browserDetection } from './browserDetection';
 import { getPlatformCapabilities } from './platformCapabilities';
+import { 
+  PWAEnvironment, 
+  PWACapabilities, 
+  InstallationEvent 
+} from '@/types/pwa';
 
 /**
  * Enhanced PWA Detection Module
@@ -79,11 +83,10 @@ export class PWADetection {
    * Get the complete PWA environment information
    */
   getPWAEnvironment(): PWAEnvironment {
-    const isPwa = this.isPWA();
     const capabilities = getPlatformCapabilities();
 
     return {
-      isPwa,
+      isPwa: this.isPWA(),
       isStandalone: this.getDisplayMode() === 'standalone',
       displayMode: this.getDisplayMode(),
       installationStatus: this.getInstallationStatus(),
