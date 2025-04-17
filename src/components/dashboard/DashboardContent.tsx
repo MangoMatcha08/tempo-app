@@ -12,8 +12,8 @@ import ReminderLoadingState from "./ReminderLoadingState";
 import { Button } from "@/components/ui/button";
 import IOSPushInstallDemo from '@/components/notifications/IOSPushInstallDemo';
 import NotificationMethodInfo from '@/components/notifications/NotificationMethodInfo';
+import IOSPermissionPrompt from '@/components/notifications/IOSPermissionPrompt';
 
-// Define extended reminder type with UI-specific properties
 export type UIEnhancedReminder = UIReminder;
 
 interface DashboardContentProps {
@@ -118,7 +118,9 @@ const DashboardContent = ({
   }
 
   return (
-    <>
+    <div className="space-y-6">
+      <IOSPermissionPrompt />
+      
       <CurrentPeriodIndicator />
       
       {isRefreshing && (
@@ -177,7 +179,7 @@ const DashboardContent = ({
       <div className="mt-6">
         <IOSPushInstallDemo />
       </div>
-    </>
+    </div>
   );
 };
 
