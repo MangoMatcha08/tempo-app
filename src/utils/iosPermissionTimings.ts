@@ -32,9 +32,6 @@ export interface TimingConfig {
 
 /**
  * Get optimal timing configuration based on iOS version
- * 
- * Different iOS versions have different timing requirements for the
- * push notification permission flow to work reliably.
  */
 export const getTimingConfigForIOSVersion = (iosVersionStr: string): TimingConfig => {
   const iosVersion = parseFloat(iosVersionStr);
@@ -52,8 +49,9 @@ export const getTimingConfigForIOSVersion = (iosVersionStr: string): TimingConfi
       registrationRetries: 3
     };
   }
+  
   // iOS 16.6+ has improved reliability
-  else if (iosVersion >= 16.6 && iosVersion < 17.0) {
+  if (iosVersion >= 16.6 && iosVersion < 17.0) {
     return {
       prePermissionDelay: 300,
       postServiceWorkerDelay: 500,
@@ -65,8 +63,9 @@ export const getTimingConfigForIOSVersion = (iosVersionStr: string): TimingConfi
       registrationRetries: 2
     };
   }
+  
   // iOS 17.0+ has further improvements
-  else if (iosVersion >= 17.0) {
+  if (iosVersion >= 17.0) {
     return {
       prePermissionDelay: 200,
       postServiceWorkerDelay: 300,
@@ -79,7 +78,7 @@ export const getTimingConfigForIOSVersion = (iosVersionStr: string): TimingConfi
     };
   }
   
-  // Default fallback config (conservative timings)
+  // Default fallback config for older versions (conservative timings)
   return {
     prePermissionDelay: 500,
     postServiceWorkerDelay: 800,
@@ -94,7 +93,6 @@ export const getTimingConfigForIOSVersion = (iosVersionStr: string): TimingConfi
 
 /**
  * Get timing configuration for current iOS device
- * Returns null for non-iOS devices
  */
 export const getCurrentDeviceTimingConfig = (): TimingConfig | null => {
   if (!browserDetection.isIOS()) {
@@ -119,11 +117,11 @@ export const timeout = <T>(promise: Promise<T>, ms: number, errorMessage?: strin
     setTimeout(() => reject(new Error(errorMessage || `Operation timed out after ${ms}ms`)), ms);
   });
   
-  return Promise.race([promise, timeoutPromise]) as Promise<T>;
+  return Promise.race([promise, timeoutPromise]);
 };
 
 /**
- * Get optimal retry strategy based on iOS version
+ * Get retry strategy based on iOS version
  */
 export const getRetryStrategy = (iosVersionStr: string) => {
   const iosVersion = parseFloat(iosVersionStr);
@@ -136,8 +134,9 @@ export const getRetryStrategy = (iosVersionStr: string) => {
       backoffFactor: 1.5
     };
   }
+  
   // iOS 16.6+ is more reliable
-  else if (iosVersion >= 16.6) {
+  if (iosVersion >= 16.6) {
     return {
       maxRetries: 2,
       baseDelayMs: 800,
