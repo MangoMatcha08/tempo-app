@@ -19,7 +19,7 @@ import {
   resumePermissionFlow 
 } from '@/utils/iosPermissionUtils';
 import { shouldResumeFlow } from '@/utils/iosPermissionFlowState';
-import { PermissionRequestResult } from '@/types/notifications';
+import { PermissionRequestResult, PermissionErrorReason } from '@/types/notifications/permissionTypes';
 
 /**
  * Hook for notification permission management
@@ -40,13 +40,26 @@ export function useNotificationPermission(): NotificationPermission {
         resumeFlow: shouldResumeFlow()
       });
       
-      // Check if we need to resume an interrupted flow
-      if (shouldResumeFlow()) {
-        return resumePermissionFlow();
+      try {
+        // Check if we need to resume an interrupted flow
+        if (shouldResumeFlow()) {
+          return resumePermissionFlow();
+        }
+        
+        // Use iOS-specific permission flow that returns a compatible PermissionRequestResult
+        return requestIOSPushPermission();
+      } catch (error) {
+        iosPushLogger.logPermissionEvent('ios-hook-error', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+        
+        // Return a structured error response
+        return {
+          granted: false,
+          error: error instanceof Error ? error : new Error(String(error)),
+          reason: PermissionErrorReason.UNKNOWN_ERROR
+        };
       }
-      
-      // Use iOS-specific permission flow that returns a compatible PermissionRequestResult
-      return requestIOSPushPermission();
     }
     
     // For other platforms, use the standard permission flow

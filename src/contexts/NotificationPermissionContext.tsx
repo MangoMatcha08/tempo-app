@@ -3,8 +3,9 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   PermissionRequestResult,
   BrowserPermissionState, 
-  NotificationPermissionContextState 
-} from '@/types/notifications';
+  NotificationPermissionContextState,
+  PermissionErrorReason
+} from '@/types/notifications/permissionTypes';
 import { requestNotificationPermission, firebaseInitPromise } from '@/services/notificationService';
 import { browserDetection } from '@/utils/browserDetection';
 import { iosPushLogger } from '@/utils/iosPushLogger';
@@ -80,7 +81,11 @@ export const NotificationPermissionProvider: React.FC<NotificationPermissionProv
           iosPushLogger.logPermissionEvent('api-not-supported');
         }
         
-        throw new Error('Notifications not supported in this browser');
+        return {
+          granted: false,
+          reason: PermissionErrorReason.BROWSER_UNSUPPORTED,
+          error: new Error('Notifications not supported in this browser')
+        };
       }
       
       // iOS-specific handling
@@ -97,14 +102,19 @@ export const NotificationPermissionProvider: React.FC<NotificationPermissionProv
           
           return { 
             granted: false, 
-            reason: 'ios-version-unsupported',
+            reason: PermissionErrorReason.IOS_VERSION_UNSUPPORTED,
             error: new Error(`iOS version ${browserDetection.getIOSVersion()} doesn't support web push`)
           };
         }
       }
       
       // Wait for Firebase to initialize
-      await firebaseInitPromise;
+      try {
+        await firebaseInitPromise;
+      } catch (initError) {
+        console.error('Error waiting for Firebase initialization:', initError);
+        // Continue anyway as this shouldn't block permission request
+      }
       
       // Request permission
       console.log('Requesting notification permission...');
@@ -124,7 +134,8 @@ export const NotificationPermissionProvider: React.FC<NotificationPermissionProv
       
       return { 
         granted,
-        token: token || null
+        token: token || null,
+        reason: granted ? undefined : PermissionErrorReason.PERMISSION_DENIED
       };
     } catch (error) {
       console.error('Error requesting notification permission:', error);
@@ -138,14 +149,18 @@ export const NotificationPermissionProvider: React.FC<NotificationPermissionProv
       
       return { 
         granted: false,
-        error: error instanceof Error ? error : new Error('Unknown error requesting permission')
+        error: error instanceof Error ? error : new Error('Unknown error requesting permission'),
+        reason: PermissionErrorReason.UNKNOWN_ERROR
       };
     }
   };
 
   // Check if permission is granted
   const hasPermission = (): boolean => {
-    return permissionGranted;
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      return false;
+    }
+    return Notification.permission === 'granted';
   };
 
   const value: NotificationPermissionContextState = {

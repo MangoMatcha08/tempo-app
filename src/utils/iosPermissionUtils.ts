@@ -1,7 +1,7 @@
 
 import { browserDetection } from './browserDetection';
 import { iosPushLogger } from './iosPushLogger';
-import { PermissionRequestResult } from '@/types/notifications';
+import { PermissionRequestResult } from '@/types/notifications/permissionTypes';
 import { sleep, getCurrentDeviceTimingConfig } from './iosPermissionTimings';
 import { 
   PermissionFlowStep, 
@@ -33,7 +33,8 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
     
     // Start the permission flow and save initial state
     saveFlowState(PermissionFlowStep.INITIAL, {
-      iosVersion: String(browserDetection.getIOSVersion() || '0')
+      iosVersion: String(browserDetection.getIOSVersion() || '0'),
+      startTime: Date.now()
     });
     
     // Log the attempt
@@ -55,7 +56,7 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
       
       return { 
         granted: false, 
-        reason: 'iOS version must be 16.4 or higher for push notifications',
+        reason: 'ios-version-unsupported',
         iosVersion: iosVersionString
       };
     }
@@ -71,13 +72,21 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
       
       return { 
         granted: false, 
-        reason: 'Push notifications on iOS require PWA mode',
+        reason: 'pwa-required',
         shouldPromptPwaInstall: true
       };
     }
     
     // Get timing configuration for this iOS version
     const timingConfig = getCurrentDeviceTimingConfig();
+    if (!timingConfig) {
+      iosPushLogger.logPermissionEvent('timing-config-unavailable');
+      return {
+        granted: false,
+        reason: 'configuration-error',
+        error: new Error('Timing configuration unavailable for this device')
+      };
+    }
     
     // Register service worker with iOS-specific optimizations
     iosPushLogger.logPermissionEvent('registering-service-worker');
@@ -90,21 +99,24 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
       
       return {
         granted: false,
-        reason: 'Service worker registration failed',
-        error: swResult.error
+        reason: 'service-worker-failed',
+        error: new Error(swResult.error || 'Unknown service worker error')
       };
     }
     
     // Service worker registered successfully
     saveFlowState(PermissionFlowStep.SERVICE_WORKER_REGISTERED, {
-      swScope: swResult.registration?.scope
+      swScope: swResult.registration?.scope,
+      registrationTime: Date.now()
     });
     
     // Add critical delay after service worker registration
-    await sleep(timingConfig?.postServiceWorkerDelay || 300);
+    await sleep(timingConfig.postServiceWorkerDelay || 300);
     
     // Now we can proceed with the actual permission request
-    saveFlowState(PermissionFlowStep.PERMISSION_REQUESTED);
+    saveFlowState(PermissionFlowStep.PERMISSION_REQUESTED, {
+      requestTime: Date.now()
+    });
     iosPushLogger.logPermissionEvent('requesting-system-permission');
     
     // Request notification permission
@@ -115,16 +127,27 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
     
     if (permissionResult === 'granted') {
       // Permission granted
-      saveFlowState(PermissionFlowStep.PERMISSION_GRANTED);
+      saveFlowState(PermissionFlowStep.PERMISSION_GRANTED, {
+        grantedTime: Date.now()
+      });
       
       // Wait for Firebase to initialize
-      await ensureFirebaseInitialized();
+      try {
+        await ensureFirebaseInitialized();
+      } catch (fbError) {
+        iosPushLogger.logPermissionEvent('firebase-init-error', {
+          error: fbError instanceof Error ? fbError.message : String(fbError)
+        });
+        // Continue anyway, we'll try to get a token
+      }
       
       // Add delay before token request
-      await sleep(timingConfig?.tokenRequestDelay || 400);
+      await sleep(timingConfig.tokenRequestDelay || 400);
       
       // Request FCM token
-      saveFlowState(PermissionFlowStep.TOKEN_REQUESTED);
+      saveFlowState(PermissionFlowStep.TOKEN_REQUESTED, {
+        tokenRequestTime: Date.now()
+      });
       
       try {
         if (!messaging) {
@@ -139,7 +162,8 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
         
         // Flow complete with token
         saveFlowState(PermissionFlowStep.COMPLETE, {
-          token: token ? `${token.substring(0, 5)}...` : null
+          token: token ? `${token.substring(0, 5)}...` : null,
+          completeTime: Date.now()
         });
         
         // Clear flow state as we've completed successfully
@@ -152,42 +176,46 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
       } catch (tokenError) {
         saveFlowState(PermissionFlowStep.ERROR, {
           error: tokenError instanceof Error ? tokenError.message : String(tokenError),
-          step: 'token-request'
+          step: 'token-request',
+          errorTime: Date.now()
         });
         
         return {
           granted: true,  // Permission was granted, but token request failed
-          error: tokenError instanceof Error ? tokenError.message : String(tokenError),
-          reason: 'Error requesting FCM token'
+          error: tokenError instanceof Error ? tokenError : new Error(String(tokenError)),
+          reason: 'token-request-failed'
         };
       }
     } else {
       // Permission denied by user
       saveFlowState(PermissionFlowStep.ERROR, {
-        error: `Permission ${permissionResult} by user`
+        error: `Permission ${permissionResult} by user`,
+        errorTime: Date.now()
       });
       
       return { 
         granted: false, 
-        reason: `Permission ${permissionResult} by user` 
+        reason: `permission-${permissionResult}` 
       };
     }
   } catch (error) {
     // Log any errors
     iosPushLogger.logPermissionEvent('ios-permission-error', {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
+      errorTime: Date.now()
     });
     
     // Save error state
     saveFlowState(PermissionFlowStep.ERROR, {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
+      errorTime: Date.now()
     });
     
     // Return error information
     return { 
       granted: false, 
-      error: error instanceof Error ? error : String(error),
-      reason: 'Error requesting permission'
+      error: error instanceof Error ? error : new Error(String(error)),
+      reason: 'permission-flow-error'
     };
   }
 }
@@ -203,7 +231,7 @@ export async function resumePermissionFlow(): Promise<PermissionRequestResult> {
       step,
       data: {
         ...data,
-        timings: data.timings // Include timing data for analysis
+        resumeTime: Date.now()
       }
     });
     
@@ -245,9 +273,18 @@ export async function resumePermissionFlow(): Promise<PermissionRequestResult> {
   } catch (error) {
     // Error in resuming flow, start fresh
     clearFlowState();
-    return requestIOSPushPermission();
+    iosPushLogger.logPermissionEvent('resume-flow-error', {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return { 
+      granted: false,
+      error: error instanceof Error ? error : new Error(String(error)),
+      reason: 'resume-flow-failed'
+    };
   }
 }
+
+// The rest of the helper functions remain mostly the same
 
 /**
  * Helper function to request permission after service worker is registered
@@ -256,38 +293,47 @@ async function requestPermissionAfterServiceWorker(): Promise<PermissionRequestR
   try {
     // Get timing config
     const timingConfig = getCurrentDeviceTimingConfig();
+    if (!timingConfig) {
+      throw new Error('Timing configuration unavailable');
+    }
     
     // Add delay before permission request
-    await sleep(timingConfig?.postServiceWorkerDelay || 300);
+    await sleep(timingConfig.postServiceWorkerDelay || 300);
     
     // Request permission
-    saveFlowState(PermissionFlowStep.PERMISSION_REQUESTED);
+    saveFlowState(PermissionFlowStep.PERMISSION_REQUESTED, {
+      requestTime: Date.now()
+    });
     iosPushLogger.logPermissionEvent('resuming-permission-request');
     
     const permissionResult = await Notification.requestPermission();
     
     if (permissionResult === 'granted') {
-      saveFlowState(PermissionFlowStep.PERMISSION_GRANTED);
+      saveFlowState(PermissionFlowStep.PERMISSION_GRANTED, {
+        grantedTime: Date.now()
+      });
       return requestFCMTokenAfterPermission();
     } else {
       saveFlowState(PermissionFlowStep.ERROR, {
-        error: `Permission ${permissionResult} by user`
+        error: `Permission ${permissionResult} by user`,
+        errorTime: Date.now()
       });
       
       return { 
         granted: false, 
-        reason: `Permission ${permissionResult} by user` 
+        reason: `permission-${permissionResult}` 
       };
     }
   } catch (error) {
     saveFlowState(PermissionFlowStep.ERROR, {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
+      errorTime: Date.now()
     });
     
     return {
       granted: false,
-      error: error instanceof Error ? error : String(error),
-      reason: 'Error resuming permission request'
+      error: error instanceof Error ? error : new Error(String(error)),
+      reason: 'permission-request-error'
     };
   }
 }
@@ -298,14 +344,27 @@ async function requestPermissionAfterServiceWorker(): Promise<PermissionRequestR
 async function requestFCMTokenAfterPermission(): Promise<PermissionRequestResult> {
   try {
     // Wait for Firebase to initialize
-    await ensureFirebaseInitialized();
+    try {
+      await ensureFirebaseInitialized();
+    } catch (fbError) {
+      iosPushLogger.logPermissionEvent('firebase-init-error', {
+        error: fbError instanceof Error ? fbError.message : String(fbError)
+      });
+      // Continue anyway, we'll try to get a token
+    }
     
     // Get timing config
     const timingConfig = getCurrentDeviceTimingConfig();
-    await sleep(timingConfig?.tokenRequestDelay || 400);
+    if (!timingConfig) {
+      throw new Error('Timing configuration unavailable');
+    }
+    
+    await sleep(timingConfig.tokenRequestDelay || 400);
     
     // Request FCM token
-    saveFlowState(PermissionFlowStep.TOKEN_REQUESTED);
+    saveFlowState(PermissionFlowStep.TOKEN_REQUESTED, {
+      tokenRequestTime: Date.now()
+    });
     
     if (!messaging) {
       throw new Error('Firebase messaging not available');
@@ -336,7 +395,8 @@ async function requestFCMTokenAfterPermission(): Promise<PermissionRequestResult
     
     // Flow complete with token
     saveFlowState(PermissionFlowStep.COMPLETE, {
-      token: token ? `${token.substring(0, 5)}...` : null
+      token: token ? `${token.substring(0, 5)}...` : null,
+      completeTime: Date.now()
     });
     
     // Clear flow state as we've completed successfully
@@ -349,13 +409,14 @@ async function requestFCMTokenAfterPermission(): Promise<PermissionRequestResult
   } catch (tokenError) {
     saveFlowState(PermissionFlowStep.ERROR, {
       error: tokenError instanceof Error ? tokenError.message : String(tokenError),
-      step: 'token-request'
+      step: 'token-request',
+      errorTime: Date.now()
     });
     
     return {
       granted: true,  // Permission was granted, but token request failed
-      error: tokenError instanceof Error ? tokenError : String(tokenError),
-      reason: 'Error requesting FCM token'
+      error: tokenError instanceof Error ? tokenError : new Error(String(tokenError)),
+      reason: 'token-request-error'
     };
   }
 }

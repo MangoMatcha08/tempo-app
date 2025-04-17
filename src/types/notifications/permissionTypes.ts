@@ -30,6 +30,35 @@ export interface PermissionRequestResult {
 }
 
 /**
+ * Well-known reason codes for permission request failures
+ * Used to standardize error reporting across the application
+ */
+export enum PermissionErrorReason {
+  // Browser support issues
+  BROWSER_UNSUPPORTED = 'browser-unsupported',
+  SERVICE_WORKER_UNSUPPORTED = 'service-worker-unsupported',
+  
+  // Permission state issues
+  PERMISSION_DENIED = 'permission-denied',
+  PERMISSION_DISMISSED = 'permission-dismissed',
+  
+  // iOS-specific issues
+  IOS_VERSION_UNSUPPORTED = 'ios-version-unsupported',
+  PWA_REQUIRED = 'pwa-required',
+  
+  // Token issues
+  TOKEN_REQUEST_FAILED = 'token-request-failed',
+  
+  // Service worker issues
+  SERVICE_WORKER_FAILED = 'service-worker-failed',
+  
+  // Generic errors
+  UNKNOWN_ERROR = 'unknown-error',
+  TIMEOUT = 'timeout',
+  CONFIGURATION_ERROR = 'configuration-error'
+}
+
+/**
  * Browser's native notification permission state
  * with additional states for unsupported browsers.
  * 
