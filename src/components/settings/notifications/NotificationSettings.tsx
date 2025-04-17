@@ -16,7 +16,7 @@ import { useNotificationSettings } from "@/hooks/notifications/useNotificationSe
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
 import { ExtendedNotificationSettings } from "./types";
-import { FormProvider } from "@/components/ui/form";
+import { Form as FormProvider } from "@/components/ui/form";
 
 const NotificationSettings = () => {
   const { requestPermission, permissionGranted, isSupported } = usePermissionTracker();
@@ -89,6 +89,7 @@ const NotificationSettings = () => {
               masterEnabled={masterEnabled}
               pushEnabled={pushEnabled}
               requestPermission={requestPermission}
+              isSupported={isSupported}
             />
             
             <BrowserAlert permissionGranted={permissionGranted} isSupported={isSupported} />

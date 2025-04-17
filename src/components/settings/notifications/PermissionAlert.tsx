@@ -12,20 +12,19 @@ interface PermissionAlertProps {
   masterEnabled: boolean;
   pushEnabled: boolean;
   requestPermission: () => Promise<any>;
+  isSupported: boolean;
 }
 
 const PermissionAlert = ({
   permissionGranted,
   masterEnabled,
   pushEnabled,
-  requestPermission
+  requestPermission,
+  isSupported
 }: PermissionAlertProps) => {
   const [requesting, setRequesting] = useState(false);
   const [requestStatus, setRequestStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorReason, setErrorReason] = useState<string | undefined>(undefined);
-  
-  // Get the hook for checking browser permission status directly
-  const { isSupported } = useNotificationPermission();
   
   // Reset status after display period
   useEffect(() => {
