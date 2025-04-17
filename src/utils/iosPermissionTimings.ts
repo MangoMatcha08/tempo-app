@@ -1,4 +1,3 @@
-
 /**
  * iOS Permission Timing Configuration
  * 
@@ -175,6 +174,18 @@ export const withRetry = async <T>(
   
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
+      // Log retry attempt
+      if (attempt > 0) {
+        const delayMs = baseDelayMs * Math.pow(backoffFactor, attempt - 1);
+        iosPushLogger.logPushEvent('retry-attempt', {
+          attempt,
+          delayMs,
+          maxRetries,
+          iosVersion: iosVersionStr
+        });
+        await sleep(delayMs);
+      }
+      
       return await fn();
     } catch (error) {
       lastError = error;
@@ -185,12 +196,30 @@ export const withRetry = async <T>(
         ? options.retryPredicate(error, attempt)
         : true;
       
-      if (!shouldRetry) break;
+      if (!shouldRetry) {
+        iosPushLogger.logPushEvent('retry-aborted', {
+          attempt,
+          error: error instanceof Error ? error.message : String(error),
+          reason: 'retry-predicate-false'
+        });
+        break;
+      }
       
-      const delayMs = baseDelayMs * Math.pow(backoffFactor, attempt);
-      await sleep(delayMs);
+      // Log retry details
+      iosPushLogger.logPushEvent('retry-error', {
+        attempt,
+        error: error instanceof Error ? error.message : String(error),
+        nextAttemptDelay: baseDelayMs * Math.pow(backoffFactor, attempt),
+        remainingRetries: maxRetries - attempt
+      });
     }
   }
+  
+  // Log final failure
+  iosPushLogger.logPushEvent('retry-exhausted', {
+    totalAttempts: maxRetries + 1,
+    finalError: lastError instanceof Error ? lastError.message : String(lastError)
+  });
   
   throw lastError;
 };
