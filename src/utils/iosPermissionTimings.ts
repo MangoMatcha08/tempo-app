@@ -24,6 +24,10 @@ export interface TimingConfig {
   statusPollingInterval: number;
   /** Service worker registration retry delay (ms) */
   serviceWorkerRetryDelay: number;
+  /** Delay after permission is granted before requesting token (ms) */
+  postPermissionDelay: number;
+  /** Maximum retries for service worker registration */
+  registrationRetries: number;
 }
 
 /**
@@ -39,44 +43,52 @@ export const getTimingConfigForIOSVersion = (iosVersionStr: string): TimingConfi
   if (iosVersion >= 16.4 && iosVersion < 16.6) {
     return {
       prePermissionDelay: 500,
-      postServiceWorkerDelay: 300,
-      tokenRequestDelay: 600,
-      flowTimeout: 20000,
+      postServiceWorkerDelay: 800,
+      tokenRequestDelay: 1000,
+      flowTimeout: 30000,
       statusPollingInterval: 3000,
-      serviceWorkerRetryDelay: 800
+      serviceWorkerRetryDelay: 800,
+      postPermissionDelay: 1000,
+      registrationRetries: 3
     };
   }
   // iOS 16.6+ has improved reliability
   else if (iosVersion >= 16.6 && iosVersion < 17.0) {
     return {
       prePermissionDelay: 300,
-      postServiceWorkerDelay: 200,
-      tokenRequestDelay: 400,
-      flowTimeout: 15000,
+      postServiceWorkerDelay: 500,
+      tokenRequestDelay: 700,
+      flowTimeout: 20000,
       statusPollingInterval: 2000,
-      serviceWorkerRetryDelay: 500
+      serviceWorkerRetryDelay: 500,
+      postPermissionDelay: 700,
+      registrationRetries: 2
     };
   }
   // iOS 17.0+ has further improvements
   else if (iosVersion >= 17.0) {
     return {
       prePermissionDelay: 200,
-      postServiceWorkerDelay: 150,
-      tokenRequestDelay: 300,
-      flowTimeout: 12000,
+      postServiceWorkerDelay: 300,
+      tokenRequestDelay: 500,
+      flowTimeout: 15000,
       statusPollingInterval: 1500,
-      serviceWorkerRetryDelay: 400
+      serviceWorkerRetryDelay: 400,
+      postPermissionDelay: 500,
+      registrationRetries: 1
     };
   }
   
   // Default fallback config (conservative timings)
   return {
     prePermissionDelay: 500,
-    postServiceWorkerDelay: 400,
-    tokenRequestDelay: 600,
-    flowTimeout: 20000,
+    postServiceWorkerDelay: 800,
+    tokenRequestDelay: 1000,
+    flowTimeout: 30000,
     statusPollingInterval: 3000,
-    serviceWorkerRetryDelay: 800
+    serviceWorkerRetryDelay: 800,
+    postPermissionDelay: 1000,
+    registrationRetries: 3
   };
 };
 
@@ -119,7 +131,7 @@ export const getRetryStrategy = (iosVersionStr: string) => {
   // iOS 16.4-16.5 needs more retries with longer backoff
   if (iosVersion >= 16.4 && iosVersion < 16.6) {
     return {
-      maxRetries: 5,
+      maxRetries: 3,
       baseDelayMs: 1000,
       backoffFactor: 1.5
     };
@@ -127,7 +139,7 @@ export const getRetryStrategy = (iosVersionStr: string) => {
   // iOS 16.6+ is more reliable
   else if (iosVersion >= 16.6) {
     return {
-      maxRetries: 3,
+      maxRetries: 2,
       baseDelayMs: 800,
       backoffFactor: 1.3
     };
@@ -135,7 +147,7 @@ export const getRetryStrategy = (iosVersionStr: string) => {
   
   // Default fallback
   return {
-    maxRetries: 4,
+    maxRetries: 3,
     baseDelayMs: 1000,
     backoffFactor: 1.5
   };

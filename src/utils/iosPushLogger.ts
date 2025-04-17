@@ -1,3 +1,4 @@
+
 /**
  * iOS Push Notification Logger
  * 
@@ -11,7 +12,7 @@ const ENABLE_DETAILED_LOGGING = process.env.NODE_ENV === 'development' ||
 
 interface LogEvent {
   timestamp: number;
-  category: 'permission' | 'service-worker' | 'token' | 'performance' | 'error' | 'permission-flow';
+  category: 'permission' | 'service-worker' | 'token' | 'performance' | 'error' | 'permission-flow' | 'step';
   event: string;
   data?: any;
 }
@@ -67,7 +68,7 @@ const recordEvent = (category: LogEvent['category'], event: string, data: any = 
 
 // Add structured step logging
 export const logPermissionStep = (step: string, details: any = {}) => {
-  recordEvent('permission-flow', step, {
+  recordEvent('step', step, {
     ...details,
     timestamp: Date.now(),
     documentVisibility: typeof document !== 'undefined' ? document.visibilityState : 'unknown',

@@ -43,6 +43,9 @@ export interface PermissionFlowData {
 const FLOW_STEP_KEY = 'ios-push-flow-step';
 const FLOW_DATA_KEY = 'ios-push-flow-data';
 
+// Flow timeout (prevent stale state)
+const FLOW_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
 /**
  * Save the current flow state to sessionStorage
  */
@@ -53,7 +56,12 @@ export const saveFlowState = (step: PermissionFlowStep, data?: PermissionFlowDat
     // Get existing data and merge with new data
     const existingDataStr = sessionStorage.getItem(FLOW_DATA_KEY);
     const existingData = existingDataStr ? JSON.parse(existingDataStr) : {};
-    const mergedData = { ...existingData, ...data, timestamp: Date.now() };
+    const mergedData = { 
+      ...existingData, 
+      ...data, 
+      timestamp: Date.now(),
+      lastStep: step
+    };
     
     // Update timing information
     if (!mergedData.timings) {
@@ -79,6 +87,11 @@ export const saveFlowState = (step: PermissionFlowStep, data?: PermissionFlowDat
         break;
       case PermissionFlowStep.COMPLETE:
         mergedData.timings.completed = Date.now();
+        
+        // Calculate duration if we have start and end times
+        if (mergedData.timings.flowStart) {
+          mergedData.duration = mergedData.timings.completed - mergedData.timings.flowStart;
+        }
         break;
     }
     
@@ -115,10 +128,47 @@ export const getFlowState = (): {
  */
 export const clearFlowState = (): void => {
   try {
+    // Get current state for logging
+    const { step, data } = getFlowState();
+    
+    // Log the clearing action
+    iosPushLogger.logPermissionEvent('flow-state-cleared', {
+      previousStep: step,
+      data,
+      clearTime: Date.now()
+    });
+    
+    // Remove from session storage
     sessionStorage.removeItem(FLOW_STEP_KEY);
     sessionStorage.removeItem(FLOW_DATA_KEY);
   } catch (error) {
     console.error('Error clearing flow state:', error);
+  }
+};
+
+/**
+ * Check if the flow state is stale (too old)
+ */
+export const isFlowStale = (): boolean => {
+  try {
+    const { data } = getFlowState();
+    const timestamp = data.timestamp || 0;
+    
+    // Check if the timestamp is too old
+    const isStale = Date.now() - timestamp > FLOW_TIMEOUT_MS;
+    
+    if (isStale) {
+      iosPushLogger.logPermissionEvent('flow-state-stale', {
+        timestamp,
+        currentTime: Date.now(),
+        ageMs: Date.now() - timestamp,
+        timeoutMs: FLOW_TIMEOUT_MS
+      });
+    }
+    
+    return isStale;
+  } catch {
+    return true;
   }
 };
 
@@ -129,21 +179,61 @@ export const shouldResumeFlow = (): boolean => {
   try {
     const { step, data } = getFlowState();
     
-    // No saved state or in initial/error state
-    if (step === PermissionFlowStep.INITIAL || step === PermissionFlowStep.ERROR) {
+    // No saved state or in initial/error/complete state
+    if (
+      step === PermissionFlowStep.INITIAL || 
+      step === PermissionFlowStep.ERROR ||
+      step === PermissionFlowStep.COMPLETE
+    ) {
       return false;
     }
     
-    // Check if the saved state is too old (30 minutes)
-    const timestamp = data.timestamp || 0;
-    const maxAge = 30 * 60 * 1000; // 30 minutes
-    if (Date.now() - timestamp > maxAge) {
+    // Check if the saved state is stale
+    if (isFlowStale()) {
       clearFlowState();
       return false;
     }
     
+    // We have a valid, non-stale state that's in progress
+    iosPushLogger.logPermissionEvent('flow-resumable', {
+      step,
+      lastUpdated: new Date(data.timestamp || 0).toISOString(),
+      ageSeconds: (Date.now() - (data.timestamp || 0)) / 1000
+    });
+    
     return true;
   } catch {
     return false;
+  }
+};
+
+/**
+ * Get flow progress as a percentage
+ */
+export const getFlowProgress = (): number => {
+  try {
+    const { step } = getFlowState();
+    
+    // Map steps to progress percentages
+    switch (step) {
+      case PermissionFlowStep.INITIAL:
+        return 0;
+      case PermissionFlowStep.SERVICE_WORKER_REGISTERED:
+        return 25;
+      case PermissionFlowStep.PERMISSION_REQUESTED:
+        return 50;
+      case PermissionFlowStep.PERMISSION_GRANTED:
+        return 75;
+      case PermissionFlowStep.TOKEN_REQUESTED:
+        return 90;
+      case PermissionFlowStep.COMPLETE:
+        return 100;
+      case PermissionFlowStep.ERROR:
+        return 0;
+      default:
+        return 0;
+    }
+  } catch {
+    return 0;
   }
 };
