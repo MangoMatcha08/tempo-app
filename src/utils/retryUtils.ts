@@ -16,8 +16,22 @@ export interface RetryOptions {
   logger?: RetryLogger;
 }
 
+// Utility function for sleeping
 export const sleep = (ms: number): Promise<void> => 
   new Promise(resolve => setTimeout(resolve, ms));
+
+// Timeout utility
+export const timeout = <T>(
+  promise: Promise<T>, 
+  ms: number, 
+  errorMessage?: string
+): Promise<T> => {
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error(errorMessage || `Operation timed out after ${ms}ms`)), ms);
+  });
+  
+  return Promise.race([promise, timeoutPromise]);
+};
 
 export const withRetry = async <T>(
   fn: () => Promise<T>,

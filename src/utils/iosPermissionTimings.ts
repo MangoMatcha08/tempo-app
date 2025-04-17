@@ -1,5 +1,8 @@
 import { browserDetection } from './browserDetection';
-import { sleep, withRetry, type RetryOptions } from './retryUtils';
+import { sleep, withRetry, timeout, type RetryOptions } from './retryUtils';
+
+// Re-export these utilities for backward compatibility
+export { sleep, withRetry, timeout };
 
 /**
  * iOS Permission Timing Configuration
@@ -134,6 +137,3 @@ export const getRetryStrategy = (iosVersionStr: string): RetryOptions => {
     backoffFactor: 1.5
   };
 };
-
-// Re-export the timeout utility
-export { timeout } from './retryUtils';
