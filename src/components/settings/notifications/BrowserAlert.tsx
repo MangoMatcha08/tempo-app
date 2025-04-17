@@ -1,9 +1,16 @@
-
 import React from "react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Info } from "lucide-react";
 
-const BrowserAlert = () => {
+interface BrowserAlertProps {
+  permissionGranted?: boolean;
+  isSupported?: boolean;
+}
+
+const BrowserAlert: React.FC<BrowserAlertProps> = ({ 
+  permissionGranted, 
+  isSupported 
+}) => {
   const isBrowser = typeof window !== 'undefined';
   const isNotificationSupported = isBrowser && 'Notification' in window;
   

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +22,6 @@ const NotificationSettings = () => {
   const { settings, updateSettings } = useNotificationSettings();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   
-  // Create form with current settings values
   const form = useForm<ExtendedNotificationSettings>({
     defaultValues: settings as ExtendedNotificationSettings,
   });
@@ -44,7 +42,6 @@ const NotificationSettings = () => {
     );
   }
   
-  // Extract important settings values
   const masterEnabled = settings.enabled ?? false;
   const pushEnabled = settings.push?.enabled ?? false;
   const emailEnabled = settings.email?.enabled ?? false;
@@ -92,7 +89,10 @@ const NotificationSettings = () => {
               isSupported={isSupported}
             />
             
-            <BrowserAlert permissionGranted={permissionGranted} isSupported={isSupported} />
+            <BrowserAlert 
+              permissionGranted={permissionGranted} 
+              isSupported={isSupported} 
+            />
             
             <Tabs defaultValue="push" className="w-full">
               <TabsList className="grid grid-cols-3 mb-4">
