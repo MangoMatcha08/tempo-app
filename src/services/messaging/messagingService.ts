@@ -28,7 +28,7 @@ try {
  * @param callback Function to be called when a message is received
  * @returns Unsubscribe function
  */
-export const setupForegroundMessageListener = (
+const setupForegroundMessageListener = (
   callback: (payload: FirebaseMessagingPayload) => void
 ): (() => void) => {
   if (!messaging) {
@@ -56,7 +56,7 @@ export const setupForegroundMessageListener = (
  * Gets the FCM token for the current device with special handling for iOS
  * @returns Promise with the token
  */
-export const getFCMToken = async (): Promise<string | null> => {
+const getFCMToken = async (): Promise<string | null> => {
   if (!messaging) {
     console.warn('Messaging not initialized, cannot get FCM token');
     return null;
@@ -123,7 +123,7 @@ export const getFCMToken = async (): Promise<string | null> => {
  * Request permission and get FCM token
  * @returns Promise with the FCM token
  */
-export const requestNotificationPermission = async (): Promise<string | null> => {
+const requestNotificationPermission = async (): Promise<string | null> => {
   // Check if notifications are supported
   if (typeof window === 'undefined' || !('Notification' in window)) {
     console.warn('Notifications not supported in this browser');
@@ -172,7 +172,7 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
 /**
  * Save FCM token to Firestore
  */
-export const saveTokenToFirestore = async (userId: string, token: string): Promise<void> => {
+const saveTokenToFirestore = async (userId: string, token: string): Promise<void> => {
   // Implementation would go here
   console.log(`Saving token ${token.substring(0, 5)}... for user ${userId}`);
 };
@@ -182,7 +182,7 @@ export const saveTokenToFirestore = async (userId: string, token: string): Promi
  * @param options Test notification options
  * @returns Promise with the test result
  */
-export const sendTestMessage = async (options: { 
+const sendTestMessage = async (options: { 
   type: 'push' | 'email';
   email?: string;
   includeDeviceInfo?: boolean;
@@ -220,8 +220,9 @@ export const sendTestMessage = async (options: {
   }
 };
 
-// Export necessary functions
-export { 
+// Export all functions
+export {
+  getFCMToken,
   setupForegroundMessageListener,
   requestNotificationPermission,
   saveTokenToFirestore,
