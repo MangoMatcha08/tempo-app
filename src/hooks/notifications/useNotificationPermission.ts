@@ -7,7 +7,7 @@
  * @module hooks/notifications/useNotificationPermission
  */
 
-import { useCallback } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { 
   useNotificationPermission as usePermissionContext
 } from '@/contexts/NotificationPermissionContext';
@@ -20,6 +20,7 @@ import {
 } from '@/utils/iosPermissionUtils';
 import { shouldResumeFlow } from '@/utils/iosPermissionFlowState';
 import { PermissionRequestResult, PermissionErrorReason } from '@/types/notifications/permissionTypes';
+import { toast } from "sonner";
 
 /**
  * Hook for notification permission management
@@ -28,9 +29,25 @@ import { PermissionRequestResult, PermissionErrorReason } from '@/types/notifica
  */
 export function useNotificationPermission(): NotificationPermission {
   const context = usePermissionContext();
+  const [lastRequestTime, setLastRequestTime] = useState<number | null>(null);
   
-  // Enhanced request permission function with iOS support
+  useEffect(() => {
+    // Check if we need to display a toast when the permission state changes
+    if (context.permissionGranted && lastRequestTime) {
+      const timeSinceRequest = Date.now() - lastRequestTime;
+      // Only show toast if permission was recently granted (within last 10 seconds)
+      if (timeSinceRequest < 10000) {
+        toast.success("Notification permission granted", {
+          description: "You'll now receive important notifications.",
+        });
+      }
+    }
+  }, [context.permissionGranted, lastRequestTime]);
+  
+  // Enhanced request permission function with iOS support and better feedback
   const requestPermission = useCallback(async (): Promise<PermissionRequestResult> => {
+    setLastRequestTime(Date.now());
+    
     // For iOS, use the specialized iOS permission flow
     if (browserDetection.isIOS()) {
       iosPushLogger.logPermissionEvent('hook-request-start', {
@@ -66,9 +83,19 @@ export function useNotificationPermission(): NotificationPermission {
     return context.requestPermission();
   }, [context.requestPermission]);
 
-  // Check if permission is granted
+  // Check if permission is granted with appropriate logging
   const hasPermission = useCallback((): boolean => {
-    return context.hasPermission();
+    const permissionGranted = context.hasPermission();
+    
+    // Log the current permission state for debugging
+    if (browserDetection.isIOS()) {
+      iosPushLogger.logPermissionEvent('permission-check', {
+        granted: permissionGranted,
+        browserPermission: typeof Notification !== 'undefined' ? Notification.permission : 'unavailable'
+      });
+    }
+    
+    return permissionGranted;
   }, [context.hasPermission]);
   
   // Forward methods from context with appropriate typing and iOS enhancement

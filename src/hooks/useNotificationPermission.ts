@@ -1,11 +1,17 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { requestNotificationPermission } from '@/services/notificationService';
-import { PermissionRequestResult } from '@/types/notifications/permissionTypes';
+import { PermissionRequestResult, PermissionErrorReason } from '@/types/notifications/permissionTypes';
+import { toast } from "sonner";
+import { browserDetection } from '@/utils/browserDetection';
 
 export const useNotificationPermission = () => {
   const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
   const [isSupported, setIsSupported] = useState<boolean>(true);
+  const [lastRequest, setLastRequest] = useState<{
+    time: number;
+    result?: PermissionRequestResult;
+  } | null>(null);
 
   // Check initial permission status
   useEffect(() => {
@@ -20,18 +26,24 @@ export const useNotificationPermission = () => {
     }
   }, []);
 
-  // Request notification permission with proper error handling
+  // Request notification permission with proper error handling and improved UX
   const requestPermission = async (): Promise<PermissionRequestResult> => {
     try {
+      setLastRequest({ time: Date.now() });
+      
       // Check if Notification API is supported
       if (typeof window === 'undefined' || !('Notification' in window)) {
         console.log('Notifications not supported in this browser');
         setIsSupported(false);
-        return {
+        
+        const result: PermissionRequestResult = {
           granted: false,
           error: new Error('Notifications not supported in this browser'),
-          reason: 'browser-unsupported'
+          reason: PermissionErrorReason.BROWSER_UNSUPPORTED
         };
+        
+        setLastRequest(prev => prev ? { ...prev, result } : null);
+        return result;
       }
       
       // Log the current permission status
@@ -46,18 +58,33 @@ export const useNotificationPermission = () => {
           const granted = !!token;
           setPermissionGranted(granted);
           
-          return {
+          // Create result object with detailed information
+          const result: PermissionRequestResult = {
             granted,
             token: token || null,
-            reason: granted ? undefined : 'permission-denied'
+            reason: granted ? undefined : PermissionErrorReason.PERMISSION_DENIED
           };
+          
+          if (granted && browserDetection.isIOS()) {
+            // Special success toast for iOS users who often have more steps
+            toast.success("iOS Push Notifications Enabled", {
+              description: "You've successfully set up push notifications for this device."
+            });
+          }
+          
+          setLastRequest(prev => prev ? { ...prev, result } : null);
+          return result;
         } catch (requestError) {
           console.error('Error in requestNotificationPermission:', requestError);
-          return {
+          
+          const result: PermissionRequestResult = {
             granted: false,
             error: requestError instanceof Error ? requestError : new Error(String(requestError)),
-            reason: 'request-error'
+            reason: PermissionErrorReason.UNKNOWN_ERROR
           };
+          
+          setLastRequest(prev => prev ? { ...prev, result } : null);
+          return result;
         }
       } else {
         // For devices where permission is already granted, 
@@ -65,41 +92,56 @@ export const useNotificationPermission = () => {
         console.log('Permission already granted, registering token');
         try {
           const token = await requestNotificationPermission();
-          return {
+          
+          const result: PermissionRequestResult = {
             granted: true,
             token: token || null
           };
+          
+          setLastRequest(prev => prev ? { ...prev, result } : null);
+          return result;
         } catch (tokenError) {
           console.error('Error getting token for already granted permission:', tokenError);
-          return {
+          
+          const result: PermissionRequestResult = {
             granted: true, // Permission is still granted even if token fails
             error: tokenError instanceof Error ? tokenError : new Error(String(tokenError)),
-            reason: 'token-error'
+            reason: PermissionErrorReason.TOKEN_REQUEST_FAILED
           };
+          
+          setLastRequest(prev => prev ? { ...prev, result } : null);
+          return result;
         }
       }
     } catch (error) {
       console.error('Error requesting notification permission:', error);
-      return {
+      
+      const result: PermissionRequestResult = {
         granted: false,
         error: error instanceof Error ? error : new Error(String(error)),
-        reason: 'unknown-error'
+        reason: PermissionErrorReason.UNKNOWN_ERROR
       };
+      
+      setLastRequest(prev => prev ? { ...prev, result } : null);
+      return result;
     }
   };
 
   // Add a function to check current permission status
-  const hasPermission = (): boolean => {
+  const hasPermission = useCallback((): boolean => {
     if (typeof window === 'undefined' || !('Notification' in window)) {
       return false;
     }
     return Notification.permission === 'granted';
-  };
+  }, []);
 
   return {
     permissionGranted,
     isSupported,
     requestPermission,
-    hasPermission
+    hasPermission,
+    lastRequest  // Export the last request data for UI components
   };
 };
+
+export default useNotificationPermission;
