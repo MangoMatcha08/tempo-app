@@ -1,4 +1,3 @@
-
 /**
  * iOS Permission Request Utilities
  * 
@@ -20,6 +19,7 @@ import { SERVICE_WORKER_CONFIG } from './serviceWorkerConfig';
 import { PermissionRequestResult, PermissionErrorReason } from '@/types/notifications';
 import { getToken } from 'firebase/messaging';
 import { saveTokenToFirestore } from '../services/notifications/messaging';
+import { checkIOSPushSupport } from './iosPermissionHelper';
 
 /**
  * Request iOS push notification permission with optimized flow
