@@ -10,6 +10,10 @@ import { getUserFriendlyErrorMessage } from "@/lib/firebase/error-utils";
 import IOSPushStatusDashboard from "@/components/notifications/IOSPushStatusDashboard";
 import { browserDetection } from "@/utils/browserDetection";
 
+// Refresh debounce
+const REFRESH_DEBOUNCE = 60000; // 1 minute
+let lastRefreshTime = 0;
+
 const Dashboard = () => {
   const [hasError, setHasError] = useState(false);
   const { toast } = useToast();
@@ -77,21 +81,31 @@ const Dashboard = () => {
     };
   }, [cleanupBatchOperations]);
 
+  // Debounced refresh function
+  const debouncedRefresh = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastRefreshTime < REFRESH_DEBOUNCE) {
+      console.log("Refresh debounced, too soon since last refresh");
+      return true;
+    }
+    
+    try {
+      lastRefreshTime = now;
+      const success = await refreshReminders();
+      return success;
+    } catch (error) {
+      console.error("Error refreshing reminders:", error);
+      toast({
+        title: "Refresh Failed",
+        description: getUserFriendlyErrorMessage(error),
+        variant: "destructive",
+      });
+      return false;
+    }
+  }, [refreshReminders, toast]);
+
   const { forceRefresh } = useDashboardRefresh(
-    async () => {
-      try {
-        const success = await refreshReminders();
-        return success;
-      } catch (error) {
-        console.error("Error refreshing reminders:", error);
-        toast({
-          title: "Refresh Failed",
-          description: getUserFriendlyErrorMessage(error),
-          variant: "destructive",
-        });
-        return false;
-      }
-    },
+    debouncedRefresh,
     loading,
     hasError
   );
@@ -108,7 +122,7 @@ const Dashboard = () => {
         });
         
         console.log("Forcing refresh after add");
-        await refreshReminders();
+        await debouncedRefresh();
       }
       
       return !!result; // Convert to boolean
@@ -121,7 +135,7 @@ const Dashboard = () => {
       });
       return false;
     }
-  }, [addReminderBase, refreshReminders, toast]);
+  }, [addReminderBase, debouncedRefresh, toast]);
 
   const handleDeleteReminder = useCallback(async (id: string) => {
     try {
@@ -180,6 +194,7 @@ const Dashboard = () => {
         description: "Reminder cache has been cleared"
       });
       console.log("Initiating refresh after cache clear");
+      lastRefreshTime = 0; // Reset debounce to force refresh
       const success = await refreshReminders();
       console.log("Refresh result after cache clear:", success);
       return success;
@@ -218,7 +233,7 @@ const Dashboard = () => {
         addReminder={handleAddReminder}
         updateReminder={updateReminder}
         loadMoreReminders={loadMoreReminders}
-        refreshReminders={refreshReminders}
+        refreshReminders={debouncedRefresh}
         hasMore={hasMore}
         totalCount={totalCount}
         hasError={hasError}

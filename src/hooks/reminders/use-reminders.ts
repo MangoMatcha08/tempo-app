@@ -13,6 +13,10 @@ import {
   transformToCompletedReminders
 } from "./reminder-transformations";
 
+// Cache control
+const FETCH_COOLDOWN = 30000; // 30 seconds between refreshes
+let lastFetchTimestamp = 0;
+
 export function useReminders() {
   const [error, setError] = useState<Error | null>(null);
   const { user } = useAuth();
@@ -75,17 +79,24 @@ export function useReminders() {
   }, [operationsError]);
   
   useEffect(() => {
-    const timer = setTimeout(() => {
-      console.log("Initiating initial fetch of reminders");
-      fetchReminders()
-        .then(() => console.log("Initial fetch completed successfully"))
-        .catch(err => {
-          console.error("Error in initial fetch:", err);
-          setError(err);
-        });
-    }, 100);
-    
-    return () => clearTimeout(timer);
+    // Only fetch if enough time has passed since last fetch
+    const now = Date.now();
+    if (now - lastFetchTimestamp > FETCH_COOLDOWN) {
+      const timer = setTimeout(() => {
+        console.log("Initiating initial fetch of reminders");
+        lastFetchTimestamp = now;
+        fetchReminders()
+          .then(() => console.log("Initial fetch completed successfully"))
+          .catch(err => {
+            console.error("Error in initial fetch:", err);
+            setError(err);
+          });
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    } else {
+      console.log(`Skipping fetch, last fetch was ${(now - lastFetchTimestamp)/1000} seconds ago`);
+    }
   }, [fetchReminders]);
   
   const handleCompleteReminder = useCallback((id: string) => {
@@ -140,7 +151,16 @@ export function useReminders() {
   
   const refreshReminders = useCallback(async (): Promise<boolean> => {
     console.log("Refreshing reminders");
+    
+    const now = Date.now();
+    // Only refresh if enough time has passed since last fetch
+    if (now - lastFetchTimestamp < FETCH_COOLDOWN) {
+      console.log(`Skipping refresh, last fetch was ${(now - lastFetchTimestamp)/1000} seconds ago`);
+      return true; // Return success without fetching
+    }
+    
     try {
+      lastFetchTimestamp = now;
       await refreshRemindersBase();
       console.log("Reminders refreshed successfully");
       return true;
