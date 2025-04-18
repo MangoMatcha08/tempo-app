@@ -1,4 +1,3 @@
-
 import { Reminder as BackendReminder } from "@/types/reminderTypes";
 import { Reminder as UIReminder } from "@/types/reminder";
 import { 
@@ -6,6 +5,24 @@ import {
   getTimeAgoDisplay, 
   formatDate 
 } from "./reminder-formatting";
+
+// Add the new transformReminder function
+export function transformReminder(id: string, data: any): BackendReminder {
+  return {
+    id,
+    title: data.title || '',
+    description: data.description || '',
+    dueDate: data.dueDate ? new Date(data.dueDate) : new Date(),
+    priority: data.priority || 'medium',
+    userId: data.userId,
+    completed: data.completed || false,
+    createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+    completedAt: data.completedAt ? new Date(data.completedAt) : undefined,
+    category: data.category,
+    checklist: data.checklist,
+    periodId: data.periodId
+  };
+}
 
 /**
  * Ensures a priority value is one of the allowed string literal types
