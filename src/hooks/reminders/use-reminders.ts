@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFirestore } from "@/contexts/FirestoreContext";
@@ -11,7 +12,6 @@ import {
   transformToUpcomingReminders,
   transformToCompletedReminders
 } from "./reminder-transformations";
-import { handleFirestoreError } from "@/lib/firebase/firestore";
 
 // Cache control
 const FETCH_COOLDOWN = 30000; // 30 seconds between refreshes
@@ -20,22 +20,14 @@ let lastFetchTimestamp = 0;
 export function useReminders() {
   const [error, setError] = useState<Error | null>(null);
   const { user } = useAuth();
-  const { db, isReady, error: firestoreError, useMockData: contextUseMockData, registerNeededIndex } = useFirestore();
+  const { db, isReady, error: firestoreError, useMockData: contextUseMockData } = useFirestore();
   
   useEffect(() => {
     if (firestoreError) {
       console.error("Firestore error detected:", firestoreError);
-      
-      // Check if it's an index error
-      const errorDetails = handleFirestoreError(firestoreError);
-      if (errorDetails.isIndexError && errorDetails.indexUrl) {
-        // Register the needed index
-        registerNeededIndex('reminders', errorDetails.indexUrl);
-      }
-      
       setError(firestoreError);
     }
-  }, [firestoreError, registerNeededIndex]);
+  }, [firestoreError]);
   
   const {
     reminders,
@@ -56,17 +48,9 @@ export function useReminders() {
   useEffect(() => {
     if (queryError) {
       console.error("Query error detected:", queryError);
-      
-      // Check if it's an index error
-      const errorDetails = handleFirestoreError(queryError);
-      if (errorDetails.isIndexError && errorDetails.indexUrl) {
-        // Register the needed index
-        registerNeededIndex('reminders', errorDetails.indexUrl);
-      }
-      
       setError(queryError);
     }
-  }, [queryError, registerNeededIndex]);
+  }, [queryError]);
   
   const {
     urgentReminders: urgentBackendReminders,
@@ -90,17 +74,9 @@ export function useReminders() {
   useEffect(() => {
     if (operationsError) {
       console.error("Operations error detected:", operationsError);
-      
-      // Check if it's an index error
-      const errorDetails = handleFirestoreError(operationsError);
-      if (errorDetails.isIndexError && errorDetails.indexUrl) {
-        // Register the needed index
-        registerNeededIndex('reminders', errorDetails.indexUrl);
-      }
-      
       setError(operationsError);
     }
-  }, [operationsError, registerNeededIndex]);
+  }, [operationsError]);
   
   useEffect(() => {
     // Only fetch if enough time has passed since last fetch
@@ -113,14 +89,6 @@ export function useReminders() {
           .then(() => console.log("Initial fetch completed successfully"))
           .catch(err => {
             console.error("Error in initial fetch:", err);
-            
-            // Check if it's an index error
-            const errorDetails = handleFirestoreError(err);
-            if (errorDetails.isIndexError && errorDetails.indexUrl) {
-              // Register the needed index
-              registerNeededIndex('reminders', errorDetails.indexUrl);
-            }
-            
             setError(err);
           });
       }, 100);
@@ -129,7 +97,7 @@ export function useReminders() {
     } else {
       console.log(`Skipping fetch, last fetch was ${(now - lastFetchTimestamp)/1000} seconds ago`);
     }
-  }, [fetchReminders, registerNeededIndex]);
+  }, [fetchReminders]);
   
   const handleCompleteReminder = useCallback((id: string) => {
     console.log("Completing reminder:", id);
@@ -198,17 +166,9 @@ export function useReminders() {
       return true;
     } catch (err) {
       console.error("Error refreshing reminders:", err);
-      
-      // Check if it's an index error
-      const errorDetails = handleFirestoreError(err);
-      if (errorDetails.isIndexError && errorDetails.indexUrl) {
-        // Register the needed index
-        registerNeededIndex('reminders', errorDetails.indexUrl);
-      }
-      
       return false;
     }
-  }, [refreshRemindersBase, registerNeededIndex]);
+  }, [refreshRemindersBase]);
   
   const reminderStats = useMemo(() => {
     return calculateReminderStats(

@@ -14,7 +14,7 @@ import {
 
 // Import the ensureFirebaseInitialized function from the index file
 import { ensureFirebaseInitialized } from "./firebase/index";
-import { getFirestoreInstance, handleFirestoreError } from "./firebase/firestore";
+import { getFirestoreInstance } from "./firebase/firestore";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -45,12 +45,6 @@ try {
   firebaseInitError = error instanceof Error ? error : new Error(String(error));
 }
 
-// Helper to detect if there's a missing index
-export const isMissingIndexError = (error: any): boolean => {
-  const errorDetails = handleFirestoreError(error);
-  return errorDetails.isIndexError;
-};
-
 // Function to help generate the correct index creation URL
 export const getFirestoreIndexCreationUrl = (collectionId: string, fields: string[]) => {
   if (!firebaseApp?.options?.projectId) {
@@ -61,6 +55,19 @@ export const getFirestoreIndexCreationUrl = (collectionId: string, fields: strin
   const encodedFields = encodeURIComponent(JSON.stringify(fields));
   
   return `https://console.firebase.google.com/project/${projectId}/firestore/indexes?create_composite=${encodedFields}&collection=${collectionId}`;
+};
+
+// Helper to detect if there's a missing index
+export const isMissingIndexError = (error: any): boolean => {
+  if (!error) return false;
+  
+  const errorMessage = typeof error === 'string' 
+    ? error 
+    : error.message || String(error);
+    
+  return errorMessage.includes('index') && 
+    errorMessage.includes('required') || 
+    errorMessage.includes('9 FAILED_PRECONDITION');
 };
 
 // Check Firebase initialization status

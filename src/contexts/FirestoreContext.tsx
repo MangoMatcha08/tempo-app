@@ -1,16 +1,11 @@
 
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Firestore } from 'firebase/firestore';
-import { firebaseApp, getFirestoreInstance, handleFirestoreError } from '@/lib/firebase';
+import { firebaseApp, getFirestoreInstance } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { isPermissionError, isQuotaError } from '@/lib/firebase/error-utils';
-
-interface IndexNeeded {
-  collectionId: string;
-  url: string;
-  detected: Date;
-}
+import { isPermissionError, isQuotaError, isIndexError } from '@/lib/firebase/error-utils';
+import { isMissingIndexError, getFirestoreIndexCreationUrl } from '@/lib/firebase/indexing';
 
 interface FirestoreContextType {
   db: Firestore | null;
@@ -19,8 +14,7 @@ interface FirestoreContextType {
   isOnline: boolean;
   hasFirestorePermissions: boolean;
   useMockData: boolean;
-  indexesNeeded: IndexNeeded[];
-  registerNeededIndex: (collectionId: string, url: string) => void;
+  indexesNeeded: Record<string, boolean>;
 }
 
 const FirestoreContext = createContext<FirestoreContextType>({
@@ -30,8 +24,7 @@ const FirestoreContext = createContext<FirestoreContextType>({
   isOnline: true,
   hasFirestorePermissions: true,
   useMockData: false,
-  indexesNeeded: [],
-  registerNeededIndex: () => {}
+  indexesNeeded: {}
 });
 
 export const useFirestore = () => useContext(FirestoreContext);
@@ -43,7 +36,7 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [hasFirestorePermissions, setHasFirestorePermissions] = useState(true);
   const [useMockData, setUseMockData] = useState(false);
-  const [indexesNeeded, setIndexesNeeded] = useState<IndexNeeded[]>([]);
+  const [indexesNeeded, setIndexesNeeded] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -131,6 +124,16 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           // Critical error, can't even get instance
           console.error('Failed to get Firestore instance after quota error:', e);
         }
+        
+      } else if (isIndexError(err)) {
+        console.warn('Firestore index issue detected');
+        toast({
+          title: "Firestore Index Required",
+          description: "Create the necessary indexes in the Firebase Console.",
+          duration: 8000,
+        });
+        
+        setDb(getFirestoreInstance());
       }
       
       // Always try to get a backup instance even if we had an error
@@ -143,30 +146,18 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [toast, isTestAccount]);
 
-  // Register a new index that's needed
-  const registerNeededIndex = (collectionId: string, url: string) => {
-    // Check if we already have this index registered
-    if (indexesNeeded.some(index => index.url === url)) {
-      return; // Already registered
+  const registerNeededIndex = (collectionId: string, fields: string[]) => {
+    setIndexesNeeded(prev => ({ ...prev, [collectionId]: true }));
+    
+    const indexUrl = getFirestoreIndexCreationUrl(collectionId, fields);
+    if (indexUrl) {
+      console.info(`Create index at: ${indexUrl}`);
+      toast({
+        title: "Firestore Index Required",
+        description: `Create the necessary index for ${collectionId} collection to improve performance.`,
+        duration: 8000,
+      });
     }
-    
-    const newIndex = {
-      collectionId,
-      url,
-      detected: new Date()
-    };
-    
-    setIndexesNeeded(prev => [...prev, newIndex]);
-    
-    // Show a toast message with the index creation link
-    toast({
-      title: "Firestore Index Required",
-      description: `An index is needed for ${collectionId}. Click the link in the console.`,
-      duration: 8000,
-    });
-    
-    // Log the URL to make it clickable in the console
-    console.info(`Create Firestore index: ${url}`);
   };
 
   const contextValue = useMemo(() => ({
@@ -176,8 +167,7 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     isOnline,
     hasFirestorePermissions,
     useMockData,
-    indexesNeeded,
-    registerNeededIndex
+    indexesNeeded
   }), [db, isReady, error, isOnline, hasFirestorePermissions, useMockData, indexesNeeded]);
 
   return (
