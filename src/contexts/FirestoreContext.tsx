@@ -9,6 +9,7 @@ import {
   getFirestoreIndexCreationUrl, 
   handleFirestoreIndexError 
 } from '@/lib/firebase/indexing';
+import { ToastAction } from '@/components/ui/toast';
 
 interface FirestoreContextType {
   db: Firestore | null;
@@ -99,10 +100,14 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         toast({
           title: "Firestore Index Required",
           description: "Create the necessary indexes to optimize database queries.",
-          action: indexErrorDetails.indexUrl ? {
-            label: "Create Index",
-            onClick: () => window.open(indexErrorDetails.indexUrl!, '_blank')
-          } : undefined,
+          action: indexErrorDetails.indexUrl ? (
+            <ToastAction 
+              altText="Create Index"
+              onClick={() => window.open(indexErrorDetails.indexUrl!, '_blank')}
+            >
+              Create Index
+            </ToastAction>
+          ) : undefined,
           duration: 8000,
         });
       }
