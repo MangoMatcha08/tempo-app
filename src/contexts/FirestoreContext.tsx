@@ -1,11 +1,14 @@
-
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Firestore } from 'firebase/firestore';
 import { firebaseApp, getFirestoreInstance } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { isPermissionError, isQuotaError, isIndexError } from '@/lib/firebase/error-utils';
-import { isMissingIndexError, getFirestoreIndexCreationUrl } from '@/lib/firebase/indexing';
+import { 
+  isMissingIndexError, 
+  getFirestoreIndexCreationUrl, 
+  handleFirestoreIndexError 
+} from '@/lib/firebase/indexing';
 
 interface FirestoreContextType {
   db: Firestore | null;
@@ -86,6 +89,23 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } catch (err) {
       console.error('Error initializing Firestore in context:', err);
       setError(err instanceof Error ? err : new Error('Unknown Firestore error'));
+      
+      // Enhanced error handling with index detection
+      const indexErrorDetails = handleFirestoreIndexError(err);
+      
+      if (indexErrorDetails.isIndexError) {
+        console.warn('Firestore index issue detected');
+        
+        toast({
+          title: "Firestore Index Required",
+          description: "Create the necessary indexes to optimize database queries.",
+          action: indexErrorDetails.indexUrl ? {
+            label: "Create Index",
+            onClick: () => window.open(indexErrorDetails.indexUrl!, '_blank')
+          } : undefined,
+          duration: 8000,
+        });
+      }
       
       if (isPermissionError(err)) {
         console.warn('Firestore permissions issue detected');
