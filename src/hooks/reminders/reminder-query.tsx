@@ -1,5 +1,4 @@
-
-import { useState, useCallback } from "react";
+import React from 'react';
 import {
   collection,
   query,
@@ -18,6 +17,7 @@ import { DatabaseReminder } from "@/types/reminderTypes";
 import { transformReminder } from "./reminder-transformations";
 import { getMockReminders } from "./mock-reminders";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { isMissingIndexError, getFirestoreIndexCreationUrl } from "@/lib/firebase/indexing";
 
 // Cache settings
@@ -36,7 +36,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, useMockDa
   const { toast } = useToast();
 
   // Function to check cache validity
-  const isCacheValid = useCallback(() => {
+  const isCacheValid = React.useCallback(() => {
     try {
       const cacheString = localStorage.getItem(CACHE_KEY);
       if (!cacheString) return false;
@@ -59,7 +59,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, useMockDa
   }, [user?.uid]);
 
   // Function to get from cache
-  const getFromCache = useCallback(() => {
+  const getFromCache = React.useCallback(() => {
     try {
       const cacheString = localStorage.getItem(CACHE_KEY);
       if (!cacheString) return null;
@@ -73,7 +73,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, useMockDa
   }, []);
 
   // Function to save to cache
-  const saveToCache = useCallback((data: DatabaseReminder[]) => {
+  const saveToCache = React.useCallback((data: DatabaseReminder[]) => {
     try {
       const cache = {
         timestamp: Date.now(),
@@ -86,7 +86,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, useMockDa
     }
   }, [user?.uid]);
 
-  const fetchReminders = useCallback(async () => {
+  const fetchReminders = React.useCallback(async () => {
     if (!user?.uid || !db || !isReady) {
       return [];
     }
@@ -118,9 +118,9 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, useMockDa
       console.error("Error fetching reminders:", error);
       return [];
     }
-  }, [user?.uid, db, isReady, isCacheValid, getFromCache]);
+  }, [user?.uid, db, isReady, isCacheValid, getFromCache, fetchFromFirebase]);
 
-  const fetchFromFirebase = useCallback(async (isBackgroundFetch = false) => {
+  const fetchFromFirebase = React.useCallback(async (isBackgroundFetch = false) => {
     if (!user?.uid || !db) {
       return [];
     }
@@ -192,12 +192,15 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, useMockDa
               title: "Missing Firestore Index",
               description: "A database index is needed for optimal performance. Click 'Create Index' to fix.",
               variant: "destructive",
-              action: (
-                <div onClick={() => window.open(indexUrl, '_blank')} className="cursor-pointer underline">
+              action: indexUrl ? (
+                <ToastAction 
+                  altText="Create Index"
+                  onClick={() => window.open(indexUrl, '_blank')}
+                >
                   Create Index
-                </div>
-              ),
-              duration: 10000,
+                </ToastAction>
+              ) : undefined,
+              duration: 10000
             });
           }
           
@@ -252,7 +255,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, useMockDa
     }
   }, [user?.uid, db, useMockData, saveToCache, toast]);
 
-  const loadMoreReminders = useCallback(async () => {
+  const loadMoreReminders = React.useCallback(async () => {
     if (!user?.uid || !db || !isReady || !lastVisible || !hasMore) {
       return;
     }
@@ -310,7 +313,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, useMockDa
     }
   }, [user?.uid, db, isReady, lastVisible, hasMore]);
 
-  const refreshReminders = useCallback(async () => {
+  const refreshReminders = React.useCallback(async () => {
     setIsRefreshing(true);
     setLastVisible(null); // Reset pagination
     
@@ -324,7 +327,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, useMockDa
     }
   }, [fetchReminders]);
 
-  const loadReminderDetail = useCallback(
+  const loadReminderDetail = React.useCallback(
     async (reminderId: string): Promise<DatabaseReminder | null> => {
       if (!db || !isReady) {
         return null;
