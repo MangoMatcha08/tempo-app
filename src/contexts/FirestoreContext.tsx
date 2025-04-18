@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Firestore } from 'firebase/firestore';
 import { firebaseApp, getFirestoreInstance } from '@/lib/firebase';
@@ -19,6 +20,7 @@ interface FirestoreContextType {
   hasFirestorePermissions: boolean;
   useMockData: boolean;
   indexesNeeded: Record<string, boolean>;
+  registerNeededIndex: (collectionId: string, fields: string[]) => void;
 }
 
 const FirestoreContext = createContext<FirestoreContextType>({
@@ -28,7 +30,8 @@ const FirestoreContext = createContext<FirestoreContextType>({
   isOnline: true,
   hasFirestorePermissions: true,
   useMockData: false,
-  indexesNeeded: {}
+  indexesNeeded: {},
+  registerNeededIndex: () => {}
 });
 
 export const useFirestore = () => useContext(FirestoreContext);
@@ -180,6 +183,14 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       toast({
         title: "Firestore Index Required",
         description: `Create the necessary index for ${collectionId} collection to improve performance.`,
+        action: (
+          <ToastAction 
+            altText="Create Index" 
+            onClick={() => window.open(indexUrl, '_blank')}
+          >
+            Create Index
+          </ToastAction>
+        ),
         duration: 8000,
       });
     }
@@ -192,7 +203,8 @@ export const FirestoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     isOnline,
     hasFirestorePermissions,
     useMockData,
-    indexesNeeded
+    indexesNeeded,
+    registerNeededIndex
   }), [db, isReady, error, isOnline, hasFirestorePermissions, useMockData, indexesNeeded]);
 
   return (

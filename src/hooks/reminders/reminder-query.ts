@@ -17,6 +17,8 @@ import {
 import { DatabaseReminder } from "@/types/reminderTypes";
 import { transformReminder } from "./reminder-transformations";
 import { getMockReminders } from "./mock-reminders";
+import { useToast } from "@/hooks/use-toast";
+import { isMissingIndexError, getFirestoreIndexCreationUrl } from "@/lib/firebase/indexing";
 
 // Cache settings
 const CACHE_KEY = 'reminderCache';
@@ -31,6 +33,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, useMockDa
   const [hasMore, setHasMore] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [totalCount, setTotalCount] = useState<number>(0);
+  const { toast } = useToast();
 
   // Function to check cache validity
   const isCacheValid = useCallback(() => {
@@ -153,48 +156,83 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, useMockDa
         console.warn("Could not get count", countError);
       }
       
-      // Create query - try to use a composite index first
-      let fetchQuery;
+      // First try with the complex query that needs composite index
+      let fetchedReminders: DatabaseReminder[] = [];
+      let lastDoc: QueryDocumentSnapshot | null = null;
+      
       try {
-        fetchQuery = query(
+        console.log("Trying query with composite index (userId, dueDate, priority)");
+        const indexQuery = query(
           collection(db, "reminders"),
           where("userId", "==", user.uid),
           orderBy("dueDate", "asc"),
           orderBy("priority", "desc"),
-          limit(50) // Increased limit to reduce number of queries
+          limit(50)
         );
+        
+        const querySnapshot = await getDocs(indexQuery);
+        lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1] || null;
+        
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          const reminder = transformReminder(doc.id, data);
+          fetchedReminders.push(reminder);
+        });
+        
+        console.log(`Fetched ${fetchedReminders.length} reminders with composite index`);
       } catch (indexError) {
-        // If there's an issue with the index, fallback to a simpler query
-        console.log("Using simplified query because index is needed");
-        fetchQuery = query(
-          collection(db, "reminders"),
-          where("userId", "==", user.uid),
-          orderBy("dueDate", "asc"),
-          limit(50) // Increased limit to reduce number of queries
-        );
+        // If the index error occurs, fallback to a simpler query
+        if (isMissingIndexError(indexError)) {
+          console.log("Composite index not ready, using simplified query");
+          
+          // Show a toast with the index creation link
+          const indexUrl = getFirestoreIndexCreationUrl("reminders", ["userId", "dueDate", "priority"]);
+          if (indexUrl) {
+            toast({
+              title: "Missing Firestore Index",
+              description: "A database index is needed for optimal performance. Click 'Create Index' to fix.",
+              variant: "destructive",
+              action: (
+                <div onClick={() => window.open(indexUrl, '_blank')} className="cursor-pointer underline">
+                  Create Index
+                </div>
+              ),
+              duration: 10000,
+            });
+          }
+          
+          // Use a simpler query as fallback
+          const simpleQuery = query(
+            collection(db, "reminders"),
+            where("userId", "==", user.uid),
+            orderBy("dueDate", "asc"),
+            limit(50)
+          );
+          
+          const fallbackSnapshot = await getDocs(simpleQuery);
+          lastDoc = fallbackSnapshot.docs[fallbackSnapshot.docs.length - 1] || null;
+          
+          fetchedReminders = [];
+          fallbackSnapshot.forEach((doc) => {
+            const data = doc.data();
+            const reminder = transformReminder(doc.id, data);
+            fetchedReminders.push(reminder);
+          });
+          
+          console.log(`Fetched ${fetchedReminders.length} reminders with simpler query`);
+        } else {
+          // Re-throw if it's not an index error
+          throw indexError;
+        }
       }
 
-      const startTime = performance.now();
-      const querySnapshot = await getDocs(fetchQuery);
-      const endTime = performance.now();
-      
-      const fetchedReminders: DatabaseReminder[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        const reminder = transformReminder(doc.id, data);
-        fetchedReminders.push(reminder);
-      });
-
       // Set the last visible document for pagination
-      const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
-      setLastVisible(lastDoc || null);
-      setHasMore(querySnapshot.docs.length >= 50);
+      setLastVisible(lastDoc);
+      setHasMore(fetchedReminders.length >= 50);
 
       // Save to cache
       saveToCache(fetchedReminders);
       
-      console.log(`Fetched ${fetchedReminders.length} reminders in ${(endTime - startTime).toFixed(2)}ms`);
-
       if (!isBackgroundFetch) {
         setReminders(fetchedReminders);
         setLoading(false);
@@ -212,7 +250,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, useMockDa
       console.error("Error fetching reminders from Firebase:", error);
       return [];
     }
-  }, [user?.uid, db, useMockData, saveToCache]);
+  }, [user?.uid, db, useMockData, saveToCache, toast]);
 
   const loadMoreReminders = useCallback(async () => {
     if (!user?.uid || !db || !isReady || !lastVisible || !hasMore) {
@@ -222,14 +260,28 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, useMockDa
     try {
       setIsRefreshing(true);
       
-      // Create query with pagination
-      const nextQuery = query(
+      // Create a fallback query that should work even without the composite index
+      let nextQuery = query(
         collection(db, "reminders"),
         where("userId", "==", user.uid),
         orderBy("dueDate", "asc"),
         startAfter(lastVisible),
         limit(20)
       );
+
+      try {
+        // Try to use the query with the composite index first
+        nextQuery = query(
+          collection(db, "reminders"),
+          where("userId", "==", user.uid), 
+          orderBy("dueDate", "asc"),
+          orderBy("priority", "desc"),
+          startAfter(lastVisible),
+          limit(20)
+        );
+      } catch (indexError) {
+        console.log("Using simplified pagination query");
+      }
 
       const querySnapshot = await getDocs(nextQuery);
       const newReminders: DatabaseReminder[] = [];
