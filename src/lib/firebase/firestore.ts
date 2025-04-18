@@ -3,9 +3,6 @@ import {
   getFirestore,
   enableIndexedDbPersistence,
   CACHE_SIZE_UNLIMITED,
-  initializeFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager,
   Timestamp
 } from "firebase/firestore";
 import { firebaseApp } from "./config";
@@ -13,23 +10,30 @@ import { firebaseApp } from "./config";
 // Firestore status tracking
 let firestoreInitialized = false;
 
+// Get Firestore instance with init check
+export const getFirestoreInstance = () => {
+  if (!firebaseApp) {
+    throw new Error("Firebase not initialized");
+  }
+  
+  const db = getFirestore(firebaseApp);
+  
+  // Initialize persistence settings in the background
+  initializeFirestoreWithSettings(db).catch(err => {
+    console.error("Error initializing Firestore persistence:", err);
+  });
+  
+  return db;
+};
+
 // Initialize Firestore with persistence settings
-const initializeFirestoreWithSettings = async () => {
+const initializeFirestoreWithSettings = async (db) => {
   if (firestoreInitialized) {
     return;
   }
 
   try {
-    // Initialize Firestore with multi-tab persistence
-    const db = initializeFirestore(firebaseApp, {
-      localCache: persistentLocalCache({
-        cacheSizeBytes: CACHE_SIZE_UNLIMITED,
-        tabManager: persistentMultipleTabManager()
-      })
-    });
-
     // Enable offline persistence
-    // Note: This is only needed for older Firebase versions, newer ones use the settings above
     try {
       await enableIndexedDbPersistence(db);
       console.log('Firestore persistence enabled successfully');
@@ -50,22 +54,6 @@ const initializeFirestoreWithSettings = async () => {
   } catch (error) {
     console.error('Error setting up Firestore:', error);
   }
-};
-
-// Get Firestore instance with init check
-export const getFirestoreInstance = () => {
-  if (!firebaseApp) {
-    throw new Error("Firebase not initialized");
-  }
-  
-  const db = getFirestore(firebaseApp);
-  
-  // Initialize persistence settings in the background
-  initializeFirestoreWithSettings().catch(err => {
-    console.error("Error initializing Firestore persistence:", err);
-  });
-  
-  return db;
 };
 
 // Utility to help with Firestore document conversion

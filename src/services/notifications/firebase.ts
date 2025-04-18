@@ -2,7 +2,7 @@
 // Firebase initialization and configuration
 import { initializeApp } from 'firebase/app';
 import { getMessaging, isSupported } from 'firebase/messaging';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestoreInstance } from '@/lib/firebase/firestore';
 import { browserDetection } from '@/utils/browserDetection';
 import { iosPushLogger } from '@/utils/iosPushLogger';
 
@@ -49,9 +49,9 @@ export const initializeFirebase = async () => {
         console.log('Firebase messaging not supported in this browser');
       }
       
-      // Initialize Firestore
+      // Initialize Firestore using the shared instance getter
       try {
-        firestore = getFirestore(app);
+        firestore = getFirestoreInstance();
         console.log('Firebase Firestore initialized');
       } catch (firestoreError) {
         console.error('Error initializing Firestore:', firestoreError);
