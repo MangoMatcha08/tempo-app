@@ -13,7 +13,6 @@ import { DatabaseReminder } from "@/types/reminderTypes";
 import { transformReminder } from "./reminder-transformations";
 import { getMockReminders } from "./mock-reminders";
 import { useToast } from "@/hooks/use-toast";
-import { ToastAction } from "@/components/ui/toast";
 import { isMissingIndexError } from "@/lib/firebase/indexing";
 
 export function useReminderQueryFirebase(user: any, db: any, useMockData: boolean = false) {
@@ -39,9 +38,8 @@ export function useReminderQueryFirebase(user: any, db: any, useMockData: boolea
           where("userId", "==", user.uid)
         );
         const countSnapshot = await getCountFromServer(countQuery);
-        const count = countSnapshot.data().count;
-        console.log("Total reminders:", count);
-        return count;
+        console.log("Total reminders:", countSnapshot.data().count);
+        return countSnapshot.data().count;
       } catch (countError) {
         console.warn("Could not get count", countError);
       }
@@ -74,11 +72,10 @@ export function useReminderQueryFirebase(user: any, db: any, useMockData: boolea
             title: "Missing Firestore Index",
             description: "A database index is needed for optimal performance. Click 'Create Index' to fix.",
             variant: "destructive",
-            action: (
-              <ToastAction altText="Create Index">
-                Create Index
-              </ToastAction>
-            )
+            action: {
+              altText: "Create Index",
+              onClick: () => console.log("Create Index clicked")
+            }
           });
           
           // Use a simpler query as fallback
