@@ -1,4 +1,3 @@
-
 // Export from individual files
 export * from './use-reminders';
 export * from './use-reminder-cache';
@@ -12,3 +11,4 @@ export * from './reminder-formatting';
 export * from './reminder-transformations';
 export * from './reminder-stats';
 export * from './use-batch-operations';
+export * from './use-reminder-query-firebase';
