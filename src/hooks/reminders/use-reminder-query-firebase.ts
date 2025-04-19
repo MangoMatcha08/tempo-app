@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import {
   collection,
@@ -13,7 +12,6 @@ import { DatabaseReminder } from "@/types/reminderTypes";
 import { transformReminder } from "./reminder-transformations";
 import { getMockReminders } from "./mock-reminders";
 import { useToast } from "@/hooks/use-toast";
-import { ToastAction } from "@/components/ui/toast";
 import { isMissingIndexError } from "@/lib/firebase/indexing";
 
 export function useReminderQueryFirebase(user: any, db: any, useMockData: boolean = false) {
@@ -74,11 +72,12 @@ export function useReminderQueryFirebase(user: any, db: any, useMockData: boolea
             title: "Missing Firestore Index",
             description: "A database index is needed for optimal performance. Click 'Create Index' to fix.",
             variant: "destructive",
-            action: (
-              <ToastAction altText="Create Index">
-                Create Index
-              </ToastAction>
-            )
+            action: {
+              altText: "Create Index",
+              onClick: () => {
+                // Action handler remains empty as in original implementation
+              }
+            }
           });
           
           // Use a simpler query as fallback
