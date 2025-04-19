@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useCallback } from 'react';
 import {
@@ -32,16 +33,16 @@ export function useReminderQueryFirebase(user: any, db: any, useMockData: boolea
         return mockData;
       }
 
-      // Get total count first
+      let totalCount = 0;
+      // Get total count without returning early
       try {
         const countQuery = query(
           collection(db, "reminders"),
           where("userId", "==", user.uid)
         );
         const countSnapshot = await getCountFromServer(countQuery);
-        const count = countSnapshot.data().count;
-        console.log("Total reminders:", count);
-        return count;
+        totalCount = countSnapshot.data().count;
+        console.log("Total reminders:", totalCount);
       } catch (countError) {
         console.warn("Could not get count", countError);
       }
@@ -110,6 +111,7 @@ export function useReminderQueryFirebase(user: any, db: any, useMockData: boolea
         }
       }
 
+      console.log("Fetched reminders:", fetchedReminders.length);
       return fetchedReminders;
     } catch (e) {
       console.error("Error fetching reminders from Firebase:", e);
