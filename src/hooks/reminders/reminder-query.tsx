@@ -1,8 +1,21 @@
-import { useState, useCallback } from 'react';
+
+import React, { useState, useCallback } from 'react';
 import { DatabaseReminder } from "@/types/reminderTypes";
 import { useReminderQueryCache } from './use-reminder-query-cache';
 import { useReminderQueryFirebase } from './use-reminder-query-firebase';
-import { QueryDocumentSnapshot } from 'firebase/firestore';
+import { 
+  QueryDocumentSnapshot, 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  startAfter, 
+  limit, 
+  getDocs,
+  doc,
+  getDoc
+} from 'firebase/firestore';
+import { transformReminder } from './reminder-transformations';
 
 export function useReminderQuery(user: any, db: any, isReady: boolean, useMockData: boolean = false) {
   const [reminders, setReminders] = useState<DatabaseReminder[]>([]);
@@ -38,6 +51,10 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, useMockDa
       }
       
       const fetchedReminders = await fetchFromFirebase();
+      if (typeof fetchedReminders === 'number') {
+        setTotalCount(fetchedReminders);
+        return [];
+      }
       saveToCache(fetchedReminders);
       setReminders(fetchedReminders);
       setLoading(false);
@@ -51,7 +68,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, useMockDa
     }
   }, [user?.uid, db, isReady, isCacheValid, getFromCache, fetchFromFirebase, saveToCache]);
 
-  const loadMoreReminders = React.useCallback(async () => {
+  const loadMoreReminders = useCallback(async () => {
     if (!user?.uid || !db || !isReady || !lastVisible || !hasMore) {
       return;
     }
@@ -109,7 +126,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, useMockDa
     }
   }, [user?.uid, db, isReady, lastVisible, hasMore]);
 
-  const refreshReminders = React.useCallback(async () => {
+  const refreshReminders = useCallback(async () => {
     setIsRefreshing(true);
     setLastVisible(null); // Reset pagination
     
@@ -123,7 +140,7 @@ export function useReminderQuery(user: any, db: any, isReady: boolean, useMockDa
     }
   }, [fetchReminders]);
 
-  const loadReminderDetail = React.useCallback(
+  const loadReminderDetail = useCallback(
     async (reminderId: string): Promise<DatabaseReminder | null> => {
       if (!db || !isReady) {
         return null;
