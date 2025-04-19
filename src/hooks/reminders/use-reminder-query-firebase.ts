@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import {
   collection,
@@ -12,7 +13,8 @@ import { DatabaseReminder } from "@/types/reminderTypes";
 import { transformReminder } from "./reminder-transformations";
 import { getMockReminders } from "./mock-reminders";
 import { useToast } from "@/hooks/use-toast";
-import { isMissingIndexError } from "@/lib/firebase/indexing";
+import { ToastAction } from "@/components/ui/toast";
+import { isMissingIndexError, getFirestoreIndexCreationUrl } from "@/lib/firebase/indexing";
 
 export function useReminderQueryFirebase(user: any, db: any, useMockData: boolean = false) {
   const { toast } = useToast();
@@ -68,16 +70,23 @@ export function useReminderQueryFirebase(user: any, db: any, useMockData: boolea
         if (isMissingIndexError(indexError)) {
           console.log("Composite index not ready, using simplified query");
           
+          // Generate index creation URL for the specific fields needed
+          const indexFields = ['userId', 'dueDate', 'priority'];
+          const indexUrl = getFirestoreIndexCreationUrl('reminders', indexFields);
+          
           toast({
             title: "Missing Firestore Index",
             description: "A database index is needed for optimal performance. Click 'Create Index' to fix.",
             variant: "destructive",
-            action: {
-              altText: "Create Index",
-              onClick: () => {
-                // Action handler remains empty as in original implementation
-              }
-            }
+            action: (
+              <ToastAction altText="Create Index" onClick={() => {
+                if (indexUrl) {
+                  window.open(indexUrl, '_blank');
+                }
+              }}>
+                Create Index
+              </ToastAction>
+            )
           });
           
           // Use a simpler query as fallback
