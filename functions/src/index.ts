@@ -12,6 +12,16 @@ admin.initializeApp();
 // Firestore reference
 const db = admin.firestore();
 
+// Updated options for the callable function
+const callableOptions = {
+  region: "us-central1",
+  cors: [
+    "https://tempo-app.lovable.app",
+    "https://preview--tempo-app.lovable.app",
+    "http://localhost:5173"
+  ]
+};
+
 /**
  * Scheduled function that runs every 15 minutes to check for upcoming reminders
  * and send notifications to users.
@@ -768,9 +778,7 @@ export const checkOverdueReminders = onSchedule({
  * HTTP trigger function to send a test notification to a specific user
  * This can be used from your frontend to test notification setup
  */
-export const sendTestNotification = onCall({
-  region: "us-central1" 
-}, async (request) => {
+export const sendTestNotification = onCall(callableOptions, async (request) => {
   // Ensure authentication
   if (!request.auth) {
     throw new HttpsError(
@@ -857,9 +865,7 @@ export const sendTestNotification = onCall({
  * HTTP function to handle notification actions
  * This function will be called by the service worker when users interact with notification actions
  */
-export const handleNotificationAction = onCall({
-  region: "us-central1"
-}, async (request) => {
+export const handleNotificationAction = onCall(callableOptions, async (request) => {
   // Validate request data
   const data = request.data as any;
   
