@@ -116,10 +116,6 @@ export const sendReminderNotification = async (
   });
 };
 
-// Add this near the end of the file
-console.log("Auth current user:", getAuth().currentUser);
-console.log("Functions initialized:", functionsInitialized);
-console.log("Functions instance available:", !!functions);
 
 // Re-export the Firebase Functions types/methods that we need
 export { httpsCallable };
