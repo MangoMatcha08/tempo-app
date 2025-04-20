@@ -1,4 +1,3 @@
-
 import * as functions from "firebase-functions/v2";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onCall, HttpsError, onRequest } from "firebase-functions/v2/https";
@@ -6,6 +5,7 @@ import * as admin from "firebase-admin";
 import { NotificationTypes } from "./types";
 import { addMinutes, addDays } from "date-fns";
 import * as nodemailer from "nodemailer";
+import { Response } from "express";
 
 // Initialize the Firebase Admin SDK
 admin.initializeApp();
@@ -950,7 +950,7 @@ export const handleNotificationAction = onCall(callableOptions, async (request) 
 // Additional endpoint to manually trigger notification checks
 export const manualCheckReminders = onRequest({
   region: "us-central1"
-}, async (req: functions.https.Request, res: functions.Response) => {
+}, async (req: functions.https.Request, res: Response) => {
   try {
     // Directly call the logic function
     await checkUpcomingRemindersLogic();
