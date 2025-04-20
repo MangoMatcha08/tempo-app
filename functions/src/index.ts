@@ -1,4 +1,3 @@
-
 import * as functions from "firebase-functions/v2";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onCall, HttpsError, onRequest } from "firebase-functions/v2/https";
@@ -30,10 +29,9 @@ const getCorsOrigins = (): string[] => {
   ];
 };
 
-// Updated options for the callable function with dynamic CORS
+// Updated options for the callable function
 const callableOptions = {
-  region: "us-central1",
-  cors: getCorsOrigins()
+  region: "us-central1"
 };
 
 /**
