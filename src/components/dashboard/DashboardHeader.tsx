@@ -2,9 +2,11 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Plus, Settings } from "lucide-react";
+import { Plus, Settings, LogOut } from "lucide-react";
 import NotificationCenter from "@/components/notifications/NotificationCenter";
 import EnhancedToasts from "@/components/notifications/EnhancedToasts";
+import { signOutUser } from "@/lib/firebase/auth";
+import { useToast } from "@/hooks/use-toast";
 
 interface DashboardHeaderProps {
   onAddReminder: () => void;
@@ -14,6 +16,27 @@ interface DashboardHeaderProps {
 
 const DashboardHeader = ({ onAddReminder, pageTitle, stats }: DashboardHeaderProps) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleSignOut = async () => {
+    try {
+      const { success } = await signOutUser();
+      if (success) {
+        toast({
+          title: "Signed Out",
+          description: "You have been successfully signed out.",
+        });
+        navigate("/");
+      }
+    } catch (error) {
+      console.error("Sign out error:", error);
+      toast({
+        title: "Sign Out Failed",
+        description: "An error occurred while signing out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <header className="bg-white dark:bg-gray-950 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30">
@@ -30,6 +53,10 @@ const DashboardHeader = ({ onAddReminder, pageTitle, stats }: DashboardHeaderPro
           <Button onClick={onAddReminder}>
             <Plus className="mr-2 h-4 w-4" />
             Quick Reminder
+          </Button>
+          <Button variant="outline" size="icon" onClick={handleSignOut}>
+            <LogOut className="h-4 w-4" />
+            <span className="sr-only">Sign Out</span>
           </Button>
         </div>
       </div>
