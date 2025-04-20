@@ -1,8 +1,8 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mail, BellRing, AlertTriangle, Loader2, Info } from "lucide-react";
+import { Mail, BellRing, AlertTriangle, Loader2, Info, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { 
   useNotificationSettings,
@@ -12,6 +12,8 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/contexts/AuthContext";
+import { getAuth } from "firebase/auth";
 
 const TestNotifications = () => {
   const [email, setEmail] = useState("");
@@ -19,10 +21,33 @@ const TestNotifications = () => {
   const [isPushSending, setIsPushSending] = useState(false);
   const [includeDeviceInfo, setIncludeDeviceInfo] = useState(true);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { toast } = useToast();
   const { settings } = useNotificationSettings();
   const { permissionGranted, requestPermission } = useNotificationPermission();
   const { sendTestNotification } = useNotificationServices();
+  const { user } = useAuth();
+
+  // Check authentication state
+  useEffect(() => {
+    const auth = getAuth();
+    const checkAuth = () => {
+      const isAuthAvailable = !!auth.currentUser;
+      setIsAuthenticated(isAuthAvailable);
+      console.log("Authentication state:", isAuthAvailable ? "Authenticated" : "Not authenticated");
+      if (isAuthAvailable) {
+        console.log("Current user:", auth.currentUser?.uid);
+      }
+    };
+    
+    checkAuth();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setIsAuthenticated(!!user);
+      console.log("Auth state changed:", user ? "Authenticated" : "Not authenticated");
+    });
+    
+    return () => unsubscribe();
+  }, []);
 
   const handleTestEmail = async () => {
     if (!email) {
@@ -32,6 +57,17 @@ const TestNotifications = () => {
         variant: "destructive",
         duration: 3000
       });
+      return;
+    }
+    
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "You need to be signed in to send test notifications",
+        variant: "destructive",
+        duration: 3000
+      });
+      setErrorDetails("Authentication error: Please make sure you're signed in before sending test notifications");
       return;
     }
     
@@ -62,13 +98,17 @@ const TestNotifications = () => {
       if (error instanceof Error) {
         errorMessage = error.message;
         
+        // Check for authentication issues
+        if (errorMessage.includes('auth') || errorMessage.includes('unauthenticated') || errorMessage.includes('Authentication')) {
+          setErrorDetails("Authentication error: Please make sure you're signed in and try again.");
+        }
         // Check for CORS issues
-        if (errorMessage.includes('CORS') || errorMessage.includes('network')) {
-          setErrorDetails("CORS configuration issue detected. The server may not be configured to accept requests from this domain.");
+        else if (errorMessage.includes('CORS') || errorMessage.includes('network')) {
+          setErrorDetails("Network error: There might be an issue connecting to the Firebase functions.");
         }
         // Check for Firebase errors
         else if (errorMessage.includes('Firebase')) {
-          setErrorDetails("Firebase error: Make sure you're signed in and your Firebase project is correctly configured.");
+          setErrorDetails("Firebase error: Make sure your Firebase project is correctly configured.");
         }
       }
       
@@ -100,6 +140,17 @@ const TestNotifications = () => {
       }
     }
     
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "You need to be signed in to send test notifications",
+        variant: "destructive",
+        duration: 3000
+      });
+      setErrorDetails("Authentication error: Please make sure you're signed in before sending test notifications");
+      return;
+    }
+    
     setIsPushSending(true);
     setErrorDetails(null);
     
@@ -126,13 +177,17 @@ const TestNotifications = () => {
       if (error instanceof Error) {
         errorMessage = error.message;
         
+        // Check for authentication issues
+        if (errorMessage.includes('auth') || errorMessage.includes('unauthenticated') || errorMessage.includes('Authentication')) {
+          setErrorDetails("Authentication error: Please make sure you're signed in and try again.");
+        }
         // Check for CORS issues
-        if (errorMessage.includes('CORS') || errorMessage.includes('network')) {
-          setErrorDetails("CORS configuration issue detected. The server may not be configured to accept requests from this domain.");
+        else if (errorMessage.includes('CORS') || errorMessage.includes('network')) {
+          setErrorDetails("Network error: There might be an issue connecting to the Firebase functions.");
         }
         // Check for Firebase errors
         else if (errorMessage.includes('Firebase')) {
-          setErrorDetails("Firebase error: Make sure you're signed in and your Firebase project is correctly configured.");
+          setErrorDetails("Firebase error: Make sure your Firebase project is correctly configured.");
         }
       }
       
@@ -149,6 +204,24 @@ const TestNotifications = () => {
 
   return (
     <div className="space-y-6">
+      {!isAuthenticated && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Authentication Required</AlertTitle>
+          <AlertDescription>You must be signed in to send test notifications. Please sign in and try again.</AlertDescription>
+        </Alert>
+      )}
+      
+      {isAuthenticated && (
+        <Alert variant="default" className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-900">
+          <ShieldCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <AlertTitle className="text-green-700 dark:text-green-300">Authenticated</AlertTitle>
+          <AlertDescription className="text-green-600 dark:text-green-400">
+            You're successfully authenticated and can send test notifications.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       {errorDetails && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
@@ -169,8 +242,8 @@ const TestNotifications = () => {
           />
           <Button 
             onClick={handleTestEmail} 
-            disabled={isEmailSending || !settings.email.enabled || !email}
-            variant={settings.email.enabled ? "default" : "outline"}
+            disabled={isEmailSending || !settings.email.enabled || !email || !isAuthenticated}
+            variant={settings.email.enabled && isAuthenticated ? "default" : "outline"}
           >
             {isEmailSending ? (
               <>
@@ -201,8 +274,8 @@ const TestNotifications = () => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
           <Button 
             onClick={handleTestPush} 
-            disabled={isPushSending || !settings.push.enabled}
-            variant={settings.push.enabled ? "default" : "outline"}
+            disabled={isPushSending || !settings.push.enabled || !isAuthenticated}
+            variant={settings.push.enabled && isAuthenticated ? "default" : "outline"}
             className="w-full sm:w-auto"
           >
             {isPushSending ? (
@@ -259,10 +332,10 @@ const TestNotifications = () => {
             If you're experiencing issues with notifications:
           </p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Check that your Firebase project is correctly configured</li>
-            <li>Ensure your domain is allowed in Firebase CORS settings</li>
+            <li>Check that you're properly authenticated (signed in)</li>
+            <li>Try refreshing the page to renew your authentication token</li>
+            <li>Ensure your Firebase project is correctly configured</li>
             <li>Verify that notification permissions are granted in your browser</li>
-            <li>Try refreshing the page or using a different browser</li>
           </ul>
         </AlertDescription>
       </Alert>

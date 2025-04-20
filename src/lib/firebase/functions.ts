@@ -1,17 +1,13 @@
 
 import { getFunctions, httpsCallable, connectFunctionsEmulator } from 'firebase/functions';
+import { getAuth } from 'firebase/auth';
 import { firebaseApp } from './config';
-
-let functionsInitialized = false;
-let functions: any = null;
 
 // Initialize Firebase Functions
 export const initializeFunctions = () => {
-  if (functionsInitialized || !firebaseApp) return;
-  
   try {
-    // Get Functions instance
-    functions = getFunctions(firebaseApp);
+    // Get Functions instance with explicit region
+    const functions = getFunctions(firebaseApp, "us-central1");
     
     // Connect to emulator if in development
     if (process.env.NODE_ENV === 'development') {
@@ -23,34 +19,69 @@ export const initializeFunctions = () => {
       }
     }
     
-    functionsInitialized = true;
     console.log('Firebase Functions initialized');
+    return functions;
   } catch (error) {
     console.error('Error initializing Firebase Functions:', error);
+    throw error;
   }
 };
+
+// Cache the functions instance
+let functionsInstance = null;
 
 // Get the Functions instance (initializing if needed)
 export const getFunctionsInstance = () => {
-  if (!functionsInitialized) {
-    initializeFunctions();
+  if (!functionsInstance) {
+    functionsInstance = initializeFunctions();
   }
-  return functions;
+  return functionsInstance;
 };
 
-// Call a specific Cloud Function
-export const callFunction = async (name: string, data?: any) => {
-  const functionsInstance = getFunctionsInstance();
-  if (!functionsInstance) {
-    throw new Error('Firebase Functions not initialized');
+// Helper to ensure user is authenticated before calling functions
+const ensureAuthenticated = async () => {
+  const auth = getAuth();
+  if (!auth.currentUser) {
+    console.error("No authenticated user found when calling function");
+    throw new Error("Authentication required to call functions");
   }
   
+  // Refresh the ID token to ensure it's valid
   try {
+    await auth.currentUser.getIdToken(true);
+    return true;
+  } catch (error) {
+    console.error("Error refreshing authentication token:", error);
+    throw error;
+  }
+};
+
+// Call a specific Cloud Function with authentication check
+export const callFunction = async (name: string, data?: any) => {
+  try {
+    // Ensure authentication before proceeding
+    await ensureAuthenticated();
+    
+    const functionsInstance = getFunctionsInstance();
+    console.log(`Calling function ${name} with authenticated user:`, getAuth().currentUser?.uid);
+    
     const functionRef = httpsCallable(functionsInstance, name);
     const result = await functionRef(data || {});
     return result.data;
   } catch (error) {
     console.error(`Error calling Firebase function ${name}:`, error);
+    
+    // Add detailed logging for debugging
+    if (error.code) {
+      console.error("Error code:", error.code);
+    }
+    if (error.message) {
+      console.error("Error message:", error.message);
+    }
+    if (error.details) {
+      console.error("Error details:", error.details);
+    }
+    
     throw error;
   }
 };
@@ -97,4 +128,4 @@ export const sendTestNotification = async (options: {
 export { httpsCallable };
 
 // Initialize on module load
-initializeFunctions();
+getFunctionsInstance();
