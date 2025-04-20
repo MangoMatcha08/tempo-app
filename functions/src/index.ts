@@ -1,6 +1,6 @@
 import * as functions from "firebase-functions/v2";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { NotificationTypes } from "./types";
 import { addMinutes, addDays } from "date-fns";
@@ -785,7 +785,7 @@ export const sendTestNotification = onCall({
   
   try {
     // Get the user document
-    const userDoc = await db.collection("users").doc(userId).get();
+    const userDoc = await admin.firestore().collection("users").doc(userId).get();
     
     if (!userDoc.exists) {
       throw new HttpsError(

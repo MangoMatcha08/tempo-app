@@ -55,7 +55,7 @@ export const callFunction = async (name: string, data?: any) => {
   }
 };
 
-// Specific function calls
+// Send test notification using callable function
 export const sendTestNotification = async (options: {
   type?: 'push' | 'email';
   email?: string;
@@ -86,36 +86,12 @@ export const sendTestNotification = async (options: {
 
   try {
     console.log("Sending test notification with data:", data);
-    // Use httpsCallable which handles CORS correctly, instead of direct fetch
     return await callFunction('sendTestNotification', data);
   } catch (error) {
     console.error("Error sending test notification:", error);
-    
-    // Add more diagnostic information
-    if (error instanceof Error) {
-      console.error("Error details:", error.message);
-      
-      // Check if it's a CORS error
-      if (error.message.includes('CORS') || error.message.includes('network')) {
-        console.error("This appears to be a CORS or network error. Make sure your Firebase function has CORS configured properly.");
-      }
-    }
-    
     throw error;
   }
 };
-
-// Helper function for explicit reminder notification
-export const sendReminderNotification = async (
-  reminderId: string,
-  notificationType: string
-) => {
-  return await callFunction('sendReminderNotification', {
-    reminderId,
-    notificationType
-  });
-};
-
 
 // Re-export the Firebase Functions types/methods that we need
 export { httpsCallable };
