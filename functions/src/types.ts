@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase-admin/firestore';
 
 export enum ReminderPriority {
   LOW = "low",
@@ -16,13 +17,13 @@ export interface Reminder {
   id?: string;
   title: string;
   description: string;
-  dueDate: FirebaseFirestore.Timestamp;
+  dueDate: Timestamp;
   priority: ReminderPriority | string;
   completed: boolean;
   userId: string;
   periodId?: string;
   location?: string;
-  completedAt?: FirebaseFirestore.Timestamp;
+  completedAt?: Timestamp;
   overdueNotified?: boolean;
 }
 
