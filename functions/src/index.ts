@@ -769,8 +769,7 @@ export const checkOverdueReminders = onSchedule({
  * This can be used from your frontend to test notification setup
  */
 export const sendTestNotification = onCall({
-  region: "us-central1",
-  cors: true // Enable CORS for all origins
+  region: "us-central1" 
 }, async (request) => {
   // Ensure authentication
   if (!request.auth) {
