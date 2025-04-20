@@ -1,3 +1,4 @@
+
 import * as functions from "firebase-functions/v2";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onCall, HttpsError, onRequest } from "firebase-functions/v2/https";
@@ -13,14 +14,26 @@ admin.initializeApp();
 // Firestore reference
 const db = admin.firestore();
 
-// Updated options for the callable function
-const callableOptions = {
-  region: "us-central1",
-  cors: [
+// Get CORS origins from environment variables or use defaults
+const getCorsOrigins = (): string[] => {
+  // Check for environment variable with comma-separated origins
+  const corsEnv = process.env.FUNCTION_CORS_ORIGINS;
+  if (corsEnv) {
+    return corsEnv.split(',').map(origin => origin.trim());
+  }
+  
+  // Default origins if environment variable isn't set
+  return [
     "https://tempo-app.lovable.app",
     "https://preview--tempo-app.lovable.app",
     "http://localhost:5173"
-  ]
+  ];
+};
+
+// Updated options for the callable function with dynamic CORS
+const callableOptions = {
+  region: "us-central1",
+  cors: getCorsOrigins()
 };
 
 /**
