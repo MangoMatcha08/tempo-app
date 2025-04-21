@@ -1,3 +1,64 @@
+import { format } from 'date-fns';
+import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
+
+/**
+ * Gets the user's current time zone
+ */
+export function getUserTimeZone(): string {
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  console.log(`[getUserTimeZone] detected: ${timeZone}`);
+  return timeZone;
+}
+
+/**
+ * Converts a local date to UTC
+ */
+export function convertToUtc(localDate: Date): Date {
+  const userTimeZone = getUserTimeZone();
+  console.log('[convertToUtc] Converting to UTC:', {
+    input: localDate.toISOString(),
+    timeZone: userTimeZone
+  });
+  
+  const utcDate = zonedTimeToUtc(localDate, userTimeZone);
+  
+  console.log('[convertToUtc] Result:', utcDate.toISOString());
+  return utcDate;
+}
+
+/**
+ * Converts a UTC date to local time
+ */
+export function convertToLocal(utcDate: Date): Date {
+  const userTimeZone = getUserTimeZone();
+  console.log('[convertToLocal] Converting to local:', {
+    input: utcDate.toISOString(),
+    timeZone: userTimeZone
+  });
+  
+  const localDate = utcToZonedTime(utcDate, userTimeZone);
+  
+  console.log('[convertToLocal] Result:', localDate.toISOString());
+  return localDate;
+}
+
+/**
+ * Formats a date with timezone consideration
+ */
+export function formatDateWithTimeZone(date: Date, formatStr = 'yyyy-MM-dd HH:mm:ss'): string {
+  const userTimeZone = getUserTimeZone();
+  const zonedDate = utcToZonedTime(date, userTimeZone);
+  const result = format(zonedDate, formatStr);
+  
+  console.log('[formatDateWithTimeZone]', {
+    input: date.toISOString(),
+    timeZone: userTimeZone,
+    result
+  });
+  
+  return result;
+}
+
 /**
  * Comprehensive utilities for handling date/time operations consistently
  */
@@ -154,13 +215,4 @@ export function isSameDay(date1: Date, date2: Date): boolean {
   console.log(`[isSameDay] comparing ${date1.toDateString()} and ${date2.toDateString()}: ${result}`);
   
   return result;
-}
-
-/**
- * Gets the user's current time zone
- */
-export function getUserTimeZone(): string {
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  console.log(`[getUserTimeZone] detected: ${timeZone}`);
-  return timeZone;
 }
