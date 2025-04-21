@@ -121,7 +121,7 @@ export function adjustDateIfPassed(dateToCheck: Date): Date {
 }
 
 /**
- * Formats a date to a consistent time string format
+ * Formats a time string consistently in 12-hour format with AM/PM
  */
 export function formatTimeString(date: Date): string {
   if (!date) return '';

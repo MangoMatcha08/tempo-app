@@ -3,12 +3,9 @@ import * as React from "react"
 import { Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select"
+import { formatTimeString, parseTimeStringWithCompatibility } from "@/utils/dateTimeUtils"
 
 interface TimePickerProps {
   value?: string
@@ -17,39 +14,60 @@ interface TimePickerProps {
 }
 
 export function TimePicker({ value, onChange, className }: TimePickerProps) {
-  const hours = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'))
+  const hours = Array.from({ length: 12 }, (_, i) => (i + 1).toString())
   const minutes = Array.from({ length: 4 }, (_, i) => (i * 15).toString().padStart(2, '0'))
   const periods = ['AM', 'PM']
   
+  // Initialize state with parsed time or defaults
   const [hour, setHour] = React.useState<string>('12')
   const [minute, setMinute] = React.useState<string>('00')
   const [period, setPeriod] = React.useState<string>('PM')
   
+  // Log initial value for debugging
+  React.useEffect(() => {
+    console.log('[TimePicker] Initial value:', value);
+  }, []);
+  
+  // Parse incoming value consistently
   React.useEffect(() => {
     if (value) {
-      const timeParts = value.split(/[:\s]/)
-      if (timeParts.length >= 3) {
-        setHour(timeParts[0])
-        setMinute(timeParts[1])
-        setPeriod(timeParts[2])
+      try {
+        // Use the compatibility function for parsing
+        const { hours, minutes } = parseTimeStringWithCompatibility(value);
+        
+        // Convert 24h format back to 12h + AM/PM
+        let h = hours % 12;
+        if (h === 0) h = 12;
+        const p = hours >= 12 ? 'PM' : 'AM';
+        
+        // Format minutes with leading zero
+        const m = minutes.toString().padStart(2, '0');
+        
+        console.log('[TimePicker] Parsed value:', { 
+          original: value,
+          parsed: { hours, minutes },
+          formatted: { hour: h.toString(), minute: m, period: p }
+        });
+        
+        setHour(h.toString());
+        setMinute(m);
+        setPeriod(p);
+      } catch (err) {
+        console.error('[TimePicker] Error parsing time:', value, err);
       }
     }
-    console.log('[TimePicker] Current state:', {
-      value,
-      parsed: value?.split(/[:\s]/),
-      state: { hour, minute, period }
-    });
-  }, [value, hour, minute, period])
+  }, [value]);
   
   const handleChange = (newHour: string, newMinute: string, newPeriod: string) => {
-    console.log('[TimePicker] handleChange called with:', {
-      newHour, newMinute, newPeriod,
-      resultingString: `${newHour}:${newMinute} ${newPeriod}`
+    // Ensure consistent string format
+    const paddedMinute = newMinute.padStart(2, '0');
+    const timeString = `${newHour}:${paddedMinute} ${newPeriod}`;
+    
+    console.log('[TimePicker] Output time:', {
+      components: { newHour, paddedMinute, newPeriod },
+      timeString
     });
     
-    const paddedHour = newHour;
-    const paddedMinute = newMinute.padStart(2, '0');
-    const timeString = `${paddedHour}:${paddedMinute} ${newPeriod}`;
     onChange(timeString);
   }
 
