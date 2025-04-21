@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +16,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { v4 as uuidv4 } from 'uuid';
 import { Reminder as UIReminder } from '@/types/reminder';
 import { convertToUIReminder } from '@/utils/typeUtils';
+import { parseTimeString, createDateWithTime, adjustDateIfPassed, logDateDetails } from '@/utils/dateTimeUtils';
 
 interface EnhancedReminderCreatorProps {
   onReminderCreated?: (reminder: UIReminder) => void;
@@ -40,7 +40,6 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
   const [showChecklist, setShowChecklist] = useState(false);
   const [newChecklistItem, setNewChecklistItem] = useState('');
   
-  // Initialize with default date of today when component mounts
   useEffect(() => {
     setDueDate(new Date());
   }, []);
@@ -72,6 +71,13 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
   const handleCreateReminder = () => {
     if (!title.trim()) return;
     
+    console.log('[EnhancedReminderCreator] Creating reminder:', {
+      title,
+      dueDate,
+      dueTime,
+      periodId
+    });
+    
     const reminderInput: CreateReminderInput = {
       title,
       description,
@@ -81,66 +87,40 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
       checklist: checklist.length > 0 ? checklist : undefined,
     };
     
-    // Use today as default if no date was selected
-    let finalDueDate = dueDate || new Date();
+    let finalDueDate = dueDate ? new Date(dueDate) : new Date();
+    logDateDetails('Initial dueDate', finalDueDate);
     
-    // If a period is selected, check if we need to move to tomorrow based on timing
     if (periodId) {
-      const now = new Date();
       const selectedPeriod = mockPeriods.find(p => p.id === periodId);
+      console.log('[EnhancedReminderCreator] Selected period:', selectedPeriod);
       
       if (selectedPeriod && selectedPeriod.startTime) {
         const [hours, minutes] = selectedPeriod.startTime.split(':').map(Number);
+        console.log(`[EnhancedReminderCreator] Period time: ${hours}:${minutes}`);
         
-        // Create a date object for the period time today
-        const periodTime = new Date(finalDueDate);
-        periodTime.setHours(hours, minutes, 0, 0);
+        finalDueDate = createDateWithTime(finalDueDate, hours, minutes);
+        finalDueDate = adjustDateIfPassed(finalDueDate);
         
-        // If period time is earlier than current time and the date is today, move to tomorrow
-        if (periodTime < now && 
-            finalDueDate.getDate() === now.getDate() && 
-            finalDueDate.getMonth() === now.getMonth() && 
-            finalDueDate.getFullYear() === now.getFullYear()) {
-          const tomorrow = new Date(finalDueDate);
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          finalDueDate = tomorrow;
-        }
+        logDateDetails('Final dueDate after period time applied', finalDueDate);
       }
     }
-    // If a specific time was selected, apply similar logic
     else if (dueTime) {
-      const now = new Date();
-      const [hoursStr, minutesStr, period] = dueTime.split(/[:\s]/);
-      let hours = parseInt(hoursStr);
-      const minutes = parseInt(minutesStr);
+      console.log(`[EnhancedReminderCreator] Processing time string: "${dueTime}"`);
+      const { hours, minutes } = parseTimeString(dueTime);
+      console.log(`[EnhancedReminderCreator] Parsed time: ${hours}:${minutes}`);
       
-      if (period === 'PM' && hours < 12) {
-        hours += 12;
-      } else if (period === 'AM' && hours === 12) {
-        hours = 0;
-      }
+      finalDueDate = createDateWithTime(finalDueDate, hours, minutes);
+      finalDueDate = adjustDateIfPassed(finalDueDate);
       
-      // Create a date object for the selected time today
-      const selectedTime = new Date(finalDueDate);
-      selectedTime.setHours(hours, minutes, 0, 0);
-      
-      // If selected time is earlier than current time and the date is today, move to tomorrow
-      if (selectedTime < now && 
-          finalDueDate.getDate() === now.getDate() && 
-          finalDueDate.getMonth() === now.getMonth() && 
-          finalDueDate.getFullYear() === now.getFullYear()) {
-        const tomorrow = new Date(finalDueDate);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        finalDueDate = tomorrow;
-      } else {
-        finalDueDate.setHours(hours, minutes);
-      }
+      logDateDetails('Final dueDate after time string applied', finalDueDate);
     }
     
     const newReminder = createReminder({
       ...reminderInput,
       dueDate: finalDueDate
     });
+    
+    console.log('[EnhancedReminderCreator] Created reminder:', newReminder);
     
     const uiReminder = convertToUIReminder(newReminder);
     
@@ -225,7 +205,6 @@ const EnhancedReminderCreator: React.FC<EnhancedReminderCreatorProps> = ({
           </div>
         </div>
 
-        {/* Period selection in simple view as well */}
         <div className="space-y-2">
           <Label htmlFor="period">Period</Label>
           <Select 
