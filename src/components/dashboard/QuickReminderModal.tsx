@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +26,7 @@ import { mockPeriods } from "@/utils/reminderUtils";
 import { Reminder as UIReminder } from "@/types/reminder";
 import { convertToUIReminder } from "@/utils/typeUtils";
 import { useToast } from "@/hooks/use-toast";
+import { createDateWithTime, adjustDateIfPassed, logDateDetails } from '@/utils/dateTimeUtils';
 
 interface QuickReminderModalProps {
   open: boolean;
@@ -66,29 +66,32 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
     }
     
     try {
-      // Get current time for comparison
-      const now = new Date();
-      let finalDueDate = dueDate || new Date();
+      console.log('[QuickReminderModal] Creating reminder:', {
+        title,
+        dueDate,
+        periodId
+      });
       
-      // If a period is selected, check if we need to move to tomorrow
+      // Get selected due date or default to today
+      let finalDueDate = dueDate ? new Date(dueDate) : new Date();
+      logDateDetails('Initial dueDate', finalDueDate);
+      
+      // If a period is selected, use that period's time
       if (periodId !== "none") {
         const selectedPeriod = mockPeriods.find(p => p.id === periodId);
+        console.log('[QuickReminderModal] Selected period:', selectedPeriod);
+        
         if (selectedPeriod && selectedPeriod.startTime) {
           const [hours, minutes] = selectedPeriod.startTime.split(':').map(Number);
+          console.log(`[QuickReminderModal] Period time: ${hours}:${minutes}`);
           
-          // Create a date object for the period time today
-          const periodTime = new Date(finalDueDate);
-          periodTime.setHours(hours, minutes, 0, 0);
+          // Create a new date with the period's time
+          finalDueDate = createDateWithTime(finalDueDate, hours, minutes);
           
-          // If period time is earlier than current time and the date is today, move to tomorrow
-          if (periodTime < now && 
-              finalDueDate.getDate() === now.getDate() && 
-              finalDueDate.getMonth() === now.getMonth() && 
-              finalDueDate.getFullYear() === now.getFullYear()) {
-            const tomorrow = new Date(finalDueDate);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            finalDueDate = tomorrow;
-          }
+          // Check if we need to move to tomorrow
+          finalDueDate = adjustDateIfPassed(finalDueDate);
+          
+          logDateDetails('Final dueDate after period time applied', finalDueDate);
         }
       }
       
@@ -102,7 +105,7 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
         periodId: periodId === "none" ? undefined : periodId
       });
       
-      console.log("Created new quick reminder:", newReminder);
+      console.log("[QuickReminderModal] Created new reminder:", newReminder);
       
       // Show success toast
       toast({
