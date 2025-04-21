@@ -1,7 +1,6 @@
 
 import * as React from "react"
 import { Clock } from "lucide-react"
-
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -35,11 +34,23 @@ export function TimePicker({ value, onChange, className }: TimePickerProps) {
         setPeriod(timeParts[2])
       }
     }
-  }, [value])
+    console.log('[TimePicker] Current state:', {
+      value,
+      parsed: value?.split(/[:\s]/),
+      state: { hour, minute, period }
+    });
+  }, [value, hour, minute, period])
   
   const handleChange = (newHour: string, newMinute: string, newPeriod: string) => {
-    const timeString = `${newHour}:${newMinute} ${newPeriod}`
-    onChange(timeString)
+    console.log('[TimePicker] handleChange called with:', {
+      newHour, newMinute, newPeriod,
+      resultingString: `${newHour}:${newMinute} ${newPeriod}`
+    });
+    
+    const paddedHour = newHour;
+    const paddedMinute = newMinute.padStart(2, '0');
+    const timeString = `${paddedHour}:${paddedMinute} ${newPeriod}`;
+    onChange(timeString);
   }
 
   return (

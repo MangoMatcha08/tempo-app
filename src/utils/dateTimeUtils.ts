@@ -1,4 +1,3 @@
-
 /**
  * Comprehensive utilities for handling date/time operations consistently
  */
@@ -30,6 +29,49 @@ export function parseTimeString(timeString: string): { hours: number, minutes: n
   let hours = parseInt(hoursStr, 10);
   const minutes = parseInt(minutesStr, 10);
   
+  if (period === "PM" && hours < 12) hours += 12;
+  if (period === "AM" && hours === 12) hours = 0;
+  
+  console.log(`[parseTimeString] output: hours=${hours}, minutes=${minutes}`);
+  
+  return { hours, minutes };
+}
+
+/**
+ * Parses time string with enhanced compatibility
+ * Handles both new format and legacy formats
+ */
+export function parseTimeStringWithCompatibility(timeString: string): { hours: number, minutes: number } {
+  if (!timeString) return { hours: 0, minutes: 0 };
+  
+  console.log(`[parseTimeString] input: "${timeString}"`);
+  
+  // Handle multiple possible formats
+  let hours = 0;
+  let minutes = 0;
+  let period = 'AM';
+  
+  // Try standard "HH:MM AM/PM" format
+  const standardFormat = /^(\d{1,2}):(\d{2})\s+(AM|PM)$/i;
+  const standardMatch = timeString.match(standardFormat);
+  
+  if (standardMatch) {
+    hours = parseInt(standardMatch[1], 10);
+    minutes = parseInt(standardMatch[2], 10);
+    period = standardMatch[3].toUpperCase();
+  } 
+  // Try alternative formats (add any legacy formats here)
+  else {
+    // Default fallback - basic split by colon and space
+    const parts = timeString.split(/[:\s]+/);
+    if (parts.length >= 3) {
+      hours = parseInt(parts[0], 10) || 0;
+      minutes = parseInt(parts[1], 10) || 0;
+      period = parts[2].toUpperCase();
+    }
+  }
+  
+  // Convert to 24-hour format
   if (period === "PM" && hours < 12) hours += 12;
   if (period === "AM" && hours === 12) hours = 0;
   
@@ -122,4 +164,3 @@ export function getUserTimeZone(): string {
   console.log(`[getUserTimeZone] detected: ${timeZone}`);
   return timeZone;
 }
-
