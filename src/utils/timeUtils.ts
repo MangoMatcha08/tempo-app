@@ -44,6 +44,9 @@ export const isToday = (date: Date): boolean => {
  * Formats time with school period context
  * Returns period name with time in parentheses
  */
+import { format } from 'date-fns';
+import { mockPeriods } from '@/utils/reminderUtils';
+
 export function formatTimeWithPeriod(date: Date, periodId?: string): string {
   console.log('[formatTimeWithPeriod] Input:', { 
     date: date.toISOString(), 
