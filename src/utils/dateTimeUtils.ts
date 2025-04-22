@@ -1,5 +1,6 @@
+
 import { format } from 'date-fns';
-import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 /**
  * Gets the user's current time zone
@@ -20,7 +21,7 @@ export function convertToUtc(localDate: Date): Date {
     timeZone: userTimeZone
   });
   
-  const utcDate = zonedTimeToUtc(localDate, userTimeZone);
+  const utcDate = fromZonedTime(localDate, userTimeZone);
   
   console.log('[convertToUtc] Result:', utcDate.toISOString());
   return utcDate;
@@ -36,7 +37,7 @@ export function convertToLocal(utcDate: Date): Date {
     timeZone: userTimeZone
   });
   
-  const localDate = utcToZonedTime(utcDate, userTimeZone);
+  const localDate = toZonedTime(utcDate, userTimeZone);
   
   console.log('[convertToLocal] Result:', localDate.toISOString());
   return localDate;
@@ -47,7 +48,7 @@ export function convertToLocal(utcDate: Date): Date {
  */
 export function formatDateWithTimeZone(date: Date, formatStr = 'yyyy-MM-dd HH:mm:ss'): string {
   const userTimeZone = getUserTimeZone();
-  const zonedDate = utcToZonedTime(date, userTimeZone);
+  const zonedDate = toZonedTime(date, userTimeZone);
   const result = format(zonedDate, formatStr);
   
   console.log('[formatDateWithTimeZone]', {
