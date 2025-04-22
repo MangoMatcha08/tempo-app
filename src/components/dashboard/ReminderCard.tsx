@@ -50,7 +50,7 @@ const ReminderCard: React.FC<ReminderCardProps> = ({ reminder, onComplete, onEdi
             <CalendarIcon className="h-4 w-4 text-gray-500" />
             <Clock className="h-4 w-4 text-gray-500" />
             <span className="text-sm text-gray-500">
-              {formatTimeWithPeriod(reminder.dueDate)}
+              {formatTimeWithPeriod(reminder.dueDate, reminder.periodId)}
             </span>
           </div>
         </div>
