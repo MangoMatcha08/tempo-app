@@ -1,4 +1,3 @@
-
 /**
  * iOS Push Notification Telemetry
  */
@@ -18,15 +17,80 @@ interface TelemetryEvent {
   };
   metadata?: Record<string, any>;
   errorCategory?: string;
+  validationStatus?: 'valid' | 'invalid';
+  eventId?: string;
 }
 
-interface EventTimer {
-  completeEvent: (result: string, metadata?: Record<string, any>) => void;
+// Validation constants
+const MAX_EVENT_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+const REQUIRED_FIELDS: (keyof TelemetryEvent)[] = ['eventType', 'timestamp', 'isPWA'];
+
+function validateEvent(event: TelemetryEvent): { isValid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  // Required fields check
+  REQUIRED_FIELDS.forEach(field => {
+    if (event[field] === undefined || event[field] === null) {
+      errors.push(`Missing required field: ${field}`);
+    }
+  });
+
+  // Timestamp validation
+  const now = Date.now();
+  if (event.timestamp > now || event.timestamp < now - MAX_EVENT_AGE_MS) {
+    errors.push('Invalid timestamp');
+  }
+
+  // Timings validation if present
+  if (event.timings) {
+    if (event.timings.end < event.timings.start) {
+      errors.push('Invalid timing: end before start');
+    }
+    if (event.timings.duration !== event.timings.end - event.timings.start) {
+      errors.push('Invalid timing: duration mismatch');
+    }
+  }
+
+  // Event type validation
+  if (typeof event.eventType !== 'string' || event.eventType.trim() === '') {
+    errors.push('Invalid event type');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+}
+
+function sanitizeEvent(event: TelemetryEvent): TelemetryEvent {
+  const sanitized = { ...event };
+
+  // Ensure timestamp is a number
+  sanitized.timestamp = Number(sanitized.timestamp) || Date.now();
+
+  // Trim string fields
+  if (typeof sanitized.eventType === 'string') {
+    sanitized.eventType = sanitized.eventType.trim();
+  }
+  if (typeof sanitized.iosVersion === 'string') {
+    sanitized.iosVersion = sanitized.iosVersion.trim();
+  }
+
+  // Ensure metadata is an object
+  if (sanitized.metadata && typeof sanitized.metadata !== 'object') {
+    sanitized.metadata = {};
+  }
+
+  // Add event ID for deduplication
+  sanitized.eventId = `${sanitized.eventType}-${sanitized.timestamp}-${Math.random().toString(36).substr(2, 9)}`;
+
+  return sanitized;
 }
 
 const timings = new Map<string, number>();
 const eventBatches: TelemetryEvent[] = [];
 const BATCH_SIZE = 10;
+const processedEventIds = new Set<string>();
 
 // Utility function to calculate success rate
 function calculateSuccessRate(events: TelemetryEvent[]): number {
@@ -90,17 +154,43 @@ export function recordTelemetryEvent(event: TelemetryEvent): void {
   if (!browserDetection.isIOS()) return;
   
   try {
-    eventBatches.push(event);
+    // Sanitize and validate the event
+    const sanitizedEvent = sanitizeEvent(event);
+    const validation = validateEvent(sanitizedEvent);
     
-    if (eventBatches.length >= BATCH_SIZE) {
-      flushTelemetryBatches();
+    // Add validation status to event
+    sanitizedEvent.validationStatus = validation.isValid ? 'valid' : 'invalid';
+    
+    // Check for duplicate events
+    if (sanitizedEvent.eventId && processedEventIds.has(sanitizedEvent.eventId)) {
+      console.warn('Duplicate event detected:', sanitizedEvent.eventType);
+      return;
     }
     
-    performanceReporter.reportInteraction(event.eventType, {
-      ...event,
-      browser: navigator.userAgent,
-      timestamp: Date.now()
-    });
+    // Only process valid events
+    if (validation.isValid) {
+      eventBatches.push(sanitizedEvent);
+      
+      if (sanitizedEvent.eventId) {
+        processedEventIds.add(sanitizedEvent.eventId);
+      }
+      
+      if (eventBatches.length >= BATCH_SIZE) {
+        flushTelemetryBatches();
+      }
+      
+      performanceReporter.reportInteraction(sanitizedEvent.eventType, {
+        ...sanitizedEvent,
+        browser: navigator.userAgent,
+        validationErrors: [],
+      });
+    } else {
+      console.warn('Invalid telemetry event:', validation.errors);
+      performanceReporter.reportInteraction('invalid_telemetry', {
+        event: sanitizedEvent,
+        validationErrors: validation.errors,
+      });
+    }
   } catch (error) {
     console.error('Error recording telemetry:', error);
   }
@@ -110,10 +200,23 @@ export function flushTelemetryBatches(): void {
   if (eventBatches.length === 0) return;
   
   try {
-    performanceReporter.reportInteraction('telemetry_batch', {
-      events: eventBatches,
-      count: eventBatches.length,
-      timestamp: Date.now()
+    const validEvents = eventBatches.filter(event => event.validationStatus === 'valid');
+    
+    if (validEvents.length > 0) {
+      performanceReporter.reportInteraction('telemetry_batch', {
+        events: validEvents,
+        count: validEvents.length,
+        timestamp: Date.now(),
+        totalEventsProcessed: processedEventIds.size
+      });
+    }
+    
+    // Clear processed events older than 24 hours
+    const cutoff = Date.now() - MAX_EVENT_AGE_MS;
+    eventBatches.forEach(event => {
+      if (event.eventId && event.timestamp < cutoff) {
+        processedEventIds.delete(event.eventId);
+      }
     });
     
     eventBatches.length = 0;
