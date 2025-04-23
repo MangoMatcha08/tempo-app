@@ -1,4 +1,4 @@
-import { mockFirebaseMessaging } from '../notificationTestUtils';
+import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { 
   initializeFirebase, 
   messaging, 
@@ -10,7 +10,7 @@ import {
   setupForegroundMessageListener
 } from '@/services/notifications/core/messaging';
 import { saveTokenToFirestore } from '@/services/notifications/storage/token';
-import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest';
+import { mockFirebaseMessaging } from '../notificationTestUtils';
 
 describe('Notification System Phase 2', () => {
   const mockToken = 'mock-fcm-token-123';

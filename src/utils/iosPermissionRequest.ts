@@ -4,6 +4,7 @@ import { browserDetection } from './browserDetection';
 import { getCurrentDeviceTimingConfig, withRetry } from './iosPermissionTimings';
 import { firestore } from '@/services/notifications/core/initialization';
 import { PermissionRequestResult } from '@/types/notifications';
+import { RetryOptions } from './retryUtils';
 
 interface TokenRequestOptions {
   vapidKey: string;
