@@ -6,22 +6,17 @@ import { sendTestNotification } from '@/lib/firebase/functions';
 import { browserDetection } from '@/utils/browserDetection';
 import { iosPushLogger } from '@/utils/iosPushLogger';
 import { getAuth } from 'firebase/auth';
-import { initializeFirebase, messaging, firestore, vapidKey } from '@/services/notifications/firebase';
+import { initializeFirebase, messaging as firebaseMessaging, firestore, vapidKey } from '@/services/notifications/firebase';
 import { saveTokenToFirestore } from '@/services/notifications/tokenManager';
 import { defaultNotificationSettings } from '@/types/notifications/settingsTypes';
 
-// Extended GetTokenOptions interface to include forceRefresh
-interface ExtendedGetTokenOptions extends GetTokenOptions {
-  forceRefresh?: boolean;
-}
-
-// Initialize Firebase app if it hasn't been initialized already
-let messaging: any;
+// Rename local messaging to avoid conflict
+let localMessaging: any;
 
 try {
   if (typeof window !== 'undefined') {
     const firebaseApp = initializeApp(firebaseConfig);
-    messaging = getMessaging(firebaseApp);
+    localMessaging = getMessaging(firebaseApp);
   }
 } catch (error) {
   console.error('Error initializing Firebase Messaging:', error);
@@ -35,14 +30,14 @@ try {
 const setupForegroundMessageListener = (
   callback: (payload: FirebaseMessagingPayload) => void
 ): (() => void) => {
-  if (!messaging) {
+  if (!localMessaging) {
     console.warn('Messaging not initialized, cannot setup foreground listener');
     return () => {};
   }
 
   try {
     // Set up message handler
-    const unsubscribe = onMessage(messaging, (payload: any) => {
+    const unsubscribe = onMessage(localMessaging, (payload: any) => {
       console.log('Received foreground message:', payload);
       
       // Call the provided callback
@@ -60,7 +55,7 @@ const setupForegroundMessageListener = (
  * Gets the FCM token for the current device with special handling for iOS
  */
 const getFCMToken = async (): Promise<string | null> => {
-  if (!messaging) {
+  if (!localMessaging) {
     console.warn('Messaging not initialized, cannot get FCM token');
     return null;
   }
@@ -74,7 +69,7 @@ const getFCMToken = async (): Promise<string | null> => {
       const registration = await navigator.serviceWorker.ready;
       
       // Get token with iOS-specific options
-      const currentToken = await getToken(messaging, {
+      const currentToken = await getToken(localMessaging, {
         vapidKey,
         serviceWorkerRegistration: registration,
         forceRefresh: true
@@ -91,7 +86,7 @@ const getFCMToken = async (): Promise<string | null> => {
       }
     } else {
       // Standard token request for other browsers
-      const currentToken = await getToken(messaging, {
+      const currentToken = await getToken(localMessaging, {
         vapidKey
       });
       
@@ -170,5 +165,6 @@ export {
   getFCMToken,
   setupForegroundMessageListener,
   requestNotificationPermission,
-  sendTestNotification
+  sendTestNotification,
+  saveTokenToFirestore
 };

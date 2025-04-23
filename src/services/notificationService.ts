@@ -13,8 +13,8 @@ import {
 import {
   setupForegroundMessageListener,
   requestNotificationPermission,
-  saveTokenToFirestore,
-  sendTestNotification
+  sendTestNotification,
+  saveTokenToFirestore as messagingServiceSaveTokenToFirestore
 } from './messaging/messagingService';
 
 // Import the functions
@@ -35,7 +35,7 @@ export {
   getUserNotificationSettings,
   updateUserNotificationSettings,
   requestNotificationPermission,
-  saveTokenToFirestore,
+  messagingServiceSaveTokenToFirestore,
   sendTestNotification,
   setupForegroundMessageListener,
   shouldSendNotification,
@@ -51,5 +51,6 @@ export default {
   sendTestNotification,
   setupForegroundMessageListener,
   shouldSendNotification,
-  sendTestNotificationFn
+  sendTestNotificationFn,
+  saveTokenToFirestore: messagingServiceSaveTokenToFirestore
 };
