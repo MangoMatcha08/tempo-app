@@ -104,7 +104,13 @@ describe('Notification System Phase 2', () => {
     });
 
     test('handles messages when offline', () => {
-      window.navigator.onLine = false;
+      // Set offline state properly
+      Object.defineProperty(window.navigator, 'onLine', {
+        configurable: true,
+        get: () => false,
+        set: () => {}
+      });
+      
       const mockCallback = vi.fn();
       
       const unsubscribe = setupForegroundMessageListener(mockCallback);
