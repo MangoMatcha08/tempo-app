@@ -1,8 +1,8 @@
 import { vi } from 'vitest';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createMockNotificationRecord } from './notificationTestUtils';
-import * as notificationService from '../services/notificationService';
-import * as messagingService from '../services/messaging/messagingService';
+import * as notificationService from '../services/notifications/core/messaging';
+import * as messagingService from '../services/notifications/core/messaging';
 import { mockFirebaseMessaging } from './notificationTestUtils';
 import { setupForegroundMessageListener } from '@/services/notifications/core/messaging';
 

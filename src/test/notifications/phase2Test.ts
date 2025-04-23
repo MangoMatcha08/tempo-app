@@ -1,4 +1,3 @@
-
 import { mockFirebaseMessaging } from '../notificationTestUtils';
 import { 
   initializeFirebase, 
@@ -24,15 +23,12 @@ describe('Notification System Phase 2', () => {
     // Reset mocks before each test
     vi.clearAllMocks();
     
-    // Mock window and navigator for offline testing
-    const windowSpy = vi.spyOn(window, 'window', 'get');
-    windowSpy.mockImplementation(() => ({
-      ...window,
-      navigator: {
-        ...window.navigator,
-        onLine: true
-      }
-    }));
+    // Mock navigator.onLine properly
+    Object.defineProperty(window.navigator, 'onLine', {
+      configurable: true,
+      get: () => true,
+      set: () => {}
+    });
   });
 
   afterEach(() => {
@@ -47,8 +43,12 @@ describe('Notification System Phase 2', () => {
     });
 
     test('handles offline initialization gracefully', async () => {
-      // Simulate offline
-      window.navigator.onLine = false;
+      // Set navigator.onLine properly
+      Object.defineProperty(window.navigator, 'onLine', {
+        configurable: true,
+        get: () => false,
+        set: () => {}
+      });
       
       const result = await initializeFirebase();
       expect(result.messaging).toBeNull();

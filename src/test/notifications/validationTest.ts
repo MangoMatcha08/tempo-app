@@ -34,6 +34,7 @@ describe('Notification Validation Tests', () => {
       enabled: true,
       email: {
         enabled: true,
+        address: 'test@example.com',
         minPriority: ReminderPriority.MEDIUM,
         dailySummary: {
           enabled: false,

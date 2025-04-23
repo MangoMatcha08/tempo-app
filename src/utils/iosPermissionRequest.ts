@@ -3,10 +3,48 @@ import { iosPushLogger } from './iosPushLogger';
 import { browserDetection } from './browserDetection';
 import { getCurrentDeviceTimingConfig, withRetry } from './iosPermissionTimings';
 import { firestore } from '@/services/notifications/core/initialization';
+import { PermissionRequestResult } from '@/types/notifications';
 
 interface TokenRequestOptions {
   vapidKey: string;
   serviceWorkerRegistration: ServiceWorkerRegistration;
+}
+
+interface RetryOptions {
+  maxRetries?: number;
+  delay?: number;
+  baseDelayMs?: number;
+  backoffFactor?: number;
+  retryPredicate?: (error: any, attempt: number) => boolean;
+}
+
+export async function requestIOSPushPermission(): Promise<PermissionRequestResult> {
+  if (!browserDetection.isIOS()) {
+    return {
+      granted: false,
+      reason: 'Not an iOS device'
+    };
+  }
+
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      return {
+        granted: false,
+        reason: 'Permission denied'
+      };
+    }
+
+    return {
+      granted: true
+    };
+  } catch (error) {
+    return {
+      granted: false,
+      error: error instanceof Error ? error : new Error('Permission request failed'),
+      reason: 'Permission request failed'
+    };
+  }
 }
 
 /**
