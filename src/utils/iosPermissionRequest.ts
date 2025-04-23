@@ -6,6 +6,11 @@ import { startEventTiming } from './iosPushTelemetry';
 import { firestore } from '@/services/notifications/core/initialization';
 import { PermissionRequestResult } from '@/types/notifications';
 import { RetryOptions } from './retryUtils';
+import { 
+  saveFlowState, 
+  clearFlowState, 
+  PermissionFlowStep 
+} from './iosPermissionFlowState';
 
 interface TokenRequestOptions {
   vapidKey: string;
