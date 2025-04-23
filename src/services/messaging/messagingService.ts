@@ -5,6 +5,11 @@ import { FirebaseMessagingPayload } from '@/types/notifications/serviceWorkerTyp
 import { sendTestNotification } from '@/lib/firebase/functions';
 import { browserDetection } from '@/utils/browserDetection';
 import { iosPushLogger } from '@/utils/iosPushLogger';
+import { getAuth } from 'firebase/auth';
+import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { initializeFirebase, messaging, firestore, vapidKey } from './firebase';
+import { defaultNotificationSettings } from '@/types/notifications/settingsTypes';
+import { httpsCallable, getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 // Extended GetTokenOptions interface to include forceRefresh
 interface ExtendedGetTokenOptions extends GetTokenOptions {
@@ -170,11 +175,52 @@ const requestNotificationPermission = async (): Promise<string | null> => {
 };
 
 /**
- * Save FCM token to Firestore
+ * Save FCM token to Firestore with authentication check
  */
-const saveTokenToFirestore = async (userId: string, token: string): Promise<void> => {
-  // Implementation would go here
-  console.log(`Saving token ${token.substring(0, 5)}... for user ${userId}`);
+export const saveTokenToFirestore = async (userId: string, token: string): Promise<void> => {
+  await initializeFirebase();
+  if (!firestore) return;
+  
+  const auth = getAuth();
+  if (!auth.currentUser) {
+    console.error('Attempted to save token without authentication');
+    return;
+  }
+
+  // Ensure the userId matches the authenticated user
+  if (userId !== auth.currentUser.uid) {
+    console.error('User ID mismatch when saving token');
+    return;
+  }
+  
+  try {
+    console.log(`Saving token for authenticated user ${userId}`);
+    const userDocRef = doc(firestore, 'users', userId);
+    const userDoc = await getDoc(userDocRef);
+    
+    if (userDoc.exists()) {
+      // Update existing user document
+      const fcmTokens = userDoc.data().fcmTokens || {};
+      fcmTokens[token] = true;
+      
+      await updateDoc(userDocRef, {
+        fcmTokens,
+        updatedAt: new Date()
+      });
+      console.log('Updated existing user document with token');
+    } else {
+      // Create new user document
+      await setDoc(userDocRef, {
+        fcmTokens: { [token]: true },
+        notificationSettings: defaultNotificationSettings,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      console.log('Created new user document with token');
+    }
+  } catch (error) {
+    console.error('Error saving token to Firestore:', error);
+  }
 };
 
 /**

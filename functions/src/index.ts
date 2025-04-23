@@ -791,7 +791,7 @@ export const checkOverdueReminders = onSchedule({
  * This can be used from your frontend to test notification setup
  */
 export const sendTestNotification = onCall(callableOptions, async (request) => {
-  // Ensure authentication
+  // Strict authentication check
   if (!request.auth) {
     throw new HttpsError(
       "unauthenticated",
@@ -807,29 +807,29 @@ export const sendTestNotification = onCall(callableOptions, async (request) => {
     // Get the user document
     const userDoc = await admin.firestore().collection("users").doc(userId).get();
     
-    // if (!userDoc.exists) {
-    //   throw new HttpsError(
-    //     "not-found",
-    //     "User not found"
-    //   );
-    // }
+    if (!userDoc.exists) {
+      throw new HttpsError(
+        "not-found",
+        "User not found"
+      );
+    }
     
-    // const userData = userDoc.data();
-    // if (!userData) {
-    //   throw new HttpsError(
-    //     "internal",
-    //     "User data not found"
-    //   );
-    // }
+    const userData = userDoc.data();
+    if (!userData) {
+      throw new HttpsError(
+        "internal",
+        "User data not found"
+      );
+    }
     
     // Handle push notification test
     if (notificationType === 'push') {
-      // if (!userData.fcmTokens || Object.keys(userData.fcmTokens).length === 0) {
-      //   throw new HttpsError(
-      //     "failed-precondition",
-      //     "No FCM tokens found for this user"
-      //   );
-      // }
+      if (!userData.fcmTokens || Object.keys(userData.fcmTokens).length === 0) {
+        throw new HttpsError(
+          "failed-precondition",
+          "No FCM tokens found for this user"
+        );
+      }
       
       // Send test push notification
       await sendPushNotification(
@@ -842,28 +842,7 @@ export const sendTestNotification = onCall(callableOptions, async (request) => {
       );
     }
     
-    // Handle email notification test
-    // if (notificationType === 'email') {
-    //   if (!userData.email) {
-    //     throw new HttpsError(
-    //       "failed-precondition",
-    //       "No email address found for this user"
-    //     );
-    //   }
-      
-      // Send test email
-      // await sendEmailNotification(
-      //   userId,
-      //   userData.email,
-      //   "Test Email Notification",
-      //   "This is a test email notification from TempoWizard.",
-      //   "test-reminder",
-      //   "high",
-      //   NotificationTypes.TEST
-      // );
-    // }
-    
-    return { success: true, type: notificationType, message: `${userId} and what else is here? ${JSON.stringify(request)}` };
+    return { success: true, type: notificationType };
   } catch (error) {
     console.error("Error sending test notification:", error);
     throw new HttpsError(

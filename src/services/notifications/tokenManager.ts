@@ -8,6 +8,7 @@ import { iosPushLogger } from '@/utils/iosPushLogger';
 import { browserDetection } from '@/utils/browserDetection';
 import { getCurrentDeviceTimingConfig, withRetry } from '@/utils/iosPermissionTimings';
 import { saveTokenToFirestore } from '@/services/notifications/messaging';
+import { getAuth } from 'firebase/auth';
 
 interface TokenRequestOptions {
   vapidKey: string;
@@ -15,9 +16,14 @@ interface TokenRequestOptions {
 }
 
 /**
- * Request FCM token with enhanced error handling
+ * Request FCM token with enhanced error handling and authentication check
  */
 export async function requestFCMToken(options: TokenRequestOptions): Promise<string> {
+  const auth = getAuth();
+  if (!auth.currentUser) {
+    throw new Error('User must be authenticated to register for notifications');
+  }
+
   const messaging = getMessaging();
   const timingConfig = getCurrentDeviceTimingConfig();
   
@@ -50,9 +56,8 @@ export async function requestFCMToken(options: TokenRequestOptions): Promise<str
     throw new Error('Token request returned empty result');
   }
 
-  // Save token to user's document in Firestore
-  const userId = localStorage.getItem('userId') || 'anonymous';
-  await saveTokenToFirestore(userId, token);
+  // Save token to user's document in Firestore using authenticated user ID
+  await saveTokenToFirestore(auth.currentUser.uid, token);
 
   return token;
 }
