@@ -5,6 +5,12 @@ import { getCurrentDeviceTimingConfig, withRetry } from './iosPermissionTimings'
 import { firestore } from '@/services/notifications/core/initialization';
 import { PermissionRequestResult } from '@/types/notifications';
 import { RetryOptions } from './retryUtils';
+import { 
+  PermissionFlowStep, 
+  saveFlowState, 
+  clearFlowState 
+} from './iosPermissionFlowState';
+import { startEventTiming, endEventTiming, recordTelemetryEvent } from './iosPushTelemetry';
 
 interface TokenRequestOptions {
   vapidKey: string;
@@ -25,19 +31,65 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
     };
   }
 
+  const timingId = startEventTiming('ios-permission-request');
+  
   try {
+    saveFlowState(PermissionFlowStep.INITIAL);
+    
     const permission = await Notification.requestPermission();
+    saveFlowState(PermissionFlowStep.PERMISSION_REQUESTED);
+    
     if (permission !== 'granted') {
+      clearFlowState();
       return {
         granted: false,
         reason: 'Permission denied'
       };
+    }
+    
+    saveFlowState(PermissionFlowStep.PERMISSION_GRANTED);
+    
+    const duration = endEventTiming(timingId);
+    if (duration) {
+      recordTelemetryEvent({
+        eventType: 'permission-request',
+        timestamp: Date.now(),
+        isPWA: browserDetection.isIOSPWA(),
+        iosVersion: browserDetection.getIOSVersion()?.toString(),
+        result: 'success',
+        timings: {
+          start: performance.now() - duration,
+          end: performance.now(),
+          duration
+        }
+      });
     }
 
     return {
       granted: true
     };
   } catch (error) {
+    clearFlowState();
+    
+    const duration = endEventTiming(timingId);
+    if (duration) {
+      recordTelemetryEvent({
+        eventType: 'permission-error',
+        timestamp: Date.now(),
+        isPWA: browserDetection.isIOSPWA(),
+        iosVersion: browserDetection.getIOSVersion()?.toString(),
+        result: 'error',
+        timings: {
+          start: performance.now() - duration,
+          end: performance.now(),
+          duration
+        },
+        metadata: {
+          error: error instanceof Error ? error.message : String(error)
+        }
+      });
+    }
+    
     return {
       granted: false,
       error: error instanceof Error ? error : new Error('Permission request failed'),
