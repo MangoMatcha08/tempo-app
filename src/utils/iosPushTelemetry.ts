@@ -17,29 +17,56 @@ interface TelemetryEvent {
     duration: number;
   };
   metadata?: Record<string, any>;
+  errorCategory?: string; // Added this field
+}
+
+interface EventTimer {
+  completeEvent: (result: string, metadata?: Record<string, any>) => void;
 }
 
 const timings = new Map<string, number>();
+const eventBatches: TelemetryEvent[] = [];
+const BATCH_SIZE = 10;
 
-export function startEventTiming(eventName: string): string {
+export function startEventTiming(eventName: string): EventTimer {
   const id = `${eventName}-${Date.now()}`;
-  timings.set(id, performance.now());
-  return id;
-}
-
-export function endEventTiming(id: string): number | null {
-  const startTime = timings.get(id);
-  if (!startTime) return null;
+  const startTime = performance.now();
+  timings.set(id, startTime);
   
-  const duration = performance.now() - startTime;
-  timings.delete(id);
-  return duration;
+  return {
+    completeEvent: (result: string, metadata?: Record<string, any>) => {
+      const endTime = performance.now();
+      const duration = endTime - (timings.get(id) || startTime);
+      
+      recordTelemetryEvent({
+        eventType: eventName,
+        timestamp: Date.now(),
+        isPWA: browserDetection.isIOSPWA(),
+        iosVersion: browserDetection.getIOSVersion()?.toString(),
+        result,
+        timings: {
+          start: startTime,
+          end: endTime,
+          duration
+        },
+        metadata
+      });
+      
+      timings.delete(id);
+    }
+  };
 }
 
 export function recordTelemetryEvent(event: TelemetryEvent): void {
   if (!browserDetection.isIOS()) return;
   
   try {
+    eventBatches.push(event);
+    
+    if (eventBatches.length >= BATCH_SIZE) {
+      flushTelemetryBatches();
+    }
+    
     performanceReporter.reportInteraction(event.eventType, {
       ...event,
       browser: navigator.userAgent,
@@ -48,4 +75,31 @@ export function recordTelemetryEvent(event: TelemetryEvent): void {
   } catch (error) {
     console.error('Error recording telemetry:', error);
   }
+}
+
+export function flushTelemetryBatches(): void {
+  if (eventBatches.length === 0) return;
+  
+  try {
+    // Report batched events
+    performanceReporter.reportInteraction('telemetry_batch', {
+      events: eventBatches,
+      count: eventBatches.length,
+      timestamp: Date.now()
+    });
+    
+    // Clear the batch
+    eventBatches.length = 0;
+  } catch (error) {
+    console.error('Error flushing telemetry batches:', error);
+  }
+}
+
+export function getTelemetryStats() {
+  return {
+    batchSize: eventBatches.length,
+    activeTimings: timings.size,
+    lastEvent: eventBatches[eventBatches.length - 1],
+    totalEvents: eventBatches.length
+  };
 }

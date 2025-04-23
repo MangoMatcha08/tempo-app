@@ -1,4 +1,3 @@
-
 /**
  * Retry Utilities
  */
@@ -12,11 +11,15 @@ export interface RetryOptions {
 
 export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-export const timeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
+export const timeout = <T>(
+  promise: Promise<T>, 
+  ms: number, 
+  errorMessage: string = 'Operation timed out'
+): Promise<T> => {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) => 
-      setTimeout(() => reject(new Error('Operation timed out')), ms)
+      setTimeout(() => reject(new Error(errorMessage)), ms)
     )
   ]);
 };

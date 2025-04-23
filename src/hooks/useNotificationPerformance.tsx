@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { browserDetection } from '@/utils/browserDetection';
 import { iosPushLogger } from '@/utils/iosPushLogger';
@@ -78,7 +77,7 @@ export function useNotificationPerformance(events?: PerformanceEvents) {
     setupStartTime.current = performance.now();
     setSetupInProgress(true);
     
-    // Record telemetry event
+    // Record telemetry event with new EventTimer interface
     const telemetryTimer = startEventTiming('permission-request');
     
     // iOS-specific logging
@@ -160,7 +159,7 @@ export function useNotificationPerformance(events?: PerformanceEvents) {
         
         setSetupInProgress(false);
         
-        // Complete telemetry event
+        // Complete telemetry event with new interface
         telemetryTimer.completeEvent(
           success ? 'success' : 'failure', 
           { totalTimeMs: totalTime }
