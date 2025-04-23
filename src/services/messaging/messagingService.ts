@@ -6,10 +6,9 @@ import { sendTestNotification } from '@/lib/firebase/functions';
 import { browserDetection } from '@/utils/browserDetection';
 import { iosPushLogger } from '@/utils/iosPushLogger';
 import { getAuth } from 'firebase/auth';
-import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
-import { initializeFirebase, messaging, firestore, vapidKey } from './firebase';
+import { initializeFirebase, messaging, firestore, vapidKey } from '@/services/notifications/firebase';
+import { saveTokenToFirestore } from '@/services/notifications/tokenManager';
 import { defaultNotificationSettings } from '@/types/notifications/settingsTypes';
-import { httpsCallable, getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 // Extended GetTokenOptions interface to include forceRefresh
 interface ExtendedGetTokenOptions extends GetTokenOptions {
@@ -59,7 +58,6 @@ const setupForegroundMessageListener = (
 
 /**
  * Gets the FCM token for the current device with special handling for iOS
- * @returns Promise with the token
  */
 const getFCMToken = async (): Promise<string | null> => {
   if (!messaging) {
@@ -75,18 +73,11 @@ const getFCMToken = async (): Promise<string | null> => {
       // iOS requires the service worker to be ready
       const registration = await navigator.serviceWorker.ready;
       
-      // iOS Safari needs VAPID key without padding
-      const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || 
-        'BJ9HWzAxfk1jKtkGfoKYMauaVfMatIkqw0cCEwQ1WBH7cn5evFO_saWfpvXAVy5710DTOpSUoXsKk8LWGQK7lBU';
-      
-      // Remove any potential padding for iOS
-      const formattedVapidKey = vapidKey.replace(/=/g, '');
-      
       // Get token with iOS-specific options
       const currentToken = await getToken(messaging, {
-        vapidKey: formattedVapidKey,
+        vapidKey,
         serviceWorkerRegistration: registration,
-        forceRefresh: true // Using the extended interface
+        forceRefresh: true
       } as ExtendedGetTokenOptions);
       
       if (currentToken) {
@@ -101,7 +92,7 @@ const getFCMToken = async (): Promise<string | null> => {
     } else {
       // Standard token request for other browsers
       const currentToken = await getToken(messaging, {
-        vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY
+        vapidKey
       });
       
       if (currentToken) {
@@ -174,103 +165,10 @@ const requestNotificationPermission = async (): Promise<string | null> => {
   }
 };
 
-/**
- * Save FCM token to Firestore with authentication check
- */
-export const saveTokenToFirestore = async (userId: string, token: string): Promise<void> => {
-  await initializeFirebase();
-  if (!firestore) return;
-  
-  const auth = getAuth();
-  if (!auth.currentUser) {
-    console.error('Attempted to save token without authentication');
-    return;
-  }
-
-  // Ensure the userId matches the authenticated user
-  if (userId !== auth.currentUser.uid) {
-    console.error('User ID mismatch when saving token');
-    return;
-  }
-  
-  try {
-    console.log(`Saving token for authenticated user ${userId}`);
-    const userDocRef = doc(firestore, 'users', userId);
-    const userDoc = await getDoc(userDocRef);
-    
-    if (userDoc.exists()) {
-      // Update existing user document
-      const fcmTokens = userDoc.data().fcmTokens || {};
-      fcmTokens[token] = true;
-      
-      await updateDoc(userDocRef, {
-        fcmTokens,
-        updatedAt: new Date()
-      });
-      console.log('Updated existing user document with token');
-    } else {
-      // Create new user document
-      await setDoc(userDocRef, {
-        fcmTokens: { [token]: true },
-        notificationSettings: defaultNotificationSettings,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-      console.log('Created new user document with token');
-    }
-  } catch (error) {
-    console.error('Error saving token to Firestore:', error);
-  }
-};
-
-/**
- * Sends a test notification using the Firebase sendTestNotification function
- * @param options Test notification options
- * @returns Promise with the test result
- */
-const sendTestMessage = async (options: { 
-  type: 'push' | 'email';
-  email?: string;
-  includeDeviceInfo?: boolean;
-}): Promise<any> => {
-  try {
-    // For iOS, add device info and log the test attempt
-    if (browserDetection.isIOS()) {
-      iosPushLogger.logPushEvent('test-notification-request', { options });
-      
-      // Always include device info for iOS for debugging
-      options.includeDeviceInfo = true;
-    }
-    
-    console.log("Sending test message with options:", options);
-    // Import directly here to avoid circular dependency
-    const { sendTestNotification } = await import('@/lib/firebase/functions');
-    const result = await sendTestNotification(options);
-    
-    console.log("Test notification result:", result);
-    
-    if (browserDetection.isIOS()) {
-      iosPushLogger.logPushEvent('test-notification-result', { result });
-    }
-    
-    return result;
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error('Error sending test notification:', errorMsg);
-    
-    if (browserDetection.isIOS()) {
-      iosPushLogger.logPushEvent('test-notification-error', { error: errorMsg });
-    }
-    
-    throw error;
-  }
-};
-
 // Export all functions
 export {
   getFCMToken,
   setupForegroundMessageListener,
   requestNotificationPermission,
-  saveTokenToFirestore,
-  sendTestMessage as sendTestNotification
+  sendTestNotification
 };
