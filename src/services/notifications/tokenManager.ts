@@ -8,7 +8,7 @@ import { browserDetection } from '@/utils/browserDetection';
 import { getCurrentDeviceTimingConfig, withRetry } from '@/utils/iosPermissionTimings';
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
-import { firestore } from '@/services/notifications/firebase';
+import { firestore } from './core/initialization';
 import { defaultNotificationSettings } from '@/types/notifications/settingsTypes';
 
 interface TokenRequestOptions {

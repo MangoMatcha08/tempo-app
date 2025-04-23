@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Reminder } from '@/types/reminderTypes';
@@ -9,7 +8,7 @@ import {
 import { NotificationSettingsProvider, useNotificationSettings } from './NotificationSettingsContext';
 import { NotificationPermissionProvider, useNotificationPermission } from './NotificationPermissionContext';
 import { NotificationHistoryProvider, useNotificationHistory } from './notificationHistory';
-import { setupForegroundMessageListener } from '@/services/messaging/messagingService';
+import { setupForegroundMessageListener } from '@/services/notifications/core/messaging';
 import { 
   ServiceWorkerMessage,
   NotificationDeliveryStatus,

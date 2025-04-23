@@ -1,7 +1,6 @@
-
 import { getToken, onMessage } from 'firebase/messaging';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
-import { initializeFirebase, messaging, firestore, vapidKey } from './firebase';
+import { initializeFirebase, messaging, firestore, vapidKey } from './core/initialization';
 import { defaultNotificationSettings } from '@/types/notifications/settingsTypes';
 import { httpsCallable, getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 

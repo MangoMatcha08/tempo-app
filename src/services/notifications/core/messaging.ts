@@ -1,12 +1,14 @@
 
-import { getToken, onMessage } from 'firebase/messaging';
+import { getToken, onMessage, Messaging } from 'firebase/messaging';
 import { messaging, vapidKey } from './initialization';
 import { browserDetection } from '@/utils/browserDetection';
 import { iosPushLogger } from '@/utils/iosPushLogger';
 import { saveTokenToFirestore } from '../storage/token';
 import { FirebaseMessagingPayload } from '@/types/notifications/serviceWorkerTypes';
 
-interface ExtendedGetTokenOptions extends GetTokenOptions {
+interface ExtendedGetTokenOptions {
+  vapidKey?: string;
+  serviceWorkerRegistration?: ServiceWorkerRegistration;
   forceRefresh?: boolean;
 }
 

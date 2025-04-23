@@ -1,4 +1,3 @@
-
 /**
  * @deprecated Use hooks from '@/hooks/notifications/useNotifications' instead
  * This file is maintained for backward compatibility.
@@ -20,7 +19,7 @@ import {
   ServiceWorkerMessage
 } from '@/types/notifications';
 import { Reminder } from '@/types/reminderTypes';
-import { sendTestNotification } from '@/services/notificationService';
+import { sendTestNotificationFn } from '@/services/notificationService';
 import { useNotifications as useNotificationsNew } from './notifications/useNotifications';
 
 /**

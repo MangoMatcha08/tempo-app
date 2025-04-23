@@ -1,9 +1,10 @@
-
 import { vi } from 'vitest';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createMockNotificationRecord } from './notificationTestUtils';
 import * as notificationService from '../services/notificationService';
 import * as messagingService from '../services/messaging/messagingService';
+import { mockFirebaseMessaging } from './notificationTestUtils';
+import { setupForegroundMessageListener } from '@/services/notifications/core/messaging';
 
 describe('Phase 1: Module and Declaration Fixes', () => {
   beforeEach(() => {
