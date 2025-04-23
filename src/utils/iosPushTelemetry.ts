@@ -3,6 +3,12 @@
  */
 import { performanceReporter } from './performanceAnalytics';
 import { browserDetection } from './browserDetection';
+import { 
+  EventTimer, 
+  TelemetryEvent, 
+  TimingMetadata, 
+  TelemetryErrorCategory 
+} from '../types/telemetry/telemetryTypes';
 
 interface TelemetryEvent {
   eventType: string;
@@ -127,7 +133,7 @@ export function startEventTiming(eventName: string): EventTimer {
   timings.set(id, startTime);
   
   return {
-    completeEvent: (result: string, metadata?: Record<string, any>) => {
+    completeEvent: (result: 'success' | 'failure' | 'error', metadata?: TimingMetadata) => {
       const endTime = performance.now();
       const duration = endTime - (timings.get(id) || startTime);
       
