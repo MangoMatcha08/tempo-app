@@ -9,32 +9,43 @@ import { useFirestore } from '@/contexts/FirestoreContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState, useCallback } from 'react';
 import { DatabaseReminder, Reminder } from '@/types/reminderTypes';
+import { convertToUtc, convertToLocal } from '@/utils/dateTimeUtils';
 
-// Constants
 const BATCH_SIZE = 10;
 const REMINDER_COLLECTION = 'reminders';
 
 /**
  * Converts Firestore data to a Reminder object
+ * (All date fields are converted from UTC to local time)
  */
 const convertToReminder = (doc: DocumentData): DatabaseReminder => {
   const data = doc.data();
+  
+  // Convert all relevant date fields from UTC JS Dates to local, using utility
+  const dueDate = data.dueDate instanceof Timestamp 
+      ? convertToLocal(data.dueDate.toDate())
+      : convertToLocal(new Date(data.dueDate));
+  const completedAt =
+      data.completedAt instanceof Timestamp
+        ? convertToLocal(data.completedAt.toDate())
+        : data.completedAt
+        ? convertToLocal(new Date(data.completedAt))
+        : undefined;
+  const createdAt = data.createdAt instanceof Timestamp
+      ? convertToLocal(data.createdAt.toDate())
+      : data.createdAt
+      ? convertToLocal(new Date(data.createdAt))
+      : convertToLocal(new Date());
   
   return {
     id: doc.id,
     title: data.title,
     description: data.description || '',
-    dueDate: data.dueDate instanceof Timestamp 
-      ? data.dueDate.toDate() 
-      : new Date(data.dueDate),
+    dueDate,
     priority: data.priority,
     completed: data.completed || false,
-    completedAt: data.completedAt instanceof Timestamp 
-      ? data.completedAt.toDate() 
-      : data.completedAt ? new Date(data.completedAt) : undefined,
-    createdAt: data.createdAt instanceof Timestamp 
-      ? data.createdAt.toDate() 
-      : data.createdAt ? new Date(data.createdAt) : new Date(),
+    completedAt,
+    createdAt,
     userId: data.userId,
     category: data.category,
     periodId: data.periodId,
@@ -160,9 +171,10 @@ export function useReactQueryReminders() {
       if (!db || !isReady) throw new Error('Firestore not initialized');
       
       const docRef = doc(db, REMINDER_COLLECTION, id);
+      const utcNow = convertToUtc(new Date());
       const updateData = {
         completed,
-        completedAt: completed ? serverTimestamp() : null
+        completedAt: completed ? Timestamp.fromDate(utcNow) : null
       };
       
       await updateDoc(docRef, updateData);
@@ -180,10 +192,14 @@ export function useReactQueryReminders() {
       if (!db || !isReady) throw new Error('Firestore not initialized');
       if (!user?.uid) throw new Error('User not authenticated');
       
+      // Convert all date fields to UTC before sending to Firestore
       const reminderWithUserId = {
         ...reminder,
         userId: user.uid,
-        createdAt: serverTimestamp()
+        createdAt: Timestamp.fromDate(convertToUtc(reminder.createdAt ? new Date(reminder.createdAt) : new Date())),
+        dueDate: Timestamp.fromDate(convertToUtc(reminder.dueDate)),
+        completed: reminder.completed || false,
+        completedAt: reminder.completedAt ? Timestamp.fromDate(convertToUtc(reminder.completedAt)) : null,
       };
       
       const docRef = await addDoc(collection(db, REMINDER_COLLECTION), reminderWithUserId);
@@ -207,8 +223,14 @@ export function useReactQueryReminders() {
       
       const { id, ...data } = reminder;
       const docRef = doc(db, REMINDER_COLLECTION, id);
-      
-      await updateDoc(docRef, data);
+      // Always use UTC for date fields
+      const updateData = {
+        ...data,
+        dueDate: Timestamp.fromDate(convertToUtc(data.dueDate)),
+        createdAt: data.createdAt ? Timestamp.fromDate(convertToUtc(new Date(data.createdAt))) : Timestamp.now(),
+        completedAt: data.completedAt ? Timestamp.fromDate(convertToUtc(data.completedAt)) : null
+      };
+      await updateDoc(docRef, updateData);
       return reminder;
     },
     onSuccess: () => {
@@ -243,7 +265,8 @@ export function useReactQueryReminders() {
       if (!db || !isReady) throw new Error('Firestore not initialized');
       
       const batch = writeBatch(db);
-      const completedAt = completed ? serverTimestamp() : null;
+      const utcNow = convertToUtc(new Date());
+      const completedAt = completed ? Timestamp.fromDate(utcNow) : null;
       
       ids.forEach(id => {
         const docRef = doc(db, REMINDER_COLLECTION, id);

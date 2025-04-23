@@ -1,4 +1,3 @@
-
 /**
  * Formats a date into a readable time string
  */
@@ -45,32 +44,57 @@ export const isToday = (date: Date): boolean => {
  * Formats time with school period context
  * Returns period name with time in parentheses
  */
-export const formatTimeWithPeriod = (date: Date): string => {
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  const timeStr = formatTime(date);
+import { format } from 'date-fns';
+import { mockPeriods } from '@/utils/reminderUtils';
+
+export function formatTimeWithPeriod(date: Date, periodId?: string): string {
+  console.log('[formatTimeWithPeriod] Input:', { 
+    date: date.toISOString(), 
+    periodId 
+  });
   
-  // Determine school period based on time
-  if (hours < 8) {
-    return `Before School (${timeStr})`;
-  } else if (hours < 9) {
-    return `1st Period (${timeStr})`;
-  } else if (hours < 10) {
-    return `2nd Period (${timeStr})`;
-  } else if (hours < 11) {
-    return `3rd Period (${timeStr})`;
-  } else if (hours < 12) {
-    return `4th Period (${timeStr})`;
-  } else if (hours < 13) {
-    return `Lunch (${timeStr})`;
-  } else if (hours < 14) {
-    return `5th Period (${timeStr})`;
-  } else if (hours < 15) {
-    return `6th Period (${timeStr})`;
-  } else {
-    return `After School (${timeStr})`;
+  // If we have a period ID, use the period's defined time
+  if (periodId) {
+    const period = mockPeriods.find(p => p.id === periodId);
+    
+    if (period) {
+      console.log('[formatTimeWithPeriod] Found period:', period);
+      
+      // Use the period's start time if available
+      if (period.startTime) {
+        // Extract hours and minutes from period start time
+        const [hours, minutes] = period.startTime.split(':').map(Number);
+        
+        // Create a formatted time string for display
+        const periodTime = format(
+          new Date().setHours(hours, minutes, 0, 0), 
+          'h:mm a'
+        );
+        
+        console.log(`[formatTimeWithPeriod] Using period time: ${periodTime}`);
+        return `${period.name} (${periodTime})`;
+      }
+    }
   }
-};
+  
+  // If no period found or no start time, fall back to the reminder's own time
+  const formattedTime = format(date, 'h:mm a');
+  console.log(`[formatTimeWithPeriod] Using reminder time: ${formattedTime}`);
+  
+  // Try to find matching period for this time
+  const hours = date.getHours();
+  const period = mockPeriods.find(p => {
+    const [startHour] = p.startTime.split(':').map(Number);
+    const [endHour] = p.endTime.split(':').map(Number);
+    return hours >= startHour && hours < endHour;
+  });
+  
+  if (period) {
+    return `${period.name} (${formattedTime})`;
+  }
+  
+  return formattedTime;
+}
 
 /**
  * Gets priority color class based on priority level

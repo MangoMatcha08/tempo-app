@@ -1,6 +1,7 @@
 import { doc, updateDoc, collection, addDoc, deleteDoc, Timestamp } from "firebase/firestore";
 import { Reminder } from "@/types/reminderTypes";
 import { useReminderOperationsCore } from "./operations-core";
+import { convertToUtc, convertToLocal } from "@/utils/dateTimeUtils";
 
 /**
  * Provides operations for individual reminders (complete, undo, add, update, delete)
@@ -16,12 +17,14 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
 
   const handleCompleteReminder = async (id: string, setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>): Promise<boolean> => {
     try {
-      const completedAt = new Date();
+      // Convert completedAt to UTC before Firestore
+      const completedAt = convertToUtc(new Date());
       
       setReminders(prev => {
+        // No conversion needed here since in-memory, but for display convert with convertToLocal if needed
         const newReminders = prev.map(reminder => 
           reminder.id === id 
-            ? { ...reminder, completed: true, completedAt } 
+            ? { ...reminder, completed: true, completedAt: convertToLocal(completedAt) } 
             : reminder
         );
         
@@ -128,10 +131,15 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
     setTotalCount: React.Dispatch<React.SetStateAction<number>>
   ): Promise<Reminder> => {
     const tempId = reminder.id || `temp-${Date.now()}`;
+    const createdAtUtc = convertToUtc(reminder.createdAt ? new Date(reminder.createdAt) : new Date());
+    const dueDateUtc = convertToUtc(reminder.dueDate);
+    const completedAtUtc = reminder.completedAt ? convertToUtc(reminder.completedAt) : undefined;
     const newReminder = {
       ...reminder,
       id: tempId,
-      createdAt: reminder.createdAt || new Date()
+      createdAt: convertToLocal(createdAtUtc),
+      dueDate: convertToLocal(dueDateUtc),
+      completedAt: completedAtUtc ? convertToLocal(completedAtUtc) : undefined
     };
     
     try {
@@ -153,10 +161,10 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
       const firestoreReminder = {
         ...reminder,
         userId: user.uid,
-        createdAt: Timestamp.fromDate(reminder.createdAt || new Date()),
-        dueDate: Timestamp.fromDate(reminder.dueDate),
+        createdAt: Timestamp.fromDate(createdAtUtc),
+        dueDate: Timestamp.fromDate(dueDateUtc),
         completed: reminder.completed || false,
-        completedAt: reminder.completedAt ? Timestamp.fromDate(reminder.completedAt) : null
+        completedAt: completedAtUtc ? Timestamp.fromDate(completedAtUtc) : null
       };
       
       const { id, ...reminderData } = firestoreReminder;
@@ -168,7 +176,9 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
         ...reminder,
         id: docRef.id,
         userId: user.uid,
-        createdAt: reminder.createdAt || new Date(),
+        createdAt: convertToLocal(createdAtUtc),
+        dueDate: convertToLocal(dueDateUtc),
+        completedAt: completedAtUtc ? convertToLocal(completedAtUtc) : undefined
       };
       
       console.log("Successfully added reminder:", savedReminder);
@@ -204,14 +214,21 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
     setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>
   ): Promise<Reminder> => {
     let originalReminder: Reminder | undefined;
-    
+    const createdAtUtc = updatedReminder.createdAt ? convertToUtc(new Date(updatedReminder.createdAt)) : convertToUtc(new Date());
+    const dueDateUtc = convertToUtc(updatedReminder.dueDate);
+    const completedAtUtc = updatedReminder.completedAt ? convertToUtc(updatedReminder.completedAt) : undefined;
     try {
       setReminders(prev => {
         originalReminder = prev.find(r => r.id === updatedReminder.id);
         
         const newReminders = prev.map(reminder => 
           reminder.id === updatedReminder.id 
-            ? { ...updatedReminder } 
+            ? { 
+                ...updatedReminder,
+                createdAt: convertToLocal(createdAtUtc),
+                dueDate: convertToLocal(dueDateUtc),
+                completedAt: completedAtUtc ? convertToLocal(completedAtUtc) : undefined
+              } 
             : reminder
         );
         
@@ -229,9 +246,9 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
       
       const reminderData = {
         ...updatedReminder,
-        dueDate: Timestamp.fromDate(updatedReminder.dueDate),
-        createdAt: updatedReminder.createdAt ? Timestamp.fromDate(updatedReminder.createdAt) : Timestamp.now(),
-        completedAt: updatedReminder.completedAt ? Timestamp.fromDate(updatedReminder.completedAt) : null
+        dueDate: Timestamp.fromDate(dueDateUtc),
+        createdAt: Timestamp.fromDate(createdAtUtc),
+        completedAt: completedAtUtc ? Timestamp.fromDate(completedAtUtc) : null
       };
       
       const { id, ...firestoreData } = reminderData;

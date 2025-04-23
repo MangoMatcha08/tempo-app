@@ -14,6 +14,7 @@ interface Reminder {
   location?: string;
   completed?: boolean;
   createdAt?: Date;
+  periodId?: string; // Add periodId to the interface
 }
 
 interface ReminderListItemProps {
@@ -58,8 +59,8 @@ const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProp
     // Extract location/period as class period
     const periodText = reminder.location ? `${reminder.location} • ` : "";
     
-    // Format time with period context
-    const timeText = formatTimeWithPeriod(dueDate);
+    // Format time with period context - pass periodId if available
+    const timeText = formatTimeWithPeriod(dueDate, reminder.periodId);
     
     return `${dateText} • ${periodText}${timeText}`;
   };
