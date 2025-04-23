@@ -10,12 +10,10 @@ interface TokenRequestOptions {
   serviceWorkerRegistration: ServiceWorkerRegistration;
 }
 
-interface RetryOptions {
-  maxRetries?: number;
+interface RetryConfig extends RetryOptions {
   delay?: number;
   baseDelayMs?: number;
   backoffFactor?: number;
-  retryPredicate?: (error: any, attempt: number) => boolean;
 }
 
 export async function requestIOSPushPermission(): Promise<PermissionRequestResult> {
@@ -76,7 +74,7 @@ export async function requestIosFCMToken(options: TokenRequestOptions): Promise<
       },
       {
         maxRetries: browserDetection.isIOS() ? 3 : 2,
-        delay: timingConfig.getTokenRetryDelay,
+        delay: timingConfig?.tokenRequestDelay || 1000,
         retryPredicate: (error) => {
           const shouldRetry = error.code === 'messaging/token-request-failed' ||
                             error.code === 'messaging/network-error';
@@ -88,7 +86,7 @@ export async function requestIosFCMToken(options: TokenRequestOptions): Promise<
 
           return shouldRetry;
         }
-      }
+      } as RetryConfig
     );
 
     if (!token) {

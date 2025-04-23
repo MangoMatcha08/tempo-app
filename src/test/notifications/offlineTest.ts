@@ -15,10 +15,11 @@ describe('Offline Functionality Tests', () => {
 
   describe('Core Functionality in Offline Mode', () => {
     beforeEach(() => {
-      // Simulate offline state
+      // Simulate offline state using Object.defineProperty
       Object.defineProperty(navigator, 'onLine', {
         configurable: true,
-        value: false
+        get: () => false,
+        set: () => {}
       });
     });
 
@@ -44,7 +45,8 @@ describe('Offline Functionality Tests', () => {
       // Start offline
       Object.defineProperty(navigator, 'onLine', {
         configurable: true,
-        value: false
+        get: () => false,
+        set: () => {}
       });
 
       const offlineResult = await initializeFirebase();
@@ -53,7 +55,8 @@ describe('Offline Functionality Tests', () => {
       // Simulate coming back online
       Object.defineProperty(navigator, 'onLine', {
         configurable: true,
-        value: true
+        get: () => true,
+        set: () => {}
       });
 
       // Dispatch online event

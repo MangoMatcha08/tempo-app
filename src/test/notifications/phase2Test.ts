@@ -23,7 +23,7 @@ describe('Notification System Phase 2', () => {
     // Reset mocks before each test
     vi.clearAllMocks();
     
-    // Mock navigator.onLine properly
+    // Mock navigator.onLine properly using Object.defineProperty
     Object.defineProperty(window.navigator, 'onLine', {
       configurable: true,
       get: () => true,
@@ -43,7 +43,7 @@ describe('Notification System Phase 2', () => {
     });
 
     test('handles offline initialization gracefully', async () => {
-      // Set navigator.onLine properly
+      // Set navigator.onLine properly using Object.defineProperty
       Object.defineProperty(window.navigator, 'onLine', {
         configurable: true,
         get: () => false,
@@ -63,7 +63,13 @@ describe('Notification System Phase 2', () => {
     });
 
     test('handles token request when offline', async () => {
-      window.navigator.onLine = false;
+      // Set navigator.onLine properly using Object.defineProperty
+      Object.defineProperty(window.navigator, 'onLine', {
+        configurable: true,
+        get: () => false,
+        set: () => {}
+      });
+      
       const token = await getFCMToken();
       expect(token).toBeNull();
     });
