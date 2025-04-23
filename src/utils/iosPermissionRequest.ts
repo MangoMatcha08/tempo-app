@@ -2,15 +2,10 @@ import { getMessaging, getToken } from 'firebase/messaging';
 import { iosPushLogger } from './iosPushLogger';
 import { browserDetection } from './browserDetection';
 import { getCurrentDeviceTimingConfig, withRetry } from './iosPermissionTimings';
+import { startEventTiming } from './iosPushTelemetry';
 import { firestore } from '@/services/notifications/core/initialization';
 import { PermissionRequestResult } from '@/types/notifications';
 import { RetryOptions } from './retryUtils';
-import { 
-  PermissionFlowStep, 
-  saveFlowState, 
-  clearFlowState 
-} from './iosPermissionFlowState';
-import { startEventTiming, endEventTiming, recordTelemetryEvent } from './iosPushTelemetry';
 
 interface TokenRequestOptions {
   vapidKey: string;
@@ -31,7 +26,7 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
     };
   }
 
-  const timingId = startEventTiming('ios-permission-request');
+  const telemetryTimer = startEventTiming('ios-permission-request');
   
   try {
     saveFlowState(PermissionFlowStep.INITIAL);
@@ -41,6 +36,7 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
     
     if (permission !== 'granted') {
       clearFlowState();
+      telemetryTimer.completeEvent('failure', { reason: 'Permission denied' });
       return {
         granted: false,
         reason: 'Permission denied'
@@ -48,47 +44,18 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
     }
     
     saveFlowState(PermissionFlowStep.PERMISSION_GRANTED);
+    telemetryTimer.completeEvent('success');
     
-    const duration = endEventTiming(timingId);
-    if (duration) {
-      recordTelemetryEvent({
-        eventType: 'permission-request',
-        timestamp: Date.now(),
-        isPWA: browserDetection.isIOSPWA(),
-        iosVersion: browserDetection.getIOSVersion()?.toString(),
-        result: 'success',
-        timings: {
-          start: performance.now() - duration,
-          end: performance.now(),
-          duration
-        }
-      });
-    }
-
     return {
       granted: true
     };
   } catch (error) {
     clearFlowState();
     
-    const duration = endEventTiming(timingId);
-    if (duration) {
-      recordTelemetryEvent({
-        eventType: 'permission-error',
-        timestamp: Date.now(),
-        isPWA: browserDetection.isIOSPWA(),
-        iosVersion: browserDetection.getIOSVersion()?.toString(),
-        result: 'error',
-        timings: {
-          start: performance.now() - duration,
-          end: performance.now(),
-          duration
-        },
-        metadata: {
-          error: error instanceof Error ? error.message : String(error)
-        }
-      });
-    }
+    telemetryTimer.completeEvent('error', {
+      error: error instanceof Error ? error.message : String(error),
+      errorCategory: 'permission-request-error'
+    });
     
     return {
       granted: false,

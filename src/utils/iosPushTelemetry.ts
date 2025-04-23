@@ -17,7 +17,7 @@ interface TelemetryEvent {
     duration: number;
   };
   metadata?: Record<string, any>;
-  errorCategory?: string; // Added this field
+  errorCategory?: string;
 }
 
 interface EventTimer {
@@ -27,6 +27,35 @@ interface EventTimer {
 const timings = new Map<string, number>();
 const eventBatches: TelemetryEvent[] = [];
 const BATCH_SIZE = 10;
+
+// Utility function to calculate success rate
+function calculateSuccessRate(events: TelemetryEvent[]): number {
+  if (events.length === 0) return 0;
+  const successfulEvents = events.filter(event => event.result === 'success').length;
+  return successfulEvents / events.length;
+}
+
+// Utility function to calculate average duration
+function calculateAverageDuration(events: TelemetryEvent[]): number {
+  const eventsWithDuration = events.filter(event => event.timings?.duration);
+  if (eventsWithDuration.length === 0) return 0;
+  
+  const totalDuration = eventsWithDuration.reduce((sum, event) => 
+    sum + (event.timings?.duration || 0), 0);
+  return totalDuration / eventsWithDuration.length;
+}
+
+// Utility function to categorize errors
+function categorizeErrors(events: TelemetryEvent[]): Record<string, number> {
+  const errorCounts: Record<string, number> = {};
+  events
+    .filter(event => event.result === 'failure')
+    .forEach(event => {
+      const category = event.errorCategory || 'unknown';
+      errorCounts[category] = (errorCounts[category] || 0) + 1;
+    });
+  return errorCounts;
+}
 
 export function startEventTiming(eventName: string): EventTimer {
   const id = `${eventName}-${Date.now()}`;
@@ -81,14 +110,12 @@ export function flushTelemetryBatches(): void {
   if (eventBatches.length === 0) return;
   
   try {
-    // Report batched events
     performanceReporter.reportInteraction('telemetry_batch', {
       events: eventBatches,
       count: eventBatches.length,
       timestamp: Date.now()
     });
     
-    // Clear the batch
     eventBatches.length = 0;
   } catch (error) {
     console.error('Error flushing telemetry batches:', error);
@@ -96,10 +123,17 @@ export function flushTelemetryBatches(): void {
 }
 
 export function getTelemetryStats() {
+  const recentEventsCount = 10; // Show last 10 events
+  
   return {
+    totalEvents: eventBatches.length,
+    successRate: calculateSuccessRate(eventBatches),
+    averageDuration: calculateAverageDuration(eventBatches),
+    errorBreakdown: categorizeErrors(eventBatches),
+    recentEvents: eventBatches.slice(-recentEventsCount),
+    pendingEvents: timings.size,
     batchSize: eventBatches.length,
     activeTimings: timings.size,
-    lastEvent: eventBatches[eventBatches.length - 1],
-    totalEvents: eventBatches.length
+    lastEvent: eventBatches[eventBatches.length - 1]
   };
 }
