@@ -1,9 +1,8 @@
-
-import { getToken, onMessage, Messaging } from 'firebase/messaging';
+import { getToken, onMessage } from 'firebase/messaging';
 import { messaging, vapidKey } from './initialization';
 import { browserDetection } from '@/utils/browserDetection';
 import { iosPushLogger } from '@/utils/iosPushLogger';
-import { saveTokenToFirestore } from '../storage/token';
+import { saveTokenToFirestore as messagingServiceSaveTokenToFirestore } from '../storage/token';
 import { FirebaseMessagingPayload } from '@/types/notifications/serviceWorkerTypes';
 
 interface ExtendedGetTokenOptions {
@@ -105,7 +104,7 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
       
       const token = await getFCMToken();
       if (token) {
-        await saveTokenToFirestore(token);
+        await messagingServiceSaveTokenToFirestore(token);
       }
       return token;
     }
@@ -125,4 +124,17 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
     
     return null;
   }
+};
+
+export { messagingServiceSaveTokenToFirestore };
+export { saveTokenToFirestore } from '../storage/token';
+
+export const firebaseInitPromise = messaging ? Promise.resolve(messaging) : Promise.reject('Messaging not initialized');
+
+export default {
+  saveTokenToFirestore: messagingServiceSaveTokenToFirestore,
+  getFCMToken,
+  setupForegroundMessageListener,
+  requestNotificationPermission,
+  firebaseInitPromise
 };
