@@ -1,3 +1,4 @@
+
 import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage, GetTokenOptions } from 'firebase/messaging';
 import { firebaseConfig } from '@/lib/firebase/config';
@@ -9,6 +10,11 @@ import { getAuth } from 'firebase/auth';
 import { initializeFirebase, messaging as firebaseMessaging, firestore, vapidKey } from '@/services/notifications/firebase';
 import { saveTokenToFirestore } from '@/services/notifications/tokenManager';
 import { defaultNotificationSettings } from '@/types/notifications/settingsTypes';
+
+// Extended GetTokenOptions interface to include forceRefresh
+interface ExtendedGetTokenOptions extends GetTokenOptions {
+  forceRefresh?: boolean;
+}
 
 // Rename local messaging to avoid conflict
 let localMessaging: any;
@@ -168,3 +174,4 @@ export {
   sendTestNotification,
   saveTokenToFirestore
 };
+
