@@ -26,11 +26,8 @@ export interface PermissionRequestResult {
   shouldPromptPwaInstall?: boolean;
   /** iOS version if relevant */
   iosVersion?: string;
-  /** Additional metadata */
-  metadata?: {
-    data?: Record<string, unknown>;
-    context?: string;
-  };
+  /** Additional metadata about the permission request */
+  metadata?: Record<string, unknown>;
 }
 
 /**

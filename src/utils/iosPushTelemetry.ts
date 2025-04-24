@@ -152,8 +152,8 @@ export function getTelemetryStats() {
     
     // Calculate error breakdown
     const errorBreakdown = events.reduce((acc, event) => {
-      if (event.result === 'error' && event.metadata?.data?.errorType) {
-        const errorType = event.metadata.data.errorType as string;
+      const errorType = event.metadata?.data?.errorType;
+      if (event.result === 'error' && typeof errorType === 'string') {
         acc[errorType] = (acc[errorType] || 0) + 1;
       }
       return acc;

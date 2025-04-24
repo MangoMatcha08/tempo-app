@@ -30,6 +30,13 @@ import { startEventTiming, recordTelemetryEvent } from '@/utils/iosPushTelemetry
 import { createMetadata } from '@/utils/telemetryUtils';
 
 /**
+ * Extract error message safely from Error or string
+ */
+const getErrorMessage = (error: Error | string): string => {
+  return error instanceof Error ? error.message : String(error);
+};
+
+/**
  * Hook for managing the iOS permission flow with enhanced retry and error handling
  */
 export function useIOSPermissionFlow() {
@@ -159,10 +166,10 @@ export function useIOSPermissionFlow() {
     } catch (error) {
       // Handle unexpected errors
       flowTimer.completeEvent('error', createMetadata('Flow error', {
-        error: error instanceof Error ? error.message : String(error)
+        error: getErrorMessage(error instanceof Error ? error : String(error))
       }));
       
-      setFlowError(error instanceof Error ? error.message : String(error));
+      setFlowError(getErrorMessage(error instanceof Error ? error : String(error)));
       setIsRequesting(false);
       
       return {

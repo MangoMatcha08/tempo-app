@@ -7,7 +7,8 @@ import { browserDetection } from './browserDetection';
 import { getCurrentDeviceTimingConfig, withRetry } from './iosPermissionTimings';
 import { startEventTiming } from './iosPushTelemetry';
 import { firestore } from '@/services/notifications/core/initialization';
-import { PermissionRequestResult } from '@/types/notifications';
+import { PermissionRequestResult, PermissionErrorReason } from '@/types/notifications/permissionTypes';
+import { PermissionErrorType } from '@/types/notifications/errorTypes';
 import { RetryOptions } from './retryUtils';
 import { 
   saveFlowState, 
@@ -16,7 +17,6 @@ import {
 } from './iosPermissionFlowState';
 import { createMetadata } from './telemetryUtils';
 import { 
-  PermissionErrorType,
   getDeviceCapabilities, 
   createPermissionErrorMetadata,
   shouldAllowRetry,
@@ -36,14 +36,25 @@ interface RetryConfig extends RetryOptions {
 }
 
 /**
+ * Extract error message safely from Error or string
+ */
+const getErrorMessage = (error: Error | string): string => {
+  return error instanceof Error ? error.message : String(error);
+};
+
+/**
  * Request iOS push permission with enhanced error handling and retry logic
  */
 export async function requestIOSPushPermission(): Promise<PermissionRequestResult> {
   if (!browserDetection.isIOS()) {
-    return {
+    const result: PermissionRequestResult = {
       granted: false,
-      reason: PermissionErrorType.NOT_IOS_DEVICE
+      reason: PermissionErrorType.NOT_IOS_DEVICE,
+      metadata: createMetadata('Not iOS device', {
+        deviceInfo: getDeviceCapabilities()
+      })
     };
+    return result;
   }
 
   // Check if we should allow a retry attempt
@@ -155,11 +166,9 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
       granted: false,
       error: error instanceof Error ? error : new Error(errorMsg),
       reason: errorType,
-      metadata: createPermissionErrorMetadata('Permission error', {
-        errorType,
-        errorMessage: errorMsg,
-        deviceCapabilities: getDeviceCapabilities(),
-        recoverable: errorType !== PermissionErrorType.VERSION_UNSUPPORTED
+      metadata: createPermissionErrorMetadata(errorType, {
+        errorMessage: getErrorMessage(error),
+        deviceCapabilities: getDeviceCapabilities()
       }).data
     };
   }
