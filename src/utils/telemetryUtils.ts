@@ -27,3 +27,4 @@ export function validateMetadata(metadata: unknown): metadata is TimingMetadata 
   
   return true;
 }
+
