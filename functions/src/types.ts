@@ -23,7 +23,6 @@ export interface Reminder {
   completed: boolean;
   userId: string;
   periodId?: string;
-  location?: string;
   completedAt?: Timestamp;
   overdueNotified?: boolean;
 }

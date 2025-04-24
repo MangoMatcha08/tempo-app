@@ -1,4 +1,5 @@
-import { Reminder, ReminderPriority } from '@/types/reminderTypes';
+
+import { Reminder, ReminderPriority, ReminderCategory, NotificationType } from '@/types/reminderTypes';
 import { NotificationSettings } from '@/types/notifications';
 import { shouldSendNotification } from '@/services/notifications/settings';
 import { NotificationCleanupConfig, DEFAULT_CLEANUP_CONFIG } from '@/types/notifications/sharedTypes';
@@ -49,6 +50,30 @@ export const getPriorityToastVariant = (priority: ReminderPriority): "default" |
 };
 
 /**
+ * Determine notification type based on reminder category
+ * @param reminder The reminder to determine type for
+ * @returns The appropriate notification type
+ */
+export const determineNotificationType = (reminder: Reminder): NotificationType => {
+  if (!reminder) return NotificationType.TEST;
+  
+  // If reminder is overdue
+  if (reminder.dueDate < new Date() && !reminder.completed) {
+    return NotificationType.OVERDUE;
+  }
+  
+  // If reminder is upcoming (due within 24 hours)
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (reminder.dueDate <= tomorrow && !reminder.completed) {
+    return NotificationType.UPCOMING;
+  }
+  
+  // Default to test notification
+  return NotificationType.TEST;
+};
+
+/**
  * Format reminder data for notification display
  * @param reminder The reminder to format
  * @returns Formatted notification data or null if reminder is invalid
@@ -65,6 +90,7 @@ export const formatReminderForNotification = (reminder: Reminder) => {
     title: reminder.title,
     description: `${reminder.description || ''}\nDue: ${formattedDueDate}`,
     priority: reminder.priority,
+    type: determineNotificationType(reminder)
   };
 };
 

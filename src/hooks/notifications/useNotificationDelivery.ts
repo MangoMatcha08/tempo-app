@@ -12,7 +12,7 @@ import { notificationDelivery } from '@/strategies/notification/NotificationStra
 import { notificationService, useNotificationService } from '@/services/notification/NotificationService';
 import { getPlatformAdapter } from '@/adapters/platform/PlatformAdapter';
 import { NotificationMethod } from '@/utils/notificationCapabilities';
-import { Reminder } from '@/types/reminderTypes';
+import { Reminder, NotificationType } from '@/types/reminderTypes';
 import { formatReminderForNotification } from '@/utils/notificationUtils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -90,7 +90,7 @@ export function useNotificationDelivery() {
       title: notificationData.title,
       body: notificationData.description || '',
       timestamp: Date.now(),
-      type: reminder.type ?? 'default', // Using nullish coalescing for type property
+      type: NotificationType.TEST, // Default to test notification type
       reminderId: reminder.id,
       priority: reminder.priority,
       status: NotificationDeliveryStatus.PENDING, // Changed from string literal to enum

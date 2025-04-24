@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { Reminder } from '@/types/reminderTypes';
+import { Reminder, NotificationType } from '@/types/reminderTypes';
 import { 
   showNotification, 
   formatReminderForNotification 
@@ -15,7 +14,6 @@ import {
   NotificationDeliveryStatus,
   NotificationChannel,
 } from '@/types/notifications';
-import { NotificationType } from '@/types/reminderTypes';
 import { ToastAction } from '@/components/ui/toast';
 
 interface NotificationContextType {

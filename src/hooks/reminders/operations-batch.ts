@@ -84,7 +84,7 @@ export function useBatchReminderOperations(user: any, db: any, isReady: boolean)
       return false;
     }
   };
-  
+
   const batchAddReminders = async (
     reminders: Omit<Reminder, 'id'>[],
     setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>,
@@ -137,7 +137,6 @@ export function useBatchReminderOperations(user: any, db: any, isReady: boolean)
           completed: reminder.completed || false,
           completedAt: completedAtUtc ? Timestamp.fromDate(completedAtUtc) : null,
           priority: reminder.priority,
-          type: reminder.type,
           periodId: reminder.periodId,
           category: reminder.category,
           checklist: reminder.checklist

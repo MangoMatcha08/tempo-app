@@ -1,3 +1,4 @@
+
 /**
  * Notification Service
  * 
@@ -9,7 +10,7 @@ import { NotificationRecord, NotificationDeliveryStatus } from '@/types/notifica
 import { notificationDelivery } from '@/strategies/notification/NotificationStrategy';
 import { useNotificationHistory } from '@/contexts/notificationHistory';
 import { getPlatformAdapter } from '@/adapters/platform/PlatformAdapter';
-import { Reminder } from '@/types/reminderTypes';
+import { Reminder, NotificationType } from '@/types/reminderTypes';
 import { formatReminderForNotification } from '@/utils/notificationUtils';
 
 export class NotificationService {
@@ -54,7 +55,7 @@ export class NotificationService {
       title: notificationData.title,
       body: notificationData.description || '',
       timestamp: Date.now(),
-      type: reminder.type ?? 'default', // Using nullish coalescing for type property
+      type: NotificationType.TEST, // Using default test notification type
       reminderId: reminder.id,
       priority: reminder.priority,
       status: NotificationDeliveryStatus.PENDING, // Changed from CREATED to PENDING
