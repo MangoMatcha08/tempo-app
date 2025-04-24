@@ -30,10 +30,20 @@ import { startEventTiming, recordTelemetryEvent } from '@/utils/iosPushTelemetry
 import { createMetadata } from '@/utils/telemetryUtils';
 
 /**
+ * Safe error type guard
+ */
+function isError(error: unknown): error is Error {
+  return error instanceof Error;
+}
+
+/**
  * Extract error message safely from Error or string
  */
-const getErrorMessage = (error: Error | string): string => {
-  return error instanceof Error ? error.message : String(error);
+const getErrorMessage = (error: unknown): string => {
+  if (isError(error)) {
+    return error.message;
+  }
+  return String(error);
 };
 
 /**
@@ -166,15 +176,15 @@ export function useIOSPermissionFlow() {
     } catch (error) {
       // Handle unexpected errors
       flowTimer.completeEvent('error', createMetadata('Flow error', {
-        error: getErrorMessage(error instanceof Error ? error : String(error))
+        error: getErrorMessage(error)
       }));
       
-      setFlowError(getErrorMessage(error instanceof Error ? error : String(error)));
+      setFlowError(getErrorMessage(error));
       setIsRequesting(false);
       
       return {
         granted: false,
-        error: error instanceof Error ? error : new Error(String(error)),
+        error: isError(error) ? error : new Error(String(error)),
         reason: PermissionErrorType.UNKNOWN_ERROR
       };
     }

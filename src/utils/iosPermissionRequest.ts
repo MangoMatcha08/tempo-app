@@ -36,10 +36,20 @@ interface RetryConfig extends RetryOptions {
 }
 
 /**
+ * Safe error type guard
+ */
+function isError(error: unknown): error is Error {
+  return error instanceof Error;
+}
+
+/**
  * Extract error message safely from Error or string
  */
-const getErrorMessage = (error: Error | string): string => {
-  return error instanceof Error ? error.message : String(error);
+const getErrorMessage = (error: unknown): string => {
+  if (isError(error)) {
+    return error.message;
+  }
+  return String(error);
 };
 
 /**
@@ -164,11 +174,11 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
     
     return {
       granted: false,
-      error: error instanceof Error ? error : new Error(errorMsg),
+      error: isError(error) ? error : new Error(String(error)),
       reason: errorType,
       metadata: createPermissionErrorMetadata(errorType, {
         errorMessage: getErrorMessage(error),
-        deviceCapabilities: getDeviceCapabilities()
+        deviceInfo: getDeviceCapabilities()
       }).data
     };
   }

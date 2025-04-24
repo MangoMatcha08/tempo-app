@@ -27,7 +27,7 @@ export interface PermissionRequestResult {
   /** iOS version if relevant */
   iosVersion?: string;
   /** Additional metadata about the permission request */
-  metadata?: Record<string, unknown>;
+  metadata?: TimingMetadata;
 }
 
 /**
