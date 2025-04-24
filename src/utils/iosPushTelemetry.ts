@@ -9,23 +9,7 @@ import {
   TimingMetadata, 
   TelemetryErrorCategory 
 } from '../types/telemetry/telemetryTypes';
-
-interface TelemetryEvent {
-  eventType: string;
-  timestamp: number;
-  isPWA: boolean;
-  iosVersion?: string;
-  result?: string;
-  timings?: {
-    start: number;
-    end: number;
-    duration: number;
-  };
-  metadata?: Record<string, any>;
-  errorCategory?: string;
-  validationStatus?: 'valid' | 'invalid';
-  eventId?: string;
-}
+import { createMetadata, validateMetadata } from './telemetryUtils';
 
 // Validation constants
 const MAX_EVENT_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -148,7 +132,7 @@ export function startEventTiming(eventName: string): EventTimer {
           end: endTime,
           duration
         },
-        metadata
+        metadata: validateMetadata(metadata) ? metadata : undefined
       });
       
       timings.delete(id);

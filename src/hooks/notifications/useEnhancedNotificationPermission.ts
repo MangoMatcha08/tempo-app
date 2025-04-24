@@ -1,4 +1,3 @@
-
 import { useCallback, useState } from 'react';
 import { useNotificationPermission } from './useNotificationPermission';
 import { PermissionRequestResult } from '@/types/notifications';
@@ -16,10 +15,7 @@ export function useEnhancedNotificationPermission() {
   const [isRequesting, setIsRequesting] = useState(false);
   
   // Request permission with enhanced error handling
-  const requestPermissionWithErrorHandling = useCallback(async (): Promise<{
-    result: PermissionRequestResult,
-    classifiedError?: ClassifiedError
-  }> => {
+  const requestPermissionWithErrorHandling = useCallback(async () => {
     // Reset error state
     setLastError(null);
     setIsRequesting(true);
@@ -33,9 +29,9 @@ export function useEnhancedNotificationPermission() {
       
       if (result.granted) {
         // Success case
-        await timing.completeEvent('success', {
+        await timing.completeEvent('success', createMetadata('Permission granted', {
           token: result.token ? 'received' : 'missing'
-        });
+        }));
         
         setIsRequesting(false);
         return { result };
@@ -57,10 +53,10 @@ export function useEnhancedNotificationPermission() {
         setLastError(classifiedError);
         
         // Record telemetry
-        await timing.completeEvent('failure', {
+        await timing.completeEvent('failure', createMetadata('Permission denied', {
           errorCategory: classifiedError.category,
           reason: result.reason
-        });
+        }));
         
         setIsRequesting(false);
         return { result, classifiedError };

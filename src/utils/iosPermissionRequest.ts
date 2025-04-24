@@ -1,3 +1,6 @@
+/**
+ * iOS Push Notification Telemetry
+ */
 import { getMessaging, getToken } from 'firebase/messaging';
 import { iosPushLogger } from './iosPushLogger';
 import { browserDetection } from './browserDetection';
@@ -11,6 +14,7 @@ import {
   clearFlowState, 
   PermissionFlowStep 
 } from './iosPermissionFlowState';
+import { createMetadata } from './telemetryUtils';
 
 interface TokenRequestOptions {
   vapidKey: string;
@@ -41,7 +45,9 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
     
     if (permission !== 'granted') {
       clearFlowState();
-      telemetryTimer.completeEvent('failure', { reason: 'Permission denied' });
+      telemetryTimer.completeEvent('failure', createMetadata('Permission denied', {
+        reason: 'Permission denied by user'
+      }));
       return {
         granted: false,
         reason: 'Permission denied'
@@ -57,10 +63,10 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
   } catch (error) {
     clearFlowState();
     
-    telemetryTimer.completeEvent('error', {
+    telemetryTimer.completeEvent('error', createMetadata('Permission request error', {
       error: error instanceof Error ? error.message : String(error),
       errorCategory: 'permission-request-error'
-    });
+    }));
     
     return {
       granted: false,

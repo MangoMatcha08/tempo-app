@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { browserDetection } from '@/utils/browserDetection';
 import { iosPushLogger } from '@/utils/iosPushLogger';
 import { startEventTiming } from '@/utils/iosPushTelemetry';
+import { createMetadata } from '@/utils/telemetryUtils';
 
 export interface PerformanceMetrics {
   // Service Worker metrics
@@ -159,10 +160,9 @@ export function useNotificationPerformance(events?: PerformanceEvents) {
         
         setSetupInProgress(false);
         
-        // Complete telemetry event with new interface
         telemetryTimer.completeEvent(
-          success ? 'success' : 'failure', 
-          { totalTimeMs: totalTime }
+          success ? 'success' : 'failure',
+          createMetadata('Setup completed', { totalTimeMs: totalTime })
         );
         
         // iOS-specific logging
