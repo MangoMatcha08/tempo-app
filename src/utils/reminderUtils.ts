@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { 
   Reminder, 
@@ -45,10 +44,6 @@ export const createReminder = (input: CreateReminderInput): Reminder => {
     completed: false,
     category: input.category,
     periodId: input.periodId,
-    location: input.periodId ? 
-      mockPeriods.find(p => p.id === input.periodId)?.name || 
-      (input.detectedNewPeriod ? input.detectedNewPeriod.name : undefined) : 
-      undefined,
     checklist: input.checklist ? input.checklist.map(item => ({
       ...item,
       id: item.id || generateId()

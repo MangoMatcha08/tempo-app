@@ -8,8 +8,8 @@ export interface Reminder extends BaseReminder {
   completedAt?: Date;
   category?: ReminderCategory;
   checklist?: ChecklistItem[];
-  location?: string;
 }
 
 // Re-export the enum for backward compatibility
 export { ReminderPriority };
+

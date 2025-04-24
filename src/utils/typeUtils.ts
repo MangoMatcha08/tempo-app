@@ -31,7 +31,6 @@ export const convertToUIReminder = (reminder: DatabaseReminder): UIReminder => {
     dueDate: reminder.dueDate,
     priority: reminder.priority,
     completed: reminder.completed || false,
-    location: reminder.location,
     // Properties from extended types
     completedAt: reminder.completedAt
   };
@@ -49,7 +48,7 @@ export const convertToBackendReminder = (reminder: UIReminder): Omit<DatabaseRem
     completed: reminder.completed || false,
     completedAt: reminder.completedAt,
     createdAt: new Date(),
-    userId: "", // This will be filled in by the reminder operations
-    location: reminder.location
+    userId: "" // This will be filled in by the reminder operations
   };
 };
+
