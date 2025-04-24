@@ -16,7 +16,7 @@ import {
 } from './iosPermissionFlowState';
 import { createMetadata } from './telemetryUtils';
 import { 
-  PermissionErrorType, 
+  PermissionErrorType,
   getDeviceCapabilities, 
   createPermissionErrorMetadata,
   shouldAllowRetry,

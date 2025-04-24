@@ -148,16 +148,54 @@ export function clearTelemetryEvents(): void {
 export function getTelemetryStats() {
   try {
     const events = getTelemetryEvents();
+    const successfulEvents = events.filter(e => e.result === 'success');
+    
+    // Calculate error breakdown
+    const errorBreakdown = events.reduce((acc, event) => {
+      if (event.result === 'error' && event.metadata?.data?.errorType) {
+        const errorType = event.metadata.data.errorType as string;
+        acc[errorType] = (acc[errorType] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Calculate average duration
+    const durations = events
+      .filter(e => e.timings?.duration)
+      .map(e => e.timings!.duration);
+    const averageDuration = durations.length > 0 
+      ? durations.reduce((a, b) => a + b, 0) / durations.length 
+      : 0;
+
+    // Get recent events (last 5)
+    const recentEvents = events.slice(-5);
+
+    // Count pending events (those without a result)
+    const pendingEvents = events.filter(e => !e.result).length;
+
+    // Performance metrics calculation
+    const performanceMetrics = events.reduce((acc, event) => {
+      if (event.timings?.duration) {
+        const metricName = event.eventType;
+        if (!acc[metricName]) {
+          acc[metricName] = {
+            p50: event.timings.duration,
+            mean: event.timings.duration,
+            trend: 'stable'
+          };
+        }
+      }
+      return acc;
+    }, {} as Record<string, { p50?: number; mean?: number; trend?: 'improving' | 'stable' | 'degrading' }>);
+
     return {
       totalEvents: events.length,
-      successRate: events.filter(e => e.result === 'success').length / events.length,
-      lastEvent: events[events.length - 1],
-      performanceMetrics: events.reduce((acc, event) => {
-        if (event.timings?.duration) {
-          acc.durations.push(event.timings.duration);
-        }
-        return acc;
-      }, { durations: [] as number[] })
+      successRate: successfulEvents.length / events.length,
+      averageDuration,
+      errorBreakdown,
+      recentEvents,
+      pendingEvents,
+      performanceMetrics
     };
   } catch (error) {
     console.error('Failed to get telemetry stats:', error);

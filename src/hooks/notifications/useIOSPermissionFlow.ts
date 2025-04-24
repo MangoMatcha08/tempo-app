@@ -167,7 +167,7 @@ export function useIOSPermissionFlow() {
       
       return {
         granted: false,
-        error: error instanceof Error ? error : new Error('Failed to start permission flow'),
+        error: error instanceof Error ? error : new Error(String(error)),
         reason: PermissionErrorType.UNKNOWN_ERROR
       };
     }
