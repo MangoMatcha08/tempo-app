@@ -4,11 +4,38 @@
  */
 
 /**
+ * Ensures a value is a valid Date object
+ */
+export function ensureValidDate(date: any): Date {
+  if (date instanceof Date && !isNaN(date.getTime())) {
+    return date;
+  }
+  
+  // Handle Firestore Timestamp objects
+  if (date && typeof date.toDate === 'function') {
+    return date.toDate();
+  }
+  
+  // Handle ISO string dates
+  if (typeof date === 'string') {
+    const parsedDate = new Date(date);
+    if (!isNaN(parsedDate.getTime())) {
+      return parsedDate;
+    }
+  }
+  
+  // If all else fails, return current date as fallback
+  console.warn('Invalid date encountered, using current date as fallback', date);
+  return new Date();
+}
+
+/**
  * Formats the remaining time until a due date
  */
-export function getRemainingTimeDisplay(date: Date): string {
+export function getRemainingTimeDisplay(date: Date | any): string {
+  const validDate = ensureValidDate(date);
   const now = new Date();
-  const diffMs = date.getTime() - now.getTime();
+  const diffMs = validDate.getTime() - now.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   
   if (diffMins < 0) return "Overdue";
@@ -24,9 +51,10 @@ export function getRemainingTimeDisplay(date: Date): string {
 /**
  * Formats how long ago something happened
  */
-export function getTimeAgoDisplay(date: Date): string {
+export function getTimeAgoDisplay(date: Date | any): string {
+  const validDate = ensureValidDate(date);
   const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
+  const diffMs = now.getTime() - validDate.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   
   if (diffMins < 1) return "just now";
@@ -42,8 +70,9 @@ export function getTimeAgoDisplay(date: Date): string {
 /**
  * Formats date for display
  */
-export function formatDate(date: Date): string {
-  return date.toLocaleDateString(undefined, { 
+export function formatDate(date: Date | any): string {
+  const validDate = ensureValidDate(date);
+  return validDate.toLocaleDateString(undefined, { 
     month: 'short', 
     day: 'numeric',
     hour: '2-digit',

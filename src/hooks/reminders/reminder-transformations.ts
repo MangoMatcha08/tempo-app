@@ -1,25 +1,39 @@
+
 import { Reminder as BackendReminder } from "@/types/reminderTypes";
 import { Reminder as UIReminder } from "@/types/reminder";
 import { 
   getRemainingTimeDisplay, 
   getTimeAgoDisplay, 
-  formatDate 
+  formatDate,
+  ensureValidDate 
 } from "./reminder-formatting";
 
-// Add the new transformReminder function
+/**
+ * Transforms Firestore data to a properly formatted Reminder object
+ * with date fields correctly converted from Firestore Timestamps
+ */
 export function transformReminder(id: string, data: any): BackendReminder {
+  // Convert Timestamp to Date for all date fields
+  const dueDate = ensureValidDate(data.dueDate);
+  const createdAt = data.createdAt ? ensureValidDate(data.createdAt) : new Date();
+  const completedAt = data.completedAt ? ensureValidDate(data.completedAt) : undefined;
+  
   return {
     id,
     title: data.title || '',
     description: data.description || '',
-    dueDate: data.dueDate ? new Date(data.dueDate) : new Date(),
+    dueDate: dueDate,
     priority: data.priority || 'medium',
     userId: data.userId,
-    completed: data.completed || false,
-    createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
-    completedAt: data.completedAt ? new Date(data.completedAt) : undefined,
-    category: data.category,
-    checklist: data.checklist,
+    completed: !!data.completed,
+    createdAt: createdAt,
+    completedAt: completedAt,
+    category: data.category || undefined,
+    checklist: Array.isArray(data.checklist) ? data.checklist.map(item => ({
+      id: item.id || crypto.randomUUID(),
+      text: item.text || '',
+      isCompleted: !!item.isCompleted
+    })) : undefined,
     periodId: data.periodId
   };
 }
@@ -47,13 +61,15 @@ const ensureValidPriority = (priority: string | any): "high" | "medium" | "low" 
 export function transformToUrgentReminders(reminders: BackendReminder[]): UIReminder[] {
   console.log("Transforming urgent reminders");
   return reminders.map(reminder => {
+    const dueDate = ensureValidDate(reminder.dueDate);
     const priority = ensureValidPriority(reminder.priority);
     
     return {
       ...reminder,
+      dueDate,
       priority,
-      timeRemaining: getRemainingTimeDisplay(reminder.dueDate),
-      formattedDate: formatDate(reminder.dueDate)
+      timeRemaining: getRemainingTimeDisplay(dueDate),
+      formattedDate: formatDate(dueDate)
     } as UIReminder & { timeRemaining: string, formattedDate: string };
   });
 }
@@ -64,13 +80,15 @@ export function transformToUrgentReminders(reminders: BackendReminder[]): UIRemi
 export function transformToUpcomingReminders(reminders: BackendReminder[]): UIReminder[] {
   console.log("Transforming upcoming reminders");
   return reminders.map(reminder => {
+    const dueDate = ensureValidDate(reminder.dueDate);
     const priority = ensureValidPriority(reminder.priority);
     
     return {
       ...reminder,
+      dueDate,
       priority,
-      timeRemaining: getRemainingTimeDisplay(reminder.dueDate),
-      formattedDate: formatDate(reminder.dueDate)
+      timeRemaining: getRemainingTimeDisplay(dueDate),
+      formattedDate: formatDate(dueDate)
     } as UIReminder & { timeRemaining: string, formattedDate: string };
   });
 }
@@ -81,13 +99,17 @@ export function transformToUpcomingReminders(reminders: BackendReminder[]): UIRe
 export function transformToCompletedReminders(reminders: BackendReminder[]): UIReminder[] {
   console.log("Transforming completed reminders");
   return reminders.map(reminder => {
+    const dueDate = ensureValidDate(reminder.dueDate);
+    const completedAt = reminder.completedAt ? ensureValidDate(reminder.completedAt) : undefined;
     const priority = ensureValidPriority(reminder.priority);
     
     return {
       ...reminder,
+      dueDate,
+      completedAt,
       priority,
-      completedTimeAgo: reminder.completedAt ? getTimeAgoDisplay(reminder.completedAt) : '',
-      formattedDate: formatDate(reminder.dueDate)
+      completedTimeAgo: completedAt ? getTimeAgoDisplay(completedAt) : '',
+      formattedDate: formatDate(dueDate)
     } as UIReminder & { completedTimeAgo: string, formattedDate: string };
   });
 }

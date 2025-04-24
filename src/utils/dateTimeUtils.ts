@@ -1,6 +1,7 @@
 
 import { format } from 'date-fns';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { toDate, isValidDate } from './dateTransformationUtils';
 
 /**
  * Gets the user's current time zone
@@ -14,14 +15,17 @@ export function getUserTimeZone(): string {
 /**
  * Converts a local date to UTC
  */
-export function convertToUtc(localDate: Date): Date {
+export function convertToUtc(localDate: Date | any): Date {
+  // Ensure we have a valid Date object
+  const validDate = toDate(localDate);
   const userTimeZone = getUserTimeZone();
+  
   console.log('[convertToUtc] Converting to UTC:', {
-    input: localDate.toISOString(),
+    input: validDate.toISOString(),
     timeZone: userTimeZone
   });
   
-  const utcDate = fromZonedTime(localDate, userTimeZone);
+  const utcDate = fromZonedTime(validDate, userTimeZone);
   
   console.log('[convertToUtc] Result:', utcDate.toISOString());
   return utcDate;
@@ -30,14 +34,17 @@ export function convertToUtc(localDate: Date): Date {
 /**
  * Converts a UTC date to local time
  */
-export function convertToLocal(utcDate: Date): Date {
+export function convertToLocal(utcDate: Date | any): Date {
+  // Ensure we have a valid Date object
+  const validDate = toDate(utcDate);
   const userTimeZone = getUserTimeZone();
+  
   console.log('[convertToLocal] Converting to local:', {
-    input: utcDate.toISOString(),
+    input: validDate.toISOString(),
     timeZone: userTimeZone
   });
   
-  const localDate = toZonedTime(utcDate, userTimeZone);
+  const localDate = toZonedTime(validDate, userTimeZone);
   
   console.log('[convertToLocal] Result:', localDate.toISOString());
   return localDate;
@@ -46,18 +53,24 @@ export function convertToLocal(utcDate: Date): Date {
 /**
  * Formats a date with timezone consideration
  */
-export function formatDateWithTimeZone(date: Date, formatStr = 'yyyy-MM-dd HH:mm:ss'): string {
-  const userTimeZone = getUserTimeZone();
-  const zonedDate = toZonedTime(date, userTimeZone);
-  const result = format(zonedDate, formatStr);
-  
-  console.log('[formatDateWithTimeZone]', {
-    input: date.toISOString(),
-    timeZone: userTimeZone,
-    result
-  });
-  
-  return result;
+export function formatDateWithTimeZone(date: Date | any, formatStr = 'yyyy-MM-dd HH:mm:ss'): string {
+  try {
+    const validDate = toDate(date);
+    const userTimeZone = getUserTimeZone();
+    const zonedDate = toZonedTime(validDate, userTimeZone);
+    const result = format(zonedDate, formatStr);
+    
+    console.log('[formatDateWithTimeZone]', {
+      input: validDate.toISOString(),
+      timeZone: userTimeZone,
+      result
+    });
+    
+    return result;
+  } catch (error) {
+    console.error("Error in formatDateWithTimeZone:", error);
+    return format(new Date(), formatStr); // Fallback to current date
+  }
 }
 
 /**
@@ -67,14 +80,19 @@ export function formatDateWithTimeZone(date: Date, formatStr = 'yyyy-MM-dd HH:mm
 /**
  * Logs date information for debugging
  */
-export function logDateDetails(label: string, date: Date, additionalInfo?: Record<string, any>) {
-  console.log(`[${label}]`, {
-    date: date.toISOString(),
-    localString: date.toString(),
-    time: `${date.getHours()}:${date.getMinutes()}`,
-    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    ...additionalInfo
-  });
+export function logDateDetails(label: string, date: Date | any, additionalInfo?: Record<string, any>) {
+  try {
+    const validDate = toDate(date);
+    console.log(`[${label}]`, {
+      date: validDate.toISOString(),
+      localString: validDate.toString(),
+      time: `${validDate.getHours()}:${validDate.getMinutes()}`,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      ...additionalInfo
+    });
+  } catch (error) {
+    console.error(`Error logging date details for "${label}":`, error);
+  }
 }
 
 /**
@@ -146,74 +164,103 @@ export function parseTimeStringWithCompatibility(timeString: string): { hours: n
  * Creates a new Date with the specified time components
  * Always sets seconds and milliseconds to 0
  */
-export function createDateWithTime(baseDate: Date, hours: number, minutes: number): Date {
-  logDateDetails("createDateWithTime input", baseDate, { hours, minutes });
-  
-  const newDate = new Date(baseDate);
-  newDate.setHours(hours, minutes, 0, 0);
-  
-  logDateDetails("createDateWithTime output", newDate);
-  return newDate;
+export function createDateWithTime(baseDate: Date | any, hours: number, minutes: number): Date {
+  try {
+    const validBaseDate = toDate(baseDate);
+    logDateDetails("createDateWithTime input", validBaseDate, { hours, minutes });
+    
+    const newDate = new Date(validBaseDate);
+    newDate.setHours(hours, minutes, 0, 0);
+    
+    logDateDetails("createDateWithTime output", newDate);
+    return newDate;
+  } catch (error) {
+    console.error("Error in createDateWithTime:", error);
+    // Fallback to current date with specified hours/minutes
+    const fallbackDate = new Date();
+    fallbackDate.setHours(hours, minutes, 0, 0);
+    return fallbackDate;
+  }
 }
 
 /**
  * Moves a date to tomorrow if it's earlier than current time and is today
  */
-export function adjustDateIfPassed(dateToCheck: Date): Date {
-  const now = new Date();
-  logDateDetails("adjustDateIfPassed input", dateToCheck, { now });
-  
-  const isToday = isSameDay(dateToCheck, now);
-  const needsAdjustment = dateToCheck < now && isToday;
-  
-  if (needsAdjustment) {
-    const tomorrow = new Date(dateToCheck);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+export function adjustDateIfPassed(dateToCheck: Date | any): Date {
+  try {
+    const validDate = toDate(dateToCheck);
+    const now = new Date();
+    logDateDetails("adjustDateIfPassed input", validDate, { now });
     
-    logDateDetails("adjustDateIfPassed output (adjusted)", tomorrow, { 
-      reason: "Date is today but already passed" 
+    const isToday = isSameDay(validDate, now);
+    const needsAdjustment = validDate < now && isToday;
+    
+    if (needsAdjustment) {
+      const tomorrow = new Date(validDate);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      logDateDetails("adjustDateIfPassed output (adjusted)", tomorrow, { 
+        reason: "Date is today but already passed" 
+      });
+      return tomorrow;
+    }
+    
+    logDateDetails("adjustDateIfPassed output (unchanged)", validDate, { 
+      reason: "Date is not today or not yet passed" 
     });
-    return tomorrow;
+    return validDate;
+  } catch (error) {
+    console.error("Error in adjustDateIfPassed:", error);
+    return new Date(); // Fallback to current date
   }
-  
-  logDateDetails("adjustDateIfPassed output (unchanged)", dateToCheck, { 
-    reason: "Date is not today or not yet passed" 
-  });
-  return dateToCheck;
 }
 
 /**
  * Formats a time string consistently in 12-hour format with AM/PM
  */
-export function formatTimeString(date: Date): string {
+export function formatTimeString(date: Date | any): string {
   if (!date) return '';
   
-  let hours = date.getHours();
-  const minutes = date.getMinutes();
-  const period = hours >= 12 ? 'PM' : 'AM';
-  
-  // Convert to 12-hour format
-  if (hours > 12) hours -= 12;
-  if (hours === 0) hours = 12;
-  
-  // Ensure two digits for minutes
-  const minutesStr = minutes.toString().padStart(2, '0');
-  
-  const result = `${hours}:${minutesStr} ${period}`;
-  console.log(`[formatTimeString] ${date.toString()} → "${result}"`);
-  
-  return result;
+  try {
+    const validDate = toDate(date);
+    let hours = validDate.getHours();
+    const minutes = validDate.getMinutes();
+    const period = hours >= 12 ? 'PM' : 'AM';
+    
+    // Convert to 12-hour format
+    if (hours > 12) hours -= 12;
+    if (hours === 0) hours = 12;
+    
+    // Ensure two digits for minutes
+    const minutesStr = minutes.toString().padStart(2, '0');
+    
+    const result = `${hours}:${minutesStr} ${period}`;
+    console.log(`[formatTimeString] ${validDate.toString()} → "${result}"`);
+    
+    return result;
+  } catch (error) {
+    console.error("Error in formatTimeString:", error, date);
+    return "";
+  }
 }
 
 /**
  * Checks if two date objects represent the same day
  */
-export function isSameDay(date1: Date, date2: Date): boolean {
-  const result = date1.getDate() === date2.getDate() &&
-         date1.getMonth() === date2.getMonth() &&
-         date1.getFullYear() === date2.getFullYear();
-         
-  console.log(`[isSameDay] comparing ${date1.toDateString()} and ${date2.toDateString()}: ${result}`);
-  
-  return result;
+export function isSameDay(date1: Date | any, date2: Date | any): boolean {
+  try {
+    const validDate1 = toDate(date1);
+    const validDate2 = toDate(date2);
+    
+    const result = validDate1.getDate() === validDate2.getDate() &&
+           validDate1.getMonth() === validDate2.getMonth() &&
+           validDate1.getFullYear() === validDate2.getFullYear();
+           
+    console.log(`[isSameDay] comparing ${validDate1.toDateString()} and ${validDate2.toDateString()}: ${result}`);
+    
+    return result;
+  } catch (error) {
+    console.error("Error in isSameDay:", error, { date1, date2 });
+    return false;
+  }
 }

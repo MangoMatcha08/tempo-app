@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { DatabaseReminder } from "@/types/reminderTypes";
 import { transformReminder } from "./reminder-transformations";
+import { ensureValidDate } from "./reminder-formatting";
 import { getMockReminders } from "./mock-reminders";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
@@ -63,21 +64,22 @@ export function useReminderQueryFirebase(user: any, db: any, useMockData: boolea
         // Transform data to be cloneable
         querySnapshot.forEach((doc) => {
           const data = doc.data();
-          // Create a plain object that can be cloned
-          const reminder = {
-            ...transformReminder(doc.id, data),
-            // Ensure dates are converted to ISO strings for cloning
-            dueDate: data.dueDate?.toDate?.() || new Date(),
-            createdAt: data.createdAt?.toDate?.() || new Date(),
-            completedAt: data.completedAt?.toDate?.() || null,
-            // Ensure all object properties are cloneable
-            checklist: data.checklist?.map(item => ({
-              id: item.id || '',
-              text: item.text || '',
-              isCompleted: !!item.isCompleted
-            })) || []
-          };
-          fetchedReminders.push(reminder);
+          try {
+            // Process and validate dates before transformation
+            const parsedData = {
+              ...data,
+              dueDate: data.dueDate ? ensureValidDate(data.dueDate) : new Date(),
+              createdAt: data.createdAt ? ensureValidDate(data.createdAt) : new Date(),
+              completedAt: data.completedAt ? ensureValidDate(data.completedAt) : null
+            };
+            
+            // Transform the document into a reminder object
+            const reminder = transformReminder(doc.id, parsedData);
+            fetchedReminders.push(reminder);
+            
+          } catch (transformError) {
+            console.error("Error transforming reminder:", transformError, data);
+          }
         });
         
       } catch (indexError) {
@@ -116,8 +118,21 @@ export function useReminderQueryFirebase(user: any, db: any, useMockData: boolea
           fetchedReminders = [];
           fallbackSnapshot.forEach((doc) => {
             const data = doc.data();
-            const reminder = transformReminder(doc.id, data);
-            fetchedReminders.push(reminder);
+            try {
+              // Process and validate dates before transformation
+              const parsedData = {
+                ...data,
+                dueDate: data.dueDate ? ensureValidDate(data.dueDate) : new Date(),
+                createdAt: data.createdAt ? ensureValidDate(data.createdAt) : new Date(),
+                completedAt: data.completedAt ? ensureValidDate(data.completedAt) : null
+              };
+              
+              // Transform the document into a reminder object
+              const reminder = transformReminder(doc.id, parsedData);
+              fetchedReminders.push(reminder);
+            } catch (transformError) {
+              console.error("Error transforming reminder (fallback):", transformError, data);
+            }
           });
         } else {
           throw indexError;
