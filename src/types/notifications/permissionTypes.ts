@@ -1,4 +1,3 @@
-
 /**
  * Notification Permission Type Definitions
  * 
@@ -27,6 +26,11 @@ export interface PermissionRequestResult {
   shouldPromptPwaInstall?: boolean;
   /** iOS version if relevant */
   iosVersion?: string;
+  /** Additional metadata */
+  metadata?: {
+    data?: Record<string, unknown>;
+    context?: string;
+  };
 }
 
 /**

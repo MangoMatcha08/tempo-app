@@ -1,4 +1,3 @@
-
 /**
  * iOS Push Notification Telemetry
  */
@@ -102,24 +101,22 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
       return {
         granted: false,
         reason: errorType,
-        metadata: {
-          data: {
-            permission,
-            errorType,
-            recoverable: errorType === PermissionErrorType.PERMISSION_DISMISSED
-          }
-        }
+        metadata: createMetadata('Permission denied', {
+          permission,
+          errorType,
+          recoverable: errorType === PermissionErrorType.PERMISSION_DISMISSED
+        }).data
       };
     }
     
     saveFlowState(PermissionFlowStep.PERMISSION_GRANTED);
-    telemetryTimer.completeEvent('success', createMetadata('Permission granted', {
-      deviceCapabilities,
-      flowDuration: Date.now() - telemetryTimer.getStartTime()
-    }));
     
     return {
-      granted: true
+      granted: true,
+      metadata: createMetadata('Permission granted', {
+        deviceCapabilities,
+        flowDuration: Date.now() - telemetryTimer.getStartTime()
+      }).data
     };
   } catch (error) {
     clearFlowState();
@@ -158,14 +155,12 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
       granted: false,
       error: error instanceof Error ? error : new Error(errorMsg),
       reason: errorType,
-      metadata: {
-        data: {
-          errorType,
-          errorMessage: errorMsg,
-          deviceCapabilities: getDeviceCapabilities(),
-          recoverable: errorType !== PermissionErrorType.VERSION_UNSUPPORTED
-        }
-      }
+      metadata: createPermissionErrorMetadata('Permission error', {
+        errorType,
+        errorMessage: errorMsg,
+        deviceCapabilities: getDeviceCapabilities(),
+        recoverable: errorType !== PermissionErrorType.VERSION_UNSUPPORTED
+      }).data
     };
   }
 }

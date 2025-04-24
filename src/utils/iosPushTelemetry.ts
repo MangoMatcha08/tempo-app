@@ -141,3 +141,38 @@ export function getTelemetryEvents(): TelemetryEvent[] {
 export function clearTelemetryEvents(): void {
   localStorage.removeItem(TELEMETRY_STORAGE_KEY);
 }
+
+/**
+ * Get telemetry statistics for iOS push notifications
+ */
+export function getTelemetryStats() {
+  try {
+    const events = getTelemetryEvents();
+    return {
+      totalEvents: events.length,
+      successRate: events.filter(e => e.result === 'success').length / events.length,
+      lastEvent: events[events.length - 1],
+      performanceMetrics: events.reduce((acc, event) => {
+        if (event.timings?.duration) {
+          acc.durations.push(event.timings.duration);
+        }
+        return acc;
+      }, { durations: [] as number[] })
+    };
+  } catch (error) {
+    console.error('Failed to get telemetry stats:', error);
+    return null;
+  }
+}
+
+/**
+ * Flush telemetry batches to storage
+ */
+export function flushTelemetryBatches() {
+  try {
+    const events = getTelemetryEvents();
+    localStorage.setItem(TELEMETRY_STORAGE_KEY, JSON.stringify(events));
+  } catch (error) {
+    console.error('Failed to flush telemetry batches:', error);
+  }
+}

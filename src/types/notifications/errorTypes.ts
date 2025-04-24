@@ -79,3 +79,5 @@ export interface PermissionErrorMetadata {
   retryAfter?: number;
   transient: boolean;
 }
+
+export { PermissionErrorType };

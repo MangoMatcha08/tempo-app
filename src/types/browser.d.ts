@@ -1,4 +1,3 @@
-
 // Type definitions for browser APIs that might not be in the standard TypeScript types
 
 // Extending the PermissionDescriptor interface to include microphone
@@ -29,8 +28,14 @@ interface Permissions {
 // Extending Navigator interface to include permissions
 interface Navigator {
   permissions?: Permissions;
-  // Add standalone property for iOS PWA detection
   standalone?: boolean;
+  connection?: {
+    effectiveType: string;
+    type: string;
+    rtt?: number;
+    downlink?: number;
+    saveData?: boolean;
+  };
 }
 
 // Extending Window interface for browser detection

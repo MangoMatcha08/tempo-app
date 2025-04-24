@@ -1,4 +1,3 @@
-
 /**
  * Hook for iOS permission flow
  * 
