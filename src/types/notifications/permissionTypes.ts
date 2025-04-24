@@ -1,3 +1,4 @@
+
 /**
  * Notification Permission Type Definitions
  * 
@@ -26,8 +27,6 @@ export interface PermissionRequestResult {
   shouldPromptPwaInstall?: boolean;
   /** iOS version if relevant */
   iosVersion?: string;
-  /** Timing metadata for the permission request */
-  timing?: TimingMetadata;
 }
 
 /**

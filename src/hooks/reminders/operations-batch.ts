@@ -54,7 +54,7 @@ export function useBatchReminderOperations(user: any, db: any, isReady: boolean)
         const reminderRef = doc(db, "reminders", id);
         batch.update(reminderRef, { 
           completed, 
-          completedAt: completed ? Timestamp.fromDate(convertToUtc(new Date())) : null 
+          completedAt: completed ? Timestamp.fromDate(completedAt!) : null 
         });
       });
       
@@ -144,16 +144,10 @@ export function useBatchReminderOperations(user: any, db: any, isReady: boolean)
       await batch.commit();
       
       const savedReminders = tempReminders.map((reminder, index) => {
-        const createdAt = convertToLocal(reminder.createdAt);
-        const dueDate = convertToLocal(reminder.dueDate);
-        const completedAt = reminder.completedAt ? convertToLocal(reminder.completedAt) : undefined;
         const savedReminder = {
           ...reminder,
           id: reminderDocRefs[index].id,
-          userId: user.uid,
-          createdAt,
-          dueDate,
-          completedAt
+          userId: user.uid
         };
         
         cacheReminder(savedReminder);

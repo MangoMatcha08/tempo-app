@@ -21,10 +21,9 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
       const completedAt = convertToUtc(new Date());
       
       setReminders(prev => {
-        // No conversion needed here since in-memory, but for display convert with convertToLocal if needed
         const newReminders = prev.map(reminder => 
           reminder.id === id 
-            ? { ...reminder, completed: true, completedAt: convertToLocal(completedAt) } 
+            ? { ...reminder, completed: true, completedAt } 
             : reminder
         );
         
@@ -137,9 +136,7 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
     const newReminder = {
       ...reminder,
       id: tempId,
-      createdAt: convertToLocal(createdAtUtc),
-      dueDate: convertToLocal(dueDateUtc),
-      completedAt: completedAtUtc ? convertToLocal(completedAtUtc) : undefined
+      createdAt: createdAtUtc
     };
     
     try {
@@ -176,9 +173,7 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
         ...reminder,
         id: docRef.id,
         userId: user.uid,
-        createdAt: convertToLocal(createdAtUtc),
-        dueDate: convertToLocal(dueDateUtc),
-        completedAt: completedAtUtc ? convertToLocal(completedAtUtc) : undefined
+        createdAt: createdAtUtc,
       };
       
       console.log("Successfully added reminder:", savedReminder);
@@ -223,12 +218,7 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
         
         const newReminders = prev.map(reminder => 
           reminder.id === updatedReminder.id 
-            ? { 
-                ...updatedReminder,
-                createdAt: convertToLocal(createdAtUtc),
-                dueDate: convertToLocal(dueDateUtc),
-                completedAt: completedAtUtc ? convertToLocal(completedAtUtc) : undefined
-              } 
+            ? { ...updatedReminder } 
             : reminder
         );
         

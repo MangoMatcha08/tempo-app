@@ -791,7 +791,7 @@ export const checkOverdueReminders = onSchedule({
  * This can be used from your frontend to test notification setup
  */
 export const sendTestNotification = onCall(callableOptions, async (request) => {
-  // Strict authentication check
+  // Ensure authentication
   if (!request.auth) {
     throw new HttpsError(
       "unauthenticated",
@@ -836,6 +836,27 @@ export const sendTestNotification = onCall(callableOptions, async (request) => {
         userId,
         "Test Notification",
         "This is a test notification from TempoWizard",
+        "test-reminder",
+        "high",
+        NotificationTypes.TEST
+      );
+    }
+    
+    // Handle email notification test
+    if (notificationType === 'email') {
+      if (!userData.email) {
+        throw new HttpsError(
+          "failed-precondition",
+          "No email address found for this user"
+        );
+      }
+      
+      // Send test email
+      await sendEmailNotification(
+        userId,
+        userData.email,
+        "Test Email Notification",
+        "This is a test email notification from TempoWizard.",
         "test-reminder",
         "high",
         NotificationTypes.TEST
