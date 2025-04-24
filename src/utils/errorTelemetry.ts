@@ -1,8 +1,8 @@
-
-import { ErrorSeverity, ErrorCategory, ErrorResponse } from '@/hooks/useErrorHandler';
+import { ErrorSeverity, ErrorResponse } from '@/hooks/useErrorHandler';
 import { performanceReporter } from '@/utils/performanceAnalytics';
 import { createMetadata } from '@/utils/telemetryUtils';
 import { browserDetection } from '@/utils/browserDetection';
+import { TimingMetadata } from '@/types/telemetry/telemetryTypes';
 
 /**
  * Error telemetry system for monitoring and reporting errors
@@ -68,6 +68,31 @@ export class ErrorTelemetrySystem {
   }
   
   /**
+   * Report a performance-related error
+   */
+  public reportPerformanceError(metricName: string, currentValue: number, threshold: number, context?: Record<string, any>) {
+    const errorResponse: ErrorResponse = {
+      message: `Performance degradation detected in ${metricName}`,
+      technicalDetails: `Current: ${currentValue}ms, Threshold: ${threshold}ms`,
+      code: 'perf-degradation',
+      source: 'performance-monitor',
+      severity: ErrorSeverity.MEDIUM,
+      recoverable: true,
+      timestamp: Date.now(),
+      metadata: createMetadata('Performance error', {
+        metricName,
+        currentValue,
+        threshold,
+        device: browserDetection.isIOS() ? 'ios' : 'other',
+        iosVersion: browserDetection.getIOSVersion(),
+        ...context
+      })
+    };
+    
+    this.reportError(errorResponse);
+  }
+  
+  /**
    * Report an error to telemetry
    */
   public reportError(error: ErrorResponse) {
@@ -95,31 +120,6 @@ export class ErrorTelemetrySystem {
   }
   
   /**
-   * Report a performance-related error
-   */
-  public reportPerformanceError(metricName: string, currentValue: number, threshold: number, context?: Record<string, any>) {
-    const errorResponse: ErrorResponse = {
-      message: `Performance degradation detected in ${metricName}`,
-      technicalDetails: `Current: ${currentValue}ms, Threshold: ${threshold}ms`,
-      code: 'perf-degradation',
-      source: 'performance-monitor',
-      severity: ErrorSeverity.MEDIUM,
-      recoverable: true,
-      timestamp: Date.now(),
-      metadata: {
-        metricName,
-        currentValue,
-        threshold,
-        device: browserDetection.isIOS() ? 'ios' : 'other',
-        iosVersion: browserDetection.getIOSVersion(),
-        ...context
-      }
-    };
-    
-    this.reportError(errorResponse);
-  }
-  
-  /**
    * Immediately report a critical error
    */
   private reportCriticalError(error: ErrorResponse) {
@@ -130,7 +130,7 @@ export class ErrorTelemetrySystem {
       code: error.code,
       recoverable: error.recoverable,
       timestamp: error.timestamp,
-      ...createMetadata('Critical error', error.metadata)
+      ...(error.metadata ? createMetadata('Critical error', error.metadata.data) : {})
     });
   }
   
