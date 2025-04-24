@@ -1,28 +1,16 @@
-/**
- * iOS Push Notification Telemetry
- */
 import { getMessaging, getToken } from 'firebase/messaging';
 import { iosPushLogger } from './iosPushLogger';
 import { browserDetection } from './browserDetection';
 import { getCurrentDeviceTimingConfig, withRetry } from './iosPermissionTimings';
 import { startEventTiming } from './iosPushTelemetry';
 import { firestore } from '@/services/notifications/core/initialization';
-import { PermissionRequestResult, PermissionErrorReason } from '@/types/notifications/permissionTypes';
-import { PermissionErrorType } from '@/types/notifications/errorTypes';
+import { PermissionRequestResult } from '@/types/notifications';
 import { RetryOptions } from './retryUtils';
 import { 
   saveFlowState, 
   clearFlowState, 
   PermissionFlowStep 
 } from './iosPermissionFlowState';
-import { createMetadata } from './telemetryUtils';
-import { 
-  getDeviceCapabilities, 
-  createPermissionErrorMetadata,
-  shouldAllowRetry,
-  getAttemptHistory,
-  recordFailedAttempt
-} from './iosPermissionRetry';
 
 interface TokenRequestOptions {
   vapidKey: string;
@@ -35,151 +23,49 @@ interface RetryConfig extends RetryOptions {
   backoffFactor?: number;
 }
 
-/**
- * Safe error type guard
- */
-function isError(error: unknown): error is Error {
-  return error instanceof Error;
-}
-
-/**
- * Extract error message safely from Error or string
- */
-const getErrorMessage = (error: unknown): string => {
-  if (isError(error)) {
-    return error.message;
-  }
-  return String(error);
-};
-
-/**
- * Request iOS push permission with enhanced error handling and retry logic
- */
 export async function requestIOSPushPermission(): Promise<PermissionRequestResult> {
   if (!browserDetection.isIOS()) {
-    const result: PermissionRequestResult = {
-      granted: false,
-      reason: PermissionErrorType.NOT_IOS_DEVICE,
-      metadata: createMetadata('Not iOS device', {
-        deviceInfo: getDeviceCapabilities()
-      })
-    };
-    return result;
-  }
-
-  // Check if we should allow a retry attempt
-  if (!shouldAllowRetry()) {
-    const attemptHistory = getAttemptHistory();
     return {
       granted: false,
-      reason: PermissionErrorType.MULTIPLE_ATTEMPTS_FAILED,
-      error: new Error(`Too many failed attempts (${attemptHistory.count}), please try again later`),
-      metadata: createPermissionErrorMetadata(PermissionErrorType.MULTIPLE_ATTEMPTS_FAILED, {
-        recoverable: true,
-        transient: false,
-        additionalData: { attemptCount: attemptHistory.count }
-      }).data
+      reason: 'Not an iOS device'
     };
   }
 
   const telemetryTimer = startEventTiming('ios-permission-request');
   
   try {
-    // Check device capabilities
-    const deviceCapabilities = getDeviceCapabilities();
-    
-    // Save capabilities in telemetry
-    telemetryTimer.addData({
-      deviceCapabilities,
-      attemptHistory: getAttemptHistory()
-    });
-    
-    // Start permission flow
     saveFlowState(PermissionFlowStep.INITIAL);
     
-    // Request permission
     const permission = await Notification.requestPermission();
     saveFlowState(PermissionFlowStep.PERMISSION_REQUESTED);
     
     if (permission !== 'granted') {
       clearFlowState();
-      
-      // Determine specific error type
-      const errorType = permission === 'denied' 
-        ? PermissionErrorType.PERMISSION_DENIED 
-        : PermissionErrorType.PERMISSION_DISMISSED;
-      
-      // Record the failed attempt
-      recordFailedAttempt(errorType, `Permission response: ${permission}`);
-      
-      // Complete telemetry with enhanced metadata
-      telemetryTimer.completeEvent('failure', createPermissionErrorMetadata(errorType, {
-        recoverable: errorType === PermissionErrorType.PERMISSION_DISMISSED,
-        transient: errorType === PermissionErrorType.PERMISSION_DISMISSED,
-        additionalData: { permission }
-      }));
-      
+      telemetryTimer.completeEvent('failure', { reason: 'Permission denied' });
       return {
         granted: false,
-        reason: errorType,
-        metadata: createMetadata('Permission denied', {
-          permission,
-          errorType,
-          recoverable: errorType === PermissionErrorType.PERMISSION_DISMISSED
-        }).data
+        reason: 'Permission denied'
       };
     }
     
     saveFlowState(PermissionFlowStep.PERMISSION_GRANTED);
+    telemetryTimer.completeEvent('success');
     
     return {
-      granted: true,
-      metadata: createMetadata('Permission granted', {
-        deviceCapabilities,
-        flowDuration: Date.now() - telemetryTimer.getStartTime()
-      }).data
+      granted: true
     };
   } catch (error) {
     clearFlowState();
     
-    // Determine error type
-    let errorType = PermissionErrorType.UNKNOWN_ERROR;
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    
-    // Classify based on error message
-    if (errorMsg.includes('network') || errorMsg.includes('offline')) {
-      errorType = PermissionErrorType.NETWORK_OFFLINE;
-    } else if (errorMsg.includes('timeout')) {
-      errorType = PermissionErrorType.NETWORK_TIMEOUT;
-    } else if (errorMsg.includes('service worker')) {
-      errorType = PermissionErrorType.SW_REGISTRATION_FAILED;
-    } else if (errorMsg.includes('iOS version')) {
-      errorType = PermissionErrorType.VERSION_UNSUPPORTED;
-    } else if (errorMsg.includes('PWA')) {
-      errorType = PermissionErrorType.NOT_PWA;
-    }
-    
-    // Record the failed attempt
-    recordFailedAttempt(errorType, errorMsg);
-    
-    // Complete telemetry with enhanced metadata
-    telemetryTimer.completeEvent('error', createPermissionErrorMetadata(errorType, {
-      recoverable: errorType !== PermissionErrorType.VERSION_UNSUPPORTED,
-      transient: [
-        PermissionErrorType.NETWORK_OFFLINE, 
-        PermissionErrorType.NETWORK_TIMEOUT
-      ].includes(errorType),
-      additionalData: { errorMessage: errorMsg }
-    }));
+    telemetryTimer.completeEvent('error', {
+      error: error instanceof Error ? error.message : String(error),
+      errorCategory: 'permission-request-error'
+    });
     
     return {
       granted: false,
-      error: isError(error) ? error : new Error(String(error)),
-      reason: errorType,
-      metadata: createPermissionErrorMetadata(errorType, {
-        errorMessage: getErrorMessage(error),
-        deviceInfo: getDeviceCapabilities()
-      }).data
+      error: error instanceof Error ? error : new Error('Permission request failed'),
+      reason: 'Permission request failed'
     };
   }
 }
@@ -200,17 +86,9 @@ export async function requestIosFCMToken(options: TokenRequestOptions): Promise<
 
   const messaging = getMessaging();
   const timingConfig = getCurrentDeviceTimingConfig();
-  const telemetryTimer = startEventTiming('ios-fcm-token-request');
 
   try {
-    // Add device capabilities to telemetry
-    telemetryTimer.addData({
-      deviceCapabilities: getDeviceCapabilities(),
-      timingConfig
-    });
-    
     iosPushLogger.logPushEvent('token-request-start', { timingConfig });
-    saveFlowState(PermissionFlowStep.TOKEN_REQUESTED);
 
     const token = await withRetry(
       async () => {
@@ -238,38 +116,14 @@ export async function requestIosFCMToken(options: TokenRequestOptions): Promise<
 
     if (!token) {
       iosPushLogger.logPushEvent('token-empty');
-      telemetryTimer.completeEvent('failure', createPermissionErrorMetadata(
-        PermissionErrorType.TOKEN_FETCH_FAILED, 
-        { additionalData: { reason: 'Token is empty' }}
-      ));
       return null;
     }
 
     iosPushLogger.logPushEvent('token-received', { tokenPrefix: token.substring(0, 5) + '...' });
-    telemetryTimer.completeEvent('success', createMetadata('Token received', {
-      tokenLength: token.length,
-      requestDuration: Date.now() - telemetryTimer.getStartTime()
-    }));
-    
     return token;
   } catch (error: any) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     iosPushLogger.logPushEvent('token-error', { error: errorMsg });
-    
-    // Determine error type
-    let errorType = PermissionErrorType.TOKEN_FETCH_FAILED;
-    if (errorMsg.includes('network') || error.code === 'messaging/network-error') {
-      errorType = PermissionErrorType.NETWORK_OFFLINE;
-    } else if (errorMsg.includes('timeout')) {
-      errorType = PermissionErrorType.NETWORK_TIMEOUT;
-    } else if (errorMsg.includes('expired')) {
-      errorType = PermissionErrorType.TOKEN_EXPIRED;
-    }
-    
-    telemetryTimer.completeEvent('error', createPermissionErrorMetadata(errorType, {
-      additionalData: { errorMessage: errorMsg, errorCode: error.code }
-    }));
-    
     return null;
   }
 }

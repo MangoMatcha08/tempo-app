@@ -1,10 +1,10 @@
+
 import { useCallback, useState } from 'react';
 import { useNotificationPermission } from './useNotificationPermission';
 import { PermissionRequestResult } from '@/types/notifications';
 import { browserDetection } from '@/utils/browserDetection';
 import { classifyIOSPushError, ClassifiedError } from '@/utils/iosErrorHandler';
 import { recordTelemetryEvent, startEventTiming } from '@/utils/iosPushTelemetry';
-import { createMetadata } from '@/utils/telemetryUtils';
 
 /**
  * Enhanced hook for notification permission with error handling
@@ -16,7 +16,10 @@ export function useEnhancedNotificationPermission() {
   const [isRequesting, setIsRequesting] = useState(false);
   
   // Request permission with enhanced error handling
-  const requestPermissionWithErrorHandling = useCallback(async () => {
+  const requestPermissionWithErrorHandling = useCallback(async (): Promise<{
+    result: PermissionRequestResult,
+    classifiedError?: ClassifiedError
+  }> => {
     // Reset error state
     setLastError(null);
     setIsRequesting(true);
@@ -30,9 +33,9 @@ export function useEnhancedNotificationPermission() {
       
       if (result.granted) {
         // Success case
-        await timing.completeEvent('success', createMetadata('Permission granted', {
+        await timing.completeEvent('success', {
           token: result.token ? 'received' : 'missing'
-        }));
+        });
         
         setIsRequesting(false);
         return { result };
@@ -54,10 +57,10 @@ export function useEnhancedNotificationPermission() {
         setLastError(classifiedError);
         
         // Record telemetry
-        await timing.completeEvent('failure', createMetadata('Permission denied', {
+        await timing.completeEvent('failure', {
           errorCategory: classifiedError.category,
           reason: result.reason
-        }));
+        });
         
         setIsRequesting(false);
         return { result, classifiedError };
@@ -81,11 +84,11 @@ export function useEnhancedNotificationPermission() {
         isPWA: browserDetection.isIOSPWA(),
         iosVersion: browserDetection.getIOSVersion()?.toString(),
         timestamp: Date.now(),
-        result: 'error',
-        errorCategory: 'unknown',
-        metadata: createMetadata('Permission error', {
+        result: 'failure',
+        errorCategory: classifiedError.category,
+        metadata: {
           errorMessage: error instanceof Error ? error.message : String(error)
-        })
+        }
       });
       
       setIsRequesting(false);
@@ -115,11 +118,11 @@ export function useEnhancedNotificationPermission() {
       isPWA: browserDetection.isIOSPWA(),
       iosVersion: browserDetection.getIOSVersion()?.toString(),
       timestamp: Date.now(),
-      result: 'success',
-      errorCategory: 'unknown',
-      metadata: createMetadata('Recovery action taken', {
+      result: 'success', // Tracking that the action was performed
+      errorCategory: lastError.category,
+      metadata: {
         actionLabel
-      })
+      }
     });
   }, [lastError]);
   

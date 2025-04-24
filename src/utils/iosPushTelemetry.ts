@@ -1,217 +1,139 @@
+
 /**
  * iOS Push Notification Telemetry
- * 
- * Advanced telemetry for iOS push notification flow
  */
+import { performanceReporter } from './performanceAnalytics';
+import { browserDetection } from './browserDetection';
 
-import { TelemetryEvent, EventTimer, TimingMetadata } from '@/types/telemetry/telemetryTypes';
-import { createMetadata } from '@/utils/telemetryUtils';
-import { browserDetection } from '@/utils/browserDetection';
-import { iosPwaDetection } from '@/utils/iosPwaDetection';
+interface TelemetryEvent {
+  eventType: string;
+  timestamp: number;
+  isPWA: boolean;
+  iosVersion?: string;
+  result?: string;
+  timings?: {
+    start: number;
+    end: number;
+    duration: number;
+  };
+  metadata?: Record<string, any>;
+  errorCategory?: string;
+}
 
-// Local storage key for storing telemetry events
-const TELEMETRY_STORAGE_KEY = 'ios-push-telemetry-events';
+interface EventTimer {
+  completeEvent: (result: string, metadata?: Record<string, any>) => void;
+}
 
-// Maximum number of events to store
-const MAX_EVENTS = 100;
+const timings = new Map<string, number>();
+const eventBatches: TelemetryEvent[] = [];
+const BATCH_SIZE = 10;
 
-/**
- * Enhanced event timer with additional data capabilities
- */
-class EnhancedEventTimer implements EventTimer {
-  private readonly startTime: number;
-  private readonly eventType: string;
-  private additionalData: Record<string, any>;
+// Utility function to calculate success rate
+function calculateSuccessRate(events: TelemetryEvent[]): number {
+  if (events.length === 0) return 0;
+  const successfulEvents = events.filter(event => event.result === 'success').length;
+  return successfulEvents / events.length;
+}
 
-  constructor(eventType: string) {
-    this.startTime = performance.now();
-    this.eventType = eventType;
-    this.additionalData = {};
-  }
+// Utility function to calculate average duration
+function calculateAverageDuration(events: TelemetryEvent[]): number {
+  const eventsWithDuration = events.filter(event => event.timings?.duration);
+  if (eventsWithDuration.length === 0) return 0;
+  
+  const totalDuration = eventsWithDuration.reduce((sum, event) => 
+    sum + (event.timings?.duration || 0), 0);
+  return totalDuration / eventsWithDuration.length;
+}
 
-  /**
-   * Add data to the timer for later inclusion in the event
-   */
-  public addData(data: Record<string, any>): void {
-    this.additionalData = { ...this.additionalData, ...data };
-  }
-
-  /**
-   * Get the start time of this timer
-   */
-  public getStartTime(): number {
-    return this.startTime;
-  }
-
-  /**
-   * Complete the timed event and record telemetry
-   */
-  completeEvent(result: 'success' | 'failure' | 'error', metadata?: TimingMetadata): void {
-    const endTime = performance.now();
-    const duration = endTime - this.startTime;
-    
-    // Merge provided metadata with additional data
-    const mergedMetadata = metadata ? { ...metadata } : createMetadata();
-    if (mergedMetadata.data) {
-      mergedMetadata.data = { ...mergedMetadata.data, ...this.additionalData };
-    } else {
-      mergedMetadata.data = this.additionalData;
-    }
-    
-    // Add timing information to metadata
-    if (mergedMetadata.data) {
-      mergedMetadata.data.totalTimeMs = duration;
-    }
-
-    // Record the completed event
-    recordTelemetryEvent({
-      eventType: this.eventType,
-      isPWA: iosPwaDetection.isRunningAsPwa(),
-      iosVersion: browserDetection.getIOSVersion()?.toString(),
-      timestamp: Date.now(),
-      result,
-      timings: {
-        start: this.startTime,
-        end: endTime,
-        duration
-      },
-      metadata: mergedMetadata
+// Utility function to categorize errors
+function categorizeErrors(events: TelemetryEvent[]): Record<string, number> {
+  const errorCounts: Record<string, number> = {};
+  events
+    .filter(event => event.result === 'failure')
+    .forEach(event => {
+      const category = event.errorCategory || 'unknown';
+      errorCounts[category] = (errorCounts[category] || 0) + 1;
     });
-  }
+  return errorCounts;
 }
 
-/**
- * Start timing an event for telemetry
- * @param eventType Type of event to time
- * @returns Timer object with completeEvent method
- */
-export function startEventTiming(eventType: string): EnhancedEventTimer {
-  return new EnhancedEventTimer(eventType);
-}
-
-/**
- * Record a telemetry event
- * @param event Telemetry event to record
- */
-export function recordTelemetryEvent(event: TelemetryEvent): void {
-  // Only record events on iOS devices
-  if (!browserDetection.isIOS()) return;
-
-  try {
-    // Get existing events from storage
-    const eventsJson = localStorage.getItem(TELEMETRY_STORAGE_KEY) || '[]';
-    const events = JSON.parse(eventsJson) as TelemetryEvent[];
-    
-    // Add new event
-    events.push(event);
-    
-    // Keep only the most recent events
-    const trimmedEvents = events.slice(-MAX_EVENTS);
-    
-    // Save back to storage
-    localStorage.setItem(TELEMETRY_STORAGE_KEY, JSON.stringify(trimmedEvents));
-    
-    // Also log to console in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Telemetry]', event.eventType, event);
+export function startEventTiming(eventName: string): EventTimer {
+  const id = `${eventName}-${Date.now()}`;
+  const startTime = performance.now();
+  timings.set(id, startTime);
+  
+  return {
+    completeEvent: (result: string, metadata?: Record<string, any>) => {
+      const endTime = performance.now();
+      const duration = endTime - (timings.get(id) || startTime);
+      
+      recordTelemetryEvent({
+        eventType: eventName,
+        timestamp: Date.now(),
+        isPWA: browserDetection.isIOSPWA(),
+        iosVersion: browserDetection.getIOSVersion()?.toString(),
+        result,
+        timings: {
+          start: startTime,
+          end: endTime,
+          duration
+        },
+        metadata
+      });
+      
+      timings.delete(id);
     }
-  } catch (error) {
-    // Fail silently - telemetry should never break the application
-    console.error('Failed to record telemetry event:', error);
-  }
+  };
 }
 
-/**
- * Get all recorded telemetry events
- * @returns Array of recorded telemetry events
- */
-export function getTelemetryEvents(): TelemetryEvent[] {
+export function recordTelemetryEvent(event: TelemetryEvent): void {
+  if (!browserDetection.isIOS()) return;
+  
   try {
-    const eventsJson = localStorage.getItem(TELEMETRY_STORAGE_KEY) || '[]';
-    return JSON.parse(eventsJson) as TelemetryEvent[];
-  } catch (error) {
-    console.error('Failed to retrieve telemetry events:', error);
-    return [];
-  }
-}
-
-/**
- * Clear all recorded telemetry events
- */
-export function clearTelemetryEvents(): void {
-  localStorage.removeItem(TELEMETRY_STORAGE_KEY);
-}
-
-/**
- * Get telemetry statistics for iOS push notifications
- */
-export function getTelemetryStats() {
-  try {
-    const events = getTelemetryEvents();
-    const successfulEvents = events.filter(e => e.result === 'success');
+    eventBatches.push(event);
     
-    // Calculate error breakdown
-    const errorBreakdown = events.reduce((acc, event) => {
-      const errorData = event.metadata?.data;
-      if (event.result === 'error' && errorData && 'errorType' in errorData) {
-        const errorType = String(errorData.errorType);
-        acc[errorType] = (acc[errorType] || 0) + 1;
-      }
-      return acc;
-    }, {} as Record<string, number>);
-
-    // Calculate average duration
-    const durations = events
-      .filter(e => e.timings?.duration)
-      .map(e => e.timings!.duration);
-    const averageDuration = durations.length > 0 
-      ? durations.reduce((a, b) => a + b, 0) / durations.length 
-      : 0;
-
-    // Get recent events (last 5)
-    const recentEvents = events.slice(-5);
-
-    // Count pending events (those without a result)
-    const pendingEvents = events.filter(e => !e.result).length;
-
-    // Performance metrics calculation
-    const performanceMetrics = events.reduce((acc, event) => {
-      if (event.timings?.duration) {
-        const metricName = event.eventType;
-        if (!acc[metricName]) {
-          acc[metricName] = {
-            p50: event.timings.duration,
-            mean: event.timings.duration,
-            trend: 'stable'
-          };
-        }
-      }
-      return acc;
-    }, {} as Record<string, { p50?: number; mean?: number; trend?: 'improving' | 'stable' | 'degrading' }>);
-
-    return {
-      totalEvents: events.length,
-      successRate: successfulEvents.length / events.length,
-      averageDuration,
-      errorBreakdown,
-      recentEvents,
-      pendingEvents,
-      performanceMetrics
-    };
+    if (eventBatches.length >= BATCH_SIZE) {
+      flushTelemetryBatches();
+    }
+    
+    performanceReporter.reportInteraction(event.eventType, {
+      ...event,
+      browser: navigator.userAgent,
+      timestamp: Date.now()
+    });
   } catch (error) {
-    console.error('Failed to get telemetry stats:', error);
-    return null;
+    console.error('Error recording telemetry:', error);
   }
 }
 
-/**
- * Flush telemetry batches to storage
- */
-export function flushTelemetryBatches() {
+export function flushTelemetryBatches(): void {
+  if (eventBatches.length === 0) return;
+  
   try {
-    const events = getTelemetryEvents();
-    localStorage.setItem(TELEMETRY_STORAGE_KEY, JSON.stringify(events));
+    performanceReporter.reportInteraction('telemetry_batch', {
+      events: eventBatches,
+      count: eventBatches.length,
+      timestamp: Date.now()
+    });
+    
+    eventBatches.length = 0;
   } catch (error) {
-    console.error('Failed to flush telemetry batches:', error);
+    console.error('Error flushing telemetry batches:', error);
   }
+}
+
+export function getTelemetryStats() {
+  const recentEventsCount = 10; // Show last 10 events
+  
+  return {
+    totalEvents: eventBatches.length,
+    successRate: calculateSuccessRate(eventBatches),
+    averageDuration: calculateAverageDuration(eventBatches),
+    errorBreakdown: categorizeErrors(eventBatches),
+    recentEvents: eventBatches.slice(-recentEventsCount),
+    pendingEvents: timings.size,
+    batchSize: eventBatches.length,
+    activeTimings: timings.size,
+    lastEvent: eventBatches[eventBatches.length - 1]
+  };
 }

@@ -1,7 +1,7 @@
+
 import { useState, useCallback } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { getUserFriendlyErrorMessage } from '@/lib/firebase/error-utils';
-import { TimingMetadata } from '@/types/telemetry/telemetryTypes';
 
 /**
  * Error severity levels
@@ -25,7 +25,6 @@ export interface ErrorResponse {
   source?: string;        // Component or service that threw the error
   timestamp?: number;     // When the error occurred
   retry?: () => void;     // Optional retry function
-  metadata?: TimingMetadata; // Performance and telemetry metadata
 }
 
 /**
