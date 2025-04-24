@@ -155,7 +155,6 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
       
       console.log("Adding reminder to Firestore:", reminder);
       
-      // Create a clean Firestore document without location
       const firestoreReminder = {
         title: reminder.title,
         description: reminder.description,
@@ -165,7 +164,6 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
         completed: reminder.completed || false,
         completedAt: completedAtUtc ? Timestamp.fromDate(completedAtUtc) : null,
         priority: reminder.priority,
-        type: reminder.type,
         periodId: reminder.periodId,
         category: reminder.category,
         checklist: reminder.checklist
@@ -241,7 +239,6 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
       
       console.log("Updating reminder in Firestore:", updatedReminder);
       
-      // Create a clean Firestore document without location
       const reminderData = {
         title: updatedReminder.title,
         description: updatedReminder.description,
@@ -250,7 +247,6 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
         completedAt: completedAtUtc ? Timestamp.fromDate(completedAtUtc) : null,
         completed: updatedReminder.completed || false,
         priority: updatedReminder.priority,
-        type: updatedReminder.type,
         periodId: updatedReminder.periodId,
         category: updatedReminder.category,
         checklist: updatedReminder.checklist
