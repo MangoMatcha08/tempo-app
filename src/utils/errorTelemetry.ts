@@ -1,6 +1,8 @@
 
 import { ErrorSeverity, ErrorCategory, ErrorResponse } from '@/hooks/useErrorHandler';
 import { performanceReporter } from '@/utils/performanceAnalytics';
+import { createMetadata } from '@/utils/telemetryUtils';
+import { browserDetection } from '@/utils/browserDetection';
 
 /**
  * Error telemetry system for monitoring and reporting errors
@@ -12,6 +14,7 @@ export class ErrorTelemetrySystem {
   private buffer: ErrorResponse[] = [];
   private bufferSize = 10;
   private flushInterval: number | null = null;
+  private performanceCorrelation: boolean = true;
   
   /**
    * Get singleton instance
@@ -30,6 +33,7 @@ export class ErrorTelemetrySystem {
     samplingRate?: number;
     bufferSize?: number;
     autoFlushInterval?: number;
+    performanceCorrelation?: boolean;
   }) {
     if (options.samplingRate !== undefined) {
       this.samplingRate = Math.min(1, Math.max(0, options.samplingRate));
@@ -37,6 +41,10 @@ export class ErrorTelemetrySystem {
     
     if (options.bufferSize !== undefined) {
       this.bufferSize = options.bufferSize;
+    }
+    
+    if (options.performanceCorrelation !== undefined) {
+      this.performanceCorrelation = options.performanceCorrelation;
     }
     
     if (options.autoFlushInterval !== undefined) {
@@ -87,6 +95,31 @@ export class ErrorTelemetrySystem {
   }
   
   /**
+   * Report a performance-related error
+   */
+  public reportPerformanceError(metricName: string, currentValue: number, threshold: number, context?: Record<string, any>) {
+    const errorResponse: ErrorResponse = {
+      message: `Performance degradation detected in ${metricName}`,
+      technicalDetails: `Current: ${currentValue}ms, Threshold: ${threshold}ms`,
+      code: 'perf-degradation',
+      source: 'performance-monitor',
+      severity: ErrorSeverity.MEDIUM,
+      recoverable: true,
+      timestamp: Date.now(),
+      metadata: {
+        metricName,
+        currentValue,
+        threshold,
+        device: browserDetection.isIOS() ? 'ios' : 'other',
+        iosVersion: browserDetection.getIOSVersion(),
+        ...context
+      }
+    };
+    
+    this.reportError(errorResponse);
+  }
+  
+  /**
    * Immediately report a critical error
    */
   private reportCriticalError(error: ErrorResponse) {
@@ -96,7 +129,8 @@ export class ErrorTelemetrySystem {
       source: error.source,
       code: error.code,
       recoverable: error.recoverable,
-      timestamp: error.timestamp
+      timestamp: error.timestamp,
+      ...createMetadata('Critical error', error.metadata)
     });
   }
   
@@ -125,17 +159,25 @@ export class ErrorTelemetrySystem {
         acc[key].samples.push({
           message: error.message,
           technical_details: error.technicalDetails,
-          timestamp: error.timestamp
+          timestamp: error.timestamp,
+          metadata: error.metadata
         });
       }
       
       return acc;
     }, {} as Record<string, any>);
     
-    // Report batch of errors
+    // Report batch of errors with enhanced metadata
     performanceReporter.reportInteraction('error_batch', { 
       errors: groupedErrors,
-      total_count: this.buffer.length
+      total_count: this.buffer.length,
+      ...createMetadata('Error batch', {
+        deviceInfo: {
+          isIOS: browserDetection.isIOS(),
+          iosVersion: browserDetection.getIOSVersion(),
+          isPWA: browserDetection.isIOSPWA()
+        }
+      })
     });
     
     // Clear buffer
@@ -173,6 +215,7 @@ if (typeof window !== 'undefined') {
   errorTelemetry.configure({
     samplingRate: 0.5, // Report 50% of errors
     bufferSize: 10,
-    autoFlushInterval: 30000 // 30 seconds
+    autoFlushInterval: 30000, // 30 seconds
+    performanceCorrelation: true
   });
 }

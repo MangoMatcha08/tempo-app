@@ -1,3 +1,4 @@
+
 /**
  * Telemetry type definitions for iOS push notification system
  */
@@ -23,6 +24,26 @@ export interface TimingMetadata {
     permissionGranted?: boolean;
     serviceWorkerRegistered?: boolean;
     implementation?: string;
+    
+    // Performance metrics
+    totalTimeMs?: number;
+    attemptCount?: number;
+    serviceWorkerRegistrationTime?: number;
+    permissionPromptTime?: number;
+    permissionResponseTime?: number;
+    tokenRequestTime?: number;
+    
+    // Regression detection
+    metricName?: string;
+    currentValue?: number;
+    baselineValue?: number;
+    percentageIncrease?: number;
+    threshold?: number;
+    
+    // Network info
+    networkType?: string;
+    effectiveConnectionType?: string;
+    rtt?: number;
   };
 }
 
@@ -42,7 +63,22 @@ export type TelemetryErrorCategory =
   | 'network-error'
   | 'timeout'
   | 'validation-error'
+  | 'performance-degradation'
   | 'unknown';
+
+/**
+ * Performance metrics aggregation
+ */
+export interface PerformanceAggregation {
+  p50?: number;  // 50th percentile (median)
+  p90?: number;  // 90th percentile
+  p95?: number;  // 95th percentile
+  mean?: number;  // Average value
+  min?: number;   // Minimum value
+  max?: number;   // Maximum value
+  count: number;  // Number of measurements
+  trend?: 'improving' | 'stable' | 'degrading';
+}
 
 /**
  * Core telemetry event structure
@@ -62,4 +98,9 @@ export interface TelemetryEvent {
   errorCategory?: TelemetryErrorCategory;
   validationStatus?: 'valid' | 'invalid';
   eventId?: string;
+  
+  // Performance metrics aggregation
+  performanceMetrics?: {
+    [metricName: string]: PerformanceAggregation;
+  };
 }

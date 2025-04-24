@@ -1,3 +1,4 @@
+
 /**
  * iOS Push Notification Telemetry
  */
@@ -7,13 +8,27 @@ import {
   EventTimer, 
   TelemetryEvent, 
   TimingMetadata, 
-  TelemetryErrorCategory 
+  TelemetryErrorCategory,
+  PerformanceAggregation
 } from '../types/telemetry/telemetryTypes';
-import { createMetadata, validateMetadata } from './telemetryUtils';
+import { createMetadata, validateMetadata, aggregatePerformanceMetrics } from './telemetryUtils';
 
 // Validation constants
 const MAX_EVENT_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 const REQUIRED_FIELDS: (keyof TelemetryEvent)[] = ['eventType', 'timestamp', 'isPWA'];
+
+// Performance metrics storage
+interface MetricEntry {
+  value: number;
+  timestamp: number;
+}
+
+// Store the last 50 measurements for each metric
+const metricHistory: Record<string, MetricEntry[]> = {};
+const MAX_METRIC_HISTORY = 50;
+
+// Performance aggregations
+const metricAggregations: Record<string, PerformanceAggregation> = {};
 
 function validateEvent(event: TelemetryEvent): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
@@ -111,6 +126,55 @@ function categorizeErrors(events: TelemetryEvent[]): Record<string, number> {
   return errorCounts;
 }
 
+// Add a new performance measurement to history
+function recordMetricMeasurement(metricName: string, value: number): void {
+  if (!metricHistory[metricName]) {
+    metricHistory[metricName] = [];
+  }
+  
+  metricHistory[metricName].push({
+    value,
+    timestamp: Date.now()
+  });
+  
+  // Limit history size
+  if (metricHistory[metricName].length > MAX_METRIC_HISTORY) {
+    metricHistory[metricName] = metricHistory[metricName].slice(-MAX_METRIC_HISTORY);
+  }
+  
+  // Update aggregation
+  updateMetricAggregation(metricName);
+}
+
+// Update the aggregated metrics for a specific metric
+function updateMetricAggregation(metricName: string): void {
+  if (!metricHistory[metricName] || metricHistory[metricName].length === 0) {
+    return;
+  }
+  
+  const values = metricHistory[metricName].map(entry => entry.value);
+  
+  // Update aggregation with previous values for trend detection
+  metricAggregations[metricName] = aggregatePerformanceMetrics(
+    values, 
+    metricAggregations[metricName]
+  );
+}
+
+// Get rolling window of measurements (e.g. last 24 hours)
+function getRollingWindowMeasurements(metricName: string, windowMs: number = 24 * 60 * 60 * 1000): number[] {
+  if (!metricHistory[metricName]) {
+    return [];
+  }
+  
+  const now = Date.now();
+  const cutoff = now - windowMs;
+  
+  return metricHistory[metricName]
+    .filter(entry => entry.timestamp >= cutoff)
+    .map(entry => entry.value);
+}
+
 export function startEventTiming(eventName: string): EventTimer {
   const id = `${eventName}-${Date.now()}`;
   const startTime = performance.now();
@@ -120,6 +184,9 @@ export function startEventTiming(eventName: string): EventTimer {
     completeEvent: (result: 'success' | 'failure' | 'error', metadata?: TimingMetadata) => {
       const endTime = performance.now();
       const duration = endTime - (timings.get(id) || startTime);
+      
+      // Record performance metric for timing events
+      recordMetricMeasurement(`${eventName}`, duration);
       
       recordTelemetryEvent({
         eventType: eventName,
@@ -132,7 +199,10 @@ export function startEventTiming(eventName: string): EventTimer {
           end: endTime,
           duration
         },
-        metadata: validateMetadata(metadata) ? metadata : undefined
+        metadata: validateMetadata(metadata) ? metadata : undefined,
+        performanceMetrics: {
+          [eventName]: metricAggregations[eventName]
+        }
       });
       
       timings.delete(id);
@@ -159,6 +229,19 @@ export function recordTelemetryEvent(event: TelemetryEvent): void {
     
     // Only process valid events
     if (validation.isValid) {
+      // Record performance metrics if timing data is present
+      if (sanitizedEvent.timings?.duration) {
+        recordMetricMeasurement(
+          `${sanitizedEvent.eventType}`, 
+          sanitizedEvent.timings.duration
+        );
+        
+        // Add performance metrics to the event
+        sanitizedEvent.performanceMetrics = {
+          [sanitizedEvent.eventType]: metricAggregations[sanitizedEvent.eventType]
+        };
+      }
+      
       eventBatches.push(sanitizedEvent);
       
       if (sanitizedEvent.eventId) {
@@ -197,7 +280,8 @@ export function flushTelemetryBatches(): void {
         events: validEvents,
         count: validEvents.length,
         timestamp: Date.now(),
-        totalEventsProcessed: processedEventIds.size
+        totalEventsProcessed: processedEventIds.size,
+        performanceMetricsSummary: metricAggregations
       });
     }
     
@@ -227,6 +311,19 @@ export function getTelemetryStats() {
     pendingEvents: timings.size,
     batchSize: eventBatches.length,
     activeTimings: timings.size,
-    lastEvent: eventBatches[eventBatches.length - 1]
+    lastEvent: eventBatches[eventBatches.length - 1],
+    performanceMetrics: metricAggregations
   };
 }
+
+// Get performance metrics for a specific metric name over a time window
+export function getPerformanceMetricsForPeriod(metricName: string, periodMs: number = 24 * 60 * 60 * 1000): PerformanceAggregation {
+  const values = getRollingWindowMeasurements(metricName, periodMs);
+  return aggregatePerformanceMetrics(values);
+}
+
+// Export all performance metrics
+export function getAllPerformanceMetrics(): Record<string, PerformanceAggregation> {
+  return { ...metricAggregations };
+}
+
