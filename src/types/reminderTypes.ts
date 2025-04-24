@@ -1,3 +1,6 @@
+// Note: 'location' and 'type' fields were removed in April 2025 to streamline the data model
+// and resolve type inconsistencies across the application
+
 export enum ReminderPriority {
   LOW = "low",
   MEDIUM = "medium",
@@ -39,7 +42,6 @@ export interface BaseReminder {
   dueDate: Date;
   priority: ReminderPriority;
   completed?: boolean;
-  type?: string;
   periodId?: string;
 }
 
@@ -54,7 +56,6 @@ export interface DatabaseReminder extends BaseReminder {
   periodId?: string;
   checklist?: ChecklistItem[];
   overdueNotified?: boolean;
-  type?: string;
 }
 
 /**

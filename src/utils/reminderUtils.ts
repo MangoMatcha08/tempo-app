@@ -1,3 +1,7 @@
+
+// Note: 'location' and 'type' fields were removed in April 2025 to streamline the data model
+// and resolve type inconsistencies across the application
+
 import { v4 as uuidv4 } from 'uuid';
 import { 
   Reminder, 

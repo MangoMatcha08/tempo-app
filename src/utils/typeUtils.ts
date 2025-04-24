@@ -1,4 +1,7 @@
 
+// Note: 'location' and 'type' fields were removed in April 2025 to streamline the data model
+// and resolve type inconsistencies across the application
+
 import { DatabaseReminder, ReminderPriority } from "@/types/reminderTypes";
 import { Reminder as UIReminder } from "@/types/reminder";
 
@@ -51,4 +54,3 @@ export const convertToBackendReminder = (reminder: UIReminder): Omit<DatabaseRem
     userId: "" // This will be filled in by the reminder operations
   };
 };
-
