@@ -1,8 +1,3 @@
-/**
- * Hook for iOS permission flow
- * 
- * Updated to use the refactored permission utilities
- */
 
 import { useState, useCallback } from 'react';
 import { 
@@ -15,10 +10,8 @@ import { browserDetection } from '@/utils/browserDetection';
 import { iosPwaDetection } from '@/utils/iosPwaDetection';
 import { shouldResumeFlow } from '@/utils/iosPermissionFlowState';
 import { PermissionRequestResult } from '@/types/notifications';
+import { getErrorMessage } from '@/types/errors/types';
 
-/**
- * Hook for managing the iOS permission flow
- */
 export function useIOSPermissionFlow() {
   const [isRequesting, setIsRequesting] = useState(false);
   const [flowError, setFlowError] = useState<string | null>(null);
@@ -27,25 +20,23 @@ export function useIOSPermissionFlow() {
   const iosSupport = checkIOSPushSupport();
   const isPWA = iosPwaDetection.isRunningAsPwa();
   
-  // Start the permission flow
   const startPermissionFlow = useCallback(async (): Promise<PermissionRequestResult | null> => {
     setIsRequesting(true);
     setFlowError(null);
     
     try {
-      // Check if we need to resume an interrupted flow
       if (shouldResumeFlow()) {
         return await resumePermissionFlow();
       }
       
-      // Start a new permission flow
       return await requestIOSPushPermission();
       
     } catch (error) {
-      setFlowError(error instanceof Error ? error.message : String(error));
+      const errorMessage = getErrorMessage(error);
+      setFlowError(errorMessage);
       return {
         granted: false,
-        error: error instanceof Error ? error : new Error('Failed to start permission flow'),
+        error: error instanceof Error ? error : new Error(errorMessage),
         reason: 'flow-failed'
       };
     } finally {
@@ -53,7 +44,6 @@ export function useIOSPermissionFlow() {
     }
   }, []);
   
-  // Return values
   return {
     isRequesting,
     startPermissionFlow,
@@ -65,3 +55,4 @@ export function useIOSPermissionFlow() {
 }
 
 export default useIOSPermissionFlow;
+

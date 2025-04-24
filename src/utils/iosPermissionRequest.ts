@@ -59,12 +59,13 @@ export async function requestIOSPushPermission(): Promise<PermissionRequestResul
     
     telemetryTimer.completeEvent('error', {
       error: error instanceof Error ? error.message : String(error),
+      errorType: error instanceof Error ? error.name : 'unknown',
       errorCategory: 'permission-request-error'
     });
     
     return {
       granted: false,
-      error: error instanceof Error ? error : new Error('Permission request failed'),
+      error: error instanceof Error ? error : new Error(String(error)),
       reason: 'Permission request failed'
     };
   }
