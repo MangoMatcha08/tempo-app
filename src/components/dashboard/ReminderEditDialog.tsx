@@ -26,7 +26,6 @@ const ReminderEditDialog = ({
   const [title, setTitle] = useState(reminder?.title || '');
   const [description, setDescription] = useState(reminder?.description || '');
   const [priority, setPriority] = useState<ReminderPriority>(reminder?.priority || ReminderPriority.MEDIUM);
-  const [location, setLocation] = useState(reminder?.location || '');
   const [dueDate, setDueDate] = useState(
     reminder?.dueDate 
       ? format(reminder.dueDate, "yyyy-MM-dd")
@@ -44,7 +43,6 @@ const ReminderEditDialog = ({
       setTitle(reminder.title);
       setDescription(reminder.description);
       setPriority(reminder.priority);
-      setLocation(reminder.location || '');
       setDueDate(format(reminder.dueDate, "yyyy-MM-dd"));
       setDueTime(format(reminder.dueDate, "HH:mm"));
     }
@@ -63,7 +61,6 @@ const ReminderEditDialog = ({
       title,
       description,
       priority,
-      location: location || undefined,
       dueDate: dueDateObj
     };
 
@@ -131,15 +128,6 @@ const ReminderEditDialog = ({
                 <SelectItem value={ReminderPriority.HIGH}>High</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="location">Location (Optional)</Label>
-            <Input
-              id="location"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Enter location"
-            />
           </div>
         </div>
         <DialogFooter>
