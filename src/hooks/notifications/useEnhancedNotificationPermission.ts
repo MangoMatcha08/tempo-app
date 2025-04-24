@@ -4,6 +4,7 @@ import { PermissionRequestResult } from '@/types/notifications';
 import { browserDetection } from '@/utils/browserDetection';
 import { classifyIOSPushError, ClassifiedError } from '@/utils/iosErrorHandler';
 import { recordTelemetryEvent, startEventTiming } from '@/utils/iosPushTelemetry';
+import { createMetadata } from '@/utils/telemetryUtils';
 
 /**
  * Enhanced hook for notification permission with error handling
@@ -80,11 +81,11 @@ export function useEnhancedNotificationPermission() {
         isPWA: browserDetection.isIOSPWA(),
         iosVersion: browserDetection.getIOSVersion()?.toString(),
         timestamp: Date.now(),
-        result: 'failure',
-        errorCategory: classifiedError.category,
-        metadata: {
+        result: 'error',
+        errorCategory: 'unknown',
+        metadata: createMetadata('Permission error', {
           errorMessage: error instanceof Error ? error.message : String(error)
-        }
+        })
       });
       
       setIsRequesting(false);
@@ -114,11 +115,11 @@ export function useEnhancedNotificationPermission() {
       isPWA: browserDetection.isIOSPWA(),
       iosVersion: browserDetection.getIOSVersion()?.toString(),
       timestamp: Date.now(),
-      result: 'success', // Tracking that the action was performed
-      errorCategory: lastError.category,
-      metadata: {
+      result: 'success',
+      errorCategory: 'unknown',
+      metadata: createMetadata('Recovery action taken', {
         actionLabel
-      }
+      })
     });
   }, [lastError]);
   

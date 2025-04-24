@@ -1,4 +1,3 @@
-
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +10,8 @@ import { useNotificationPermission } from '@/hooks/notifications/useNotification
 import { useServiceWorker } from '@/hooks/useServiceWorker';
 import { useStatusPolling } from '@/hooks/useStatusPolling';
 import { recordTelemetryEvent, getTelemetryStats, flushTelemetryBatches } from '@/utils/iosPushTelemetry';
+import { createMetadata } from '@/utils/telemetryUtils';
 
-// Components to break down the large dashboard
 import StatusIndicators from './IOSPushStatusIndicators';
 import TelemetryDisplay from './IOSPushTelemetryDisplay';
 
@@ -24,17 +23,14 @@ const IOSPushStatusDashboard: React.FC = () => {
     checkStatus: checkServiceWorkerStatus
   } = useServiceWorker();
   
-  // Track whether telemetry stats have been loaded
   const [telemetryStats, setTelemetryStats] = useState<ReturnType<typeof getTelemetryStats> | null>(null);
   const [showTelemetry, setShowTelemetry] = useState(false);
   
-  // Check if this is an iOS device
   const isIOS = browserDetection.isIOS();
   const isPWA = iosPwaDetection.isRunningAsPwa();
   const iosVersion = browserDetection.getIOSVersion();
   const supportsPush = browserDetection.supportsIOSWebPush();
 
-  // Calculate overall status with memoization
   const overallStatus = useMemo(() => {
     if (permissionGranted && serviceWorkerRegistered && isPWA) {
       return "ready";
@@ -49,30 +45,26 @@ const IOSPushStatusDashboard: React.FC = () => {
     }
   }, [permissionGranted, serviceWorkerRegistered, isPWA]);
   
-  // Define the polling function with useCallback for better performance
   const pollStatusFn = useCallback(async () => {
     try {
-      // Record status check in telemetry
       recordTelemetryEvent({
         eventType: 'status-check',
         isPWA: isPWA,
         iosVersion: iosVersion?.toString(),
         timestamp: Date.now(),
-        result: 'started',
-        metadata: {
+        result: 'success',
+        metadata: createMetadata('Status check started', {
           overallStatus,
           permissionGranted,
           serviceWorkerRegistered,
           implementation: serviceWorkerImplementation
-        }
+        })
       });
-      
-      // Refresh service worker status
+
       if ('serviceWorker' in navigator) {
         await checkServiceWorkerStatus();
       }
-      
-      // If we've reached a good state (everything working), return success
+
       if (permissionGranted && serviceWorkerRegistered && isPWA) {
         recordTelemetryEvent({
           eventType: 'status-check',
@@ -92,23 +84,21 @@ const IOSPushStatusDashboard: React.FC = () => {
         isPWA: isPWA,
         iosVersion: iosVersion?.toString(),
         timestamp: Date.now(),
-        result: 'failure',
-        metadata: {
+        result: 'error',
+        metadata: createMetadata('Status check error', {
           error: error instanceof Error ? error.message : String(error)
-        }
+        })
       });
       return false;
     }
   }, [permissionGranted, serviceWorkerRegistered, isPWA, iosVersion, checkServiceWorkerStatus, serviceWorkerImplementation]);
   
-  // Use the status polling hook
   const { state, manualRefresh } = useStatusPolling(
     pollStatusFn,
     isIOS && supportsPush,
     [permissionGranted, serviceWorkerRegistered, isPWA]
   );
   
-  // Load telemetry stats with debounce for better performance
   useEffect(() => {
     let timeoutId: number;
     if (showTelemetry) {
@@ -121,24 +111,20 @@ const IOSPushStatusDashboard: React.FC = () => {
     };
   }, [showTelemetry, state.lastUpdated]);
 
-  // Flush telemetry batches on unmount
   useEffect(() => {
     return () => {
       flushTelemetryBatches();
     };
   }, []);
   
-  // If not on iOS 16.4+, don't show the dashboard
   if (!isIOS || !supportsPush) {
     return null;
   }
   
-  // Format last updated time
   const lastUpdatedText = state.lastUpdated 
     ? new Date(state.lastUpdated).toLocaleTimeString() 
     : 'Never';
 
-  // Get guidance text based on status
   const getGuidanceText = () => {
     switch (overallStatus) {
       case "needs-pwa":
@@ -181,7 +167,6 @@ const IOSPushStatusDashboard: React.FC = () => {
       </CardHeader>
       
       <CardContent className="space-y-4 pb-4">
-        {/* Guidance Alert */}
         <Alert className={overallStatus === "ready" ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"}>
           <div className="flex items-start">
             {overallStatus === "ready" 
@@ -193,7 +178,6 @@ const IOSPushStatusDashboard: React.FC = () => {
           </div>
         </Alert>
 
-        {/* Status indicators - extracted to a separate component */}
         <StatusIndicators 
           isPWA={isPWA} 
           permissionGranted={permissionGranted} 
@@ -201,7 +185,6 @@ const IOSPushStatusDashboard: React.FC = () => {
           serviceWorkerImplementation={serviceWorkerImplementation}
         />
         
-        {/* Action needed guidance */}
         {overallStatus !== "ready" && (
           <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
             <div className="flex items-start mb-2">
@@ -228,7 +211,6 @@ const IOSPushStatusDashboard: React.FC = () => {
           </div>
         )}
         
-        {/* Environment Info */}
         <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-md text-xs space-y-1">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Device:</span>
@@ -252,7 +234,6 @@ const IOSPushStatusDashboard: React.FC = () => {
           </div>
         </div>
         
-        {/* Telemetry section - toggle */}
         <div className="pt-2">
           <button 
             onClick={() => setShowTelemetry(!showTelemetry)}
@@ -263,12 +244,10 @@ const IOSPushStatusDashboard: React.FC = () => {
           </button>
         </div>
         
-        {/* Telemetry display - extracted to a separate component */}
         {showTelemetry && telemetryStats && (
           <TelemetryDisplay telemetryStats={telemetryStats} />
         )}
         
-        {/* Error display */}
         {state.error && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />

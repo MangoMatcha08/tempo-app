@@ -1,4 +1,3 @@
-
 /**
  * Telemetry type definitions for iOS push notification system
  */
@@ -10,7 +9,21 @@ export interface TimingMetadata {
   /** Custom context about the operation */
   context?: string;
   /** Additional data relevant to the timing */
-  data?: Record<string, unknown>;
+  data?: {
+    iosVersion?: string;
+    step?: number;
+    error?: string;
+    errorMessage?: string;
+    errorCategory?: string;
+    actionLabel?: string;
+    overallStatus?: string;
+    platform?: string;
+    token?: string;
+    granted?: boolean;
+    permissionGranted?: boolean;
+    serviceWorkerRegistered?: boolean;
+    implementation?: string;
+  };
 }
 
 /**
@@ -50,4 +63,3 @@ export interface TelemetryEvent {
   validationStatus?: 'valid' | 'invalid';
   eventId?: string;
 }
-

@@ -1,4 +1,3 @@
-
 /**
  * Unified permissions hook for notifications
  * 
@@ -13,6 +12,7 @@ import { useIOSPermissionFlow } from './useIOSPermissionFlow';
 import { browserDetection } from '@/utils/browserDetection';
 import { recordTelemetryEvent } from '@/utils/iosPushTelemetry';
 import { PermissionRequestResult } from '@/types/notifications';
+import { createMetadata } from '@/utils/telemetryUtils';
 
 /**
  * Hook that unifies various permission hooks into a single interface
@@ -79,11 +79,11 @@ export function useUnifiedPermissions() {
           end: endTime,
           duration: endTime - startTime
         },
-        metadata: {
+        metadata: createMetadata('Permission request completed', {
           platform: isIOS ? 'ios' : 'other',
-          method: isIOS ? 'ios-flow' : 'enhanced',
+          granted: result.granted,
           token: result.token ? 'received' : 'not-received'
-        }
+        })
       });
       
       return result;
@@ -103,16 +103,15 @@ export function useUnifiedPermissions() {
         isPWA: browserDetection.isIOSPWA(),
         iosVersion: browserDetection.getIOSVersion()?.toString(),
         timestamp: Date.now(),
-        result: 'failure',
+        result: 'error',
         timings: {
           start: startTime,
           end: endTime,
           duration: endTime - startTime
         },
-        metadata: {
-          error: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined
-        }
+        metadata: createMetadata('Permission request error', {
+          error: error instanceof Error ? error.message : String(error)
+        })
       });
       
       return {

@@ -1,6 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { recordTelemetryEvent } from '@/utils/iosPushTelemetry';
+import { createMetadata } from '@/utils/telemetryUtils';
 
 export type InstallStep = {
   id: number;
@@ -29,8 +29,10 @@ const useInstallProgress = () => {
         eventType: 'pwa-install',
         isPWA: false,
         timestamp: Date.now(),
-        result: 'progress',
-        metadata: { step: next }
+        result: 'success',
+        metadata: createMetadata('Installation progress', { 
+          step: next 
+        })
       });
       return next;
     });
@@ -48,8 +50,11 @@ const useInstallProgress = () => {
       eventType: 'pwa-install',
       isPWA: false,
       timestamp: Date.now(),
-      result: 'failure',
-      metadata: { error: message, step: currentStep }
+      result: 'error',
+      metadata: createMetadata('Installation error', {
+        error: message,
+        step: currentStep
+      })
     });
   };
 

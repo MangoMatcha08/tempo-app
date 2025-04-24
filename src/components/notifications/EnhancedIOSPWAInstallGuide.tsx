@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { iosPwaDetection } from "@/utils/iosPwaDetection";
 import { recordTelemetryEvent } from "@/utils/iosPushTelemetry";
 import { DeviceSpecificInstructions } from "./DeviceSpecificInstructions";
 import useInstallProgress from "@/hooks/use-install-progress";
+import { createMetadata } from '@/utils/telemetryUtils';
 
 interface EnhancedIOSPWAInstallGuideProps {
   onDismiss: () => void;
@@ -33,10 +33,10 @@ const EnhancedIOSPWAInstallGuide: React.FC<EnhancedIOSPWAInstallGuideProps> = ({
       eventType: 'pwa-install',
       isPWA: false,
       timestamp: Date.now(),
-      result: 'started',
-      metadata: {
+      result: 'success',
+      metadata: createMetadata('Installation guide initialized', {
         iosVersion: browserDetection.getIOSVersion()?.toString()
-      }
+      })
     });
   }, []);
 
