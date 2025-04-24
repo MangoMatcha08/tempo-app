@@ -155,25 +155,31 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
       
       console.log("Adding reminder to Firestore:", reminder);
       
+      // Create a clean Firestore document without location
       const firestoreReminder = {
-        ...reminder,
+        title: reminder.title,
+        description: reminder.description,
         userId: user.uid,
         createdAt: Timestamp.fromDate(createdAtUtc),
         dueDate: Timestamp.fromDate(dueDateUtc),
         completed: reminder.completed || false,
-        completedAt: completedAtUtc ? Timestamp.fromDate(completedAtUtc) : null
+        completedAt: completedAtUtc ? Timestamp.fromDate(completedAtUtc) : null,
+        priority: reminder.priority,
+        type: reminder.type,
+        periodId: reminder.periodId,
+        category: reminder.category,
+        checklist: reminder.checklist
       };
       
-      const { id, ...reminderData } = firestoreReminder;
-      
       const remindersRef = collection(db, "reminders");
-      const docRef = await addDoc(remindersRef, reminderData);
+      const docRef = await addDoc(remindersRef, firestoreReminder);
       
       const savedReminder: Reminder = {
-        ...reminder,
+        ...firestoreReminder,
         id: docRef.id,
-        userId: user.uid,
+        dueDate: dueDateUtc,
         createdAt: createdAtUtc,
+        completedAt: completedAtUtc
       };
       
       console.log("Successfully added reminder:", savedReminder);
@@ -212,6 +218,7 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
     const createdAtUtc = updatedReminder.createdAt ? convertToUtc(new Date(updatedReminder.createdAt)) : convertToUtc(new Date());
     const dueDateUtc = convertToUtc(updatedReminder.dueDate);
     const completedAtUtc = updatedReminder.completedAt ? convertToUtc(updatedReminder.completedAt) : undefined;
+    
     try {
       setReminders(prev => {
         originalReminder = prev.find(r => r.id === updatedReminder.id);
@@ -234,17 +241,23 @@ export function useSingleReminderOperations(user: any, db: any, isReady: boolean
       
       console.log("Updating reminder in Firestore:", updatedReminder);
       
+      // Create a clean Firestore document without location
       const reminderData = {
-        ...updatedReminder,
+        title: updatedReminder.title,
+        description: updatedReminder.description,
         dueDate: Timestamp.fromDate(dueDateUtc),
         createdAt: Timestamp.fromDate(createdAtUtc),
-        completedAt: completedAtUtc ? Timestamp.fromDate(completedAtUtc) : null
+        completedAt: completedAtUtc ? Timestamp.fromDate(completedAtUtc) : null,
+        completed: updatedReminder.completed || false,
+        priority: updatedReminder.priority,
+        type: updatedReminder.type,
+        periodId: updatedReminder.periodId,
+        category: updatedReminder.category,
+        checklist: updatedReminder.checklist
       };
       
-      const { id, ...firestoreData } = reminderData;
-      
       const reminderRef = doc(db, "reminders", updatedReminder.id);
-      await updateDoc(reminderRef, firestoreData);
+      await updateDoc(reminderRef, reminderData);
       
       setError(null);
       

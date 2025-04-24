@@ -1,4 +1,3 @@
-
 export enum ReminderPriority {
   LOW = "low",
   MEDIUM = "medium",
@@ -40,9 +39,8 @@ export interface BaseReminder {
   dueDate: Date;
   priority: ReminderPriority;
   completed?: boolean;
-  location?: string;
-  type?: string; // Added type property
-  periodId?: string; // Explicitly adding periodId to base interface
+  type?: string;
+  periodId?: string;
 }
 
 /**
@@ -56,7 +54,7 @@ export interface DatabaseReminder extends BaseReminder {
   periodId?: string;
   checklist?: ChecklistItem[];
   overdueNotified?: boolean;
-  type?: string; // Added type property
+  type?: string;
 }
 
 /**

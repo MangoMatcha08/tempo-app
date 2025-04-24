@@ -127,13 +127,20 @@ export function useBatchReminderOperations(user: any, db: any, isReady: boolean)
         const createdAtUtc = reminder.createdAt ? convertToUtc(new Date(reminder.createdAt)) : convertToUtc(new Date());
         const dueDateUtc = convertToUtc(reminder.dueDate);
         const completedAtUtc = reminder.completedAt ? convertToUtc(reminder.completedAt) : undefined;
+        
         const firestoreReminder = {
-          ...reminder,
+          title: reminder.title,
+          description: reminder.description,
           userId: user.uid,
           createdAt: Timestamp.fromDate(createdAtUtc),
           dueDate: Timestamp.fromDate(dueDateUtc),
           completed: reminder.completed || false,
-          completedAt: completedAtUtc ? Timestamp.fromDate(completedAtUtc) : null
+          completedAt: completedAtUtc ? Timestamp.fromDate(completedAtUtc) : null,
+          priority: reminder.priority,
+          type: reminder.type,
+          periodId: reminder.periodId,
+          category: reminder.category,
+          checklist: reminder.checklist
         };
         
         const newDocRef = doc(remindersRef);
