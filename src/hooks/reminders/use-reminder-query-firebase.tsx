@@ -34,7 +34,6 @@ export function useReminderQueryFirebase(user: any, db: any, useMockData: boolea
       }
 
       let totalCount = 0;
-      // Get total count without returning early
       try {
         const countQuery = query(
           collection(db, "reminders"),
@@ -61,9 +60,23 @@ export function useReminderQueryFirebase(user: any, db: any, useMockData: boolea
         
         const querySnapshot = await getDocs(indexQuery);
         
+        // Transform data to be cloneable
         querySnapshot.forEach((doc) => {
           const data = doc.data();
-          const reminder = transformReminder(doc.id, data);
+          // Create a plain object that can be cloned
+          const reminder = {
+            ...transformReminder(doc.id, data),
+            // Ensure dates are converted to ISO strings for cloning
+            dueDate: data.dueDate?.toDate?.() || new Date(),
+            createdAt: data.createdAt?.toDate?.() || new Date(),
+            completedAt: data.completedAt?.toDate?.() || null,
+            // Ensure all object properties are cloneable
+            checklist: data.checklist?.map(item => ({
+              id: item.id || '',
+              text: item.text || '',
+              isCompleted: !!item.isCompleted
+            })) || []
+          };
           fetchedReminders.push(reminder);
         });
         

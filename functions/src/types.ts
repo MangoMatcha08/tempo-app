@@ -1,10 +1,19 @@
-
 import { Timestamp } from "firebase-admin/firestore";
 
 export enum ReminderPriority {
   LOW = "low",
   MEDIUM = "medium",
   HIGH = "high"
+}
+
+export enum ReminderCategory {
+  TASK = "task",
+  MEETING = "meeting",
+  DEADLINE = "deadline",
+  PREPARATION = "preparation",
+  GRADING = "grading",
+  COMMUNICATION = "communication",
+  OTHER = "other"
 }
 
 export enum NotificationTypes {
@@ -20,11 +29,17 @@ export interface Reminder {
   description: string;
   dueDate: Timestamp;
   priority: ReminderPriority | string;
+  category: ReminderCategory | string;
   completed: boolean;
   userId: string;
   periodId?: string;
   completedAt?: Timestamp;
   overdueNotified?: boolean;
+  checklist?: {
+    id: string;
+    text: string;
+    isCompleted: boolean;
+  }[];
 }
 
 export interface NotificationSettings {
