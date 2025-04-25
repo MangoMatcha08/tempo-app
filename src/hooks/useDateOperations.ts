@@ -6,6 +6,11 @@ import {
   getRelativeTimeDisplay,
   getNearestPeriodTime 
 } from '@/utils/enhancedDateUtils';
+import { 
+  formatWithTimezone,
+  isDateInRange,
+  areDatesEqual 
+} from '@/utils/dateTransformations';
 
 export const useDateOperations = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -27,10 +32,15 @@ export const useDateOperations = () => {
     return getRelativeTimeDisplay(date);
   }, []);
   
+  const formatWithZone = useCallback((date: Date, format?: string) => {
+    return formatWithTimezone(date, format);
+  }, []);
+  
   return {
     selectedDate,
     handleDateSelection,
     formatWithPeriod,
-    getTimeDisplay
+    getTimeDisplay,
+    formatWithZone
   };
 };

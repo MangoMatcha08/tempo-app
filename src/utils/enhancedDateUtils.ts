@@ -1,7 +1,7 @@
-
 import { format, parse, isValid, addDays, addWeeks, startOfDay } from "date-fns";
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { mockPeriods } from "./reminderUtils";
+import { formatDate, formatWithTimezone } from './dateTransformations';
 
 /**
  * Enhanced date handling utilities for the reminder system
@@ -48,7 +48,7 @@ export const ensureValidDate = (date: any): Date => {
 // Format date with period context
 export const formatDateWithPeriod = (date: Date, periodId?: string | null): string => {
   const validDate = ensureValidDate(date);
-  const formattedTime = format(validDate, 'h:mm a');
+  const formattedTime = formatDate(validDate, 'h:mm a');
   
   if (periodId) {
     const period = mockPeriods.find(p => p.id === periodId);
@@ -153,4 +153,3 @@ export const getNearestPeriodTime = (date: Date): { periodId: string; startTime:
 export const formatDisplayDate = (date: Date): string => {
   return format(ensureValidDate(date), 'MMM d, yyyy h:mm a');
 };
-
