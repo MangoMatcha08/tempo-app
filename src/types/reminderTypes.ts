@@ -58,12 +58,12 @@ export interface DatabaseReminder extends BaseReminder {
 
 /**
  * UI-specific reminder with presentation-specific fields
+ * Extends DatabaseReminder to ensure all required fields are present
  */
-export interface UIReminder extends BaseReminder {
+export interface UIReminder extends DatabaseReminder {
   timeRemaining?: string;
   formattedDate?: string;
   completedTimeAgo?: string;
-  completedAt?: Date | null;
 }
 
 export interface ChecklistItem {

@@ -1,11 +1,10 @@
-
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { collection, query, where, orderBy, limit, startAfter, getDocs, getCountFromServer } from "firebase/firestore";
 import { useFirestore } from "@/contexts/FirestoreContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { ReminderPriority, ReminderCategory, UIReminder, DatabaseReminder, Reminder } from "@/types/reminderTypes";
 import { useReminderCache } from "./use-reminder-cache";
-import { convertTimestampFields } from "@/lib/firebase";
+import { convertTimestampFields } from "@/lib/firebase/conversions";
 import { useReminderOperations } from "./reminder-operations";
 
 // Batch size for query pagination

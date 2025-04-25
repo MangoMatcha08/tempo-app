@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Reminder } from '@/types/reminderTypes';
@@ -15,6 +14,25 @@ interface OptimisticAction {
 interface OptimisticState {
   pendingActions: OptimisticAction[];
   pendingReminders: Map<string, boolean>; // Map of reminder IDs to pending state
+}
+
+function getDetailedReminder(id: string): Reminder | null {
+  try {
+    const cacheData = localStorage.getItem(`reminder-detail-${id}`);
+    if (!cacheData) return null;
+    
+    const parsed = JSON.parse(cacheData);
+    
+    // Convert date strings back to Date objects
+    if (parsed.dueDate) parsed.dueDate = new Date(parsed.dueDate);
+    if (parsed.createdAt) parsed.createdAt = new Date(parsed.createdAt);
+    if (parsed.completedAt) parsed.completedAt = new Date(parsed.completedAt);
+    
+    return parsed as Reminder;
+  } catch (err) {
+    console.error(`Error retrieving detailed reminder ${id} from cache:`, err);
+    return null;
+  }
 }
 
 export function useOptimisticOperations() {

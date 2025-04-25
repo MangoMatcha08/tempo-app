@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useReminders } from "@/hooks/reminders/use-reminders";
 import { useToast } from "@/hooks/use-toast";
@@ -10,7 +9,6 @@ import { getUserFriendlyErrorMessage } from "@/lib/firebase/error-utils";
 import IOSPushStatusDashboard from "@/components/notifications/IOSPushStatusDashboard";
 import { browserDetection } from "@/utils/browserDetection";
 
-// Refresh debounce
 const REFRESH_DEBOUNCE = 60000; // 1 minute
 let lastRefreshTime = 0;
 
@@ -43,8 +41,8 @@ const Dashboard = () => {
     batchUpdateReminders,
     batchDeleteReminders,
     deleteReminder,
-    isReminderPending, // New optimistic UI function
-    pendingReminders    // New optimistic UI state
+    isReminderPending,
+    pendingReminders
   } = useReminders();
 
   useEffect(() => {
@@ -83,7 +81,6 @@ const Dashboard = () => {
     };
   }, [cleanupBatchOperations]);
 
-  // Debounced refresh function
   const debouncedRefresh = useCallback(async () => {
     const now = Date.now();
     if (now - lastRefreshTime < REFRESH_DEBOUNCE) {
@@ -120,14 +117,15 @@ const Dashboard = () => {
       if (result) {
         toast({
           title: "Reminder Added",
-          description: `"${reminder.title}" has been added to your reminders.`
+          description: `"${reminder.title}" has been added to your reminders.`,
+          variant: "success"
         });
         
         console.log("Forcing refresh after add");
         await debouncedRefresh();
       }
       
-      return !!result; // Convert to boolean
+      return !!result;
     } catch (err) {
       console.error("Error adding reminder in Dashboard:", err);
       toast({
@@ -229,7 +227,16 @@ const Dashboard = () => {
         urgentReminders={urgentReminders}
         upcomingReminders={upcomingReminders}
         completedReminders={completedReminders}
-        reminderStats={reminderStats}
+        reminderStats={{
+          ...reminderStats,
+          totalActive: reminders.filter(r => !r.completed).length,
+          totalCompleted: reminders.filter(r => r.completed).length,
+          totalReminders: reminders.length,
+          completionRate: reminders.length > 0 ? 
+            Math.round((reminders.filter(r => r.completed).length / reminders.length) * 100) : 0,
+          urgentCount: urgentReminders.length,
+          upcomingCount: upcomingReminders.length
+        }}
         handleCompleteReminder={handleCompleteReminder}
         handleUndoComplete={handleUndoComplete}
         addReminder={handleAddReminder}
@@ -243,7 +250,7 @@ const Dashboard = () => {
         addToBatchUpdate={addToBatchUpdate}
         deleteReminder={handleDeleteReminder}
         batchDeleteReminders={handleBatchDeleteReminders}
-        pendingReminders={pendingReminders} // Pass pending reminders state
+        pendingReminders={pendingReminders}
       />
     </>
   );
