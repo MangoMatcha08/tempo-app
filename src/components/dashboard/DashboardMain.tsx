@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import DashboardHeader from "./DashboardHeader";
 import DashboardContent from "./DashboardContent";
@@ -34,6 +33,7 @@ interface DashboardMainProps {
   addToBatchUpdate?: (reminder: UIEnhancedReminder) => void;
   deleteReminder?: (id: string) => Promise<boolean>;
   batchDeleteReminders?: (ids: string[]) => Promise<boolean>;
+  pendingReminders?: Map<string, boolean>;
 }
 
 const DashboardMain = ({
@@ -56,7 +56,8 @@ const DashboardMain = ({
   addToBatchComplete,
   addToBatchUpdate,
   deleteReminder,
-  batchDeleteReminders
+  batchDeleteReminders,
+  pendingReminders = new Map()
 }: DashboardMainProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [modalState, setModalState] = useState({
@@ -129,6 +130,7 @@ const DashboardMain = ({
               loadedCount={reminders.length}
               onLoadMore={loadMoreReminders}
               isRefreshing={isRefreshing}
+              pendingReminders={pendingReminders}
             />
           </div>
         </div>

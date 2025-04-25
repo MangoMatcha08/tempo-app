@@ -3,6 +3,7 @@ import { Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2 } from "lucide-react";
 import { formatTimeWithPeriod, getPriorityBorderClass, getPriorityColorClass } from "@/utils/timeUtils";
 
 interface Reminder {
@@ -21,9 +22,10 @@ interface ReminderListItemProps {
   reminder: Reminder;
   onComplete: (id: string) => void;
   onEdit: (reminder: Reminder) => void;
+  isPending?: boolean;
 }
 
-const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProps) => {
+const ReminderListItem = ({ reminder, onComplete, onEdit, isPending = false }: ReminderListItemProps) => {
   const [isCompleting, setIsCompleting] = useState(false);
   
   // Get the correct border color for this priority
@@ -66,6 +68,8 @@ const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProp
   };
 
   const handleComplete = () => {
+    if (isPending) return;
+    
     setIsCompleting(true);
     // Let the animation play before actually completing
     setTimeout(() => {
@@ -79,7 +83,7 @@ const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProp
 
   return (
     <div 
-      className={`border-b border-l-4 ${priorityBorderClass} p-3 flex items-center transition-all duration-300 hover:bg-slate-50 cursor-pointer`}
+      className={`border-b border-l-4 ${priorityBorderClass} p-3 flex items-center transition-all duration-300 hover:bg-slate-50 cursor-pointer ${isPending ? 'opacity-80' : ''}`}
       onClick={handleComplete}
     >
       <div 
@@ -94,16 +98,26 @@ const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProp
         }}
       >
         <div className="h-7 w-7 flex items-center justify-center cursor-pointer">
-          <Checkbox 
-            className="h-6 w-6 rounded-sm border-2 border-gray-300"
-            checked={false}
-            onCheckedChange={() => handleComplete()}
-          />
+          {isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          ) : (
+            <Checkbox 
+              className="h-6 w-6 rounded-sm border-2 border-gray-300"
+              checked={false}
+              onCheckedChange={() => handleComplete()}
+              disabled={isPending}
+            />
+          )}
         </div>
       </div>
       
       <div className="flex-1">
-        <div className="font-medium">{reminder.title}</div>
+        <div className="font-medium">
+          {reminder.title}
+          {isPending && (
+            <span className="text-xs text-muted-foreground ml-2">(syncing)</span>
+          )}
+        </div>
         <div className="text-xs text-muted-foreground">
           {formatDueDate(reminder.dueDate)}
         </div>
@@ -117,6 +131,7 @@ const ReminderListItem = ({ reminder, onComplete, onEdit }: ReminderListItemProp
           e.stopPropagation();
           onEdit(reminder);
         }}
+        disabled={isPending}
       >
         <Edit className="h-4 w-4 text-gray-500" />
         <span className="sr-only">Edit</span>

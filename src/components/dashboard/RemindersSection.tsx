@@ -13,6 +13,7 @@ interface RemindersSectionProps {
   upcomingReminders: UIReminder[];
   onCompleteReminder: (id: string) => void;
   onEditReminder: (reminder: UIReminder) => void;
+  pendingReminders?: Map<string, boolean>;
 }
 
 // Row renderer for the virtualized list
@@ -24,12 +25,15 @@ const UpcomingRow = memo(({
   data: { 
     items: UIReminder[], 
     onComplete: (id: string) => void,
-    onEdit: (reminder: UIReminder) => void
+    onEdit: (reminder: UIReminder) => void,
+    pendingMap: Map<string, boolean>
   }, 
   index: number, 
   style: React.CSSProperties 
 }) => {
   const reminder = data.items[index];
+  const isPending = data.pendingMap.has(reminder.id);
+  
   return (
     <div style={style}>
       <ReminderListItem 
@@ -37,6 +41,7 @@ const UpcomingRow = memo(({
         reminder={reminder} 
         onComplete={data.onComplete}
         onEdit={data.onEdit}
+        isPending={isPending}
       />
     </div>
   );
@@ -49,7 +54,8 @@ const RemindersSection = memo(({
   urgentReminders, 
   upcomingReminders, 
   onCompleteReminder,
-  onEditReminder
+  onEditReminder,
+  pendingReminders = new Map()
 }: RemindersSectionProps) => {
   const isMobile = useIsMobile();
   const [stableUrgent, setStableUrgent] = useState(urgentReminders);
@@ -72,8 +78,9 @@ const RemindersSection = memo(({
   const listData = useMemo(() => ({
     items: stableUpcoming,
     onComplete: onCompleteReminder,
-    onEdit: onEditReminder
-  }), [stableUpcoming, onCompleteReminder, onEditReminder]);
+    onEdit: onEditReminder,
+    pendingMap: pendingReminders
+  }), [stableUpcoming, onCompleteReminder, onEditReminder, pendingReminders]);
   
   // Calculate list height based on number of items, with a maximum
   const listHeight = useMemo(() => {
@@ -98,6 +105,7 @@ const RemindersSection = memo(({
               reminder={reminder} 
               onComplete={onCompleteReminder}
               onEdit={onEditReminder}
+              isPending={pendingReminders.has(reminder.id)}
             />
           ))}
         </div>
@@ -132,6 +140,7 @@ const RemindersSection = memo(({
                     reminder={reminder} 
                     onComplete={onCompleteReminder}
                     onEdit={onEditReminder}
+                    isPending={pendingReminders.has(reminder.id)}
                   />
                 ))
               )}

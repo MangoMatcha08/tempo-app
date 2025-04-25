@@ -42,7 +42,9 @@ const Dashboard = () => {
     batchCompleteReminders,
     batchUpdateReminders,
     batchDeleteReminders,
-    deleteReminder
+    deleteReminder,
+    isReminderPending, // New optimistic UI function
+    pendingReminders    // New optimistic UI state
   } = useReminders();
 
   useEffect(() => {
@@ -241,6 +243,7 @@ const Dashboard = () => {
         addToBatchUpdate={addToBatchUpdate}
         deleteReminder={handleDeleteReminder}
         batchDeleteReminders={handleBatchDeleteReminders}
+        pendingReminders={pendingReminders} // Pass pending reminders state
       />
     </>
   );

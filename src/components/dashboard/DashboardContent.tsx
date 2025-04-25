@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import CurrentPeriodIndicator from "@/components/dashboard/CurrentPeriodIndicator";
 import QuickActionsBar from "@/components/dashboard/QuickActionsBar";
@@ -35,6 +34,7 @@ interface DashboardContentProps {
   loadedCount: number;
   onLoadMore: () => void;
   isRefreshing?: boolean;
+  pendingReminders?: Map<string, boolean>;
 }
 
 const DashboardContent = ({
@@ -54,7 +54,8 @@ const DashboardContent = ({
   totalCount,
   loadedCount,
   onLoadMore,
-  isRefreshing = false
+  isRefreshing = false,
+  pendingReminders = new Map()
 }: DashboardContentProps) => {
   const [selectedReminder, setSelectedReminder] = useState<UIEnhancedReminder | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -143,6 +144,7 @@ const DashboardContent = ({
             upcomingReminders={upcomingReminders} 
             onCompleteReminder={onCompleteReminder}
             onEditReminder={handleEditReminder}
+            pendingReminders={pendingReminders}
           />
           
           <CompletedRemindersSection 
@@ -150,6 +152,7 @@ const DashboardContent = ({
             onUndoComplete={onUndoComplete}
             onClearAllCompleted={onClearAllCompleted}
             onClearCompleted={onClearCompleted}
+            pendingReminders={pendingReminders}
           />
           
           <ProgressVisualization />
