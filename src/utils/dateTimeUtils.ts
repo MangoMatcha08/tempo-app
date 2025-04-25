@@ -1,7 +1,7 @@
 import { format, parse, isValid, setHours, setMinutes, isBefore, startOfDay } from 'date-fns';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { ensureValidDate } from './enhancedDateUtils';
-import { formatWithTimezone } from './dateTransformations';
+import { formatWithTimezone, parseStringToDate } from './dateTransformations';
 
 /**
  * Parse time string (e.g., "3:00 PM")
