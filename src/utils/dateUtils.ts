@@ -3,25 +3,40 @@
  * Date utilities index file - exports all date-related functionality
  */
 
-// Re-export all date transformation functions
+// Export base transformations
 export * from './dateTransformations';
 
-// Re-export enhanced date utilities
-export * from './enhancedDateUtils';
+// Export timezone utilities
+export { convertToUtc, convertToLocal, parseTimeStringWithCompatibility } from './dateTimeUtils';
 
-// Re-export date time utilities
-export * from './dateTimeUtils';
+// Export enhanced utilities (without duplicates)
+export { 
+  ensureValidDate,
+  getUserTimeZone,
+  formatDateWithPeriod,
+  getRelativeTimeDisplay,
+  getNearestPeriodTime,
+  formatDisplayDate 
+} from './enhancedDateUtils';
 
-// Re-export recurring pattern utilities
+// Export date time utilities (without duplicates)
+export { 
+  formatTimeString,
+  formatDateRange,
+  logDateDetails,
+  parseFlexibleDateTime 
+} from './dateTimeUtils';
+
+// Export recurring pattern utilities
 export * from './recurringDatePatterns';
 
-// Re-export period management utilities
+// Export period management utilities
 export * from './periodManagement';
 
-// Re-export date suggestion utilities
+// Export date suggestion utilities
 export * from './dateSuggestions';
 
-// Re-export date operations cache
+// Export date operations cache
 export * from './dateOperationsCache';
 
 // Default export for backward compatibility

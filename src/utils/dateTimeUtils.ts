@@ -1,7 +1,7 @@
-
 import { format, parse, isValid, setHours, setMinutes, isBefore, startOfDay } from 'date-fns';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { ensureValidDate } from './enhancedDateUtils';
-import { parseStringToDate, formatWithTimezone } from './dateTransformations';
+import { formatWithTimezone } from './dateTransformations';
 
 /**
  * Parse time string (e.g., "3:00 PM")
@@ -152,4 +152,27 @@ export const logDateDetails = (label: string, date: Date | unknown): void => {
     console.error(`Error logging date (${label}):`, error);
     console.log(`${label} original value:`, date);
   }
+};
+
+/**
+ * Convert a date to UTC
+ */
+export const convertToUtc = (date: Date): Date => {
+  const timeZone = 'UTC';
+  return fromZonedTime(date, timeZone);
+};
+
+/**
+ * Convert a date to local time
+ */
+export const convertToLocal = (date: Date): Date => {
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return toZonedTime(date, timeZone);
+};
+
+/**
+ * Parse a time string with compatibility
+ */
+export const parseTimeStringWithCompatibility = (timeStr: string): { hours: number; minutes: number } => {
+  return parseTimeString(timeStr);
 };
