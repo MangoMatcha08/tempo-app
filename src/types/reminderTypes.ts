@@ -1,4 +1,3 @@
-
 // Note: 'location' and 'type' fields were removed in April 2025 to streamline the data model
 // and resolve type inconsistencies across the application
 
@@ -43,7 +42,9 @@ export interface BaseReminder {
   dueDate: Date;
   priority: ReminderPriority;
   completed?: boolean;
-  periodId?: string;
+  periodId: string | null;
+  category: ReminderCategory | null;
+  checklist: ChecklistItem[] | null;
 }
 
 /**
@@ -51,11 +52,8 @@ export interface BaseReminder {
  */
 export interface DatabaseReminder extends BaseReminder {
   userId?: string;
-  completedAt?: Date;
+  completedAt: Date | null;
   createdAt?: Date;
-  category?: ReminderCategory;
-  periodId?: string;
-  checklist?: ChecklistItem[];
   overdueNotified?: boolean;
 }
 

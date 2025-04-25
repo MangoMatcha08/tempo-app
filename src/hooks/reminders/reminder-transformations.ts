@@ -7,34 +7,38 @@ import {
   formatDate,
   ensureValidDate 
 } from "./reminder-formatting";
+import { cleanReminderData } from "@/utils/reminderValidation";
 
 /**
  * Transforms Firestore data to a properly formatted Reminder object
  * with date fields correctly converted from Firestore Timestamps
  */
 export function transformReminder(id: string, data: any): BackendReminder {
+  // Clean data to replace undefined with null
+  const cleanData = cleanReminderData(data);
+  
   // Convert Timestamp to Date for all date fields
-  const dueDate = ensureValidDate(data.dueDate);
-  const createdAt = data.createdAt ? ensureValidDate(data.createdAt) : new Date();
-  const completedAt = data.completedAt ? ensureValidDate(data.completedAt) : undefined;
+  const dueDate = ensureValidDate(cleanData.dueDate);
+  const createdAt = cleanData.createdAt ? ensureValidDate(cleanData.createdAt) : new Date();
+  const completedAt = cleanData.completedAt ? ensureValidDate(cleanData.completedAt) : null;
   
   return {
     id,
-    title: data.title || '',
-    description: data.description || '',
+    title: cleanData.title || '',
+    description: cleanData.description || '',
     dueDate: dueDate,
-    priority: data.priority || 'medium',
-    userId: data.userId,
-    completed: !!data.completed,
+    priority: cleanData.priority || 'medium',
+    userId: cleanData.userId,
+    completed: !!cleanData.completed,
     createdAt: createdAt,
     completedAt: completedAt,
-    category: data.category || undefined,
-    checklist: Array.isArray(data.checklist) ? data.checklist.map(item => ({
+    category: cleanData.category || null,
+    checklist: Array.isArray(cleanData.checklist) ? cleanData.checklist.map(item => ({
       id: item.id || crypto.randomUUID(),
       text: item.text || '',
       isCompleted: !!item.isCompleted
-    })) : undefined,
-    periodId: data.periodId
+    })) : null,
+    periodId: cleanData.periodId || null
   };
 }
 
@@ -61,11 +65,12 @@ const ensureValidPriority = (priority: string | any): "high" | "medium" | "low" 
 export function transformToUrgentReminders(reminders: BackendReminder[]): UIReminder[] {
   console.log("Transforming urgent reminders");
   return reminders.map(reminder => {
-    const dueDate = ensureValidDate(reminder.dueDate);
-    const priority = ensureValidPriority(reminder.priority);
+    const cleanReminder = cleanReminderData(reminder);
+    const dueDate = ensureValidDate(cleanReminder.dueDate);
+    const priority = ensureValidPriority(cleanReminder.priority);
     
     return {
-      ...reminder,
+      ...cleanReminder,
       dueDate,
       priority,
       timeRemaining: getRemainingTimeDisplay(dueDate),
@@ -80,11 +85,12 @@ export function transformToUrgentReminders(reminders: BackendReminder[]): UIRemi
 export function transformToUpcomingReminders(reminders: BackendReminder[]): UIReminder[] {
   console.log("Transforming upcoming reminders");
   return reminders.map(reminder => {
-    const dueDate = ensureValidDate(reminder.dueDate);
-    const priority = ensureValidPriority(reminder.priority);
+    const cleanReminder = cleanReminderData(reminder);
+    const dueDate = ensureValidDate(cleanReminder.dueDate);
+    const priority = ensureValidPriority(cleanReminder.priority);
     
     return {
-      ...reminder,
+      ...cleanReminder,
       dueDate,
       priority,
       timeRemaining: getRemainingTimeDisplay(dueDate),
@@ -99,12 +105,13 @@ export function transformToUpcomingReminders(reminders: BackendReminder[]): UIRe
 export function transformToCompletedReminders(reminders: BackendReminder[]): UIReminder[] {
   console.log("Transforming completed reminders");
   return reminders.map(reminder => {
-    const dueDate = ensureValidDate(reminder.dueDate);
-    const completedAt = reminder.completedAt ? ensureValidDate(reminder.completedAt) : undefined;
-    const priority = ensureValidPriority(reminder.priority);
+    const cleanReminder = cleanReminderData(reminder);
+    const dueDate = ensureValidDate(cleanReminder.dueDate);
+    const completedAt = cleanReminder.completedAt ? ensureValidDate(cleanReminder.completedAt) : null;
+    const priority = ensureValidPriority(cleanReminder.priority);
     
     return {
-      ...reminder,
+      ...cleanReminder,
       dueDate,
       completedAt,
       priority,
