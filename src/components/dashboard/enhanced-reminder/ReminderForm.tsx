@@ -1,18 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { ReminderPriority, ReminderCategory, CreateReminderInput, ChecklistItem } from '@/types/reminderTypes';
 import { mockPeriods, createReminder } from '@/utils/reminderUtils';
 import { convertToUIReminder } from '@/utils/typeUtils';
 import { ReminderFormProps } from './types';
-import { createDateWithTime, adjustDateIfPassed, logDateDetails } from '@/utils/dateTimeUtils';
-
-// Import extracted components
-import ReminderHeader from './ReminderHeader';
-import BasicFormFields from './BasicFormFields';
-import DetailedFormFields from './DetailedFormFields';
-import ChecklistSection from './ChecklistSection';
-import FormActions from './FormActions';
+import { parseTimeString, createDateWithTime } from '@/utils/date/time';
+import { validateDate } from '@/utils/date/validation';
+import { formatTimeWithPeriod } from '@/utils/date/formatting';
+import { useDateValidation } from '@/hooks/date/useDateValidation';
 
 /**
  * Main component for creating enhanced reminders
@@ -41,6 +36,10 @@ const ReminderForm: React.FC<ReminderFormProps> = ({
     setDueDate(new Date());
   }, []);
   
+  const dateValidation = useDateValidation({
+    required: true
+  });
+  
   /**
    * Toggle between simple and detailed view modes
    */
@@ -54,13 +53,39 @@ const ReminderForm: React.FC<ReminderFormProps> = ({
   const handleCreateReminder = () => {
     if (!title.trim()) return;
     
-    console.log('[ReminderForm] Creating reminder:', {
-      title,
-      dueDate,
-      dueTime,
-      periodId,
-      viewMode
+    const dateResult = validateDate(dueDate, {
+      required: true,
+      minDate: new Date()
     });
+    
+    if (!dateResult.isValid) {
+      console.error('Date validation failed:', dateResult.errors);
+      return;
+    }
+    
+    let finalDueDate = dateResult.sanitizedValue!;
+    
+    if (periodId) {
+      const selectedPeriod = mockPeriods.find(p => p.id === periodId);
+      
+      if (selectedPeriod?.startTime) {
+        const timeComponents = parseTimeString(selectedPeriod.startTime);
+        if (timeComponents) {
+          const periodDate = createDateWithTime(finalDueDate, timeComponents.hours, timeComponents.minutes);
+          if (periodDate) {
+            finalDueDate = periodDate;
+          }
+        }
+      }
+    } else if (dueTime) {
+      const timeComponents = parseTimeString(dueTime);
+      if (timeComponents) {
+        const timeDate = createDateWithTime(finalDueDate, timeComponents.hours, timeComponents.minutes);
+        if (timeDate) {
+          finalDueDate = timeDate;
+        }
+      }
+    }
     
     const reminderInput: CreateReminderInput = {
       title,
@@ -68,62 +93,11 @@ const ReminderForm: React.FC<ReminderFormProps> = ({
       priority,
       category,
       periodId,
+      dueDate: finalDueDate,
       checklist: checklist.length > 0 ? checklist : undefined,
     };
     
-    // Use today as default if no date was selected
-    let finalDueDate = dueDate ? new Date(dueDate) : new Date();
-    logDateDetails('Initial dueDate', finalDueDate);
-    
-    // If a period is selected, use that period's time
-    if (periodId) {
-      const selectedPeriod = mockPeriods.find(p => p.id === periodId);
-      console.log('[ReminderForm] Selected period:', selectedPeriod);
-      
-      if (selectedPeriod && selectedPeriod.startTime) {
-        const [hours, minutes] = selectedPeriod.startTime.split(':').map(Number);
-        console.log(`[ReminderForm] Period time: ${hours}:${minutes}`);
-        
-        // Create a new date with the period's time
-        finalDueDate = createDateWithTime(finalDueDate, hours, minutes);
-        
-        // Check if we need to move to tomorrow
-        finalDueDate = adjustDateIfPassed(finalDueDate);
-        
-        logDateDetails('Final dueDate after period time applied', finalDueDate);
-      }
-    }
-    // If in detailed view and a specific time was selected, use that time
-    else if (viewMode === 'detailed' && dueTime) {
-      console.log(`[ReminderForm] Processing time string: "${dueTime}"`);
-      
-      // Parse time string into hours and minutes
-      const timeParts = dueTime.split(/[:\s]/);
-      let hours = parseInt(timeParts[0], 10);
-      const minutes = parseInt(timeParts[1], 10);
-      
-      // Handle AM/PM
-      if (timeParts[2] === 'PM' && hours < 12) hours += 12;
-      if (timeParts[2] === 'AM' && hours === 12) hours = 0;
-      
-      console.log(`[ReminderForm] Parsed time: ${hours}:${minutes}`);
-      
-      // Create a new date with the specified time
-      finalDueDate = createDateWithTime(finalDueDate, hours, minutes);
-      
-      // Check if we need to move to tomorrow
-      finalDueDate = adjustDateIfPassed(finalDueDate);
-      
-      logDateDetails('Final dueDate after time string applied', finalDueDate);
-    }
-    
-    const newReminder = createReminder({
-      ...reminderInput,
-      dueDate: finalDueDate
-    });
-    
-    console.log('[ReminderForm] Created reminder:', newReminder);
-    
+    const newReminder = createReminder(reminderInput);
     const uiReminder = convertToUIReminder(newReminder);
     
     if (onReminderCreated) {
