@@ -1,5 +1,8 @@
 import { isValid, isAfter, isBefore, parse } from 'date-fns';
 
+/**
+ * Supported date format types for validation
+ */
 export enum DateFormats {
   ISO = 'ISO',
   US = 'US',
@@ -7,6 +10,9 @@ export enum DateFormats {
   CUSTOM = 'CUSTOM'
 }
 
+/**
+ * Types of validation errors that can occur during date operations
+ */
 export enum DateValidationErrorType {
   INVALID_FORMAT = 'INVALID_FORMAT',
   OUT_OF_RANGE = 'OUT_OF_RANGE',
@@ -15,6 +21,9 @@ export enum DateValidationErrorType {
   PAST_DATE = 'PAST_DATE'
 }
 
+/**
+ * User-friendly error messages for each validation error type
+ */
 export const ValidationErrorMessages: Record<DateValidationErrorType, string> = {
   [DateValidationErrorType.INVALID_FORMAT]: 'Invalid date format',
   [DateValidationErrorType.OUT_OF_RANGE]: 'Date is out of allowed range',
@@ -23,29 +32,53 @@ export const ValidationErrorMessages: Record<DateValidationErrorType, string> = 
   [DateValidationErrorType.PAST_DATE]: 'Past dates are not allowed'
 };
 
+/**
+ * Represents a validation error with its type and message
+ */
 interface DateValidationError {
   type: DateValidationErrorType;
   message: string;
 }
 
+/**
+ * Creates a standardized validation error object
+ * @param type - The type of validation error
+ * @returns A validation error object with type and message
+ */
 const createValidationError = (type: DateValidationErrorType): DateValidationError => ({
   type,
   message: ValidationErrorMessages[type]
 });
 
+/**
+ * Options for configuring date validation behavior
+ */
 export interface DateValidationOptions {
+  /** Whether the date is required */
   required?: boolean;
+  /** Minimum allowed date */
   minDate?: Date;
+  /** Maximum allowed date */
   maxDate?: Date;
+  /** Whether future dates are allowed */
   allowFutureDates?: boolean;
+  /** Whether past dates are allowed */
   allowPastDates?: boolean;
+  /** Expected date format */
   format?: DateFormats | string;
 }
 
+/**
+ * Result of a date validation operation
+ */
 export interface DateValidationResult {
+  /** Whether the date is valid according to all rules */
   isValid: boolean;
+  /** The sanitized date value if valid */
   sanitizedValue?: Date;
+  /** Array of validation errors if any */
   errors: DateValidationError[];
+  /** The original input value */
   originalValue: any;
 }
 
@@ -123,11 +156,11 @@ export const validateDate = (
 };
 
 /**
- * Validates a date range
- * @param startDate Range start date
- * @param endDate Range end date
- * @param options Validation options
- * @returns Validation result for both dates
+ * Validates a date range to ensure the start date is before or equal to the end date
+ * @param startDate - The start date of the range
+ * @param endDate - The end date of the range
+ * @param options - Validation options to apply to both dates
+ * @returns Validation results for both start and end dates
  */
 export const validateDateRange = (
   startDate: Date | string | null | undefined,
@@ -158,9 +191,9 @@ export const validateDateRange = (
 };
 
 /**
- * Sanitizes a date input
- * @param date Date to sanitize
- * @returns Sanitized date or current date if invalid
+ * Sanitizes a date input, ensuring a valid Date object is returned
+ * @param date - The date input to sanitize
+ * @returns A valid Date object or current date if invalid
  */
 export const sanitizeDate = (date: any): Date => {
   if (date instanceof Date && !isNaN(date.getTime())) {
@@ -179,9 +212,9 @@ export const sanitizeDate = (date: any): Date => {
 };
 
 /**
- * Gets earliest valid date from options
- * @param options Validation options
- * @returns Earliest valid date
+ * Gets the earliest valid date based on validation options
+ * @param options - Validation options containing minimum date constraints
+ * @returns The earliest valid date according to the options
  */
 export const getEarliestValidDate = (options: DateValidationOptions = {}): Date => {
   return options.minDate || new Date();
