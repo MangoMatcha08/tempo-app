@@ -5,6 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/ui/date-picker";
 import { TimePicker } from "@/components/ui/time-picker";
 import { DetailedFormFieldsProps } from './types';
+import { validatePeriodTime, detectPeriodConflicts } from '@/utils/periodValidation';
+import { mockPeriods } from '@/utils/reminderUtils';
 
 const DetailedFormFields: React.FC<DetailedFormFieldsProps> = ({
   description,
@@ -12,8 +14,18 @@ const DetailedFormFields: React.FC<DetailedFormFieldsProps> = ({
   dueDate,
   setDueDate,
   dueTime,
-  setDueTime
+  setDueTime,
+  periodId
 }) => {
+  // Validate time against selected period if one is chosen
+  const timeValidation = periodId && dueDate ? 
+    validatePeriodTime(dueDate, periodId, mockPeriods) : 
+    { isValid: true };
+  
+  const conflictValidation = periodId && dueDate ?
+    detectPeriodConflicts(dueDate, periodId, mockPeriods) :
+    { isValid: true };
+    
   return (
     <>
       <div className="space-y-2">
@@ -42,8 +54,14 @@ const DetailedFormFields: React.FC<DetailedFormFieldsProps> = ({
           <TimePicker 
             value={dueTime} 
             onChange={setDueTime} 
-            className="w-full"
+            className={`w-full ${!timeValidation.isValid ? 'border-red-500' : ''}`}
           />
+          {!timeValidation.isValid && (
+            <p className="text-sm text-red-500">{timeValidation.error}</p>
+          )}
+          {!conflictValidation.isValid && (
+            <p className="text-sm text-red-500">{conflictValidation.error}</p>
+          )}
         </div>
       </div>
     </>
