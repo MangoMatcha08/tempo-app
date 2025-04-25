@@ -1,5 +1,7 @@
-import { format, parse } from 'date-fns';
-import { ensureValidDate, formatWithTimezone, parseStringToDate } from './dateTransformations';
+import { format, parse, isValid, setHours, setMinutes, isBefore, startOfDay } from 'date-fns';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { ensureValidDate } from './enhancedDateUtils';
+import { formatWithTimezone, parseStringToDate } from './dateTransformations';
 
 /**
  * Parse time string (e.g., "3:00 PM")
@@ -98,24 +100,26 @@ export const parseFlexibleDateTime = (dateTimeStr: string): Date | null => {
 /**
  * Format a date into a time string (e.g., "3:00 PM")
  */
-export function formatTimeString(date: Date): string {
+export const formatTimeString = (date: Date): string => {
   const validDate = ensureValidDate(date);
   return format(validDate, 'h:mm a');
-}
+};
 
 /**
  * Format a date range as a string (e.g., "Jan 1, 2025 - Jan 5, 2025")
  */
-export function formatDateRange(startDate: Date, endDate: Date): string {
+export const formatDateRange = (startDate: Date, endDate: Date): string => {
   const start = ensureValidDate(startDate);
   const end = ensureValidDate(endDate);
   
+  // If same day, only show date once
   if (start.toDateString() === end.toDateString()) {
     return `${format(start, 'MMM d, yyyy')} ${format(start, 'h:mm a')} - ${format(end, 'h:mm a')}`;
   }
   
+  // Different days
   return `${format(start, 'MMM d, yyyy h:mm a')} - ${format(end, 'MMM d, yyyy h:mm a')}`;
-}
+};
 
 /**
  * Log date details for debugging

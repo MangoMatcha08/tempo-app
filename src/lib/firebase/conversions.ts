@@ -1,12 +1,12 @@
 
-import { isTimestamp } from "@/utils/typeGuards";
+import { Timestamp } from "firebase/firestore";
 
 export function convertTimestampFields<T extends Record<string, any>>(data: T): T {
   const result = { ...data };
   
   // Convert any Timestamp fields to Date
   for (const key in result) {
-    if (isTimestamp(result[key])) {
+    if (result[key] && typeof result[key] === 'object' && 'toDate' in result[key]) {
       result[key] = result[key].toDate();
     }
   }

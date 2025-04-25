@@ -1,144 +1,97 @@
 
-import { format, isValid, parse, compareAsc, isAfter, isBefore } from 'date-fns';
-import { toZonedTime, fromZonedTime } from 'date-fns-tz';
-import { Timestamp } from "firebase/firestore";
-import { isTimestamp } from './typeGuards';
+import { format, parse, isValid } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
+import { ensureValidDate } from './enhancedDateUtils';
 
 /**
- * Parse string to Date object
+ * Parse various date string formats into a valid Date object
  */
 export function parseStringToDate(dateStr: string): Date | null {
-  try {
-    const parsed = new Date(dateStr);
-    return isValid(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
+  const formats = [
+    'yyyy-MM-dd',
+    'MM/dd/yyyy',
+    'dd/MM/yyyy',
+    'yyyy-MM-dd HH:mm',
+    'MM/dd/yyyy HH:mm',
+    'HH:mm'
+  ];
 
-/**
- * Format date to string with timezone consideration
- */
-export function formatWithTimezone(
-  date: Date | string,
-  formatStr: string = 'yyyy-MM-dd HH:mm:ss',
-  timeZone?: string
-): string {
-  try {
-    const validDate = date instanceof Date ? date : new Date(date);
-    if (!isValid(validDate)) return '';
-
-    if (timeZone) {
-      const zonedDate = toZonedTime(validDate, timeZone);
-      return format(zonedDate, formatStr);
+  for (const formatStr of formats) {
+    try {
+      const parsed = parse(dateStr, formatStr, new Date());
+      if (isValid(parsed)) {
+        return parsed;
+      }
+    } catch {
+      continue;
     }
-    
-    return format(validDate, formatStr);
-  } catch (error) {
-    console.error('Error formatting date with timezone:', error);
-    return '';
   }
+
+  // Try native Date parsing as a fallback
+  const nativeParsed = new Date(dateStr);
+  return isValid(nativeParsed) ? nativeParsed : null;
 }
 
 /**
- * Basic date formatting
+ * Compare two dates and determine their relationship
  */
-export function formatDate(
-  date: Date | string,
-  formatStr: string = 'yyyy-MM-dd'
-): string {
-  try {
-    const validDate = date instanceof Date ? date : new Date(date);
-    return isValid(validDate) ? format(validDate, formatStr) : '';
-  } catch (error) {
-    console.error('Error formatting date:', error);
-    return '';
-  }
+export function compareDates(date1: Date | string, date2: Date | string): -1 | 0 | 1 {
+  const validDate1 = ensureValidDate(date1);
+  const validDate2 = ensureValidDate(date2);
+  
+  const time1 = validDate1.getTime();
+  const time2 = validDate2.getTime();
+  
+  if (time1 < time2) return -1;
+  if (time1 > time2) return 1;
+  return 0;
 }
 
 /**
- * Compare two dates
- */
-export function compareDates(date1: Date, date2: Date): number {
-  return compareAsc(date1, date2);
-}
-
-/**
- * Check if date is in range
+ * Check if a date falls within a range
  */
 export function isDateInRange(
-  date: Date,
-  startDate: Date,
-  endDate: Date
+  date: Date | string,
+  startDate: Date | string,
+  endDate: Date | string
 ): boolean {
-  return !isBefore(date, startDate) && !isAfter(date, endDate);
+  const validDate = ensureValidDate(date);
+  const validStart = ensureValidDate(startDate);
+  const validEnd = ensureValidDate(endDate);
+  
+  return validDate >= validStart && validDate <= validEnd;
 }
 
 /**
- * Check if two dates are equal (ignoring milliseconds)
+ * Format a date to a consistent string representation with timezone consideration
+ */
+export function formatWithTimezone(date: Date | string, format = 'yyyy-MM-dd HH:mm'): string {
+  const validDate = ensureValidDate(date);
+  const zonedDate = toZonedTime(validDate, Intl.DateTimeFormat().resolvedOptions().timeZone);
+  return formatDate(zonedDate, format);
+}
+
+/**
+ * Format a date using a specific format string
+ */
+export function formatDate(date: Date | string, formatStr = 'yyyy-MM-dd HH:mm'): string {
+  const validDate = ensureValidDate(date);
+  return format(validDate, formatStr);
+}
+
+/**
+ * Check if two dates represent the same time (ignoring milliseconds)
  */
 export function areDatesEqual(date1: Date | string, date2: Date | string): boolean {
-  try {
-    const d1 = date1 instanceof Date ? date1 : new Date(date1);
-    const d2 = date2 instanceof Date ? date2 : new Date(date2);
-    
-    return d1.getFullYear() === d2.getFullYear() &&
-           d1.getMonth() === d2.getMonth() &&
-           d1.getDate() === d2.getDate() &&
-           d1.getHours() === d2.getHours() &&
-           d1.getMinutes() === d2.getMinutes() &&
-           d1.getSeconds() === d2.getSeconds();
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Convert to UTC time
- */
-export function toUtcTime(date: Date): Date {
-  return fromZonedTime(date, 'UTC');
-}
-
-/**
- * Convert to local time
- */
-export function toLocalTime(date: Date): Date {
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return toZonedTime(date, timeZone);
-}
-
-/**
- * Ensure a value is a valid Date object
- */
-export function ensureValidDate(value: any): Date {
-  // Handle Timestamp objects
-  if (isTimestamp(value)) {
-    return value.toDate();
-  }
+  const validDate1 = ensureValidDate(date1);
+  const validDate2 = ensureValidDate(date2);
   
-  // Handle valid Date objects
-  if (value instanceof Date && !isNaN(value.getTime())) {
-    return value;
-  }
-  
-  // Handle ISO strings
-  if (typeof value === 'string') {
-    const parsed = new Date(value);
-    if (!isNaN(parsed.getTime())) {
-      return parsed;
-    }
-  }
-  
-  // Handle numeric timestamps
-  if (typeof value === 'number' && !isNaN(value)) {
-    const parsed = new Date(value);
-    if (!isNaN(parsed.getTime())) {
-      return parsed;
-    }
-  }
-  
-  console.warn('Invalid date value encountered:', value);
-  return new Date();
+  return (
+    validDate1.getFullYear() === validDate2.getFullYear() &&
+    validDate1.getMonth() === validDate2.getMonth() &&
+    validDate1.getDate() === validDate2.getDate() &&
+    validDate1.getHours() === validDate2.getHours() &&
+    validDate1.getMinutes() === validDate2.getMinutes()
+  );
 }
 
