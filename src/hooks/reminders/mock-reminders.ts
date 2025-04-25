@@ -15,7 +15,10 @@ export const getMockReminders = (userId: string): DatabaseReminder[] => {
       priority: ReminderPriority.HIGH,
       category: ReminderCategory.TASK,
       completed: false,
-      createdAt: now
+      createdAt: now,
+      completedAt: null,
+      periodId: null,
+      checklist: null
     },
     {
       id: 'mock-2', 
@@ -26,8 +29,10 @@ export const getMockReminders = (userId: string): DatabaseReminder[] => {
       priority: ReminderPriority.MEDIUM,
       category: ReminderCategory.PREPARATION,
       completed: false,
-      createdAt: now
+      createdAt: now,
+      completedAt: null,
+      periodId: null,
+      checklist: null
     }
   ];
 };
-

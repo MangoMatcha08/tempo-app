@@ -1,4 +1,3 @@
-
 // Note: 'location' and 'type' fields were removed in April 2025 to streamline the data model
 // and resolve type inconsistencies across the application
 
@@ -26,37 +25,24 @@ export const mockPeriods = [
 ];
 
 // Helper function to create a new reminder
-export const createReminder = (input: CreateReminderInput): Reminder => {
-  console.log("Creating reminder from input:", input);
-  
-  // Set default date to today if not provided
+export function createReminder(input: CreateReminderInput): DatabaseReminder {
   const now = new Date();
-  const today = new Date(now);
-  today.setHours(9, 0, 0, 0); // Set to 9:00 AM today as default
   
-  // For proper ID generation
-  const generateId = () => uuidv4();
-  
-  // Create a new reminder object
-  const newReminder: Reminder = {
-    id: generateId(),
+  return {
+    id: crypto.randomUUID(),
     title: input.title,
     description: input.description || "",
-    // Use exact detected date if available, otherwise use today
-    dueDate: input.dueDate ? new Date(input.dueDate) : today,
+    dueDate: input.dueDate || now,
     priority: input.priority || ReminderPriority.MEDIUM,
     completed: false,
-    category: input.category,
-    periodId: input.periodId,
-    checklist: input.checklist ? input.checklist.map(item => ({
-      ...item,
-      id: item.id || generateId()
-    })) : undefined
+    completedAt: null,
+    createdAt: now,
+    category: input.category || null,
+    periodId: input.periodId || null,
+    checklist: input.checklist || null,
+    userId: input.userId || ""
   };
-  
-  console.log("Created reminder:", newReminder);
-  return newReminder;
-};
+}
 
 // Helper function to get period name by ID
 export const getPeriodNameById = (periodId: string): string => {

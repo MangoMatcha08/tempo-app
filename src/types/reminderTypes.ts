@@ -42,8 +42,8 @@ export interface BaseReminder {
   dueDate: Date;
   priority: ReminderPriority;
   completed?: boolean;
-  periodId: string | null;
   category: ReminderCategory | null;
+  periodId: string | null;
   checklist: ChecklistItem[] | null;
 }
 
@@ -53,8 +53,7 @@ export interface BaseReminder {
 export interface DatabaseReminder extends BaseReminder {
   userId?: string;
   completedAt: Date | null;
-  createdAt?: Date;
-  overdueNotified?: boolean;
+  createdAt: Date;
 }
 
 /**
@@ -64,9 +63,7 @@ export interface UIReminder extends BaseReminder {
   timeRemaining?: string;
   formattedDate?: string;
   completedTimeAgo?: string;
-  completedAt?: Date;
-  category?: ReminderCategory;
-  checklist?: ChecklistItem[];
+  completedAt?: Date | null;
 }
 
 export interface ChecklistItem {

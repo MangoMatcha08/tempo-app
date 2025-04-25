@@ -1,7 +1,4 @@
 
-// Note: 'location' and 'type' fields were removed in April 2025 to streamline the data model
-// and resolve type inconsistencies across the application
-
 import { DatabaseReminder, ReminderPriority } from "@/types/reminderTypes";
 import { Reminder as UIReminder } from "@/types/reminder";
 
@@ -34,8 +31,10 @@ export const convertToUIReminder = (reminder: DatabaseReminder): UIReminder => {
     dueDate: reminder.dueDate,
     priority: reminder.priority,
     completed: reminder.completed || false,
-    // Properties from extended types
-    completedAt: reminder.completedAt
+    completedAt: reminder.completedAt,
+    category: reminder.category,
+    periodId: reminder.periodId,
+    checklist: reminder.checklist
   };
 };
 
@@ -49,8 +48,11 @@ export const convertToBackendReminder = (reminder: UIReminder): Omit<DatabaseRem
     dueDate: reminder.dueDate,
     priority: reminder.priority,
     completed: reminder.completed || false,
-    completedAt: reminder.completedAt,
+    completedAt: reminder.completedAt || null,
     createdAt: new Date(),
-    userId: "" // This will be filled in by the reminder operations
+    userId: "", // This will be filled in by the reminder operations
+    category: reminder.category,
+    periodId: reminder.periodId,
+    checklist: reminder.checklist
   };
 };
