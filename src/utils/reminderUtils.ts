@@ -7,7 +7,8 @@ import {
   CreateReminderInput, 
   ReminderPriority, 
   ReminderCategory,
-  ChecklistItem
+  ChecklistItem,
+  DatabaseReminder 
 } from '../types/reminderTypes';
 
 // Mock periods for testing/demo
