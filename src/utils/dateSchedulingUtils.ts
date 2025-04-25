@@ -1,4 +1,3 @@
-
 import { format, addDays } from 'date-fns';
 import { ensureValidDate } from './enhancedDateUtils';
 import { Period } from '@/contexts/ScheduleContext';
@@ -20,20 +19,25 @@ export const findAvailableTimeSlots = (
   const baseDate = new Date(validDate);
   
   return periods.map(period => {
-    // Safely parse time strings to hours and minutes
-    const [startHour, startMinute] = period.startTime.split(':').map(Number);
-    const [endHour, endMinute] = period.endTime.split(':').map(Number);
+    // Safely parse time strings
+    const parseTimeString = (timeStr: string): { hours: number; minutes: number } => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return { hours: hours || 0, minutes: minutes || 0 };
+    };
+    
+    const startTime = parseTimeString(period.startTime);
+    const endTime = parseTimeString(period.endTime);
     
     // Create new dates for start and end times
-    const startTime = new Date(baseDate);
-    startTime.setHours(startHour, startMinute, 0, 0);
+    const periodStartTime = new Date(baseDate);
+    periodStartTime.setHours(startTime.hours, startTime.minutes, 0, 0);
     
-    const endTime = new Date(baseDate);
-    endTime.setHours(endHour, endMinute, 0, 0);
+    const periodEndTime = new Date(baseDate);
+    periodEndTime.setHours(endTime.hours, endTime.minutes, 0, 0);
     
     return {
-      startTime,
-      endTime,
+      startTime: periodStartTime,
+      endTime: periodEndTime,
       periodId: period.id
     };
   });

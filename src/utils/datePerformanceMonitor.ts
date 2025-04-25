@@ -1,4 +1,3 @@
-
 class DatePerformanceMonitor {
   private measurements: Map<string, number[]> = new Map();
   private enabled: boolean = false;
@@ -75,6 +74,18 @@ class DatePerformanceMonitor {
   reset(): void {
     this.measurements.clear();
   }
+
+  dateOptimizationTips = {
+    analyzeDateOperations(): string[] {
+      return [
+        'Use date-fns for consistent date operations',
+        'Cache frequently accessed date calculations',
+        'Consider timezone implications in date operations',
+        'Consider timezone implications in date operations',
+        'Batch date operations when possible'
+      ];
+    }
+  };
 }
 
 // Singleton instance
@@ -86,6 +97,7 @@ export const dateOptimizationTips = {
     return [
       'Use date-fns for consistent date operations',
       'Cache frequently accessed date calculations',
+      'Consider timezone implications in date operations',
       'Consider timezone implications in date operations',
       'Batch date operations when possible'
     ];
