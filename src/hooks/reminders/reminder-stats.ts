@@ -1,4 +1,6 @@
 
+import { Reminder } from "@/types/reminderTypes";
+
 export interface ReminderStats {
   today: number;
   completed: number;

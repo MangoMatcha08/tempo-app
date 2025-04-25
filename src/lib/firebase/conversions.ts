@@ -6,7 +6,7 @@ export function convertTimestampFields<T extends Record<string, any>>(data: T): 
   
   // Convert any Timestamp fields to Date
   for (const key in result) {
-    if (result[key] instanceof Timestamp) {
+    if (result[key] && typeof result[key] === 'object' && 'toDate' in result[key]) {
       result[key] = result[key].toDate();
     }
   }

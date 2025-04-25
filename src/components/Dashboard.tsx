@@ -118,7 +118,7 @@ const Dashboard = () => {
         toast({
           title: "Reminder Added",
           description: `"${reminder.title}" has been added to your reminders.`,
-          variant: "success"
+          variant: "default"
         });
         
         console.log("Forcing refresh after add");
@@ -164,12 +164,13 @@ const Dashboard = () => {
   const handleBatchDeleteReminders = useCallback(async (ids: string[]) => {
     try {
       console.log("Batch deleting reminders in Dashboard:", ids);
-      const result = await batchDeleteReminders(ids);
+      const result = await batchDeleteReminders(ids, setReminders, setTotalCount);
       
       if (result) {
         toast({
           title: "Reminders Cleared",
-          description: `${ids.length} ${ids.length === 1 ? 'reminder' : 'reminders'} successfully removed.`
+          description: `${ids.length} ${ids.length === 1 ? 'reminder' : 'reminders'} successfully removed.`,
+          variant: "default"
         });
       }
       
