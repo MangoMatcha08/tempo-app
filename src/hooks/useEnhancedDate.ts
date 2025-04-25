@@ -1,12 +1,22 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { addDays, addWeeks, addMonths, format, isValid } from 'date-fns';
-import { ensureValidDate } from '@/utils/enhancedDateUtils';
-import { formatWithTimezone, isDateInRange, areDatesEqual } from '@/utils/dateTransformations';
-import { RecurrenceRule, RecurrenceType, generateOccurrences } from '@/utils/recurringDatePatterns';
+import { 
+  ensureValidDate,
+  formatWithTimezone, 
+  isDateInRange, 
+  areDatesEqual,
+  RecurrenceRule, 
+  RecurrenceType, 
+  generateOccurrences,
+  findAvailableTimeSlots,
+  suggestIdealPeriods,
+  suggestDueDates,
+  detectDateConflicts,
+  memoizeDateFn,
+  datePerformance
+} from '@/utils/dateUtils';
 import { Period } from '@/contexts/ScheduleContext';
-import { findAvailableTimeSlots, suggestIdealPeriods } from '@/utils/periodManagement';
-import { suggestDueDates, detectDateConflicts } from '@/utils/dateSuggestions';
 import { ReminderCategory, ReminderPriority } from '@/types/reminderTypes';
 
 /**
@@ -19,7 +29,11 @@ export const useEnhancedDate = (initialDate: Date = new Date()) => {
   // Calculate occurrence dates when the recurrence rule changes
   const occurrenceDates = useMemo(() => {
     if (!recurrenceRule) return [];
-    return generateOccurrences(recurrenceRule, 10);
+    
+    // Use performance monitoring if enabled
+    return datePerformance.measureGeneration(() => {
+      return generateOccurrences(recurrenceRule, 10);
+    }, { ruleType: recurrenceRule.type });
   }, [recurrenceRule]);
   
   // Set up a simple recurrence pattern
@@ -54,15 +68,19 @@ export const useEnhancedDate = (initialDate: Date = new Date()) => {
     return suggestIdealPeriods(periods, duration, preferredTypes);
   }, []);
   
-  // Get date suggestions based on reminder details
-  const getDateSuggestions = useCallback((
-    category: ReminderCategory,
-    priority: ReminderPriority,
-    description: string = "",
-    periods: Period[] = []
-  ) => {
-    return suggestDueDates(category, priority, description, periods);
-  }, []);
+  // Memoized function for date suggestions to improve performance
+  const getDateSuggestions = useMemo(() => memoizeDateFn(
+    'dateSuggestions',
+    (
+      category: ReminderCategory,
+      priority: ReminderPriority,
+      description: string = "",
+      periods: Period[] = []
+    ) => {
+      return suggestDueDates(category, priority, description, periods);
+    },
+    5 * 60 * 1000 // 5 minutes cache
+  ), []);
   
   // Check for date conflicts
   const checkDateConflicts = useCallback((
