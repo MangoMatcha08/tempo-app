@@ -1,4 +1,3 @@
-
 /**
  * Date utilities index file - exports all date-related functionality
  * 
@@ -101,6 +100,29 @@ export {
   toISOString,
   logDateInfo
 } from './dateTransformationUtils';
+
+// ==============================
+// SCHEDULING & CONFLICTS
+// ==============================
+export {
+  findAvailableTimeSlots,
+  suggestIdealPeriods,
+  suggestDueDates,
+  detectDateConflicts
+} from './dateSchedulingUtils';
+
+// ==============================
+// DEBUGGING & MONITORING
+// ==============================
+export {
+  debugDate,
+  generateDateDebugReport
+} from './dateDebugUtils';
+
+export {
+  datePerformance,
+  dateOptimizationTips
+} from './datePerformanceMonitor';
 
 // Default export for backward compatibility
 import { parseStringToDate, formatDate } from './dateTransformations';
