@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { ValidationErrorMessages, DateValidationErrorType } from '@/utils/dateValidation';
 
 import { useDateIntegration, useDateDebugger } from '@/hooks/useDateIntegration';
 import { 
@@ -194,7 +195,7 @@ const DateUtilitiesExample = () => {
                         : (
                           <ul className="list-disc pl-5">
                             {dateIntegration.dateErrors.map((err, i) => (
-                              <li key={i}>{ValidationErrorMessages[err.type] || 'Unknown error'}</li>
+                              <li key={i}>{ValidationErrorMessages[err.type as DateValidationErrorType] || 'Unknown error'}</li>
                             ))}
                           </ul>
                         )
@@ -341,7 +342,6 @@ const DateUtilitiesExample = () => {
   );
 };
 
-// Helper component for debugging dates
 const DateDebugView = ({ date }: { date: string | Date }) => {
   const debugInfo = useDateDebugger(date);
   const [debugReport, setDebugReport] = useState('');

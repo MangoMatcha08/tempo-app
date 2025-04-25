@@ -22,10 +22,6 @@ const formatTimeString = (date: Date): string => {
 
 /**
  * Finds available time slots based on periods
- * @param periods List of periods to check
- * @param minDuration Minimum duration in minutes
- * @param date Base date to use
- * @returns Array of available time slots
  */
 export const findAvailableTimeSlots = (
   periods: Period[],
@@ -55,10 +51,6 @@ export const findAvailableTimeSlots = (
 
 /**
  * Suggests ideal periods based on duration and preferences
- * @param periods List of periods to check
- * @param duration Required duration in minutes
- * @param preferredTypes Preferred period types
- * @returns Filtered list of periods
  */
 export const suggestIdealPeriods = (
   periods: Period[],
@@ -70,11 +62,11 @@ export const suggestIdealPeriods = (
       return false;
     }
     
-    // Safely parse time strings to calculate duration
-    const [startHour, startMin] = period.startTime.split(':').map(Number);
-    const [endHour, endMin] = period.endTime.split(':').map(Number);
+    const startComponents = parseTimeString(period.startTime);
+    const endComponents = parseTimeString(period.endTime);
     
-    const periodDuration = (endHour - startHour) * 60 + (endMin - startMin);
+    const periodDuration = (endComponents.hours - startComponents.hours) * 60 + 
+                         (endComponents.minutes - startComponents.minutes);
     return periodDuration >= duration;
   });
 };
