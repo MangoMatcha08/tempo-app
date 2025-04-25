@@ -2,13 +2,9 @@ import { format, addDays } from 'date-fns';
 import { ensureValidDate } from './enhancedDateUtils';
 import { Period } from '@/contexts/ScheduleContext';
 import type { ReminderCategory, ReminderPriority } from '@/types/reminderTypes';
+import { TimeComponents, TimeString, isTimeString } from '@/types/dateTypes';
 
-interface TimeComponents {
-  hours: number;
-  minutes: number;
-}
-
-const parseTimeString = (timeStr: string): TimeComponents => {
+const parseTimeString = (timeStr: TimeString): TimeComponents => {
   const [hours, minutes] = timeStr.split(':').map(Number);
   return {
     hours: hours || 0,
@@ -16,13 +12,13 @@ const parseTimeString = (timeStr: string): TimeComponents => {
   };
 };
 
-const formatTimeString = (date: Date): string => {
-  return format(date, 'HH:mm');
+const getTimeComponentsFromDate = (date: Date): TimeComponents => {
+  return {
+    hours: date.getHours(),
+    minutes: date.getMinutes()
+  };
 };
 
-/**
- * Finds available time slots based on periods
- */
 export const findAvailableTimeSlots = (
   periods: Period[],
   minDuration: number = 30,
@@ -32,6 +28,11 @@ export const findAvailableTimeSlots = (
   const baseDate = new Date(validDate);
   
   return periods.map(period => {
+    if (!isTimeString(period.startTime) || !isTimeString(period.endTime)) {
+      console.warn('Invalid time format in period:', period);
+      return null;
+    }
+    
     const startComponents = parseTimeString(period.startTime);
     const endComponents = parseTimeString(period.endTime);
     
@@ -46,12 +47,9 @@ export const findAvailableTimeSlots = (
       endTime: periodEndTime,
       periodId: period.id
     };
-  });
+  }).filter((slot): slot is NonNullable<typeof slot> => slot !== null);
 };
 
-/**
- * Suggests ideal periods based on duration and preferences
- */
 export const suggestIdealPeriods = (
   periods: Period[],
   duration: number = 30,
@@ -59,6 +57,11 @@ export const suggestIdealPeriods = (
 ): Period[] => {
   return periods.filter(period => {
     if (preferredTypes.length && !preferredTypes.includes(period.type)) {
+      return false;
+    }
+    
+    if (!isTimeString(period.startTime) || !isTimeString(period.endTime)) {
+      console.warn('Invalid time format in period:', period);
       return false;
     }
     

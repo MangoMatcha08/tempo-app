@@ -23,10 +23,15 @@ export const ValidationErrorMessages: Record<DateValidationErrorType, string> = 
   [DateValidationErrorType.PAST_DATE]: 'Past dates are not allowed'
 };
 
-export interface DateValidationError {
+interface DateValidationError {
   type: DateValidationErrorType;
   message: string;
 }
+
+const createValidationError = (type: DateValidationErrorType): DateValidationError => ({
+  type,
+  message: ValidationErrorMessages[type]
+});
 
 export interface DateValidationOptions {
   required?: boolean;
@@ -60,10 +65,7 @@ export const validateDate = (
   // Handle null or undefined
   if (date === null || date === undefined) {
     if (options.required) {
-      errors.push({
-        type: DateValidationErrorType.REQUIRED,
-        message: ValidationErrorMessages[DateValidationErrorType.REQUIRED]
-      });
+      errors.push(createValidationError(DateValidationErrorType.REQUIRED));
     }
     return {
       isValid: !options.required,
@@ -77,30 +79,18 @@ export const validateDate = (
     try {
       sanitizedDate = new Date(date);
       if (isNaN(sanitizedDate.getTime())) {
-        errors.push({
-          type: DateValidationErrorType.INVALID_FORMAT,
-          message: ValidationErrorMessages[DateValidationErrorType.INVALID_FORMAT]
-        });
+        errors.push(createValidationError(DateValidationErrorType.INVALID_FORMAT));
       }
     } catch {
-      errors.push({
-        type: DateValidationErrorType.INVALID_FORMAT,
-        message: ValidationErrorMessages[DateValidationErrorType.INVALID_FORMAT]
-      });
+      errors.push(createValidationError(DateValidationErrorType.INVALID_FORMAT));
     }
   } else if (date instanceof Date) {
     sanitizedDate = new Date(date);
     if (isNaN(sanitizedDate.getTime())) {
-      errors.push({
-        type: DateValidationErrorType.INVALID_FORMAT,
-        message: ValidationErrorMessages[DateValidationErrorType.INVALID_FORMAT]
-      });
+      errors.push(createValidationError(DateValidationErrorType.INVALID_FORMAT));
     }
   } else {
-    errors.push({
-      type: DateValidationErrorType.INVALID_FORMAT,
-      message: ValidationErrorMessages[DateValidationErrorType.INVALID_FORMAT]
-    });
+    errors.push(createValidationError(DateValidationErrorType.INVALID_FORMAT));
   }
   
   // Check range constraints if we have a valid date
@@ -108,31 +98,19 @@ export const validateDate = (
     const now = new Date();
     
     if (options.minDate && sanitizedDate < options.minDate) {
-      errors.push({
-        type: DateValidationErrorType.OUT_OF_RANGE,
-        message: ValidationErrorMessages[DateValidationErrorType.OUT_OF_RANGE]
-      });
+      errors.push(createValidationError(DateValidationErrorType.OUT_OF_RANGE));
     }
     
     if (options.maxDate && sanitizedDate > options.maxDate) {
-      errors.push({
-        type: DateValidationErrorType.OUT_OF_RANGE,
-        message: ValidationErrorMessages[DateValidationErrorType.OUT_OF_RANGE]
-      });
+      errors.push(createValidationError(DateValidationErrorType.OUT_OF_RANGE));
     }
     
     if (options.allowFutureDates === false && sanitizedDate > now) {
-      errors.push({
-        type: DateValidationErrorType.FUTURE_DATE,
-        message: ValidationErrorMessages[DateValidationErrorType.FUTURE_DATE]
-      });
+      errors.push(createValidationError(DateValidationErrorType.FUTURE_DATE));
     }
     
     if (options.allowPastDates === false && sanitizedDate < now) {
-      errors.push({
-        type: DateValidationErrorType.PAST_DATE,
-        message: ValidationErrorMessages[DateValidationErrorType.PAST_DATE]
-      });
+      errors.push(createValidationError(DateValidationErrorType.PAST_DATE));
     }
   }
   
