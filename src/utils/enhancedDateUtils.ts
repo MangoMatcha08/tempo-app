@@ -1,48 +1,12 @@
-import { format, parse, isValid, addDays, addWeeks, startOfDay } from "date-fns";
-import { toZonedTime, fromZonedTime } from 'date-fns-tz';
-import { mockPeriods } from "./reminderUtils";
-import { formatDate, formatWithTimezone } from './dateTransformations';
 
-/**
- * Enhanced date handling utilities for the reminder system
- */
+import { format } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
+import { mockPeriods } from './reminderUtils';
+import { formatDate, formatWithTimezone, ensureValidDate } from './dateTransformations';
 
 // Get user's timezone
 export const getUserTimeZone = (): string => {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
-};
-
-// Convert date to user's timezone
-export const toLocalTime = (date: Date): Date => {
-  const timeZone = getUserTimeZone();
-  return toZonedTime(date, timeZone);
-};
-
-// Convert local time to UTC
-export const toUtcTime = (date: Date): Date => {
-  const timeZone = getUserTimeZone();
-  return fromZonedTime(date, timeZone);
-};
-
-// Ensure valid date with timezone consideration
-export const ensureValidDate = (date: any): Date => {
-  if (date instanceof Date && !isNaN(date.getTime())) {
-    return toLocalTime(date);
-  }
-  
-  if (date && typeof date.toDate === 'function') {
-    return toLocalTime(date.toDate());
-  }
-  
-  if (typeof date === 'string') {
-    const parsedDate = new Date(date);
-    if (!isNaN(parsedDate.getTime())) {
-      return toLocalTime(parsedDate);
-    }
-  }
-  
-  console.warn('Invalid date encountered, using current date', date);
-  return toLocalTime(new Date());
 };
 
 // Format date with period context
@@ -60,7 +24,7 @@ export const formatDateWithPeriod = (date: Date, periodId?: string | null): stri
   return formattedTime;
 };
 
-// Get relative time display (e.g., "2 hours ago", "in 3 days")
+// Get relative time display
 export const getRelativeTimeDisplay = (date: Date): string => {
   const now = new Date();
   const validDate = ensureValidDate(date);
@@ -86,46 +50,6 @@ export const getRelativeTimeDisplay = (date: Date): string => {
   return `${absoluteDays} day${absoluteDays !== 1 ? 's' : ''} ${suffix}`;
 };
 
-// Create a date with specific time components
-export const createDateWithTime = (
-  baseDate: Date,
-  hours: number,
-  minutes: number
-): Date => {
-  const date = new Date(baseDate);
-  date.setHours(hours, minutes, 0, 0);
-  return date;
-};
-
-// Check if a date needs to be moved to tomorrow
-export const adjustDateIfPassed = (date: Date): Date => {
-  const now = new Date();
-  const adjustedDate = new Date(date);
-  
-  if (adjustedDate < now) {
-    return addDays(adjustedDate, 1);
-  }
-  
-  return adjustedDate;
-};
-
-// Parse time string (e.g., "3:00 PM")
-export const parseTimeString = (timeStr: string): { hours: number; minutes: number } => {
-  const [time, meridiem] = timeStr.split(' ');
-  const [hoursStr, minutesStr] = time.split(':');
-  
-  let hours = parseInt(hoursStr, 10);
-  const minutes = parseInt(minutesStr, 10);
-  
-  if (meridiem?.toLowerCase() === 'pm' && hours < 12) {
-    hours += 12;
-  } else if (meridiem?.toLowerCase() === 'am' && hours === 12) {
-    hours = 0;
-  }
-  
-  return { hours, minutes };
-};
-
 // Get the nearest period time
 export const getNearestPeriodTime = (date: Date): { periodId: string; startTime: Date } | null => {
   const targetTime = date.getTime();
@@ -134,7 +58,8 @@ export const getNearestPeriodTime = (date: Date): { periodId: string; startTime:
   
   for (const period of mockPeriods) {
     const [hours, minutes] = period.startTime.split(':').map(Number);
-    const periodDate = createDateWithTime(date, hours, minutes);
+    const periodDate = new Date(date);
+    periodDate.setHours(hours, minutes, 0, 0);
     const diff = Math.abs(periodDate.getTime() - targetTime);
     
     if (diff < minDiff) {
@@ -149,7 +74,3 @@ export const getNearestPeriodTime = (date: Date): { periodId: string; startTime:
   return nearestPeriod;
 };
 
-// Format date for display
-export const formatDisplayDate = (date: Date): string => {
-  return format(ensureValidDate(date), 'MMM d, yyyy h:mm a');
-};

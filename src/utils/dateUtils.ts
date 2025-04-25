@@ -1,56 +1,39 @@
 
 /**
  * Date utilities index file - exports all date-related functionality
- * 
- * This file serves as the main entry point for all date utilities in the application.
- * It organizes exports by functionality to make imports cleaner and more intuitive.
  */
 
-// ==============================
-// BASE DATE TRANSFORMATIONS
-// ==============================
+// Base date transformations
 export {
   parseStringToDate,
   formatDate,
+  formatWithTimezone,
   compareDates,
   isDateInRange,
-  formatWithTimezone,
-  areDatesEqual
+  areDatesEqual,
+  toUtcTime,
+  toLocalTime,
+  ensureValidDate
 } from './dateTransformations';
 
-// ==============================
-// TIMEZONE & TIME UTILITIES
-// ==============================
+// Time utilities
 export {
-  convertToUtc,
-  convertToLocal,
   parseTimeString,
-  parseTimeStringWithCompatibility,
-  formatTimeString,
-  formatDateRange,
   createDateWithTime,
   adjustDateIfPassed,
-  parseFlexibleDateTime,
-  logDateDetails
+  formatTimeString,
+  formatDateRange
 } from './dateTimeUtils';
 
-// ==============================
-// ENHANCED CONTEXT-AWARE UTILITIES
-// ==============================
+// Enhanced date utilities
 export {
-  ensureValidDate,
   getUserTimeZone,
   formatDateWithPeriod,
   getRelativeTimeDisplay,
-  getNearestPeriodTime,
-  formatDisplayDate,
-  toLocalTime,
-  toUtcTime
+  getNearestPeriodTime
 } from './enhancedDateUtils';
 
-// ==============================
-// RECURRING PATTERN UTILITIES
-// ==============================
+// Recurring patterns
 export {
   RecurrenceType,
   DayOfWeek,
@@ -61,19 +44,7 @@ export {
   dateMatchesRecurrence
 } from './recurringDatePatterns';
 
-// ==============================
-// PERFORMANCE OPTIMIZATION
-// ==============================
-export {
-  dateCache,
-  memoizeDateFn,
-  batchProcessDates,
-  DateOperationsCache
-} from './dateOperationsCache';
-
-// ==============================
-// DATE VALIDATION & SECURITY
-// ==============================
+// Date validation
 export {
   validateDate,
   validateDateRange,
@@ -85,42 +56,6 @@ export {
   type DateValidationResult
 } from './dateValidation';
 
-// ==============================
-// FIREBASE TRANSFORMATIONS
-// ==============================
-export {
-  toDate,
-  isValidDate,
-  getTimestamp,
-  toFirestoreTimestamp,
-  toISOString,
-  logDateInfo
-} from './dateTransformationUtils';
-
-// ==============================
-// SCHEDULING & CONFLICTS
-// ==============================
-export {
-  findAvailableTimeSlots,
-  suggestIdealPeriods,
-  suggestDueDates,
-  detectDateConflicts
-} from './dateSchedulingUtils';
-
-// ==============================
-// DEBUGGING & MONITORING
-// ==============================
-export {
-  debugDate,
-  generateDateDebugReport
-} from './dateDebugUtils';
-
 // Performance monitoring
 export { datePerformance } from './datePerformanceMonitor';
 
-// Default export for backward compatibility
-import { parseStringToDate, formatDate } from './dateTransformations';
-export default {
-  parseStringToDate,
-  formatDate
-};
