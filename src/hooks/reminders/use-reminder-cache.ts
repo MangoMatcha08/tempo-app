@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useRef } from "react";
 import { Reminder } from "@/types/reminderTypes";
 
@@ -13,8 +12,8 @@ interface CacheState {
   reminderLists: Map<string, CacheItem<Reminder[]>>;
 }
 
-// Cache expiration time (5 minutes)
-const CACHE_EXPIRATION = 5 * 60 * 1000;
+// Cache expiration time (15 minutes)
+const CACHE_EXPIRATION = 15 * 60 * 1000;
 
 // Exported standalone functions for use outside of hook context
 export function getDetailedReminder(id: string): Reminder | null {

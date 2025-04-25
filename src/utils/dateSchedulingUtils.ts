@@ -4,19 +4,48 @@ import { ensureValidDate } from './enhancedDateUtils';
 import { Period } from '@/contexts/ScheduleContext';
 import type { ReminderCategory, ReminderPriority } from '@/types/reminderTypes';
 
+/**
+ * Finds available time slots based on periods
+ * @param periods List of periods to check
+ * @param minDuration Minimum duration in minutes
+ * @param date Base date to use
+ * @returns Array of available time slots
+ */
 export const findAvailableTimeSlots = (
   periods: Period[],
   minDuration: number = 30,
   date: Date = new Date()
 ): { startTime: Date; endTime: Date; periodId?: string }[] => {
   const validDate = ensureValidDate(date);
-  return periods.map(period => ({
-    startTime: new Date(validDate.setHours(...period.startTime.split(':').map(Number))),
-    endTime: new Date(validDate.setHours(...period.endTime.split(':').map(Number))),
-    periodId: period.id
-  }));
+  const baseDate = new Date(validDate);
+  
+  return periods.map(period => {
+    // Safely parse time strings to hours and minutes
+    const [startHour, startMinute] = period.startTime.split(':').map(Number);
+    const [endHour, endMinute] = period.endTime.split(':').map(Number);
+    
+    // Create new dates for start and end times
+    const startTime = new Date(baseDate);
+    startTime.setHours(startHour, startMinute, 0, 0);
+    
+    const endTime = new Date(baseDate);
+    endTime.setHours(endHour, endMinute, 0, 0);
+    
+    return {
+      startTime,
+      endTime,
+      periodId: period.id
+    };
+  });
 };
 
+/**
+ * Suggests ideal periods based on duration and preferences
+ * @param periods List of periods to check
+ * @param duration Required duration in minutes
+ * @param preferredTypes Preferred period types
+ * @returns Filtered list of periods
+ */
 export const suggestIdealPeriods = (
   periods: Period[],
   duration: number = 30,
@@ -26,14 +55,24 @@ export const suggestIdealPeriods = (
     if (preferredTypes.length && !preferredTypes.includes(period.type)) {
       return false;
     }
-    // Simple duration check - can be enhanced based on requirements
+    
+    // Safely parse time strings to calculate duration
     const [startHour, startMin] = period.startTime.split(':').map(Number);
     const [endHour, endMin] = period.endTime.split(':').map(Number);
+    
     const periodDuration = (endHour - startHour) * 60 + (endMin - startMin);
     return periodDuration >= duration;
   });
 };
 
+/**
+ * Suggests due dates based on reminder properties
+ * @param category Reminder category
+ * @param priority Reminder priority
+ * @param description Optional description text
+ * @param periods Optional list of periods to consider
+ * @returns Array of suggested due dates
+ */
 export const suggestDueDates = (
   category: ReminderCategory,
   priority: ReminderPriority,
@@ -55,14 +94,26 @@ export const suggestDueDates = (
   return suggestions;
 };
 
+/**
+ * Detects date conflicts with existing reminders
+ * @param date Date to check for conflicts
+ * @param periods List of periods
+ * @param existingReminders Existing reminders to check against
+ * @returns Object containing conflict information
+ */
 export const detectDateConflicts = (
   date: Date,
   periods: Period[],
   existingReminders: Array<{ dueDate: Date; priority: ReminderPriority; category: ReminderCategory }> = []
 ): { hasConflict: boolean; conflicts: any[] } => {
-  const conflicts = existingReminders.filter(reminder => 
-    format(reminder.dueDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
-  );
+  // Ensure we have valid dates
+  const validDate = ensureValidDate(date);
+  const dateString = format(validDate, 'yyyy-MM-dd');
+  
+  const conflicts = existingReminders.filter(reminder => {
+    const reminderDate = ensureValidDate(reminder.dueDate);
+    return format(reminderDate, 'yyyy-MM-dd') === dateString;
+  });
   
   return {
     hasConflict: conflicts.length > 0,

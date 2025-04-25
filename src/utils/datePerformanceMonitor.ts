@@ -75,17 +75,19 @@ class DatePerformanceMonitor {
   reset(): void {
     this.measurements.clear();
   }
-
-  dateOptimizationTips = {
-    analyzeDateOperations(): string[] {
-      return [
-        'Use date-fns for consistent date operations',
-        'Cache frequently accessed date calculations',
-        'Consider timezone implications in date operations',
-        'Batch date operations when possible'
-      ];
-    }
-  };
 }
 
+// Singleton instance
 export const datePerformance = new DatePerformanceMonitor();
+
+// Export helper methods for optimization tips
+export const dateOptimizationTips = {
+  analyzeDateOperations(): string[] {
+    return [
+      'Use date-fns for consistent date operations',
+      'Cache frequently accessed date calculations',
+      'Consider timezone implications in date operations',
+      'Batch date operations when possible'
+    ];
+  }
+};

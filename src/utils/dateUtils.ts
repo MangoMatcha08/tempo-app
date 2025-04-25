@@ -1,3 +1,4 @@
+
 /**
  * Date utilities index file - exports all date-related functionality
  * 
@@ -70,11 +71,6 @@ export {
   DateOperationsCache
 } from './dateOperationsCache';
 
-export {
-  datePerformance,
-  dateOptimizationTips
-} from './datePerformanceMonitor';
-
 // ==============================
 // DATE VALIDATION & SECURITY
 // ==============================
@@ -119,10 +115,8 @@ export {
   generateDateDebugReport
 } from './dateDebugUtils';
 
-export {
-  datePerformance,
-  dateOptimizationTips
-} from './datePerformanceMonitor';
+// Performance monitoring
+export { datePerformance } from './datePerformanceMonitor';
 
 // Default export for backward compatibility
 import { parseStringToDate, formatDate } from './dateTransformations';
