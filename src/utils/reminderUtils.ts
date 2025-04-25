@@ -10,6 +10,7 @@ import {
   ChecklistItem,
   DatabaseReminder 
 } from '../types/reminderTypes';
+import { ensureValidDate } from './enhancedDateUtils';
 
 // Mock periods for testing/demo
 export const mockPeriods = [
@@ -28,12 +29,13 @@ export const mockPeriods = [
 // Helper function to create a new reminder
 export function createReminder(input: CreateReminderInput): DatabaseReminder {
   const now = new Date();
+  const dueDate = ensureValidDate(input.dueDate || now);
   
   return {
     id: crypto.randomUUID(),
     title: input.title,
     description: input.description || "",
-    dueDate: input.dueDate || now,
+    dueDate: dueDate,
     priority: input.priority || ReminderPriority.MEDIUM,
     completed: false,
     completedAt: null,
