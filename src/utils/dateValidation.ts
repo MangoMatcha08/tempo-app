@@ -23,6 +23,11 @@ export const ValidationErrorMessages: Record<DateValidationErrorType, string> = 
   [DateValidationErrorType.PAST_DATE]: 'Past dates are not allowed'
 };
 
+export interface DateValidationError {
+  type: DateValidationErrorType;
+  message: string;
+}
+
 export interface DateValidationOptions {
   required?: boolean;
   minDate?: Date;
@@ -35,7 +40,7 @@ export interface DateValidationOptions {
 export interface DateValidationResult {
   isValid: boolean;
   sanitizedValue?: Date;
-  errors: DateValidationErrorType[];
+  errors: DateValidationError[];
   originalValue: any;
 }
 
@@ -49,7 +54,7 @@ export const validateDate = (
   date: Date | string | null | undefined,
   options: DateValidationOptions = {}
 ): DateValidationResult => {
-  const errors: { type: DateValidationErrorType; message: string }[] = [];
+  const errors: DateValidationError[] = [];
   let sanitizedDate: Date | undefined;
   
   // Handle null or undefined

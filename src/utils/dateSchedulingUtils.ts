@@ -3,6 +3,23 @@ import { ensureValidDate } from './enhancedDateUtils';
 import { Period } from '@/contexts/ScheduleContext';
 import type { ReminderCategory, ReminderPriority } from '@/types/reminderTypes';
 
+interface TimeComponents {
+  hours: number;
+  minutes: number;
+}
+
+const parseTimeString = (timeStr: string): TimeComponents => {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  return {
+    hours: hours || 0,
+    minutes: minutes || 0
+  };
+};
+
+const formatTimeString = (date: Date): string => {
+  return format(date, 'HH:mm');
+};
+
 /**
  * Finds available time slots based on periods
  * @param periods List of periods to check
@@ -19,21 +36,14 @@ export const findAvailableTimeSlots = (
   const baseDate = new Date(validDate);
   
   return periods.map(period => {
-    // Safely parse time strings
-    const parseTimeString = (timeStr: string): { hours: number; minutes: number } => {
-      const [hours, minutes] = timeStr.split(':').map(Number);
-      return { hours: hours || 0, minutes: minutes || 0 };
-    };
+    const startComponents = parseTimeString(period.startTime);
+    const endComponents = parseTimeString(period.endTime);
     
-    const startTime = parseTimeString(period.startTime);
-    const endTime = parseTimeString(period.endTime);
-    
-    // Create new dates for start and end times
     const periodStartTime = new Date(baseDate);
-    periodStartTime.setHours(startTime.hours, startTime.minutes, 0, 0);
+    periodStartTime.setHours(startComponents.hours, startComponents.minutes, 0, 0);
     
     const periodEndTime = new Date(baseDate);
-    periodEndTime.setHours(endTime.hours, endTime.minutes, 0, 0);
+    periodEndTime.setHours(endComponents.hours, endComponents.minutes, 0, 0);
     
     return {
       startTime: periodStartTime,

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -78,7 +77,7 @@ const DateUtilitiesExample = () => {
     });
     
     if (!validation.isValid) {
-      alert(`Date validation failed: ${validation.errors[0]?.message}`);
+      alert(`Date validation failed: ${validation.errors[0]?.message || 'Unknown error'}`);
       return;
     }
     
@@ -195,7 +194,7 @@ const DateUtilitiesExample = () => {
                         : (
                           <ul className="list-disc pl-5">
                             {dateIntegration.dateErrors.map((err, i) => (
-                              <li key={i}>{err.message}</li>
+                              <li key={i}>{ValidationErrorMessages[err.type] || 'Unknown error'}</li>
                             ))}
                           </ul>
                         )
