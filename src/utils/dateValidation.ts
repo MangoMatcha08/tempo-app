@@ -145,7 +145,7 @@ export const validateDateRange = (
   if (startResult.isValid && endResult.isValid && 
       startResult.sanitizedValue && endResult.sanitizedValue) {
     if (startResult.sanitizedValue > endResult.sanitizedValue) {
-      endResult.errors.push(DateValidationErrorType.OUT_OF_RANGE);
+      endResult.errors.push(createValidationError(DateValidationErrorType.OUT_OF_RANGE));
       endResult.isValid = false;
     }
   }
