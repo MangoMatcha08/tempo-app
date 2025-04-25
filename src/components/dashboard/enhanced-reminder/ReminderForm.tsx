@@ -8,6 +8,11 @@ import { parseTimeString, createDateWithTime } from '@/utils/date/time';
 import { validateDate } from '@/utils/date/validation';
 import { formatTimeWithPeriod } from '@/utils/date/formatting';
 import { useDateValidation } from '@/hooks/date/useDateValidation';
+import ReminderHeader from './ReminderHeader';
+import BasicFormFields from './BasicFormFields';
+import DetailedFormFields from './DetailedFormFields';
+import ChecklistSection from './ChecklistSection';
+import FormActions from './FormActions';
 
 /**
  * Main component for creating enhanced reminders

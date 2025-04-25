@@ -3,10 +3,6 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { FormActionsProps } from './types';
 
-/**
- * Component for form action buttons
- * Includes create, cancel, and reset buttons
- */
 const FormActions: React.FC<FormActionsProps> = ({
   handleCreateReminder,
   resetForm,

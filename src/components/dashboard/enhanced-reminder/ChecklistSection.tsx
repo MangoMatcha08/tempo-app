@@ -9,9 +9,6 @@ import { ChecklistSectionProps } from './types';
 import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
-/**
- * Component for managing checklist items in a reminder
- */
 const ChecklistSection: React.FC<ChecklistSectionProps> = ({
   checklist,
   setChecklist,
@@ -20,9 +17,6 @@ const ChecklistSection: React.FC<ChecklistSectionProps> = ({
 }) => {
   const [newChecklistItem, setNewChecklistItem] = useState('');
   
-  /**
-   * Add a new item to the checklist
-   */
   const addChecklistItem = () => {
     if (newChecklistItem.trim()) {
       setChecklist([
@@ -33,16 +27,10 @@ const ChecklistSection: React.FC<ChecklistSectionProps> = ({
     }
   };
   
-  /**
-   * Remove an item from the checklist
-   */
   const removeChecklistItem = (id: string) => {
     setChecklist(checklist.filter(item => item.id !== id));
   };
   
-  /**
-   * Toggle the completion status of an item
-   */
   const toggleChecklistItem = (id: string) => {
     setChecklist(checklist.map(item => 
       item.id === id ? { ...item, isCompleted: !item.isCompleted } : item

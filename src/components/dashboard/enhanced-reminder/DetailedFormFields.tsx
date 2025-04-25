@@ -6,10 +6,6 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { TimePicker } from "@/components/ui/time-picker";
 import { DetailedFormFieldsProps } from './types';
 
-/**
- * Component for the detailed form fields
- * These fields are only visible when in detailed view mode
- */
 const DetailedFormFields: React.FC<DetailedFormFieldsProps> = ({
   description,
   setDescription,

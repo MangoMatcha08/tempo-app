@@ -1,7 +1,7 @@
-
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { validateDate } from './validation';
+import { mockPeriods } from '@/utils/reminderUtils';
 
 export function formatDate(
   date: Date | string | null | undefined,
@@ -39,7 +39,6 @@ export function formatTimeWithPeriod(
     return timeStr;
   }
   
-  // Use mockPeriods for now, will be replaced with real data in Phase 3
   const period = mockPeriods.find(p => p.id === periodId);
   return period ? `${period.name} (${timeStr})` : timeStr;
 }

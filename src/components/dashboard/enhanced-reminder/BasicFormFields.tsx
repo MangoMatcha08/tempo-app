@@ -7,10 +7,6 @@ import { ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
 import { BasicFormFieldsProps } from './types';
 import { mockPeriods } from '@/utils/reminderUtils';
 
-/**
- * Component for basic form fields (title, priority, category, period)
- * These fields are always visible in both simple and detailed views
- */
 const BasicFormFields: React.FC<BasicFormFieldsProps> = ({
   title,
   setTitle,

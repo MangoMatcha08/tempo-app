@@ -5,10 +5,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ReminderHeaderProps } from './types';
 
-/**
- * Header component for the reminder form
- * Displays the title and view mode toggle
- */
 const ReminderHeader: React.FC<ReminderHeaderProps> = ({ 
   viewMode, 
   toggleViewMode 
