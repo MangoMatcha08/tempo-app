@@ -1,97 +1,69 @@
 
-import { format, parse, isValid } from 'date-fns';
-import { toZonedTime } from 'date-fns-tz';
-import { ensureValidDate } from './enhancedDateUtils';
+import { isTimestamp, isValidDate } from './typeGuards';
 
 /**
- * Parse various date string formats into a valid Date object
+ * Ensures a value is a valid Date object
  */
-export function parseStringToDate(dateStr: string): Date | null {
-  const formats = [
-    'yyyy-MM-dd',
-    'MM/dd/yyyy',
-    'dd/MM/yyyy',
-    'yyyy-MM-dd HH:mm',
-    'MM/dd/yyyy HH:mm',
-    'HH:mm'
-  ];
-
-  for (const formatStr of formats) {
-    try {
-      const parsed = parse(dateStr, formatStr, new Date());
-      if (isValid(parsed)) {
-        return parsed;
-      }
-    } catch {
-      continue;
+export function ensureValidDate(value: any): Date {
+  // Handle Timestamp objects
+  if (isTimestamp(value)) {
+    return value.toDate();
+  }
+  
+  // Handle valid Date objects
+  if (isValidDate(value)) {
+    return value;
+  }
+  
+  // Handle ISO strings
+  if (typeof value === 'string') {
+    const parsed = new Date(value);
+    if (isValidDate(parsed)) {
+      return parsed;
     }
   }
-
-  // Try native Date parsing as a fallback
-  const nativeParsed = new Date(dateStr);
-  return isValid(nativeParsed) ? nativeParsed : null;
+  
+  // Handle numeric timestamps
+  if (typeof value === 'number' && !isNaN(value)) {
+    const parsed = new Date(value);
+    if (isValidDate(parsed)) {
+      return parsed;
+    }
+  }
+  
+  console.warn('Invalid date value encountered:', value);
+  return new Date(); // Default to current date as fallback
 }
 
 /**
- * Compare two dates and determine their relationship
+ * Formats a date for display
  */
-export function compareDates(date1: Date | string, date2: Date | string): -1 | 0 | 1 {
-  const validDate1 = ensureValidDate(date1);
-  const validDate2 = ensureValidDate(date2);
-  
-  const time1 = validDate1.getTime();
-  const time2 = validDate2.getTime();
-  
-  if (time1 < time2) return -1;
-  if (time1 > time2) return 1;
-  return 0;
-}
-
-/**
- * Check if a date falls within a range
- */
-export function isDateInRange(
-  date: Date | string,
-  startDate: Date | string,
-  endDate: Date | string
-): boolean {
+export function formatDisplayDate(date: Date | any): string {
   const validDate = ensureValidDate(date);
-  const validStart = ensureValidDate(startDate);
-  const validEnd = ensureValidDate(endDate);
-  
-  return validDate >= validStart && validDate <= validEnd;
+  return validDate.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 /**
- * Format a date to a consistent string representation with timezone consideration
+ * Gets relative time string
  */
-export function formatWithTimezone(date: Date | string, format = 'yyyy-MM-dd HH:mm'): string {
+export function getRelativeTimeString(date: Date | any): string {
   const validDate = ensureValidDate(date);
-  const zonedDate = toZonedTime(validDate, Intl.DateTimeFormat().resolvedOptions().timeZone);
-  return formatDate(zonedDate, format);
-}
-
-/**
- * Format a date using a specific format string
- */
-export function formatDate(date: Date | string, formatStr = 'yyyy-MM-dd HH:mm'): string {
-  const validDate = ensureValidDate(date);
-  return format(validDate, formatStr);
-}
-
-/**
- * Check if two dates represent the same time (ignoring milliseconds)
- */
-export function areDatesEqual(date1: Date | string, date2: Date | string): boolean {
-  const validDate1 = ensureValidDate(date1);
-  const validDate2 = ensureValidDate(date2);
+  const now = new Date();
+  const diffMs = validDate.getTime() - now.getTime();
+  const diffMins = Math.round(diffMs / 60000);
   
-  return (
-    validDate1.getFullYear() === validDate2.getFullYear() &&
-    validDate1.getMonth() === validDate2.getMonth() &&
-    validDate1.getDate() === validDate2.getDate() &&
-    validDate1.getHours() === validDate2.getHours() &&
-    validDate1.getMinutes() === validDate2.getMinutes()
-  );
+  if (diffMins < 0) return 'Past due';
+  if (diffMins < 60) return `${diffMins}m`;
+  
+  const diffHours = Math.round(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h`;
+  
+  const diffDays = Math.round(diffHours / 24);
+  return `${diffDays}d`;
 }
-
