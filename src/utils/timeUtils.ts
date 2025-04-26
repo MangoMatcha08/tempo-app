@@ -1,4 +1,3 @@
-
 /**
  * Formats a date into a readable time string
  */
@@ -74,30 +73,10 @@ export const isToday = (date: Date | any): boolean => {
  */
 import { format } from 'date-fns';
 import { mockPeriods } from '@/utils/reminderUtils';
+import { ensureValidDate } from './dateUtils';
+import { formatWithTimeZone } from './dateUtils/timezone';
 
-// Helper function to ensure valid date objects
-export function ensureValidDate(date: any): Date {
-  if (date instanceof Date && !isNaN(date.getTime())) {
-    return date;
-  }
-  
-  // Handle Firestore Timestamp objects
-  if (date && typeof date.toDate === 'function') {
-    return date.toDate();
-  }
-  
-  // Handle ISO string dates
-  if (typeof date === 'string') {
-    const parsedDate = new Date(date);
-    if (!isNaN(parsedDate.getTime())) {
-      return parsedDate;
-    }
-  }
-  
-  // If all else fails, return current date as fallback
-  console.warn('Invalid date encountered in timeUtils, using current date as fallback', date);
-  return new Date();
-}
+// Helper function to ensure valid date objects has been moved to dateUtils/core.ts
 
 export function formatTimeWithPeriod(date: Date | any, periodId?: string): string {
   try {

@@ -52,16 +52,13 @@ export function logDateDetails(label: string, date: Date): void {
   });
 }
 
-// Convert timezone functions for compatibility
-// These are now wrappers around the renamed functions from date-fns-tz v3
-export function convertToUtc(date: Date): Date {
-  return fromZonedTime(date, 'UTC');
-}
+// Re-export timezone conversion functions for backward compatibility
+export { toZonedTime, fromZonedTime };
 
-export function convertToLocal(date: Date): Date {
-  return toZonedTime(date, Intl.DateTimeFormat().resolvedOptions().timeZone);
-}
+// Provide legacy function names for backward compatibility
+export const convertToUtc = fromZonedTime;
+export const convertToLocal = toZonedTime;
 
-// Export the original functions for direct use
+// Export the centralized functions for direct use
 export { toZonedTime as convertToZonedTime } from './dateUtils';
 export { fromZonedTime as convertFromZonedTime } from './dateUtils';
