@@ -30,7 +30,7 @@ export function formatDateRange(startDate: Date, endDate: Date): string {
   }
 }
 
-export function formatWithTimezone(date: Date | string, formatStr: string = 'yyyy-MM-dd HH:mm:ss'): string {
+export function formatWithTimeZone(date: Date | string, formatStr: string = 'yyyy-MM-dd HH:mm:ss'): string {
   try {
     const validDate = ensureValidDate(date);
     const timeZone = getUserTimeZone();
@@ -40,4 +40,3 @@ export function formatWithTimezone(date: Date | string, formatStr: string = 'yyy
     return '';
   }
 }
-

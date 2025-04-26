@@ -16,16 +16,5 @@ export function fromZonedTime(zonedDate: Date, timeZone: string = 'UTC'): Date {
   return dftFromZonedTime(validDate, timeZone);
 }
 
-export function formatWithTimeZone(
-  date: Date | string,
-  timeZone: string = getUserTimeZone()
-): string {
-  try {
-    const validDate = ensureValidDate(date);
-    const zonedDate = toZonedTime(validDate, timeZone);
-    return zonedDate.toLocaleString('en-US', { timeZone });
-  } catch (error) {
-    console.error('Error formatting with timezone:', error);
-    return '';
-  }
-}
+// Export formatWithTimeZone with consistent naming
+export { formatWithTimeZone } from './formatting';

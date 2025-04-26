@@ -8,13 +8,21 @@ export {
   formatTimeString,
 } from './core';
 
-export type { TimeComponents } from './types';
+// Export types
+export {
+  TimeComponents,
+  DateValidationErrorType,
+  ValidationErrorMessages,
+  type DateValidationError,
+  type DateValidationResult,
+  type DateValidationOptions,
+} from './types';
 
 // Re-export transformation utilities
 export {
   formatDate,
   formatDateRange,
-  formatWithTimezone,
+  formatWithTimeZone,
 } from './formatting';
 
 // Re-export validation utilities
@@ -23,12 +31,6 @@ export {
   validateDateRange,
 } from './validation';
 
-export type {
-  DateValidationError,
-  DateValidationResult,
-  DateValidationOptions,
-} from './types';
-
 // Re-export timezone utilities
 export {
   getUserTimeZone,
@@ -36,17 +38,6 @@ export {
   toZonedTime,
   fromZonedTime
 } from './timezone';
-
-// Re-export date transformations
-export {
-  parseStringToDate,
-  compareDates,
-  isDateInRange,
-  areDatesEqual
-} from '../dateTransformations';
-
-// Export date performance monitoring
-export { datePerformance } from '../datePerformanceMonitor';
 
 // Common date formats enum
 export enum DateFormats {
