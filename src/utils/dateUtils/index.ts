@@ -10,16 +10,12 @@ export {
 
 export type { TimeComponents } from './types';
 
-// Re-export timezone utilities
+// Re-export transformation utilities
 export {
-  getUserTimeZone,
-  toZonedTime,
-  fromZonedTime,
-  formatWithTimeZone,
-  // Legacy exports
-  convertToUtc,
-  convertToLocal
-} from './timezone';
+  formatDate,
+  formatDateRange,
+  formatWithTimezone,
+} from './formatting';
 
 // Re-export validation utilities
 export {
@@ -27,15 +23,30 @@ export {
   validateDateRange,
 } from './validation';
 
-export {
-  DateValidationErrorType
-} from './types';
-
 export type {
   DateValidationError,
   DateValidationResult,
   DateValidationOptions,
 } from './types';
+
+// Re-export timezone utilities
+export {
+  getUserTimeZone,
+  formatWithTimeZone,
+  toZonedTime,
+  fromZonedTime
+} from './timezone';
+
+// Re-export date transformations
+export {
+  parseStringToDate,
+  compareDates,
+  isDateInRange,
+  areDatesEqual
+} from '../dateTransformations';
+
+// Export date performance monitoring
+export { datePerformance } from '../datePerformanceMonitor';
 
 // Common date formats enum
 export enum DateFormats {

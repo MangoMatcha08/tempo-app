@@ -1,12 +1,9 @@
+
 import { isValid, isBefore, isAfter } from 'date-fns';
 import { ensureValidDate } from './core';
 import { toZonedTime } from './timezone';
-import type { 
-  DateValidationError, 
-  DateValidationResult, 
-  DateValidationOptions 
-} from './types';
-import { DateValidationErrorType } from './types';
+import { DateValidationErrorType } from '../dateValidation';
+import type { DateValidationError, DateValidationResult, DateValidationOptions } from './types';
 
 export function validateDate(
   date: Date | string | null | undefined,
@@ -59,20 +56,7 @@ export function validateDate(
   if (sanitizedDate && errors.length === 0) {
     const now = new Date();
     
-    if (options.minDate && isBefore(sanitizedDate, options.minDate)) {
-      errors.push({
-        type: DateValidationErrorType.BEFORE_MIN_DATE,
-        message: 'Date is before minimum allowed date'
-      });
-    }
-    
-    if (options.maxDate && isAfter(sanitizedDate, options.maxDate)) {
-      errors.push({
-        type: DateValidationErrorType.AFTER_MAX_DATE,
-        message: 'Date is after maximum allowed date'
-      });
-    }
-    
+    // Check past/future date constraints
     if (options.allowPastDates === false && isBefore(sanitizedDate, now)) {
       errors.push({
         type: DateValidationErrorType.OUT_OF_RANGE,
@@ -84,6 +68,21 @@ export function validateDate(
       errors.push({
         type: DateValidationErrorType.OUT_OF_RANGE,
         message: 'Future dates are not allowed'
+      });
+    }
+    
+    // Check explicit min/max date constraints
+    if (options.minDate && isBefore(sanitizedDate, options.minDate)) {
+      errors.push({
+        type: DateValidationErrorType.OUT_OF_RANGE,
+        message: 'Date is before minimum allowed date'
+      });
+    }
+    
+    if (options.maxDate && isAfter(sanitizedDate, options.maxDate)) {
+      errors.push({
+        type: DateValidationErrorType.OUT_OF_RANGE,
+        message: 'Date is after maximum allowed date'
       });
     }
   }
