@@ -18,13 +18,16 @@ export interface PeriodOverlapResult {
 export function doPeriodsOverlap(period1: Period, period2: Period): boolean {
   // Different days don't overlap
   if (period1.isRecurring && period2.isRecurring) {
-    // For recurring periods, check if they share any days
     const sharedDays = period1.daysOfWeek?.filter(day => period2.daysOfWeek?.includes(day));
     if (!sharedDays || sharedDays.length === 0) {
-      return false; // No shared days, no overlap
+      return false;
     }
-  } else if (!isSameDay(ensureValidDate(period1.startTime), ensureValidDate(period2.startTime))) {
-    return false; // Different non-recurring days don't overlap
+  } else {
+    const date1 = ensureValidDate(period1.startTime);
+    const date2 = ensureValidDate(period2.startTime);
+    if (!isSameDay(date1, date2)) {
+      return false;
+    }
   }
 
   const start1 = ensureValidDate(period1.startTime);
@@ -237,8 +240,8 @@ export function groupPeriodsByDay(periods: Period[]): Map<string, Period[]> {
   
   periods.forEach(period => {
     if (!period.isRecurring) {
-      // For non-recurring periods, group by actual date
-      const dateKey = ensureValidDate(period.startTime).toISOString().split('T')[0];
+      const date = ensureValidDate(period.startTime);
+      const dateKey = date.toISOString().split('T')[0];
       
       if (!periodsByDay.has(dateKey)) {
         periodsByDay.set(dateKey, []);
@@ -246,7 +249,6 @@ export function groupPeriodsByDay(periods: Period[]): Map<string, Period[]> {
       
       periodsByDay.get(dateKey)?.push(period);
     } else {
-      // For recurring periods, add to each day of week
       period.daysOfWeek?.forEach(dayOfWeek => {
         const dayKey = `day-${dayOfWeek}`;
         
@@ -259,7 +261,6 @@ export function groupPeriodsByDay(periods: Period[]): Map<string, Period[]> {
     }
   });
   
-  // Sort periods within each day
   periodsByDay.forEach((dayPeriods) => {
     dayPeriods.sort((a, b) => {
       const startA = ensureValidDate(a.startTime);

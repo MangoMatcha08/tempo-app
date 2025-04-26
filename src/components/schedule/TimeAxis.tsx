@@ -20,17 +20,20 @@ export const TimeAxis: React.FC<TimeAxisProps> = ({ minHour, maxHour, heightPerH
       </div>
       
       <div className="relative" style={{ height: `${(maxHour - minHour) * heightPerHour}px` }}>
-        {hours.map((hour) => (
-          <div 
-            key={hour}
-            className="absolute left-0 right-0 border-b border-dashed flex items-center"
-            style={{ top: getHourPosition(hour, minHour, heightPerHour) }}
-          >
-            <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground bg-card px-1 -translate-y-1/2 ml-1`}>
-              {isMobile ? hour.split(' ')[0] : hour}
-            </span>
-          </div>
-        ))}
+        {hours.map((hour) => {
+          const hourNumber = parseInt(hour.split(' ')[0], 10);
+          return (
+            <div 
+              key={hour}
+              className="absolute left-0 right-0 border-b border-dashed flex items-center"
+              style={{ top: getHourPosition(hourNumber, minHour, heightPerHour) }}
+            >
+              <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground bg-card px-1 -translate-y-1/2 ml-1`}>
+                {isMobile ? hour.split(' ')[0] : hour}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

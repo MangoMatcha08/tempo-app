@@ -1,4 +1,4 @@
-import { addDays, addBusinessDays, isSameDay, differenceInDays, startOfToday, isWeekend } from 'date-fns';
+import { addDays, addBusinessDays, isSameDay } from 'date-fns';
 import { Period } from '@/contexts/ScheduleContext';
 import { ensureValidDate } from './enhancedDateUtils';
 import { findAvailableTimeSlots } from './periodManagement';
@@ -25,8 +25,8 @@ export function suggestDueDates(
   count: number = 3
 ): DateSuggestion[] {
   const suggestions: DateSuggestion[] = [];
-  const today = startOfToday();
-  const now = new Date();
+  const today = ensureValidDate(new Date());
+  const now = ensureValidDate(new Date());
   
   // Base suggestion: today for high priority
   if (priority === ReminderPriority.HIGH) {
@@ -268,7 +268,7 @@ export function optimizeWorkloadDistribution(
   daysToDistribute: number = 5
 ): Map<string, Date> {
   const distribution = new Map<string, Date>();
-  const today = startOfToday();
+  const today = ensureValidDate(new Date());
   const maxMinutesPerDay = 120; // 2 hours of focused work per day
   
   // Track allocated minutes per day
