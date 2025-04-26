@@ -11,7 +11,7 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { PeriodType } from '@/contexts/ScheduleContext';
+import type { PeriodType } from '@/types/periodTypes';
 import { PeriodDaysSelection } from './PeriodDaysSelection';
 
 interface PeriodFormFieldsProps {

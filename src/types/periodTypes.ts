@@ -4,7 +4,7 @@ export interface Period {
   name: string;
   startTime: string | Date;
   endTime: string | Date;
-  type?: 'core' | 'other';
+  type?: 'core' | 'elective' | 'planning' | 'meeting' | 'other';
 }
 
 export interface PeriodValidationResult {
@@ -17,6 +17,9 @@ export interface DateWithPeriod {
   date: Date;
   periodId?: string;
 }
+
+// Re-export PeriodType for backward compatibility
+export type PeriodType = 'core' | 'elective' | 'planning' | 'meeting' | 'other';
 
 // Recurrence types that were missing
 export enum RecurrenceType {
@@ -37,4 +40,3 @@ export interface RecurrenceRule {
   dayOfMonth?: number;
   exclusions?: Date[];
 }
-

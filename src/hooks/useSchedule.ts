@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useScheduleContext, Period, PeriodType } from '@/contexts/ScheduleContext';
 import { addMinutes, addDays, startOfWeek, isToday, isSameDay } from 'date-fns';
@@ -16,104 +15,108 @@ const generateMockPeriods = (): Period[] => {
     {
       id: 'before-school',
       title: 'Before School',
+      name: 'Before School',
       type: 'other',
-      startTime: createTime(8, 0), // 8:00 AM
-      endTime: createTime(8, 50),  // 8:50 AM
+      startTime: createTime(8, 0),
+      endTime: createTime(8, 50),
       isRecurring: true,
-      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
+      daysOfWeek: [1, 2, 3, 4, 5],
     },
     {
       id: '1',
       title: 'Period 1',
       type: 'core',
-      startTime: createTime(8, 50), // 8:50 AM
-      endTime: createTime(9, 50),   // 9:50 AM
+      startTime: createTime(8, 50),
+      endTime: createTime(9, 50),
       location: 'Room 204',
       isRecurring: true,
-      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
+      daysOfWeek: [1, 2, 3, 4, 5],
       notes: 'Collect homework, Review Chapter 5, Quiz preparation',
     },
     {
       id: 'break',
       title: 'Break',
       type: 'other',
-      startTime: createTime(9, 50), // 9:50 AM
-      endTime: createTime(10, 5),   // 10:05 AM
+      startTime: createTime(9, 50),
+      endTime: createTime(10, 5),
       isRecurring: true,
-      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
+      daysOfWeek: [1, 2, 3, 4, 5],
     },
     {
       id: '2',
       title: 'Period 2',
       type: 'core',
-      startTime: createTime(10, 8), // 10:08 AM
-      endTime: createTime(11, 8),   // 11:08 AM
+      startTime: createTime(10, 8),
+      endTime: createTime(11, 8),
       location: 'Room 115',
       isRecurring: true,
-      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
+      daysOfWeek: [1, 2, 3, 4, 5],
       notes: 'Essay due date, Discussion on Hamlet',
     },
     {
       id: '3',
       title: 'Period 3',
       type: 'core',
-      startTime: createTime(11, 11), // 11:11 AM
-      endTime: createTime(12, 11),   // 12:11 PM
+      startTime: createTime(11, 11),
+      endTime: createTime(12, 11),
       location: 'Room 302',
       isRecurring: true,
-      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
+      daysOfWeek: [1, 2, 3, 4, 5],
     },
     {
       id: '4',
       title: 'Period 4',
       type: 'core',
-      startTime: createTime(12, 14), // 12:14 PM
-      endTime: createTime(13, 14),   // 1:14 PM
+      startTime: createTime(12, 14),
+      endTime: createTime(13, 14),
       location: 'Lab 3',
       isRecurring: true,
-      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
+      daysOfWeek: [1, 2, 3, 4, 5],
     },
     {
       id: 'lunch',
       title: 'Lunch',
       type: 'other',
-      startTime: createTime(13, 14), // 1:14 PM
-      endTime: createTime(13, 44),   // 1:44 PM
+      startTime: createTime(13, 14),
+      endTime: createTime(13, 44),
       isRecurring: true,
-      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
+      daysOfWeek: [1, 2, 3, 4, 5],
     },
     {
       id: '5',
       title: 'Period 5',
       type: 'core',
-      startTime: createTime(13, 47), // 1:47 PM
-      endTime: createTime(14, 47),   // 2:47 PM
+      startTime: createTime(13, 47),
+      endTime: createTime(14, 47),
       location: 'Room 203',
       isRecurring: true,
-      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
+      daysOfWeek: [1, 2, 3, 4, 5],
     },
     {
       id: '6',
       title: 'Period 6',
       type: 'core',
-      startTime: createTime(14, 50), // 2:50 PM
-      endTime: createTime(15, 30),   // 3:30 PM
+      startTime: createTime(14, 50),
+      endTime: createTime(15, 30),
       location: 'Art Studio',
       isRecurring: true,
-      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
+      daysOfWeek: [1, 2, 3, 4, 5],
     },
     {
       id: 'after-school',
       title: 'After School',
       type: 'other',
-      startTime: createTime(15, 30), // 3:30 PM
-      endTime: createTime(17, 0),    // 5:00 PM
+      startTime: createTime(15, 30),
+      endTime: createTime(17, 0),
       isRecurring: true,
-      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
+      daysOfWeek: [1, 2, 3, 4, 5],
     },
   ];
   
-  return mockPeriods;
+  return mockPeriods.map(period => ({
+    ...period,
+    name: period.title
+  }));
 };
 
 export const useSchedule = () => {
@@ -123,15 +126,13 @@ export const useSchedule = () => {
   const [error, setError] = useState<Error | null>(null);
   
   const getPeriodsForDay = useCallback((date: Date) => {
-    const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const dayOfWeek = date.getDay();
     
     return periods.filter(period => {
       if (!period.isRecurring) {
-        // For non-recurring events, check if the dates match (ignoring time)
         return isSameDay(period.startTime, date);
       }
       
-      // For recurring periods, check if this day of week is included
       return period.daysOfWeek?.includes(dayOfWeek) ?? false;
     });
   }, [periods]);
@@ -150,7 +151,7 @@ export const useSchedule = () => {
   const addPeriod = useCallback((periodData: Omit<Period, 'id'>) => {
     const newPeriod: Period = {
       ...periodData,
-      id: Math.random().toString(36).substring(2, 9), // Generate random ID
+      id: Math.random().toString(36).substring(2, 9),
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -178,7 +179,7 @@ export const useSchedule = () => {
   
   const getDaysOfWeek = useCallback((referenceDate: Date) => {
     const result: Date[] = [];
-    const startDay = startOfWeek(referenceDate, { weekStartsOn: 1 }); // Week starts on Monday
+    const startDay = startOfWeek(referenceDate, { weekStartsOn: 1 });
     
     for (let i = 0; i < 7; i++) {
       result.push(addDays(startDay, i));
