@@ -1,39 +1,8 @@
 
-// Re-export core utilities
-export {
-  ensureValidDate,
-  isTimeValid,
-  isDateValid,
-  parseTimeString,
-  formatTimeString
-} from './dateUtils/core';
+// Re-export everything from the new structure
+export * from './dateUtils/index';
 
-export {
-  formatDate,
-  formatDateRange,
-  formatWithTimezone,
-} from './dateUtils/formatting';
-
-export {
-  validateDate,
-  validateDateRange,
-} from './dateUtils/validation';
-
-export type {
-  DateValidationError,
-  DateValidationResult,
-  DateValidationOptions,
-  TimeComponents
-} from './dateUtils/types';
-
-export {
-  getUserTimeZone,
-  toZonedTime,
-  fromZonedTime,
-  formatWithTimeZone
-} from './dateUtils/timezone';
-
-// Export from dateCore for backward compatibility
+// Re-export from dateCore for backward compatibility
 export {
   convertToUtc,
   convertToLocal,
@@ -94,12 +63,3 @@ export type {
 
 // Export date performance monitoring
 export { datePerformance } from './datePerformanceMonitor';
-
-// Common date formats enum
-export enum DateFormats {
-  ISO = 'yyyy-MM-dd',
-  DISPLAY = 'MMMM d, yyyy',
-  SHORT = 'MMM d',
-  TIME = 'h:mm a',
-  FULL = 'PPPppp'
-}

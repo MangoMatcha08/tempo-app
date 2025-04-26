@@ -36,3 +36,23 @@ export {
   toZonedTime,
   fromZonedTime
 } from './timezone';
+
+// Re-export date transformations
+export {
+  parseStringToDate,
+  compareDates,
+  isDateInRange,
+  areDatesEqual
+} from '../dateTransformations';
+
+// Export date performance monitoring
+export { datePerformance } from '../datePerformanceMonitor';
+
+// Common date formats enum
+export enum DateFormats {
+  ISO = 'yyyy-MM-dd',
+  DISPLAY = 'MMMM d, yyyy',
+  SHORT = 'MMM d',
+  TIME = 'h:mm a',
+  FULL = 'PPPppp'
+}
