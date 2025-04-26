@@ -1,10 +1,20 @@
-
 import { isValid, isBefore, isAfter } from 'date-fns';
 import { ensureValidDate } from './core';
 import { toZonedTime } from './timezone';
 import { DateValidationErrorType } from './types';
 import type { DateValidationError, DateValidationResult, DateValidationOptions } from './types';
 
+/**
+ * Validates a date value against a set of constraints
+ * 
+ * Error types:
+ * - REQUIRED: Date value is required but not provided
+ * - INVALID_FORMAT: Date string or value cannot be parsed
+ * - BEFORE_MIN_DATE: Date is before the minimum allowed date
+ * - AFTER_MAX_DATE: Date is after the maximum allowed date
+ * - OUT_OF_RANGE: Date violates past/future constraints
+ * - TIMEZONE_ERROR: Error converting timezone
+ */
 export function validateDate(
   date: Date | string | null | undefined,
   options: DateValidationOptions = {}
@@ -94,6 +104,10 @@ export function validateDate(
   };
 }
 
+/**
+ * Validates a date range to ensure the end date is after the start date
+ * and both dates meet the validation constraints
+ */
 export function validateDateRange(
   startDate: Date,
   endDate: Date,
