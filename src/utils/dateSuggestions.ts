@@ -46,7 +46,7 @@ export function suggestDueDates(
     });
   }
   
-  // Next business day if tomorrow is weekend
+  // Check if tomorrow is weekend
   const tomorrow = addDays(today, 1);
   if (isWeekend(tomorrow)) {
     suggestions.push({

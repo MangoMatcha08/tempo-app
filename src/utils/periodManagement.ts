@@ -56,10 +56,8 @@ export function calculateOverlapDuration(period1: Period, period2: Period): numb
   const start2 = ensureValidDate(period2.startTime);
   const end2 = ensureValidDate(period2.endTime);
   
-  const startOverlap = Math.max(start1.getTime(), start2.getTime());
-  const endOverlap = Math.min(end1.getTime(), end2.getTime());
-  
-  return (endOverlap - startOverlap) / (1000 * 60); // Convert to minutes
+  return (Math.max(start1.getTime(), start2.getTime()) - 
+          Math.min(end1.getTime(), end2.getTime())) / (1000 * 60);
 }
 
 /**
@@ -282,74 +280,35 @@ export function calculatePeriodTransitions(periods: Period[]): Array<{
   toPeriod: Period | null;
   transitionMinutes: number;
 }> {
-  // Sort periods by start time
-  const sortedPeriods = [...periods].sort((a, b) => 
-    compareDates(a.startTime, b.startTime)
-  );
+  const sortedPeriods = [...periods].sort((a, b) => {
+    const aStart = ensureValidDate(a.startTime);
+    const bStart = ensureValidDate(b.startTime);
+    return aStart.getTime() - bStart.getTime();
+  });
   
-  const transitions: Array<{
-    time: Date;
-    fromPeriod: Period | null;
-    toPeriod: Period | null;
-    transitionMinutes: number;
-  }> = [];
+  const transitions = [];
   
-  // Add transitions at period start times
-  for (let i = 0; i < sortedPeriods.length; i++) {
-    const currentPeriod = sortedPeriods[i];
-    
-    // Find previous period that's still active
-    let fromPeriod: Period | null = null;
-    for (let j = 0; j < i; j++) {
-      const prevPeriod = sortedPeriods[j];
-      if (compareDates(prevPeriod.endTime, currentPeriod.startTime) >= 0) {
-        // Found a period that's still active
-        fromPeriod = prevPeriod;
-        break;
-      }
-    }
-    
-    // Calculate transition minutes (negative means overlap)
-    const transitionMinutes = fromPeriod 
-      ? (currentPeriod.startTime.getTime() - fromPeriod.endTime.getTime()) / (60 * 1000)
-      : 0;
-    
-    transitions.push({
-      time: new Date(currentPeriod.startTime),
-      fromPeriod,
-      toPeriod: currentPeriod,
-      transitionMinutes
-    });
-  }
-  
-  // Add transitions at period end times
   for (const period of sortedPeriods) {
-    // Find next period that starts after this one ends
-    let nextPeriod: Period | null = null;
-    for (const p of sortedPeriods) {
-      if (compareDates(p.startTime, period.endTime) >= 0) {
-        // Found the next period
-        if (!nextPeriod || compareDates(p.startTime, nextPeriod.startTime) < 0) {
-          nextPeriod = p;
-        }
-      }
-    }
-    
-    // Calculate transition minutes
-    const transitionMinutes = nextPeriod 
-      ? (nextPeriod.startTime.getTime() - period.endTime.getTime()) / (60 * 1000) 
-      : 0;
+    const periodStart = ensureValidDate(period.startTime);
+    const periodEnd = ensureValidDate(period.endTime);
     
     transitions.push({
-      time: new Date(period.endTime),
+      time: new Date(periodStart),
+      fromPeriod: null,
+      toPeriod: period,
+      transitionMinutes: 0
+    });
+    
+    transitions.push({
+      time: new Date(periodEnd),
       fromPeriod: period,
-      toPeriod: nextPeriod,
-      transitionMinutes
+      toPeriod: null,
+      transitionMinutes: 0
     });
   }
   
-  // Sort all transitions by time
-  transitions.sort((a, b) => compareDates(a.time, b.time));
+  // Sort transitions by time
+  transitions.sort((a, b) => a.time.getTime() - b.time.getTime());
   
   return transitions;
 }
