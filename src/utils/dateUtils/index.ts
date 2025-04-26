@@ -1,52 +1,55 @@
 
-// Core date utilities
+/**
+ * Core date utilities providing a unified API for date operations
+ */
+
+// Core date validation and conversion
 export {
   ensureValidDate,
   isTimeValid,
   isDateValid,
   parseTimeString,
-  formatTimeString,
+  formatTimeString
 } from './core';
 
-// Export types
+// Timezone conversions - using new standardized names
+export {
+  toZonedTime,
+  fromZonedTime,
+  getUserTimeZone,
+  formatWithTimeZone
+} from './timezone';
+
+// Date/Time operations
+export {
+  isDate,
+  isConvertibleToDate,
+  createDateWithTime,
+  adjustDateIfPassed,
+  parseTimeComponents,
+  toLocalTime,
+  toUtcTime
+} from '../dateTimeUtils';
+
+// Formatting utilities
+export {
+  formatDate,
+  formatDateRange,
+  formatTimeWithPeriod
+} from './formatting';
+
+// Type exports
 export type {
   TimeComponents,
   DateValidationError,
   DateValidationResult,
-  DateValidationOptions,
+  DateValidationOptions
 } from './types';
 
-// Export enums and constants
-export {
-  DateValidationErrorType,
-  ValidationErrorMessages,
-} from './types';
+// Export date format constants
+export { DateFormats } from './types';
 
-// Export transformation utilities
-export {
-  formatDate,
-  formatDateRange,
-  formatWithTimeZone,
-} from './formatting';
+// Legacy exports for backward compatibility
+export const convertToUtc = fromZonedTime;
+export const convertToLocal = toZonedTime;
 
-// Export validation utilities
-export {
-  validateDate,
-  validateDateRange,
-} from './validation';
-
-// Export timezone utilities
-export {
-  getUserTimeZone,
-  toZonedTime,
-  fromZonedTime
-} from './timezone';
-
-// Common date formats enum
-export enum DateFormats {
-  ISO = 'yyyy-MM-dd',
-  DISPLAY = 'MMMM d, yyyy',
-  SHORT = 'MMM d',
-  TIME = 'h:mm a',
-  FULL = 'PPPppp'
-}
