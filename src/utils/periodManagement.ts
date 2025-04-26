@@ -1,4 +1,4 @@
-import { Period } from '@/contexts/ScheduleContext';
+import { Period, isPeriod } from '@/types/periodTypes';
 import { ensureValidDate } from './dateCore';
 import { isDateInRange, compareDates } from './dateTransformations';
 import { addMinutes, isSameDay } from 'date-fns';
@@ -9,7 +9,7 @@ import { addMinutes, isSameDay } from 'date-fns';
 export interface PeriodOverlapResult {
   hasOverlap: boolean;
   overlappingPeriods: Period[];
-  overlapDuration?: number; // in minutes
+  overlapDuration?: number;
 }
 
 /**
@@ -23,22 +23,17 @@ export function doPeriodsOverlap(period1: Period, period2: Period): boolean {
       return false;
     }
   } else {
-    const date1 = ensureValidDate(period1.startTime);
-    const date2 = ensureValidDate(period2.startTime);
+    const date1 = period1.startTime;
+    const date2 = period2.startTime;
     if (!isSameDay(date1, date2)) {
       return false;
     }
   }
 
-  const start1 = ensureValidDate(period1.startTime);
-  const end1 = ensureValidDate(period1.endTime);
-  const start2 = ensureValidDate(period2.startTime);
-  const end2 = ensureValidDate(period2.endTime);
-  
-  const start1Time = start1.getHours() * 60 + start1.getMinutes();
-  const end1Time = end1.getHours() * 60 + end1.getMinutes();
-  const start2Time = start2.getHours() * 60 + start2.getMinutes();
-  const end2Time = end2.getHours() * 60 + end2.getMinutes();
+  const start1Time = period1.startTime.getHours() * 60 + period1.startTime.getMinutes();
+  const end1Time = period1.endTime.getHours() * 60 + period1.endTime.getMinutes();
+  const start2Time = period2.startTime.getHours() * 60 + period2.startTime.getMinutes();
+  const end2Time = period2.endTime.getHours() * 60 + period2.endTime.getMinutes();
   
   return Math.max(start1Time, start2Time) < Math.min(end1Time, end2Time);
 }
@@ -51,13 +46,13 @@ export function calculateOverlapDuration(period1: Period, period2: Period): numb
     return 0;
   }
   
-  const start1 = ensureValidDate(period1.startTime);
-  const end1 = ensureValidDate(period1.endTime);
-  const start2 = ensureValidDate(period2.startTime);
-  const end2 = ensureValidDate(period2.endTime);
+  const start1 = period1.startTime;
+  const end1 = period1.endTime;
+  const start2 = period2.startTime;
+  const end2 = period2.endTime;
   
-  return (Math.max(start1.getTime(), start2.getTime()) - 
-          Math.min(end1.getTime(), end2.getTime())) / (1000 * 60);
+  return (Math.min(end1.getTime(), end2.getTime()) - 
+          Math.max(start1.getTime(), start2.getTime())) / (1000 * 60);
 }
 
 /**
@@ -98,16 +93,14 @@ export function findAvailableTimeSlots(
   minDuration: number = 30, 
   date: Date = new Date()
 ): Period[] {
-  // Use today's date if not specified
   const targetDate = ensureValidDate(date);
   
   // Filter periods for the target date
   let dayPeriods = periods.filter(period => {
     if (!period.isRecurring) {
-      return isSameDay(ensureValidDate(period.startTime), targetDate);
+      return isSameDay(period.startTime, targetDate);
     }
     
-    // For recurring periods, check if the day of week matches
     const dayOfWeek = targetDate.getDay();
     return period.daysOfWeek?.includes(dayOfWeek) || false;
   });
@@ -280,34 +273,28 @@ export function calculatePeriodTransitions(periods: Period[]): Array<{
   toPeriod: Period | null;
   transitionMinutes: number;
 }> {
-  const sortedPeriods = [...periods].sort((a, b) => {
-    const aStart = ensureValidDate(a.startTime);
-    const bStart = ensureValidDate(b.startTime);
-    return aStart.getTime() - bStart.getTime();
-  });
+  const sortedPeriods = [...periods].sort((a, b) => 
+    a.startTime.getTime() - b.startTime.getTime()
+  );
   
   const transitions = [];
   
   for (const period of sortedPeriods) {
-    const periodStart = ensureValidDate(period.startTime);
-    const periodEnd = ensureValidDate(period.endTime);
-    
     transitions.push({
-      time: new Date(periodStart),
+      time: new Date(period.startTime),
       fromPeriod: null,
       toPeriod: period,
       transitionMinutes: 0
     });
     
     transitions.push({
-      time: new Date(periodEnd),
+      time: new Date(period.endTime),
       fromPeriod: period,
       toPeriod: null,
       transitionMinutes: 0
     });
   }
   
-  // Sort transitions by time
   transitions.sort((a, b) => a.time.getTime() - b.time.getTime());
   
   return transitions;

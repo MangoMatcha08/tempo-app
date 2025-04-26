@@ -1,9 +1,8 @@
-
 export interface Period {
   id: string;
   name: string;
-  startTime: string | Date; // Can be either ISO date string or Date object
-  endTime: string | Date;   // Can be either ISO date string or Date object
+  startTime: Date; // Changed from string | Date to just Date
+  endTime: Date;   // Changed from string | Date to just Date
   type?: 'core' | 'elective' | 'planning' | 'meeting' | 'other';
 }
 
@@ -39,4 +38,15 @@ export interface RecurrenceRule {
   daysOfWeek?: number[];
   dayOfMonth?: number;
   exclusions?: Date[];
+}
+
+export function isPeriod(value: any): value is Period {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof value.id === 'string' &&
+    typeof value.name === 'string' &&
+    value.startTime instanceof Date &&
+    value.endTime instanceof Date
+  );
 }
