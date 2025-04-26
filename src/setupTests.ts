@@ -16,4 +16,14 @@ global.matchMedia = global.matchMedia || function(query: string) {
   };
 };
 
+// Setup DOM environment
+Object.defineProperty(window, 'document', {
+  writable: true,
+  value: document,
+});
+
+// Mock window properties commonly used in tests
+Object.defineProperty(window, 'scrollTo', { value: vi.fn(), writable: true });
+
 // Add any additional test setup here
+
