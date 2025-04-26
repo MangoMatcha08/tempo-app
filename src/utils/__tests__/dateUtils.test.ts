@@ -113,8 +113,9 @@ describe('DateTime Utilities Tests', () => {
     const utcDate = convertToUtc(date);
     const localDate = convertToLocal(date);
     
-    expect(utcDate.getUTCHours()).toBe(12);
+    expect(utcDate.toISOString()).toBe(date.toISOString());
     expect(localDate instanceof Date).toBe(true);
+    expect(localDate.getTime()).not.toBe(utcDate.getTime());
   });
 });
 
@@ -187,15 +188,12 @@ describe('Date Operations Cache Tests', () => {
     const originalFn = vi.fn().mockImplementation((a: number, b: number) => a + b);
     const memoizedFn = memoizeDateFn('add', originalFn);
     
-    // First call should execute the function
     expect(memoizedFn(2, 3)).toBe(5);
     expect(originalFn).toHaveBeenCalledTimes(1);
     
-    // Second call with same args should use cache
     expect(memoizedFn(2, 3)).toBe(5);
     expect(originalFn).toHaveBeenCalledTimes(1);
     
-    // Different args should execute again
     expect(memoizedFn(3, 4)).toBe(7);
     expect(originalFn).toHaveBeenCalledTimes(2);
   });
