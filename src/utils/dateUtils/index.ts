@@ -1,5 +1,5 @@
 
-// Re-export core date utilities
+// Core date utilities
 export {
   ensureValidDate,
   isTimeValid,
@@ -22,20 +22,20 @@ export {
   ValidationErrorMessages,
 } from './types';
 
-// Re-export transformation utilities
+// Export transformation utilities
 export {
   formatDate,
   formatDateRange,
   formatWithTimeZone,
 } from './formatting';
 
-// Re-export validation utilities
+// Export validation utilities
 export {
   validateDate,
   validateDateRange,
 } from './validation';
 
-// Re-export timezone utilities
+// Export timezone utilities
 export {
   getUserTimeZone,
   toZonedTime,

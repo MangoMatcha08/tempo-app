@@ -1,5 +1,4 @@
-
-import { format, isAfter, isBefore, parseISO } from 'date-fns';
+import { format, isAfter, isBefore } from 'date-fns';
 import { ensureValidDate } from './dateUtils/core';
 import { formatInTimeZone } from 'date-fns-tz';
 
@@ -45,7 +44,7 @@ export function isDateInRange(date: Date, startDate: Date, endDate: Date): boole
   return !isBefore(validDate, validStartDate) && !isAfter(validDate, validEndDate);
 }
 
-export function formatWithTimezone(date: Date | string, formatStr: string = 'yyyy-MM-dd HH:mm:ss', timeZone: string = 'UTC'): string {
+export function formatWithTimeZone(date: Date | string, formatStr: string = 'yyyy-MM-dd HH:mm:ss', timeZone: string = 'UTC'): string {
   try {
     const validDate = ensureValidDate(date);
     return formatInTimeZone(validDate, timeZone, formatStr);

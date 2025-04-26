@@ -1,5 +1,5 @@
 
-import { toZonedTime as dftToZonedTime, fromZonedTime as dftFromZonedTime } from 'date-fns-tz';
+import { formatInTimeZone } from 'date-fns-tz';
 import { ensureValidDate } from './core';
 
 export function getUserTimeZone(): string {
@@ -8,13 +8,12 @@ export function getUserTimeZone(): string {
 
 export function toZonedTime(date: Date, timeZone: string = getUserTimeZone()): Date {
   const validDate = ensureValidDate(date);
-  return dftToZonedTime(validDate, timeZone);
+  return new Date(formatInTimeZone(validDate, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX"));
 }
 
 export function fromZonedTime(zonedDate: Date, timeZone: string = 'UTC'): Date {
   const validDate = ensureValidDate(zonedDate);
-  return dftFromZonedTime(validDate, timeZone);
+  return new Date(formatInTimeZone(validDate, 'UTC', "yyyy-MM-dd'T'HH:mm:ssXXX"));
 }
 
-// Export formatWithTimeZone with consistent naming
 export { formatWithTimeZone } from './formatting';

@@ -14,9 +14,6 @@ export {
   DateFormats
 };
 
-/**
- * Format a date with period information
- */
 export function formatTimeWithPeriod(date: Date, periodName?: string): string {
   const timeString = date.toLocaleTimeString('en-US', {
     hour: 'numeric',
