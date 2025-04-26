@@ -1,9 +1,8 @@
-
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { format, parseISO, isValid, parse } from 'date-fns';
 import { useEnhancedDate } from './useEnhancedDate';
 import { useDateOperations } from './useDateOperations';
-import { parseStringToDate, formatWithTimezone } from '@/utils/dateTransformations';
+import { parseStringToDate, formatWithTimeZone } from '@/utils/dateTransformations';
 import { convertToUtc, convertToLocal } from '@/utils/dateTimeUtils';
 import { ensureValidDate } from '@/utils/enhancedDateUtils';
 import { datePerformance } from '@/utils/datePerformanceMonitor';
@@ -70,7 +69,7 @@ export const useDateIntegration = (options: {
    */
   const formatDate = useCallback((date: Date, formatStr?: string) => {
     return datePerformance.measureFormat(() => {
-      return formatWithTimezone(date, formatStr);
+      return formatWithTimeZone(date, formatStr);
     }, { date: date.toISOString(), format: formatStr });
   }, []);
   

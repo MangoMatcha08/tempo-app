@@ -1,7 +1,6 @@
-
 import { addDays, addWeeks, addMonths, addYears, isEqual, isBefore } from 'date-fns';
 import { ensureValidDate } from './enhancedDateUtils';
-import { formatWithTimezone } from './dateTransformations';
+import { formatWithTimeZone } from './dateTransformations';
 
 /**
  * Recurrence types supported by the system
@@ -213,11 +212,11 @@ export function formatRecurrenceRule(rule: RecurrenceRule): string {
   }
   
   // Add start date
-  description += ` starting ${formatWithTimezone(rule.startDate, 'MMM d, yyyy')}`;
+  description += ` starting ${formatWithTimeZone(rule.startDate, 'MMM d, yyyy')}`;
   
   // Add end condition
   if (rule.endDate) {
-    description += ` until ${formatWithTimezone(rule.endDate, 'MMM d, yyyy')}`;
+    description += ` until ${formatWithTimeZone(rule.endDate, 'MMM d, yyyy')}`;
   } else if (rule.count) {
     description += `, ${rule.count} ${rule.count === 1 ? 'occurrence' : 'occurrences'}`;
   }
