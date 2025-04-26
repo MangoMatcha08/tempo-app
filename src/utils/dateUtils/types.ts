@@ -5,9 +5,19 @@ export interface TimeComponents {
   minutes: number;
 }
 
+// Error types
+export enum DateValidationErrorType {
+  REQUIRED = 'REQUIRED',
+  INVALID_FORMAT = 'INVALID_FORMAT',
+  OUT_OF_RANGE = 'OUT_OF_RANGE',
+  TIMEZONE_ERROR = 'TIMEZONE_ERROR',
+  BEFORE_MIN_DATE = 'BEFORE_MIN_DATE',
+  AFTER_MAX_DATE = 'AFTER_MAX_DATE'
+}
+
 // Validation types
 export interface DateValidationError {
-  type: string;
+  type: DateValidationErrorType;
   message: string;
 }
 

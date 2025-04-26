@@ -1,5 +1,7 @@
+
 import { isValid } from 'date-fns';
 import type { TimeComponents } from './types';
+import { DateValidationErrorType } from './types';
 
 export function ensureValidDate(date: any): Date {
   // Already a valid Date
@@ -26,6 +28,11 @@ export function ensureValidDate(date: any): Date {
       return parsed;
     }
     throw new Error('Invalid date string');
+  }
+  
+  // Handle undefined/null
+  if (date === undefined || date === null) {
+    throw new Error('Invalid date input');
   }
   
   // Numeric timestamp handling
