@@ -1,4 +1,3 @@
-
 import { format, addDays, addWeeks, startOfDay } from "date-fns";
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { mockPeriods } from "./reminderUtils";
@@ -24,27 +23,6 @@ export const toLocalTime = (date: Date): Date => {
 export const toUtcTime = (date: Date): Date => {
   const timeZone = getUserTimeZone();
   return fromZonedTime(date, timeZone);
-};
-
-// Ensure valid date with timezone consideration
-export const ensureValidDate = (date: any): Date => {
-  if (date instanceof Date && !isNaN(date.getTime())) {
-    return toLocalTime(date);
-  }
-  
-  if (date && typeof date.toDate === 'function') {
-    return toLocalTime(date.toDate());
-  }
-  
-  if (typeof date === 'string') {
-    const parsedDate = new Date(date);
-    if (!isNaN(parsedDate.getTime())) {
-      return toLocalTime(parsedDate);
-    }
-  }
-  
-  console.warn('Invalid date encountered, using current date', date);
-  return toLocalTime(new Date());
 };
 
 // Format date with period context

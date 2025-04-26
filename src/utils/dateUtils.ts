@@ -24,7 +24,8 @@ export {
   findAvailableTimeSlots,
   suggestIdealPeriods,
   suggestDueDates,
-  detectDateConflicts
+  detectDateConflicts,
+  TimeSlot
 } from './dateSchedulingUtils';
 
 // Export enhanced utilities
@@ -54,4 +55,20 @@ export {
   type DateValidationOptions,
   type DateValidationResult
 } from './dateValidation';
+
+// Export recurrence utilities
+export {
+  RecurrenceType,
+  type RecurrenceRule,
+  generateOccurrences,
+  formatRecurrenceRule,
+  dateMatchesRecurrence
+} from './recurringDatePatterns';
+
+// Export Period types
+export type {
+  Period,
+  PeriodValidationResult,
+  DateWithPeriod
+} from '../types/periodTypes';
 

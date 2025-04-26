@@ -20,8 +20,15 @@ export function findAvailableTimeSlots(
     const periodEnd = new Date(validDate);
     
     // Parse period times (assuming period.startTime and endTime are in "HH:mm" format)
-    const [startHours, startMins] = (period.startTime as string).split(':').map(Number);
-    const [endHours, endMins] = (period.endTime as string).split(':').map(Number);
+    const startTimeStr = period.startTime instanceof Date ? 
+      format(period.startTime, 'HH:mm') : 
+      period.startTime;
+    const endTimeStr = period.endTime instanceof Date ? 
+      format(period.endTime, 'HH:mm') : 
+      period.endTime;
+    
+    const [startHours, startMins] = startTimeStr.split(':').map(Number);
+    const [endHours, endMins] = endTimeStr.split(':').map(Number);
     
     periodStart.setHours(startHours, startMins, 0, 0);
     periodEnd.setHours(endHours, endMins, 0, 0);
