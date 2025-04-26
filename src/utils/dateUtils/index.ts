@@ -5,6 +5,7 @@ export {
   isTimeValid,
   isDateValid,
   parseTimeString,
+  formatTimeString,
 } from './core';
 
 export type { TimeComponents } from './types';
@@ -23,9 +24,9 @@ export {
 } from './validation';
 
 export type {
-  DateValidationOptions,
-  DateValidationResult,
   DateValidationError,
+  DateValidationResult,
+  DateValidationOptions,
 } from './types';
 
 // Re-export timezone utilities

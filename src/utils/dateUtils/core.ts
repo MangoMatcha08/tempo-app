@@ -72,3 +72,17 @@ export function parseTimeString(timeStr: string): TimeComponents | null {
     return null;
   }
 }
+
+export function formatTimeString(date: Date | string): string {
+  try {
+    const validDate = ensureValidDate(date);
+    return validDate.toLocaleTimeString('en-US', { 
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true 
+    });
+  } catch (error) {
+    console.error('Error formatting time:', error);
+    return '--:--';
+  }
+}
