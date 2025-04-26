@@ -4,6 +4,7 @@ import { Period } from '@/contexts/ScheduleContext';
 import { DayColumn } from './DayColumn';
 import { TimeAxis } from './TimeAxis';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { ensureValidDate } from '@/utils/dateCore';
 
 interface WeeklyCalendarProps {
   daysOfWeek: Date[];
@@ -44,7 +45,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
     return periods.filter(period => {
       if (!period.isRecurring) {
         // For non-recurring periods, check exact date (year, month, day)
-        const periodDate = period.startTime;
+        const periodDate = ensureValidDate(period.startTime);
         return (
           periodDate.getFullYear() === day.getFullYear() &&
           periodDate.getMonth() === day.getMonth() &&
@@ -67,8 +68,11 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
     let maxTime = 0;  // Start with beginning of day
 
     periods.forEach(period => {
-      const startHour = period.startTime.getHours();
-      const endHour = period.endTime.getHours() + (period.endTime.getMinutes() > 0 ? 1 : 0);
+      const startDate = ensureValidDate(period.startTime);
+      const endDate = ensureValidDate(period.endTime);
+      
+      const startHour = startDate.getHours();
+      const endHour = endDate.getHours() + (endDate.getMinutes() > 0 ? 1 : 0);
       
       minTime = Math.min(minTime, startHour);
       maxTime = Math.max(maxTime, endHour);

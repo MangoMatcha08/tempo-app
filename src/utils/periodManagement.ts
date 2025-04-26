@@ -1,6 +1,5 @@
-
 import { Period } from '@/contexts/ScheduleContext';
-import { ensureValidDate } from './enhancedDateUtils';
+import { ensureValidDate } from './dateCore';
 import { isDateInRange, compareDates } from './dateTransformations';
 import { addMinutes, isSameDay } from 'date-fns';
 
@@ -24,15 +23,15 @@ export function doPeriodsOverlap(period1: Period, period2: Period): boolean {
     if (!sharedDays || sharedDays.length === 0) {
       return false; // No shared days, no overlap
     }
-  } else if (!isSameDay(period1.startTime, period2.startTime)) {
+  } else if (!isSameDay(ensureValidDate(period1.startTime), ensureValidDate(period2.startTime))) {
     return false; // Different non-recurring days don't overlap
   }
   
   // Time range overlap check (standard interval overlap formula)
-  const start1 = period1.startTime.getHours() * 60 + period1.startTime.getMinutes();
-  const end1 = period1.endTime.getHours() * 60 + period1.endTime.getMinutes();
-  const start2 = period2.startTime.getHours() * 60 + period2.startTime.getMinutes();
-  const end2 = period2.endTime.getHours() * 60 + period2.endTime.getMinutes();
+  const start1 = ensureValidDate(period1.startTime).getHours() * 60 + ensureValidDate(period1.startTime).getMinutes();
+  const end1 = ensureValidDate(period1.endTime).getHours() * 60 + ensureValidDate(period1.endTime).getMinutes();
+  const start2 = ensureValidDate(period2.startTime).getHours() * 60 + ensureValidDate(period2.startTime).getMinutes();
+  const end2 = ensureValidDate(period2.endTime).getHours() * 60 + ensureValidDate(period2.endTime).getMinutes();
   
   return Math.max(start1, start2) < Math.min(end1, end2);
 }
@@ -45,10 +44,10 @@ export function calculateOverlapDuration(period1: Period, period2: Period): numb
     return 0;
   }
   
-  const start1 = period1.startTime.getHours() * 60 + period1.startTime.getMinutes();
-  const end1 = period1.endTime.getHours() * 60 + period1.endTime.getMinutes();
-  const start2 = period2.startTime.getHours() * 60 + period2.startTime.getMinutes();
-  const end2 = period2.endTime.getHours() * 60 + period2.endTime.getMinutes();
+  const start1 = ensureValidDate(period1.startTime).getHours() * 60 + ensureValidDate(period1.startTime).getMinutes();
+  const end1 = ensureValidDate(period1.endTime).getHours() * 60 + ensureValidDate(period1.endTime).getMinutes();
+  const start2 = ensureValidDate(period2.startTime).getHours() * 60 + ensureValidDate(period2.startTime).getMinutes();
+  const end2 = ensureValidDate(period2.endTime).getHours() * 60 + ensureValidDate(period2.endTime).getMinutes();
   
   const overlapStart = Math.max(start1, start2);
   const overlapEnd = Math.min(end1, end2);
@@ -100,7 +99,7 @@ export function findAvailableTimeSlots(
   // Filter periods for the target date
   let dayPeriods = periods.filter(period => {
     if (!period.isRecurring) {
-      return isSameDay(period.startTime, targetDate);
+      return isSameDay(ensureValidDate(period.startTime), targetDate);
     }
     
     // For recurring periods, check if the day of week matches
@@ -110,8 +109,8 @@ export function findAvailableTimeSlots(
   
   // Sort periods by start time
   dayPeriods.sort((a, b) => {
-    const startA = a.startTime.getHours() * 60 + a.startTime.getMinutes();
-    const startB = b.startTime.getHours() * 60 + b.startTime.getMinutes();
+    const startA = ensureValidDate(a.startTime).getHours() * 60 + ensureValidDate(a.startTime).getMinutes();
+    const startB = ensureValidDate(b.startTime).getHours() * 60 + ensureValidDate(b.startTime).getMinutes();
     return startA - startB;
   });
   
@@ -126,6 +125,7 @@ export function findAvailableTimeSlots(
   if (dayPeriods.length === 0) {
     availableSlots.push({
       id: 'available-all-day',
+      name: 'Available All Day',
       title: 'Available All Day',
       type: 'other',
       startTime: dayStart,
@@ -136,7 +136,7 @@ export function findAvailableTimeSlots(
   
   // Check for gap before first period
   const firstPeriod = dayPeriods[0];
-  const firstStart = firstPeriod.startTime.getHours() * 60 + firstPeriod.startTime.getMinutes();
+  const firstStart = ensureValidDate(firstPeriod.startTime).getHours() * 60 + ensureValidDate(firstPeriod.startTime).getMinutes();
   const dayStartMinutes = dayStart.getHours() * 60 + dayStart.getMinutes();
   
   if (firstStart - dayStartMinutes >= minDuration) {
@@ -153,6 +153,7 @@ export function findAvailableTimeSlots(
     
     availableSlots.push({
       id: `available-morning`,
+      name: 'Morning Availability',
       title: 'Morning Availability',
       type: 'other',
       startTime: slotStart,
@@ -162,8 +163,8 @@ export function findAvailableTimeSlots(
   
   // Check for gaps between periods
   for (let i = 0; i < dayPeriods.length - 1; i++) {
-    const currentEnd = dayPeriods[i].endTime.getHours() * 60 + dayPeriods[i].endTime.getMinutes();
-    const nextStart = dayPeriods[i + 1].startTime.getHours() * 60 + dayPeriods[i + 1].startTime.getMinutes();
+    const currentEnd = ensureValidDate(dayPeriods[i].endTime).getHours() * 60 + ensureValidDate(dayPeriods[i].endTime).getMinutes();
+    const nextStart = ensureValidDate(dayPeriods[i + 1].startTime).getHours() * 60 + ensureValidDate(dayPeriods[i + 1].startTime).getMinutes();
     
     if (nextStart - currentEnd >= minDuration) {
       const slotStart = new Date(targetDate);
@@ -184,6 +185,7 @@ export function findAvailableTimeSlots(
       
       availableSlots.push({
         id: `available-${i}`,
+        name: 'Available Time',
         title: 'Available Time',
         type: 'other',
         startTime: slotStart,
@@ -194,7 +196,7 @@ export function findAvailableTimeSlots(
   
   // Check for gap after last period
   const lastPeriod = dayPeriods[dayPeriods.length - 1];
-  const lastEnd = lastPeriod.endTime.getHours() * 60 + lastPeriod.endTime.getMinutes();
+  const lastEnd = ensureValidDate(lastPeriod.endTime).getHours() * 60 + ensureValidDate(lastPeriod.endTime).getMinutes();
   const dayEndMinutes = dayEnd.getHours() * 60 + dayEnd.getMinutes();
   
   if (dayEndMinutes - lastEnd >= minDuration) {
@@ -211,6 +213,7 @@ export function findAvailableTimeSlots(
     
     availableSlots.push({
       id: `available-evening`,
+      name: 'Evening Availability',
       title: 'Evening Availability',
       type: 'other',
       startTime: slotStart,

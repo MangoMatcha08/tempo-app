@@ -1,3 +1,4 @@
+
 import { format, addDays } from 'date-fns';
 import { ensureValidDate } from './dateCore';
 import type { Period } from '@/types/periodTypes';
@@ -19,7 +20,7 @@ export function findAvailableTimeSlots(
     const periodStart = new Date(validDate);
     const periodEnd = new Date(validDate);
     
-    // Parse period times (assuming period.startTime and endTime are in "HH:mm" format)
+    // Parse period times
     const startTimeStr = period.startTime instanceof Date ? 
       format(period.startTime, 'HH:mm') : 
       period.startTime;
@@ -27,11 +28,16 @@ export function findAvailableTimeSlots(
       format(period.endTime, 'HH:mm') : 
       period.endTime;
     
-    const [startHours, startMins] = startTimeStr.split(':').map(Number);
-    const [endHours, endMins] = endTimeStr.split(':').map(Number);
+    const [startHours, startMins] = String(startTimeStr).split(':').map(Number);
+    const [endHours, endMins] = String(endTimeStr).split(':').map(Number);
     
-    periodStart.setHours(startHours, startMins, 0, 0);
-    periodEnd.setHours(endHours, endMins, 0, 0);
+    if (!isNaN(startHours) && !isNaN(startMins)) {
+      periodStart.setHours(startHours, startMins, 0, 0);
+    }
+    
+    if (!isNaN(endHours) && !isNaN(endMins)) {
+      periodEnd.setHours(endHours, endMins, 0, 0);
+    }
     
     return {
       startTime: periodStart,

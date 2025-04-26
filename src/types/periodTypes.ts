@@ -2,8 +2,8 @@
 export interface Period {
   id: string;
   name: string;
-  startTime: string | Date;
-  endTime: string | Date;
+  startTime: string | Date; // Can be either ISO date string or Date object
+  endTime: string | Date;   // Can be either ISO date string or Date object
   type?: 'core' | 'elective' | 'planning' | 'meeting' | 'other';
 }
 

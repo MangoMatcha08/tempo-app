@@ -1,109 +1,103 @@
 
-import { differenceInMinutes, startOfDay, format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
+import { ensureValidDate } from './dateCore';
+import type { Period, PeriodType } from '@/types/periodTypes';
 
-// Calculate the height of a period block based on duration
-export const calculateHeight = (startTime: Date, endTime: Date, heightPerHour: number = 60): string => {
-  const durationMinutes = differenceInMinutes(endTime, startTime);
-  // Scale based on heightPerHour (pixels per hour)
-  return `${Math.max(durationMinutes * (heightPerHour / 60), 30)}px`;
-};
-
-// Calculate the top position of a period block based on start time and minHour
-export const calculateTopPosition = (startTime: Date, minHour: number = 7, heightPerHour: number = 60): string => {
-  const dayStart = startOfDay(startTime);
-  const minutesSinceDayStart = differenceInMinutes(startTime, dayStart);
-  // Adjust for minHour offset
-  const offsetMinutes = (minHour * 60);
-  // Scale based on heightPerHour (pixels per hour)
-  return `${Math.max(0, (minutesSinceDayStart - offsetMinutes) * (heightPerHour / 60))}px`;
-};
-
-// Format time to display
-export const formatTime = (date: Date): string => {
-  return format(date, 'h:mm a');
-};
-
-// Format date to display
-export const formatDate = (date: Date): string => {
-  return format(date, 'EEEE, MMMM d');
-};
-
-// Format short day name
-export const formatDayShort = (date: Date): string => {
-  return format(date, 'EEE');
-};
-
-// Format short date with consistent 3-letter month abbreviation
-export const formatDateShort = (date: Date): string => {
-  // Get month abbreviation and ensure it's exactly 3 characters
-  const month = format(date, 'MMM');
-  // Fix the month abbreviation to exactly 3 characters
-  const threeLetterMonth = month.substring(0, 3);
-  const day = format(date, 'd');
-  return `${threeLetterMonth} ${day}`;
-};
-
-// Get hours array for time axis based on min and max hours
-export const getHoursArray = (minHour: number = 7, maxHour: number = 19): string[] => {
-  const hours = [];
-  for (let hour = minHour; hour <= maxHour; hour++) {
-    const period = hour >= 12 ? 'PM' : 'AM';
-    const hour12 = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
-    hours.push(`${hour12}:00 ${period}`);
-  }
-  return hours;
-};
-
-// Get position for a specific hour, adjusted for the minHour offset
-export const getHourPosition = (hour: string, minHour: number = 7, heightPerHour: number = 60): string => {
-  const [hourStr, period] = hour.split(' ');
-  const [hours, minutes] = hourStr.split(':').map(Number);
+/**
+ * Calculate the height of a period block based on its duration
+ */
+export function calculateHeight(
+  startTime: string | Date, 
+  endTime: string | Date, 
+  heightPerHour: number = 60
+): number {
+  const start = ensureValidDate(startTime);
+  const end = ensureValidDate(endTime);
   
-  let hour24 = hours;
-  if (period === 'PM' && hours !== 12) {
-    hour24 = hours + 12;
-  } else if (period === 'AM' && hours === 12) {
-    hour24 = 0;
-  }
+  const durationMs = end.getTime() - start.getTime();
+  const durationHours = durationMs / (1000 * 60 * 60);
   
-  // Scale based on heightPerHour with minHour offset
-  return `${((hour24 - minHour) * heightPerHour + (minutes || 0) * (heightPerHour / 60))}px`;
-};
+  return Math.max(heightPerHour * durationHours, 20); // Minimum height of 20px
+}
 
-// Get color based on period type
-export const getPeriodColor = (type: string): string => {
+/**
+ * Calculate the top position for a period block
+ */
+export function calculateTopPosition(
+  startTime: string | Date,
+  minHour: number,
+  heightPerHour: number = 60
+): number {
+  const start = ensureValidDate(startTime);
+  
+  const startHour = start.getHours();
+  const startMinutes = start.getMinutes();
+  
+  const hoursSinceMin = startHour - minHour;
+  const minutesFraction = startMinutes / 60;
+  
+  return (hoursSinceMin + minutesFraction) * heightPerHour;
+}
+
+/**
+ * Get period background color based on type
+ */
+export function getPeriodColor(type?: PeriodType): string {
   switch (type) {
     case 'core':
-      return 'bg-blue-500 border-blue-600';
+      return 'bg-blue-500 border-l-blue-700';
     case 'elective':
-      return 'bg-rose-500 border-rose-600';
+      return 'bg-rose-500 border-l-rose-700';
     case 'planning':
-      return 'bg-emerald-500 border-emerald-600';
+      return 'bg-emerald-500 border-l-emerald-700';
     case 'meeting':
-      return 'bg-amber-500 border-amber-600';
-    case 'other':
+      return 'bg-amber-500 border-l-amber-700';
     default:
-      return 'bg-slate-500 border-slate-600';
+      return 'bg-slate-500 border-l-slate-700';
   }
-};
+}
 
-// Get color for reminder indicators
-export const getReminderColors = (): string[] => {
+/**
+ * Get reminder badge colors
+ */
+export function getReminderColors(): string[] {
   return [
     '#0EA5E9', // Ocean Blue
-    '#F97316', // Bright Orange 
+    '#F97316', // Bright Orange
     '#8B5CF6', // Vivid Purple
     '#D946EF', // Magenta Pink
     '#ea384c', // Red
   ];
-};
+}
 
-// Estimate reminder count from period data
-export const estimateReminderCount = (period: any): number => {
-  // In a real app, this would query actual reminders
-  // For now, we'll estimate based on notes length if available
-  if (period.notes) {
-    return Math.min(Math.ceil(period.notes.length / 20), 5);
-  }
-  return 0;
-};
+/**
+ * Format date for display
+ */
+export function formatDate(date: Date | string): string {
+  const validDate = ensureValidDate(date);
+  return format(validDate, 'EEEE, MMMM d');
+}
+
+/**
+ * Format time for display
+ */
+export function formatTime(time: Date | string): string {
+  const validDate = ensureValidDate(time);
+  return format(validDate, 'h:mm a');
+}
+
+/**
+ * Get safe date object from period time
+ */
+export function getPeriodTimeAsDate(time: string | Date, baseDate?: Date): Date {
+  return ensureValidDate(time);
+}
+
+/**
+ * Compare two periods by start time
+ */
+export function comparePeriodTimes(a: Period, b: Period): number {
+  const aTime = ensureValidDate(a.startTime).getTime();
+  const bTime = ensureValidDate(b.startTime).getTime();
+  return aTime - bTime;
+}

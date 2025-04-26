@@ -6,6 +6,7 @@ import { formatDate, formatTime } from '@/utils/scheduleUtils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getPeriodColor } from '@/utils/scheduleUtils';
 import { MapPin } from 'lucide-react';
+import { ensureValidDate } from '@/utils/dateCore';
 
 interface DayDetailViewProps {
   isOpen: boolean;
@@ -23,9 +24,11 @@ export const DayDetailView: React.FC<DayDetailViewProps> = ({
   if (!day) return null;
 
   // Sort periods by start time
-  const sortedPeriods = [...periods].sort((a, b) => 
-    a.startTime.getTime() - b.startTime.getTime()
-  );
+  const sortedPeriods = [...periods].sort((a, b) => {
+    const aTime = ensureValidDate(a.startTime).getTime();
+    const bTime = ensureValidDate(b.startTime).getTime();
+    return aTime - bTime;
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

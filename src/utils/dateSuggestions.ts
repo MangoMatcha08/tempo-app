@@ -1,3 +1,4 @@
+
 import { addDays, addBusinessDays, isSameDay, differenceInDays, startOfToday, isWeekend } from 'date-fns';
 import { Period } from '@/contexts/ScheduleContext';
 import { ensureValidDate } from './enhancedDateUtils';
@@ -163,7 +164,7 @@ export function suggestDueDates(
     if (matchingPeriods.length > 0) {
       const bestPeriod = matchingPeriods[0];
       suggestions.push({
-        suggestedDate: bestPeriod.startTime,
+        suggestedDate: ensureValidDate(bestPeriod.startTime),
         confidence: 0.8,
         periodId: bestPeriod.id,
         reasoning: `Matched with "${bestPeriod.title}" period`
@@ -201,7 +202,7 @@ export function detectDateConflicts(
   // Check period conflicts
   const dayPeriods = periods.filter(period => {
     if (!period.isRecurring) {
-      return isSameDay(period.startTime, validDate);
+      return isSameDay(ensureValidDate(period.startTime), validDate);
     } else {
       const dayOfWeek = validDate.getDay();
       return period.daysOfWeek?.includes(dayOfWeek) || false;
@@ -210,8 +211,8 @@ export function detectDateConflicts(
   
   // Check if time falls within a period
   for (const period of dayPeriods) {
-    const periodStart = period.startTime.getHours() * 60 + period.startTime.getMinutes();
-    const periodEnd = period.endTime.getHours() * 60 + period.endTime.getMinutes();
+    const periodStart = ensureValidDate(period.startTime).getHours() * 60 + ensureValidDate(period.startTime).getMinutes();
+    const periodEnd = ensureValidDate(period.endTime).getHours() * 60 + ensureValidDate(period.endTime).getMinutes();
     const suggestedTime = validDate.getHours() * 60 + validDate.getMinutes();
     
     if (suggestedTime >= periodStart && suggestedTime <= periodEnd) {

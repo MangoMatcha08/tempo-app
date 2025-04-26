@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Period } from '@/contexts/ScheduleContext';
-import { calculateHeight, calculateTopPosition, getPeriodColor, getReminderColors } from '@/utils/scheduleUtils';
+import { calculateHeight, calculateTopPosition, getPeriodColor } from '@/utils/scheduleUtils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface PeriodBlockProps {
