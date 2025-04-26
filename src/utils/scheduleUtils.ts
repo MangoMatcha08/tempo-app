@@ -1,4 +1,3 @@
-
 import { format } from 'date-fns';
 import { ensureValidDate } from './dateCore';
 import type { Period, PeriodType } from '@/types/periodTypes';
@@ -76,6 +75,40 @@ export function getReminderColors(): string[] {
 export function formatDate(date: Date | string): string {
   const validDate = ensureValidDate(date);
   return format(validDate, 'EEEE, MMMM d');
+}
+
+/**
+ * Format date for short display
+ */
+export function formatDateShort(date: Date | string): string {
+  const validDate = ensureValidDate(date);
+  return format(validDate, 'MMM d');
+}
+
+/**
+ * Format day for short display
+ */
+export function formatDayShort(date: Date | string): string {
+  const validDate = ensureValidDate(date);
+  return format(validDate, 'EEE');
+}
+
+/**
+ * Get array of formatted hours for time axis
+ */
+export function getHoursArray(minHour: number, maxHour: number): string[] {
+  const hours: string[] = [];
+  for (let hour = minHour; hour <= maxHour; hour++) {
+    hours.push(format(new Date().setHours(hour, 0), 'h a'));
+  }
+  return hours;
+}
+
+/**
+ * Calculate hour position on time axis
+ */
+export function getHourPosition(hour: number, minHour: number, heightPerHour: number = 60): number {
+  return (hour - minHour) * heightPerHour;
 }
 
 /**

@@ -1,6 +1,4 @@
-
 import { Period, PeriodValidationResult } from '@/types/periodTypes';
-import { parseTimeString } from './dateTimeUtils';
 import { format } from 'date-fns';
 import { ensureValidDate } from './dateCore';
 
@@ -15,42 +13,21 @@ export function validatePeriodTime(date: Date, periodId: string, periods: Period
   }
   
   try {
-    const getTimeComponents = (time: string | Date) => {
-      if (time instanceof Date) {
-        return {
-          hours: time.getHours(),
-          minutes: time.getMinutes()
-        };
-      }
-      return parseTimeString(time);
-    };
-
-    const periodStart = getTimeComponents(period.startTime);
-    const periodEnd = getTimeComponents(period.endTime);
-    const currentTime = {
-      hours: date.getHours(),
-      minutes: date.getMinutes()
-    };
+    const periodStart = ensureValidDate(period.startTime);
+    const periodEnd = ensureValidDate(period.endTime);
+    const validDate = ensureValidDate(date);
     
-    const isAfterStart = 
-      currentTime.hours > periodStart.hours || 
-      (currentTime.hours === periodStart.hours && currentTime.minutes >= periodStart.minutes);
-      
-    const isBeforeEnd =
-      currentTime.hours < periodEnd.hours ||
-      (currentTime.hours === periodEnd.hours && currentTime.minutes <= periodEnd.minutes);
+    const startFormatted = format(periodStart, 'HH:mm');
+    const endFormatted = format(periodEnd, 'HH:mm');
+    const dateFormatted = format(validDate, 'HH:mm');
+    
+    const isAfterStart = dateFormatted >= startFormatted;
+    const isBeforeEnd = dateFormatted <= endFormatted;
     
     if (!isAfterStart || !isBeforeEnd) {
-      const formatTime = (time: string | Date) => {
-        if (time instanceof Date) {
-          return format(time, 'HH:mm');
-        }
-        return time;
-      };
-      
       return {
         isValid: false,
-        error: `Time must be within period hours (${formatTime(period.startTime)} - ${formatTime(period.endTime)})`
+        error: `Time must be within period hours (${startFormatted} - ${endFormatted})`
       };
     }
     

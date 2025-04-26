@@ -1,4 +1,3 @@
-
 import { addDays, addBusinessDays, isSameDay, differenceInDays, startOfToday, isWeekend } from 'date-fns';
 import { Period } from '@/contexts/ScheduleContext';
 import { ensureValidDate } from './enhancedDateUtils';
@@ -149,9 +148,7 @@ export function suggestDueDates(
   
   // Add period-based suggestions if available
   if (periods.length > 0) {
-    // Find periods that match category and might be relevant
     const matchingPeriods = periods.filter(period => {
-      // Logic to match periods with reminder category
       if (category === ReminderCategory.GRADING && period.title.toLowerCase().includes("planning")) {
         return true;
       }

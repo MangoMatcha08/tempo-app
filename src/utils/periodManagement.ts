@@ -26,14 +26,18 @@ export function doPeriodsOverlap(period1: Period, period2: Period): boolean {
   } else if (!isSameDay(ensureValidDate(period1.startTime), ensureValidDate(period2.startTime))) {
     return false; // Different non-recurring days don't overlap
   }
+
+  const start1 = ensureValidDate(period1.startTime);
+  const end1 = ensureValidDate(period1.endTime);
+  const start2 = ensureValidDate(period2.startTime);
+  const end2 = ensureValidDate(period2.endTime);
   
-  // Time range overlap check (standard interval overlap formula)
-  const start1 = ensureValidDate(period1.startTime).getHours() * 60 + ensureValidDate(period1.startTime).getMinutes();
-  const end1 = ensureValidDate(period1.endTime).getHours() * 60 + ensureValidDate(period1.endTime).getMinutes();
-  const start2 = ensureValidDate(period2.startTime).getHours() * 60 + ensureValidDate(period2.startTime).getMinutes();
-  const end2 = ensureValidDate(period2.endTime).getHours() * 60 + ensureValidDate(period2.endTime).getMinutes();
+  const start1Time = start1.getHours() * 60 + start1.getMinutes();
+  const end1Time = end1.getHours() * 60 + end1.getMinutes();
+  const start2Time = start2.getHours() * 60 + start2.getMinutes();
+  const end2Time = end2.getHours() * 60 + end2.getMinutes();
   
-  return Math.max(start1, start2) < Math.min(end1, end2);
+  return Math.max(start1Time, start2Time) < Math.min(end1Time, end2Time);
 }
 
 /**
@@ -234,7 +238,7 @@ export function groupPeriodsByDay(periods: Period[]): Map<string, Period[]> {
   periods.forEach(period => {
     if (!period.isRecurring) {
       // For non-recurring periods, group by actual date
-      const dateKey = period.startTime.toISOString().split('T')[0];
+      const dateKey = ensureValidDate(period.startTime).toISOString().split('T')[0];
       
       if (!periodsByDay.has(dateKey)) {
         periodsByDay.set(dateKey, []);
@@ -244,7 +248,7 @@ export function groupPeriodsByDay(periods: Period[]): Map<string, Period[]> {
     } else {
       // For recurring periods, add to each day of week
       period.daysOfWeek?.forEach(dayOfWeek => {
-        const dayKey = `day-${dayOfWeek}`; // e.g., 'day-1' for Monday
+        const dayKey = `day-${dayOfWeek}`;
         
         if (!periodsByDay.has(dayKey)) {
           periodsByDay.set(dayKey, []);
@@ -256,11 +260,11 @@ export function groupPeriodsByDay(periods: Period[]): Map<string, Period[]> {
   });
   
   // Sort periods within each day
-  periodsByDay.forEach((dayPeriods, day) => {
+  periodsByDay.forEach((dayPeriods) => {
     dayPeriods.sort((a, b) => {
-      const startA = a.startTime.getHours() * 60 + a.startTime.getMinutes();
-      const startB = b.startTime.getHours() * 60 + b.startTime.getMinutes();
-      return startA - startB;
+      const startA = ensureValidDate(a.startTime);
+      const startB = ensureValidDate(b.startTime);
+      return startA.getTime() - startB.getTime();
     });
   });
   
