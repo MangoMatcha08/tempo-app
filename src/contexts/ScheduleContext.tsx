@@ -1,16 +1,10 @@
-
 import { createContext, useContext, ReactNode, useState } from "react";
 import { useFirestore } from "@/contexts/FirestoreContext";
+import type { Period as BasePeriod } from "@/types/periodTypes";
 
-// Types
-export type PeriodType = "core" | "elective" | "planning" | "meeting" | "other";
-
-export interface Period {
-  id: string;
-  title: string;
-  type: PeriodType;
-  startTime: Date;
-  endTime: Date;
+// Extend the base Period type
+export interface Period extends BasePeriod {
+  title: string;  // Alias for name
   location?: string;
   isRecurring?: boolean;
   daysOfWeek?: number[];
@@ -75,3 +69,14 @@ export const ScheduleProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const useScheduleContext = () => useContext(ScheduleContext);
+
+// Add title to name conversion helper
+export function convertToPeriod(schedulePeriod: Period): BasePeriod {
+  return {
+    id: schedulePeriod.id,
+    name: schedulePeriod.title, // Map title to name
+    startTime: schedulePeriod.startTime,
+    endTime: schedulePeriod.endTime,
+    type: schedulePeriod.type,
+  };
+}

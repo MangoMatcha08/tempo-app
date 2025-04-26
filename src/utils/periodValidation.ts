@@ -1,6 +1,8 @@
 
 import { Period, PeriodValidationResult } from '@/types/periodTypes';
 import { parseTimeString } from './dateTimeUtils';
+import { format } from 'date-fns';
+import { ensureValidDate } from './dateCore';
 
 export function validatePeriodTime(date: Date, periodId: string, periods: Period[]): PeriodValidationResult {
   const period = periods.find(p => p.id === periodId);
@@ -13,8 +15,18 @@ export function validatePeriodTime(date: Date, periodId: string, periods: Period
   }
   
   try {
-    const periodStart = parseTimeString(period.startTime);
-    const periodEnd = parseTimeString(period.endTime);
+    const getTimeComponents = (time: string | Date) => {
+      if (time instanceof Date) {
+        return {
+          hours: time.getHours(),
+          minutes: time.getMinutes()
+        };
+      }
+      return parseTimeString(time);
+    };
+
+    const periodStart = getTimeComponents(period.startTime);
+    const periodEnd = getTimeComponents(period.endTime);
     const currentTime = {
       hours: date.getHours(),
       minutes: date.getMinutes()
@@ -29,9 +41,16 @@ export function validatePeriodTime(date: Date, periodId: string, periods: Period
       (currentTime.hours === periodEnd.hours && currentTime.minutes <= periodEnd.minutes);
     
     if (!isAfterStart || !isBeforeEnd) {
+      const formatTime = (time: string | Date) => {
+        if (time instanceof Date) {
+          return format(time, 'HH:mm');
+        }
+        return time;
+      };
+      
       return {
         isValid: false,
-        error: `Time must be within period hours (${period.startTime} - ${period.endTime})`
+        error: `Time must be within period hours (${formatTime(period.startTime)} - ${formatTime(period.endTime)})`
       };
     }
     

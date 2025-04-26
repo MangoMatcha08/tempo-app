@@ -9,6 +9,9 @@ export {
   isDateValid
 } from './dateCore';
 
+// Export memoization utility
+export { memoizeDateFn } from './dateMemoization';
+
 // Export date transformation utilities
 export {
   parseStringToDate,
@@ -20,12 +23,15 @@ export {
 } from './dateTransformations';
 
 // Export scheduling utilities
+export type {
+  TimeSlot
+} from './dateSchedulingUtils';
+
 export {
   findAvailableTimeSlots,
   suggestIdealPeriods,
   suggestDueDates,
   detectDateConflicts,
-  TimeSlot
 } from './dateSchedulingUtils';
 
 // Export enhanced utilities
@@ -39,27 +45,27 @@ export {
   toUtcTime
 } from './enhancedDateUtils';
 
-// Export performance utilities
-export {
-  datePerformance,
-  dateOptimizationTips
-} from './datePerformanceMonitor';
-
 // Export validation utilities
+export type {
+  DateFormats,
+  DateValidationOptions,
+  DateValidationResult
+} from './dateValidation';
+
 export {
   validateDate,
   validateDateRange,
   sanitizeDate,
-  DateFormats,
   DateValidationErrorType,
-  type DateValidationOptions,
-  type DateValidationResult
 } from './dateValidation';
 
 // Export recurrence utilities
+export type {
+  RecurrenceRule
+} from './recurringDatePatterns';
+
 export {
   RecurrenceType,
-  type RecurrenceRule,
   generateOccurrences,
   formatRecurrenceRule,
   dateMatchesRecurrence
@@ -71,4 +77,3 @@ export type {
   PeriodValidationResult,
   DateWithPeriod
 } from '../types/periodTypes';
-
