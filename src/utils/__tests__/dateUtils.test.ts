@@ -1,4 +1,3 @@
-
 import { 
   parseStringToDate, 
   formatDate,
@@ -25,6 +24,7 @@ import {
   generateOccurrences
 } from '../recurringDatePatterns';
 import { dateCache, memoizeDateFn } from '../dateOperationsCache';
+import { vi } from 'vitest';
 
 describe('Date Transformation Tests', () => {
   test('parseStringToDate handles various formats', () => {
