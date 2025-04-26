@@ -77,3 +77,6 @@ export type {
   PeriodValidationResult,
   DateWithPeriod
 } from '../types/periodTypes';
+
+// Export date performance monitoring
+export { datePerformance } from './datePerformanceMonitor';

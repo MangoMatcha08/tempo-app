@@ -1,5 +1,7 @@
+
 import { useState, useCallback } from 'react';
-import { useScheduleContext, Period, PeriodType } from '@/contexts/ScheduleContext';
+import { useScheduleContext, Period } from '@/contexts/ScheduleContext';
+import { PeriodType } from '@/types/periodTypes';
 import { addMinutes, addDays, startOfWeek, isToday, isSameDay } from 'date-fns';
 
 // Mock data generator
@@ -25,6 +27,7 @@ const generateMockPeriods = (): Period[] => {
     {
       id: '1',
       title: 'Period 1',
+      name: 'Period 1',
       type: 'core',
       startTime: createTime(8, 50),
       endTime: createTime(9, 50),
@@ -36,6 +39,7 @@ const generateMockPeriods = (): Period[] => {
     {
       id: 'break',
       title: 'Break',
+      name: 'Break',
       type: 'other',
       startTime: createTime(9, 50),
       endTime: createTime(10, 5),
@@ -45,6 +49,7 @@ const generateMockPeriods = (): Period[] => {
     {
       id: '2',
       title: 'Period 2',
+      name: 'Period 2',
       type: 'core',
       startTime: createTime(10, 8),
       endTime: createTime(11, 8),
@@ -56,6 +61,7 @@ const generateMockPeriods = (): Period[] => {
     {
       id: '3',
       title: 'Period 3',
+      name: 'Period 3',
       type: 'core',
       startTime: createTime(11, 11),
       endTime: createTime(12, 11),
@@ -66,6 +72,7 @@ const generateMockPeriods = (): Period[] => {
     {
       id: '4',
       title: 'Period 4',
+      name: 'Period 4',
       type: 'core',
       startTime: createTime(12, 14),
       endTime: createTime(13, 14),
@@ -76,6 +83,7 @@ const generateMockPeriods = (): Period[] => {
     {
       id: 'lunch',
       title: 'Lunch',
+      name: 'Lunch',
       type: 'other',
       startTime: createTime(13, 14),
       endTime: createTime(13, 44),
@@ -85,6 +93,7 @@ const generateMockPeriods = (): Period[] => {
     {
       id: '5',
       title: 'Period 5',
+      name: 'Period 5',
       type: 'core',
       startTime: createTime(13, 47),
       endTime: createTime(14, 47),
@@ -95,6 +104,7 @@ const generateMockPeriods = (): Period[] => {
     {
       id: '6',
       title: 'Period 6',
+      name: 'Period 6',
       type: 'core',
       startTime: createTime(14, 50),
       endTime: createTime(15, 30),
@@ -105,6 +115,7 @@ const generateMockPeriods = (): Period[] => {
     {
       id: 'after-school',
       title: 'After School',
+      name: 'After School',
       type: 'other',
       startTime: createTime(15, 30),
       endTime: createTime(17, 0),
@@ -113,10 +124,8 @@ const generateMockPeriods = (): Period[] => {
     },
   ];
   
-  return mockPeriods.map(period => ({
-    ...period,
-    name: period.title
-  }));
+  // Removed redundant mapping since name is now included directly above
+  return mockPeriods;
 };
 
 export const useSchedule = () => {

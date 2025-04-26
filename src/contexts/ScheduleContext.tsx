@@ -3,6 +3,9 @@ import { createContext, useContext, ReactNode, useState } from "react";
 import { useFirestore } from "@/contexts/FirestoreContext";
 import type { Period as BasePeriod, PeriodType } from "@/types/periodTypes";
 
+// Re-export PeriodType for backward compatibility
+export type { PeriodType } from "@/types/periodTypes";
+
 // Extend the base Period type
 export interface Period extends BasePeriod {
   title: string;  // Alias for name
