@@ -1,25 +1,7 @@
 import { isValid, isBefore, isAfter } from 'date-fns';
 import { ensureValidDate } from './core';
 import { toZonedTime } from './timezone';
-
-export interface DateValidationError {
-  type: string;
-  message: string;
-}
-
-export interface DateValidationResult {
-  isValid: boolean;
-  sanitizedValue?: Date;
-  errors: DateValidationError[];
-}
-
-export interface DateValidationOptions {
-  required?: boolean;
-  minDate?: Date;
-  maxDate?: Date;
-  format?: string;
-  timeZone?: string;
-}
+import type { DateValidationError, DateValidationResult, DateValidationOptions } from './types';
 
 export function validateDate(
   date: Date | string | null | undefined,

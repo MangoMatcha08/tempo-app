@@ -1,11 +1,5 @@
-
 import { isValid } from 'date-fns';
-import { toZonedTime } from 'date-fns-tz';
-
-export interface TimeComponents {
-  hours: number;
-  minutes: number;
-}
+import type { TimeComponents } from './types';
 
 export function ensureValidDate(date: any): Date {
   // Already a valid Date
@@ -78,4 +72,3 @@ export function parseTimeString(timeStr: string): TimeComponents | null {
     return null;
   }
 }
-
