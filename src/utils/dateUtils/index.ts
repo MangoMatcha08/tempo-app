@@ -9,13 +9,17 @@ export {
 } from './core';
 
 // Export types
-export {
+export type {
   TimeComponents,
+  DateValidationError,
+  DateValidationResult,
+  DateValidationOptions,
+} from './types';
+
+// Export enums and constants
+export {
   DateValidationErrorType,
   ValidationErrorMessages,
-  type DateValidationError,
-  type DateValidationResult,
-  type DateValidationOptions,
 } from './types';
 
 // Re-export transformation utilities
@@ -34,7 +38,6 @@ export {
 // Re-export timezone utilities
 export {
   getUserTimeZone,
-  formatWithTimeZone,
   toZonedTime,
   fromZonedTime
 } from './timezone';

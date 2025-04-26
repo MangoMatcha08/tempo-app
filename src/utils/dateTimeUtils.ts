@@ -65,4 +65,3 @@ export function convertToLocal(date: Date): Date {
 // Export the original functions for direct use
 export { toZonedTime as convertToZonedTime } from './dateUtils';
 export { fromZonedTime as convertFromZonedTime } from './dateUtils';
-

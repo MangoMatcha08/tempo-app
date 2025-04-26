@@ -2,7 +2,7 @@
 import { isValid, isBefore, isAfter } from 'date-fns';
 import { ensureValidDate } from './core';
 import { toZonedTime } from './timezone';
-import { DateValidationErrorType } from '../dateValidation';
+import { DateValidationErrorType } from './types';
 import type { DateValidationError, DateValidationResult, DateValidationOptions } from './types';
 
 export function validateDate(
@@ -74,14 +74,14 @@ export function validateDate(
     // Check explicit min/max date constraints
     if (options.minDate && isBefore(sanitizedDate, options.minDate)) {
       errors.push({
-        type: DateValidationErrorType.OUT_OF_RANGE,
+        type: DateValidationErrorType.BEFORE_MIN_DATE,
         message: 'Date is before minimum allowed date'
       });
     }
     
     if (options.maxDate && isAfter(sanitizedDate, options.maxDate)) {
       errors.push({
-        type: DateValidationErrorType.OUT_OF_RANGE,
+        type: DateValidationErrorType.AFTER_MAX_DATE,
         message: 'Date is after maximum allowed date'
       });
     }

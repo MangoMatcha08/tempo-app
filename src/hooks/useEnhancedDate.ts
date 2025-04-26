@@ -1,9 +1,8 @@
-
 import { useState, useCallback, useMemo } from 'react';
 import { addDays, addWeeks, addMonths, format, isValid } from 'date-fns';
 import { 
   ensureValidDate,
-  formatWithTimezone, 
+  formatWithTimeZone, 
   isDateInRange, 
   areDatesEqual,
   RecurrenceRule, 
@@ -102,7 +101,7 @@ export const useEnhancedDate = (initialDate: Date = new Date()) => {
   
   // Format date with timezone consideration
   const formatDate = useCallback((date: Date, formatStr: string = 'yyyy-MM-dd HH:mm') => {
-    return formatWithTimezone(date, formatStr);
+    return formatWithTimeZone(date, formatStr);
   }, []);
   
   // Check if a date is in a range

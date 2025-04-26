@@ -3,14 +3,14 @@
 import { 
   formatDate,
   formatDateRange,
-  formatWithTimezone,
+  formatWithTimeZone, 
   DateFormats
 } from '../dateUtils';
 
 export {
   formatDate,
   formatDateRange,
-  formatWithTimezone,
+  formatWithTimeZone,
   DateFormats
 };
 

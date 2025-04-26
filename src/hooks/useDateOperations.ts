@@ -7,10 +7,10 @@ import {
   getNearestPeriodTime 
 } from '@/utils/enhancedDateUtils';
 import { 
-  formatWithTimezone,
+  formatWithTimeZone,
   isDateInRange,
   areDatesEqual 
-} from '@/utils/dateTransformations';
+} from '@/utils/dateUtils';
 
 export const useDateOperations = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -33,7 +33,7 @@ export const useDateOperations = () => {
   }, []);
   
   const formatWithZone = useCallback((date: Date, format?: string) => {
-    return formatWithTimezone(date, format);
+    return formatWithTimeZone(date, format);
   }, []);
   
   return {
