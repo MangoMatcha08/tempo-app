@@ -1,5 +1,5 @@
 
-import { format, parse, isValid as isDateValid } from 'date-fns';
+import { format, parse, isValid } from 'date-fns';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 /**
@@ -66,8 +66,8 @@ export function isTimeValid(hours: number, minutes: number): boolean {
   return hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60;
 }
 
-export function isDateValid(date: any): boolean {
-  if (!date) return false;
-  const validDate = ensureValidDate(date);
-  return isDateValid(validDate);
+export function isDateValid(value: any): boolean {
+  if (!value) return false;
+  const date = ensureValidDate(value);
+  return isValid(date);
 }

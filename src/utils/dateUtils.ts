@@ -40,11 +40,9 @@ export {
 
 // Export performance utilities
 export {
-  dateCache,
-  memoizeDateFn,
-  batchProcessDates,
-  DateOperationsCache
-} from './dateOperationsCache';
+  datePerformance,
+  dateOptimizationTips
+} from './datePerformanceMonitor';
 
 // Export validation utilities
 export {
@@ -57,18 +55,3 @@ export {
   type DateValidationResult
 } from './dateValidation';
 
-// Export debugging utilities
-export {
-  debugDate as dateDebug,
-  generateDateDebugReport
-} from './dateDebugUtils';
-
-// Export recurrence utilities
-export {
-  RecurrenceType,
-  type RecurrenceRule,
-  validateRecurrenceRule,
-  generateOccurrences,
-  formatRecurrenceRule,
-  dateMatchesRecurrence
-} from './recurringDatePatterns';

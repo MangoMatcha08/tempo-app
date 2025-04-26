@@ -1,22 +1,27 @@
-
 import { format, addDays } from 'date-fns';
 import { ensureValidDate } from './dateCore';
-import { Period } from '@/contexts/ScheduleContext';
+import type { Period } from '@/types/periodTypes';
 import type { ReminderCategory, ReminderPriority } from '@/types/reminderTypes';
+
+export interface TimeSlot {
+  startTime: Date;
+  endTime: Date;
+  periodId?: string;
+}
 
 export function findAvailableTimeSlots(
   periods: Period[],
   minDuration: number = 30,
   date: Date = new Date()
-): Array<{ startTime: Date; endTime: Date; periodId?: string }> {
+): TimeSlot[] {
   const validDate = ensureValidDate(date);
   return periods.map(period => {
     const periodStart = new Date(validDate);
     const periodEnd = new Date(validDate);
     
-    // Set hours and minutes from period times
-    const [startHours, startMins] = period.startTime.split(':').map(Number);
-    const [endHours, endMins] = period.endTime.split(':').map(Number);
+    // Parse period times (assuming period.startTime and endTime are in "HH:mm" format)
+    const [startHours, startMins] = (period.startTime as string).split(':').map(Number);
+    const [endHours, endMins] = (period.endTime as string).split(':').map(Number);
     
     periodStart.setHours(startHours, startMins, 0, 0);
     periodEnd.setHours(endHours, endMins, 0, 0);
