@@ -35,10 +35,21 @@ describe('Date Time Utils', () => {
     });
 
     test('adjustDateIfPassed moves past dates forward', () => {
+      // Create a date that's definitely in the past (yesterday)
       const pastDate = new Date();
       pastDate.setDate(pastDate.getDate() - 1);
+      
+      // Get the adjusted date
       const result = adjustDateIfPassed(pastDate);
-      expect(result.getDate()).toBe(new Date().getDate() + 1);
+      
+      // Now should be today, result should be tomorrow
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      // Compare the dates (just the day, month, year)
+      expect(result.getDate()).toBe(tomorrow.getDate());
+      expect(result.getMonth()).toBe(tomorrow.getMonth());
+      expect(result.getFullYear()).toBe(tomorrow.getFullYear());
     });
   });
 

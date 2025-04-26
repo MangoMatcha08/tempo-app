@@ -50,9 +50,18 @@ export function adjustDateIfPassed(date: Date): Date {
     const now = new Date();
     const adjustedDate = new Date(validDate);
     
-    // If date is in the past, move it to tomorrow
+    // If date is in the past, move it to tomorrow (from current date)
     if (adjustedDate < now) {
-      adjustedDate.setDate(adjustedDate.getDate() + 1);
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      // Preserve the time from the original date
+      tomorrow.setHours(
+        adjustedDate.getHours(),
+        adjustedDate.getMinutes(),
+        adjustedDate.getSeconds(),
+        adjustedDate.getMilliseconds()
+      );
+      return tomorrow;
     }
     
     return adjustedDate;
@@ -135,4 +144,3 @@ export const convertToLocal = toZonedTime;
 // Export the centralized functions for direct use
 export { toZonedTime as convertToZonedTime } from './dateUtils/timezone';
 export { fromZonedTime as convertFromZonedTime } from './dateUtils/timezone';
-
