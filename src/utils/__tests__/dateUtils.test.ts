@@ -21,6 +21,8 @@ describe('Date Utils', () => {
       expect(ensureValidDate(isoString) instanceof Date).toBe(true);
       
       expect(() => ensureValidDate('not a date')).toThrow('Invalid date string');
+      expect(() => ensureValidDate(undefined)).toThrow('Invalid date input');
+      expect(() => ensureValidDate(null)).toThrow('Invalid date input');
     });
     
     test('parseTimeString handles various formats', () => {

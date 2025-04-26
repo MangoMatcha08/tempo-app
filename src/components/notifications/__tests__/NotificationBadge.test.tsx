@@ -1,20 +1,16 @@
 
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import NotificationBadge from '../NotificationBadge';
-import { useNotificationDisplay } from '@/hooks/useNotificationDisplay';
+import { useNotificationDisplay } from '@/hooks/notifications/useNotificationDisplay';
 
 // Mock the useNotificationDisplay hook
-vi.mock('@/hooks/useNotificationDisplay', () => ({
+vi.mock('@/hooks/notifications/useNotificationDisplay', () => ({
   useNotificationDisplay: vi.fn()
 }));
 
 describe('NotificationBadge', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('should render without badge when no unread notifications', () => {
     (useNotificationDisplay as ReturnType<typeof vi.fn>).mockReturnValue({
       unreadCount: 0
@@ -22,8 +18,9 @@ describe('NotificationBadge', () => {
 
     render(<NotificationBadge />);
     
-    expect(screen.getByRole('button')).toBeInTheDocument();
-    expect(screen.queryByText('0')).not.toBeInTheDocument();
+    const button = screen.getByRole('button');
+    expect(button).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('should render with badge when there are unread notifications', () => {
@@ -33,9 +30,9 @@ describe('NotificationBadge', () => {
 
     render(<NotificationBadge />);
     
-    const button = screen.getByRole('button');
-    expect(button).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('5');
+    const status = screen.getByRole('status');
+    expect(status).toBeInTheDocument();
+    expect(status).toHaveTextContent('5');
   });
 
   it('should show 9+ when unread count exceeds 9', () => {
@@ -45,9 +42,9 @@ describe('NotificationBadge', () => {
 
     render(<NotificationBadge />);
     
-    const button = screen.getByRole('button');
-    expect(button).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('9+');
+    const status = screen.getByRole('status');
+    expect(status).toBeInTheDocument();
+    expect(status).toHaveTextContent('9+');
   });
 
   it('should call onClick handler when clicked', async () => {
