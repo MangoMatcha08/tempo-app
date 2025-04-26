@@ -8,8 +8,7 @@ import {
   ensureValidDate,
   getUserTimeZone,
   toZonedTime,
-  fromZonedTime,
-  DateValidationError
+  fromZonedTime
 } from '../dateUtils';
 
 describe('Date Utils', () => {
@@ -21,8 +20,7 @@ describe('Date Utils', () => {
       const isoString = '2024-04-25T12:00:00Z';
       expect(ensureValidDate(isoString) instanceof Date).toBe(true);
       
-      const invalid = 'not a date';
-      expect(ensureValidDate(invalid) instanceof Date).toBe(true);
+      expect(() => ensureValidDate('not a date')).toThrow('Invalid date string');
     });
     
     test('parseTimeString handles various formats', () => {
