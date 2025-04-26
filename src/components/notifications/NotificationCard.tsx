@@ -1,9 +1,8 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { NotificationRecord } from "@/types/notifications/notificationHistoryTypes";
-import { Bell, X, Eye, Check } from "lucide-react";
+import { Bell, X, Eye } from "lucide-react";
 
 interface NotificationCardProps {
   notification: NotificationRecord;
@@ -11,27 +10,13 @@ interface NotificationCardProps {
   onMarkRead: () => void;
 }
 
-/**
- * Displays a single notification as a card
- */
 const NotificationCard: React.FC<NotificationCardProps> = ({ 
   notification, 
   onAction,
   onMarkRead 
 }) => {
-  const isRead = notification.status === "read";
+  const isRead = notification.status === "received" || notification.status === "clicked";
   
-  // Format timestamp
-  const formatTime = (timestamp: number) => {
-    try {
-      const date = new Date(timestamp);
-      return date.toLocaleString();
-    } catch (error) {
-      return "Unknown time";
-    }
-  };
-  
-  // Handle click on the card itself
   const handleCardClick = () => {
     if (!isRead) {
       onMarkRead();
@@ -47,10 +32,6 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
       `}
       onClick={handleCardClick}
     >
-      {!isRead && (
-        <div className="absolute top-2 right-2 h-3 w-3 rounded-full bg-blue-500"></div>
-      )}
-      
       <CardHeader className="p-4 pb-2 flex flex-row justify-between items-start">
         <div className="flex items-center gap-2">
           <div className="rounded-full bg-slate-100 dark:bg-slate-700 p-1">
@@ -69,32 +50,20 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
         </p>
         
         <div className="flex justify-end gap-2 mt-4">
-          {!isRead && (
+          {notification.reminderId && (
             <Button 
               variant="outline" 
               size="sm" 
               onClick={(e) => {
                 e.stopPropagation();
-                onMarkRead();
+                onAction("view");
               }}
               className="flex items-center gap-1"
             >
-              <Check className="h-4 w-4" />
-              <span className="hidden sm:inline">Mark read</span>
+              <Eye className="h-4 w-4" />
+              <span className="hidden sm:inline">View</span>
             </Button>
           )}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={(e) => {
-              e.stopPropagation();
-              onAction("view");
-            }}
-            className="flex items-center gap-1"
-          >
-            <Eye className="h-4 w-4" />
-            <span className="hidden sm:inline">View</span>
-          </Button>
           <Button 
             variant="outline" 
             size="sm" 

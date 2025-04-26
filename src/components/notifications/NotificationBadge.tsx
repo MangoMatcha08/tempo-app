@@ -14,6 +14,7 @@ const NotificationBadge = ({ className, onClick }: NotificationBadgeProps) => {
   const { unreadCount } = useNotificationDisplay();
   
   const hasUnread = unreadCount > 0;
+  const displayCount = unreadCount > 9 ? '9+' : unreadCount;
   
   return (
     <div className={cn("relative inline-flex items-center", className)}>
@@ -24,12 +25,16 @@ const NotificationBadge = ({ className, onClick }: NotificationBadgeProps) => {
       >
         <Bell className="h-5 w-5" />
         {hasUnread && (
-          <span className="absolute top-1 right-1 flex">
+          <span 
+            className="absolute top-1 right-1 flex"
+            role="status"
+            aria-live="polite"
+          >
             <Badge 
               className="h-4 w-4 flex items-center justify-center text-[10px] p-0 m-0"
               variant="destructive"
             >
-              {unreadCount > 9 ? '9+' : unreadCount}
+              {displayCount}
             </Badge>
           </span>
         )}

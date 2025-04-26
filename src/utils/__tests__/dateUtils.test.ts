@@ -113,8 +113,10 @@ describe('DateTime Utilities Tests', () => {
     const utcDate = convertToUtc(date);
     const localDate = convertToLocal(date);
     
-    expect(utcDate.toISOString()).toBe(date.toISOString());
+    // Test that UTC conversion preserves the timestamp
+    expect(utcDate.getTime()).toBe(date.getTime());
     expect(localDate instanceof Date).toBe(true);
+    // Local time should be different from UTC time
     expect(localDate.getTime()).not.toBe(utcDate.getTime());
   });
 });
