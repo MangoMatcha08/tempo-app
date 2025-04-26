@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { NotificationRecord } from "@/types/notifications/notificationHistoryTypes";
 import { Bell, X, Eye } from "lucide-react";
+import { formatTime } from "@/utils/timeUtils";
 
 interface NotificationCardProps {
   notification: NotificationRecord;
@@ -40,7 +41,7 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
           <h3 className="font-medium">{notification.title}</h3>
         </div>
         <span className="text-xs text-slate-500 dark:text-slate-400">
-          {formatTime(notification.timestamp)}
+          {formatTime(new Date(notification.timestamp))}
         </span>
       </CardHeader>
       
