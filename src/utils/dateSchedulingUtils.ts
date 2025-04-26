@@ -1,93 +1,53 @@
+
 import { format, addDays } from 'date-fns';
-import { ensureValidDate } from './enhancedDateUtils';
+import { ensureValidDate } from './dateCore';
 import { Period } from '@/contexts/ScheduleContext';
 import type { ReminderCategory, ReminderPriority } from '@/types/reminderTypes';
-import { TimeComponents, TimeString, isTimeString } from '@/types/dateTypes';
 
-const parseTimeString = (timeStr: TimeString): TimeComponents => {
-  const [hours, minutes] = timeStr.split(':').map(Number);
-  return {
-    hours: hours || 0,
-    minutes: minutes || 0
-  };
-};
-
-const getTimeComponentsFromDate = (date: Date): TimeComponents => {
-  return {
-    hours: date.getHours(),
-    minutes: date.getMinutes()
-  };
-};
-
-export const findAvailableTimeSlots = (
+export function findAvailableTimeSlots(
   periods: Period[],
   minDuration: number = 30,
   date: Date = new Date()
-): { startTime: Date; endTime: Date; periodId?: string }[] => {
+): Array<{ startTime: Date; endTime: Date; periodId?: string }> {
   const validDate = ensureValidDate(date);
-  const baseDate = new Date(validDate);
-  
   return periods.map(period => {
-    if (!isTimeString(period.startTime) || !isTimeString(period.endTime)) {
-      console.warn('Invalid time format in period:', period);
-      return null;
-    }
+    const periodStart = new Date(validDate);
+    const periodEnd = new Date(validDate);
     
-    const startComponents = parseTimeString(period.startTime);
-    const endComponents = parseTimeString(period.endTime);
+    // Set hours and minutes from period times
+    const [startHours, startMins] = period.startTime.split(':').map(Number);
+    const [endHours, endMins] = period.endTime.split(':').map(Number);
     
-    const periodStartTime = new Date(baseDate);
-    periodStartTime.setHours(startComponents.hours, startComponents.minutes, 0, 0);
-    
-    const periodEndTime = new Date(baseDate);
-    periodEndTime.setHours(endComponents.hours, endComponents.minutes, 0, 0);
+    periodStart.setHours(startHours, startMins, 0, 0);
+    periodEnd.setHours(endHours, endMins, 0, 0);
     
     return {
-      startTime: periodStartTime,
-      endTime: periodEndTime,
+      startTime: periodStart,
+      endTime: periodEnd,
       periodId: period.id
     };
-  }).filter((slot): slot is NonNullable<typeof slot> => slot !== null);
-};
+  });
+}
 
-export const suggestIdealPeriods = (
+export function suggestIdealPeriods(
   periods: Period[],
   duration: number = 30,
   preferredTypes: string[] = []
-): Period[] => {
+): Period[] {
   return periods.filter(period => {
-    if (preferredTypes.length && !preferredTypes.includes(period.type)) {
+    if (preferredTypes.length > 0 && !preferredTypes.includes(period.type)) {
       return false;
     }
-    
-    if (!isTimeString(period.startTime) || !isTimeString(period.endTime)) {
-      console.warn('Invalid time format in period:', period);
-      return false;
-    }
-    
-    const startComponents = parseTimeString(period.startTime);
-    const endComponents = parseTimeString(period.endTime);
-    
-    const periodDuration = (endComponents.hours - startComponents.hours) * 60 + 
-                         (endComponents.minutes - startComponents.minutes);
-    return periodDuration >= duration;
+    return true;
   });
-};
+}
 
-/**
- * Suggests due dates based on reminder properties
- * @param category Reminder category
- * @param priority Reminder priority
- * @param description Optional description text
- * @param periods Optional list of periods to consider
- * @returns Array of suggested due dates
- */
-export const suggestDueDates = (
+export function suggestDueDates(
   category: ReminderCategory,
   priority: ReminderPriority,
   description: string = "",
   periods: Period[] = []
-): Date[] => {
+): Date[] {
   const now = new Date();
   const suggestions: Date[] = [];
   
@@ -95,37 +55,28 @@ export const suggestDueDates = (
   if (priority === 'high') {
     suggestions.push(now);
     suggestions.push(addDays(now, 1));
-  } else {
+  } else if (priority === 'medium') {
     suggestions.push(addDays(now, 2));
+  } else {
     suggestions.push(addDays(now, 3));
   }
   
   return suggestions;
-};
+}
 
-/**
- * Detects date conflicts with existing reminders
- * @param date Date to check for conflicts
- * @param periods List of periods
- * @param existingReminders Existing reminders to check against
- * @returns Object containing conflict information
- */
-export const detectDateConflicts = (
+export function detectDateConflicts(
   date: Date,
   periods: Period[],
   existingReminders: Array<{ dueDate: Date; priority: ReminderPriority; category: ReminderCategory }> = []
-): { hasConflict: boolean; conflicts: any[] } => {
-  // Ensure we have valid dates
+): { hasConflict: boolean; conflicts: any[] } {
   const validDate = ensureValidDate(date);
-  const dateString = format(validDate, 'yyyy-MM-dd');
-  
   const conflicts = existingReminders.filter(reminder => {
     const reminderDate = ensureValidDate(reminder.dueDate);
-    return format(reminderDate, 'yyyy-MM-dd') === dateString;
+    return format(validDate, 'yyyy-MM-dd') === format(reminderDate, 'yyyy-MM-dd');
   });
   
   return {
     hasConflict: conflicts.length > 0,
     conflicts
   };
-};
+}

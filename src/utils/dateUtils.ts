@@ -1,14 +1,15 @@
 
-/**
- * Date utilities index file - exports all date-related functionality
- * 
- * This file serves as the main entry point for all date utilities in the application.
- * It organizes exports by functionality to make imports cleaner and more intuitive.
- */
+// Re-export core utilities
+export {
+  ensureValidDate,
+  convertToUtc,
+  convertToLocal,
+  debugDate,
+  isTimeValid,
+  isDateValid
+} from './dateCore';
 
-// ==============================
-// BASE DATE TRANSFORMATIONS
-// ==============================
+// Export date transformation utilities
 export {
   parseStringToDate,
   formatDate,
@@ -18,27 +19,16 @@ export {
   areDatesEqual
 } from './dateTransformations';
 
-// ==============================
-// TIMEZONE & TIME UTILITIES
-// ==============================
+// Export scheduling utilities
 export {
-  convertToUtc,
-  convertToLocal,
-  parseTimeString,
-  parseTimeStringWithCompatibility,
-  formatTimeString,
-  formatDateRange,
-  createDateWithTime,
-  adjustDateIfPassed,
-  parseFlexibleDateTime,
-  logDateDetails
-} from './dateTimeUtils';
+  findAvailableTimeSlots,
+  suggestIdealPeriods,
+  suggestDueDates,
+  detectDateConflicts
+} from './dateSchedulingUtils';
 
-// ==============================
-// ENHANCED CONTEXT-AWARE UTILITIES
-// ==============================
+// Export enhanced utilities
 export {
-  ensureValidDate,
   getUserTimeZone,
   formatDateWithPeriod,
   getRelativeTimeDisplay,
@@ -48,22 +38,7 @@ export {
   toUtcTime
 } from './enhancedDateUtils';
 
-// ==============================
-// RECURRING PATTERN UTILITIES
-// ==============================
-export {
-  RecurrenceType,
-  DayOfWeek,
-  type RecurrenceRule,
-  validateRecurrenceRule,
-  generateOccurrences,
-  formatRecurrenceRule,
-  dateMatchesRecurrence
-} from './recurringDatePatterns';
-
-// ==============================
-// PERFORMANCE OPTIMIZATION
-// ==============================
+// Export performance utilities
 export {
   dateCache,
   memoizeDateFn,
@@ -71,56 +46,29 @@ export {
   DateOperationsCache
 } from './dateOperationsCache';
 
-// ==============================
-// DATE VALIDATION & SECURITY
-// ==============================
+// Export validation utilities
 export {
   validateDate,
   validateDateRange,
   sanitizeDate,
-  getEarliestValidDate,
   DateFormats,
   DateValidationErrorType,
   type DateValidationOptions,
   type DateValidationResult
 } from './dateValidation';
 
-// ==============================
-// FIREBASE TRANSFORMATIONS
-// ==============================
+// Export debugging utilities
 export {
-  toDate,
-  isValidDate,
-  getTimestamp,
-  toFirestoreTimestamp,
-  toISOString,
-  logDateInfo
-} from './dateTransformationUtils';
-
-// ==============================
-// SCHEDULING & CONFLICTS
-// ==============================
-export {
-  findAvailableTimeSlots,
-  suggestIdealPeriods,
-  suggestDueDates,
-  detectDateConflicts
-} from './dateSchedulingUtils';
-
-// ==============================
-// DEBUGGING & MONITORING
-// ==============================
-export {
-  debugDate,
+  debugDate as dateDebug,
   generateDateDebugReport
 } from './dateDebugUtils';
 
-// Performance monitoring
-export { datePerformance } from './datePerformanceMonitor';
-
-// Default export for backward compatibility
-import { parseStringToDate, formatDate } from './dateTransformations';
-export default {
-  parseStringToDate,
-  formatDate
-};
+// Export recurrence utilities
+export {
+  RecurrenceType,
+  type RecurrenceRule,
+  validateRecurrenceRule,
+  generateOccurrences,
+  formatRecurrenceRule,
+  dateMatchesRecurrence
+} from './recurringDatePatterns';

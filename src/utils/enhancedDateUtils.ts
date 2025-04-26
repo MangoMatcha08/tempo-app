@@ -2,6 +2,7 @@ import { format, parse, isValid, addDays, addWeeks, startOfDay } from "date-fns"
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { mockPeriods } from "./reminderUtils";
 import { formatDate, formatWithTimezone } from './dateTransformations';
+import { ensureValidDate } from './dateCore';
 
 /**
  * Enhanced date handling utilities for the reminder system
