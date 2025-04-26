@@ -1,4 +1,4 @@
-import { Period, isPeriod } from '@/types/periodTypes';
+import { Period, isPeriod, ensurePeriodDates } from '@/types/periodTypes';
 import { ensureValidDate } from './dateCore';
 import { isDateInRange, compareDates } from './dateTransformations';
 import { addMinutes, isSameDay } from 'date-fns';
@@ -46,13 +46,11 @@ export function calculateOverlapDuration(period1: Period, period2: Period): numb
     return 0;
   }
   
-  const start1 = period1.startTime;
-  const end1 = period1.endTime;
-  const start2 = period2.startTime;
-  const end2 = period2.endTime;
+  // Fix: Calculate duration in milliseconds first, then convert to minutes
+  const overlapMs = Math.min(period1.endTime.getTime(), period2.endTime.getTime()) - 
+                   Math.max(period1.startTime.getTime(), period2.startTime.getTime());
   
-  return (Math.min(end1.getTime(), end2.getTime()) - 
-          Math.max(start1.getTime(), start2.getTime())) / (1000 * 60);
+  return Math.max(0, overlapMs / (1000 * 60));
 }
 
 /**
@@ -93,10 +91,12 @@ export function findAvailableTimeSlots(
   minDuration: number = 30, 
   date: Date = new Date()
 ): Period[] {
+  // Ensure all periods have proper Date objects
+  const validPeriods = periods.map(ensurePeriodDates);
   const targetDate = ensureValidDate(date);
   
   // Filter periods for the target date
-  let dayPeriods = periods.filter(period => {
+  let dayPeriods = validPeriods.filter(period => {
     if (!period.isRecurring) {
       return isSameDay(period.startTime, targetDate);
     }
@@ -107,8 +107,8 @@ export function findAvailableTimeSlots(
   
   // Sort periods by start time
   dayPeriods.sort((a, b) => {
-    const startA = ensureValidDate(a.startTime).getHours() * 60 + ensureValidDate(a.startTime).getMinutes();
-    const startB = ensureValidDate(b.startTime).getHours() * 60 + ensureValidDate(b.startTime).getMinutes();
+    const startA = a.startTime.getHours() * 60 + a.startTime.getMinutes();
+    const startB = b.startTime.getHours() * 60 + b.startTime.getMinutes();
     return startA - startB;
   });
   
@@ -134,7 +134,7 @@ export function findAvailableTimeSlots(
   
   // Check for gap before first period
   const firstPeriod = dayPeriods[0];
-  const firstStart = ensureValidDate(firstPeriod.startTime).getHours() * 60 + ensureValidDate(firstPeriod.startTime).getMinutes();
+  const firstStart = firstPeriod.startTime.getHours() * 60 + firstPeriod.startTime.getMinutes();
   const dayStartMinutes = dayStart.getHours() * 60 + dayStart.getMinutes();
   
   if (firstStart - dayStartMinutes >= minDuration) {
@@ -161,8 +161,8 @@ export function findAvailableTimeSlots(
   
   // Check for gaps between periods
   for (let i = 0; i < dayPeriods.length - 1; i++) {
-    const currentEnd = ensureValidDate(dayPeriods[i].endTime).getHours() * 60 + ensureValidDate(dayPeriods[i].endTime).getMinutes();
-    const nextStart = ensureValidDate(dayPeriods[i + 1].startTime).getHours() * 60 + ensureValidDate(dayPeriods[i + 1].startTime).getMinutes();
+    const currentEnd = dayPeriods[i].endTime.getHours() * 60 + dayPeriods[i].endTime.getMinutes();
+    const nextStart = dayPeriods[i + 1].startTime.getHours() * 60 + dayPeriods[i + 1].startTime.getMinutes();
     
     if (nextStart - currentEnd >= minDuration) {
       const slotStart = new Date(targetDate);
@@ -194,7 +194,7 @@ export function findAvailableTimeSlots(
   
   // Check for gap after last period
   const lastPeriod = dayPeriods[dayPeriods.length - 1];
-  const lastEnd = ensureValidDate(lastPeriod.endTime).getHours() * 60 + ensureValidDate(lastPeriod.endTime).getMinutes();
+  const lastEnd = lastPeriod.endTime.getHours() * 60 + lastPeriod.endTime.getMinutes();
   const dayEndMinutes = dayEnd.getHours() * 60 + dayEnd.getMinutes();
   
   if (dayEndMinutes - lastEnd >= minDuration) {
@@ -273,7 +273,10 @@ export function calculatePeriodTransitions(periods: Period[]): Array<{
   toPeriod: Period | null;
   transitionMinutes: number;
 }> {
-  const sortedPeriods = [...periods].sort((a, b) => 
+  // Ensure all periods have proper Date objects
+  const validPeriods = periods.map(ensurePeriodDates);
+  
+  const sortedPeriods = [...validPeriods].sort((a, b) => 
     a.startTime.getTime() - b.startTime.getTime()
   );
   

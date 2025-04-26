@@ -1,9 +1,15 @@
+
 export interface Period {
   id: string;
   name: string;
-  startTime: Date; // Changed from string | Date to just Date
-  endTime: Date;   // Changed from string | Date to just Date
+  startTime: Date; 
+  endTime: Date;
   type?: 'core' | 'elective' | 'planning' | 'meeting' | 'other';
+  title?: string;            // Add title as optional for backward compatibility
+  isRecurring?: boolean;     // Add support for recurring periods
+  daysOfWeek?: number[];     // Days of week for recurring periods
+  location?: string;         // Optional location
+  notes?: string;            // Optional notes
 }
 
 export interface PeriodValidationResult {
@@ -40,6 +46,9 @@ export interface RecurrenceRule {
   exclusions?: Date[];
 }
 
+/**
+ * Type guard to check if a value is a Period object
+ */
 export function isPeriod(value: any): value is Period {
   return (
     typeof value === 'object' &&
@@ -49,4 +58,26 @@ export function isPeriod(value: any): value is Period {
     value.startTime instanceof Date &&
     value.endTime instanceof Date
   );
+}
+
+/**
+ * Helper function to ensure Period objects have Date objects for startTime and endTime
+ */
+export function ensurePeriodDates(period: any): Period {
+  if (isPeriod(period)) {
+    return period;
+  }
+  
+  // If startTime or endTime are strings, convert them to Date objects
+  const startTime = period.startTime instanceof Date ? 
+    period.startTime : new Date(period.startTime);
+    
+  const endTime = period.endTime instanceof Date ?
+    period.endTime : new Date(period.endTime);
+    
+  return {
+    ...period,
+    startTime,
+    endTime
+  };
 }

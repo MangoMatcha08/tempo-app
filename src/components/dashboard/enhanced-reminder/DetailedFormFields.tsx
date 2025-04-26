@@ -7,6 +7,7 @@ import { TimePicker } from "@/components/ui/time-picker";
 import { DetailedFormFieldsProps } from './types';
 import { validatePeriodTime, detectPeriodConflicts } from '@/utils/periodValidation';
 import { mockPeriods } from '@/utils/reminderUtils';
+import { ensurePeriodDates } from '@/types/periodTypes';
 
 const DetailedFormFields: React.FC<DetailedFormFieldsProps> = ({
   description,
@@ -17,13 +18,16 @@ const DetailedFormFields: React.FC<DetailedFormFieldsProps> = ({
   setDueTime,
   periodId
 }) => {
+  // Convert mock periods to ensure they have Date objects for startTime and endTime
+  const validPeriods = mockPeriods.map(ensurePeriodDates);
+  
   // Validate time against selected period if one is chosen
   const timeValidation = periodId && dueDate ? 
-    validatePeriodTime(dueDate, periodId, mockPeriods) : 
+    validatePeriodTime(dueDate, periodId, validPeriods) : 
     { isValid: true };
   
   const conflictValidation = periodId && dueDate ?
-    detectPeriodConflicts(dueDate, periodId, mockPeriods) :
+    detectPeriodConflicts(dueDate, periodId, validPeriods) :
     { isValid: true };
     
   return (
