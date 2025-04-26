@@ -1,34 +1,36 @@
-
 import { isValid, isBefore, isAfter } from 'date-fns';
 import { ensureValidDate } from './core';
 import { toZonedTime } from './timezone';
 
-export interface DateValidationOptions {
-  required?: boolean;
-  minDate?: Date;
-  maxDate?: Date;
-  timeZone?: string;
+export interface DateValidationError {
+  type: string;
+  message: string;
 }
 
 export interface DateValidationResult {
   isValid: boolean;
   sanitizedValue?: Date;
-  errors: Array<{
-    code: string;
-    message: string;
-  }>;
+  errors: DateValidationError[];
+}
+
+export interface DateValidationOptions {
+  required?: boolean;
+  minDate?: Date;
+  maxDate?: Date;
+  format?: string;
+  timeZone?: string;
 }
 
 export function validateDate(
   date: Date | string | null | undefined,
   options: DateValidationOptions = {}
 ): DateValidationResult {
-  const errors: Array<{ code: string; message: string }> = [];
+  const errors: DateValidationError[] = [];
   
   // Handle required validation
   if (!date && options.required) {
     errors.push({
-      code: 'REQUIRED',
+      type: 'REQUIRED',
       message: 'Date is required'
     });
     return { isValid: false, errors };
@@ -40,13 +42,13 @@ export function validateDate(
     sanitizedDate = date ? ensureValidDate(date) : undefined;
     if (sanitizedDate && !isValid(sanitizedDate)) {
       errors.push({
-        code: 'INVALID_FORMAT',
+        type: 'INVALID_FORMAT',
         message: 'Invalid date format'
       });
     }
   } catch {
     errors.push({
-      code: 'INVALID_FORMAT',
+      type: 'INVALID_FORMAT',
       message: 'Invalid date format'
     });
   }
@@ -57,7 +59,7 @@ export function validateDate(
       sanitizedDate = toZonedTime(sanitizedDate, options.timeZone);
     } catch (e) {
       errors.push({
-        code: 'TIMEZONE_ERROR',
+        type: 'TIMEZONE_ERROR',
         message: 'Error converting timezone'
       });
     }
@@ -67,14 +69,14 @@ export function validateDate(
   if (sanitizedDate && errors.length === 0) {
     if (options.minDate && isBefore(sanitizedDate, options.minDate)) {
       errors.push({
-        code: 'BEFORE_MIN_DATE',
+        type: 'BEFORE_MIN_DATE',
         message: 'Date is before minimum allowed date'
       });
     }
     
     if (options.maxDate && isAfter(sanitizedDate, options.maxDate)) {
       errors.push({
-        code: 'AFTER_MAX_DATE',
+        type: 'AFTER_MAX_DATE',
         message: 'Date is after maximum allowed date'
       });
     }
@@ -108,4 +110,3 @@ export function validateDateRange(
     endDate: endValidation
   };
 }
-

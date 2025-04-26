@@ -1,4 +1,3 @@
-
 import { 
   parseTimeString,
   formatTimeString,
@@ -9,7 +8,8 @@ import {
   ensureValidDate,
   getUserTimeZone,
   toZonedTime,
-  fromZonedTime
+  fromZonedTime,
+  DateValidationError
 } from '../dateUtils';
 
 describe('Date Utils', () => {
@@ -64,7 +64,7 @@ describe('Date Utils', () => {
     test('validateDate handles required dates', () => {
       const result = validateDate(undefined, { required: true });
       expect(result.isValid).toBe(false);
-      expect(result.errors[0].code).toBe('REQUIRED');
+      expect(result.errors[0].type).toBe('REQUIRED');
     });
     
     test('validateDateRange validates correctly', () => {
@@ -79,4 +79,3 @@ describe('Date Utils', () => {
     });
   });
 });
-

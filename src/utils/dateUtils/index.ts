@@ -5,17 +5,17 @@ export {
   isTimeValid,
   isDateValid,
   parseTimeString,
+  formatTimeString,
   TimeComponents
 } from './core';
 
 // Re-export transformation utilities
 export {
   formatDate,
-  formatTimeString,
   formatDateRange,
   formatWithTimezone,
   convertToUtc,
-  convertToLocal
+  convertToLocal,
 } from './formatting';
 
 // Re-export validation utilities
@@ -23,7 +23,8 @@ export {
   validateDate,
   validateDateRange,
   DateValidationOptions,
-  DateValidationResult
+  DateValidationResult,
+  DateValidationError
 } from './validation';
 
 // Re-export timezone utilities
@@ -33,4 +34,3 @@ export {
   toZonedTime,
   fromZonedTime
 } from './timezone';
-
