@@ -2,6 +2,10 @@
 import { ensureValidDate } from './dateUtils';
 import { toZonedTime, fromZonedTime } from './dateUtils/timezone';
 import type { TimeComponents } from './dateUtils/types';
+import { parseTimeString } from './dateUtils/core';
+
+// Re-export parseTimeString
+export { parseTimeString };
 
 /**
  * Type guard to check if value is a valid Date
