@@ -14,16 +14,6 @@ export function formatDate(date: Date | string | null | undefined, formatStr: st
   }
 }
 
-export function formatTimeString(date: Date | string): string {
-  try {
-    const validDate = ensureValidDate(date);
-    return format(validDate, 'h:mm a');
-  } catch (error) {
-    console.error('Error formatting time:', error);
-    return '--:--';
-  }
-}
-
 export function formatDateRange(startDate: Date, endDate: Date): string {
   try {
     const start = ensureValidDate(startDate);
