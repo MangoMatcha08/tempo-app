@@ -35,14 +35,16 @@ describe('Date Validation', () => {
     });
 
     it('should validate past dates constraint', () => {
-      const pastDate = new Date('2023-01-01');
+      const pastDate = new Date();
+      pastDate.setFullYear(pastDate.getFullYear() - 1); // One year ago
       const result = validateDate(pastDate, { allowPastDates: false });
       expect(result.isValid).toBeFalsy();
       expect(result.errors[0].type).toBe(DateValidationErrorType.OUT_OF_RANGE);
     });
 
     it('should validate future dates constraint', () => {
-      const futureDate = new Date('2025-01-01');
+      const futureDate = new Date();
+      futureDate.setFullYear(futureDate.getFullYear() + 1); // One year from now
       const result = validateDate(futureDate, { allowFutureDates: false });
       expect(result.isValid).toBeFalsy();
       expect(result.errors[0].type).toBe(DateValidationErrorType.OUT_OF_RANGE);
