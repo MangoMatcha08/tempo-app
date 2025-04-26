@@ -12,7 +12,7 @@ export {
   formatTimeString
 } from './core';
 
-// Timezone conversions - using new standardized names
+// Timezone conversions
 export {
   toZonedTime,
   fromZonedTime,
@@ -34,9 +34,14 @@ export {
 // Formatting utilities
 export {
   formatDate,
-  formatDateRange,
-  formatTimeWithPeriod
+  formatDateRange
 } from './formatting';
+
+// Validation utilities
+export {
+  validateDate,
+  validateDateRange
+} from './validation';
 
 // Type exports
 export type {
@@ -46,8 +51,12 @@ export type {
   DateValidationOptions
 } from './types';
 
-// Export date format constants
-export { DateFormats } from './types';
+// Export enums and constants
+export {
+  DateFormats,
+  DateValidationErrorType,
+  ValidationErrorMessages
+} from './types';
 
 // Legacy exports for backward compatibility
 export const convertToUtc = fromZonedTime;

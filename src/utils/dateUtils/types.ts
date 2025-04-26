@@ -10,6 +10,7 @@ export interface DateValidationOptions {
   maxDate?: Date;
   allowPastDates?: boolean;
   allowFutureDates?: boolean;
+  timeZone?: string;
 }
 
 export interface DateValidationError {
@@ -20,6 +21,7 @@ export interface DateValidationError {
 export interface DateValidationResult {
   isValid: boolean;
   errors: DateValidationError[];
+  sanitizedValue?: Date;
 }
 
 export enum DateValidationErrorType {
@@ -27,7 +29,8 @@ export enum DateValidationErrorType {
   INVALID_FORMAT = 'INVALID_FORMAT',
   BEFORE_MIN_DATE = 'BEFORE_MIN_DATE',
   AFTER_MAX_DATE = 'AFTER_MAX_DATE',
-  OUT_OF_RANGE = 'OUT_OF_RANGE'
+  OUT_OF_RANGE = 'OUT_OF_RANGE',
+  TIMEZONE_ERROR = 'TIMEZONE_ERROR'
 }
 
 export enum DateFormats {
@@ -44,6 +47,7 @@ export const ValidationErrorMessages = {
   [DateValidationErrorType.INVALID_FORMAT]: 'Invalid date format',
   [DateValidationErrorType.BEFORE_MIN_DATE]: 'Date is before minimum allowed date',
   [DateValidationErrorType.AFTER_MAX_DATE]: 'Date is after maximum allowed date',
-  [DateValidationErrorType.OUT_OF_RANGE]: 'Date is out of allowed range'
+  [DateValidationErrorType.OUT_OF_RANGE]: 'Date is out of allowed range',
+  [DateValidationErrorType.TIMEZONE_ERROR]: 'Error converting timezone'
 };
 

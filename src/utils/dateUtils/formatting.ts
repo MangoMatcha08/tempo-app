@@ -1,8 +1,7 @@
 
 import { format } from 'date-fns';
 import { ensureValidDate } from './core';
-import { formatInTimeZone } from 'date-fns-tz';
-import { formatWithTimeZone as formatWithTz, getUserTimeZone } from './timezone';
+import { formatWithTimeZone as formatWithTz } from './timezone';
 
 export function formatDate(date: Date | string | null | undefined, formatStr: string = 'yyyy-MM-dd'): string {
   try {
@@ -30,5 +29,6 @@ export function formatDateRange(startDate: Date, endDate: Date): string {
   }
 }
 
-// Re-export the centralized formatWithTimeZone function
+// Re-export the timezone formatting function
 export const formatWithTimeZone = formatWithTz;
+
