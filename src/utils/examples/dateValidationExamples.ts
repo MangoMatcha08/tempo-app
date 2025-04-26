@@ -14,8 +14,8 @@ export const basicDateValidation = () => {
  * Example of date range validation
  */
 export const dateRangeValidation = () => {
-  const startDate = '2024-04-25';
-  const endDate = '2024-04-26';
+  const startDate = new Date('2024-04-25');
+  const endDate = new Date('2024-04-26');
   const result = validateDateRange(startDate, endDate);
   console.log('Range validation result:', result);
   return result;
@@ -34,7 +34,7 @@ export const advancedDateValidation = () => {
     format: DateFormats.ISO
   };
   
-  const result = validateDate('2024-04-25', options);
+  const result = validateDate(new Date('2024-04-25'), options);
   console.log('Advanced validation result:', result);
   return result;
 };

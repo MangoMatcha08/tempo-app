@@ -23,5 +23,7 @@ export interface DateValidationOptions {
   maxDate?: Date;
   format?: string;
   timeZone?: string;
+  allowFutureDates?: boolean;
+  allowPastDates?: boolean;
 }
 

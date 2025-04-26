@@ -1,3 +1,4 @@
+
 import { isValid, isBefore, isAfter } from 'date-fns';
 import { ensureValidDate } from './core';
 import { toZonedTime } from './timezone';
@@ -50,6 +51,24 @@ export function validateDate(
   
   // Validate range if date is valid
   if (sanitizedDate && errors.length === 0) {
+    const now = new Date();
+    
+    // Check past/future date constraints
+    if (options.allowPastDates === false && isBefore(sanitizedDate, now)) {
+      errors.push({
+        type: DateValidationErrorType.BEFORE_MIN_DATE,
+        message: 'Past dates are not allowed'
+      });
+    }
+    
+    if (options.allowFutureDates === false && isAfter(sanitizedDate, now)) {
+      errors.push({
+        type: DateValidationErrorType.AFTER_MAX_DATE,
+        message: 'Future dates are not allowed'
+      });
+    }
+    
+    // Check explicit min/max date constraints
     if (options.minDate && isBefore(sanitizedDate, options.minDate)) {
       errors.push({
         type: DateValidationErrorType.BEFORE_MIN_DATE,
