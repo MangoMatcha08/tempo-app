@@ -1,0 +1,81 @@
+
+import { isValid } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
+
+export interface TimeComponents {
+  hours: number;
+  minutes: number;
+}
+
+export function ensureValidDate(date: any): Date {
+  // Already a valid Date
+  if (date instanceof Date && !isNaN(date.getTime())) {
+    return date;
+  }
+  
+  // Firebase Timestamp handling
+  if (date && typeof date === 'object' && 'toDate' in date) {
+    try {
+      const converted = date.toDate();
+      if (converted instanceof Date && !isNaN(converted.getTime())) {
+        return converted;
+      }
+    } catch (err) {
+      console.warn('Invalid Timestamp object:', err);
+    }
+  }
+  
+  // String handling
+  if (typeof date === 'string') {
+    const parsed = new Date(date);
+    if (!isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+  
+  // Numeric timestamp handling
+  if (typeof date === 'number' && !isNaN(date)) {
+    const parsed = new Date(date);
+    if (!isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+  
+  console.warn('Invalid date input, using current date:', date);
+  return new Date();
+}
+
+export function isTimeValid(hours: number, minutes: number): boolean {
+  return hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60;
+}
+
+export function isDateValid(value: any): boolean {
+  if (!value) return false;
+  const date = ensureValidDate(value);
+  return isValid(date);
+}
+
+export function parseTimeString(timeStr: string): TimeComponents | null {
+  if (!timeStr) return null;
+  
+  try {
+    const timeRegex = /(\d{1,2})(?::(\d{1,2}))?\s*([AP]M)?/i;
+    const match = timeStr.match(timeRegex);
+    
+    if (!match) return null;
+    
+    let hours = parseInt(match[1], 10);
+    const minutes = match[2] ? parseInt(match[2], 10) : 0;
+    const meridiem = match[3]?.toUpperCase();
+    
+    if (meridiem === 'PM' && hours < 12) hours += 12;
+    if (meridiem === 'AM' && hours === 12) hours = 0;
+    
+    if (!isTimeValid(hours, minutes)) return null;
+    
+    return { hours, minutes };
+  } catch {
+    return null;
+  }
+}
+
