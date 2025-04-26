@@ -114,7 +114,6 @@ describe('DateTime Utilities Tests', () => {
     const localDate = convertToLocal(date);
     
     expect(utcDate.getUTCHours()).toBe(12);
-    // Local time will vary by environment, so we just check it's a Date
     expect(localDate instanceof Date).toBe(true);
   });
 });
@@ -128,7 +127,7 @@ describe('Enhanced Date Utilities Tests', () => {
     expect(ensureValidDate(isoString) instanceof Date).toBe(true);
     
     const invalid = 'not a date';
-    expect(ensureValidDate(invalid) instanceof Date).toBe(true); // Returns current date as fallback
+    expect(ensureValidDate(invalid) instanceof Date).toBe(true);
   });
   
   test('getUserTimeZone returns a timezone string', () => {
@@ -138,8 +137,8 @@ describe('Enhanced Date Utilities Tests', () => {
   
   test('getRelativeTimeDisplay formats relative time correctly', () => {
     const now = new Date();
-    const future = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour in the future
-    const past = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 1 day in the past
+    const future = new Date(now.getTime() + 60 * 60 * 1000);
+    const past = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     
     expect(getRelativeTimeDisplay(future)).toContain('from now');
     expect(getRelativeTimeDisplay(past)).toContain('ago');
@@ -157,7 +156,7 @@ describe('Recurring Date Patterns Tests', () => {
     
     const invalidRule = {
       type: RecurrenceType.DAILY,
-      interval: 0, // Invalid interval
+      interval: 0,
       startDate: new Date()
     };
     expect(validateRecurrenceRule(invalidRule)).toBe(false);
@@ -167,15 +166,15 @@ describe('Recurring Date Patterns Tests', () => {
     const startDate = new Date(2023, 3, 1);
     const rule = {
       type: RecurrenceType.DAILY,
-      interval: 2, // Every 2 days
+      interval: 2,
       startDate,
       count: 5
     };
     
     const occurrences = generateOccurrences(rule);
     expect(occurrences.length).toBe(5);
-    expect(occurrences[1].getDate()).toBe(3); // April 3
-    expect(occurrences[2].getDate()).toBe(5); // April 5
+    expect(occurrences[1].getDate()).toBe(3);
+    expect(occurrences[2].getDate()).toBe(5);
   });
 });
 
@@ -185,7 +184,7 @@ describe('Date Operations Cache Tests', () => {
   });
   
   test('memoizeDateFn caches function results', () => {
-    const originalFn = jest.fn().mockImplementation((a: number, b: number) => a + b);
+    const originalFn = vi.fn().mockImplementation((a: number, b: number) => a + b);
     const memoizedFn = memoizeDateFn('add', originalFn);
     
     // First call should execute the function
@@ -201,21 +200,17 @@ describe('Date Operations Cache Tests', () => {
     expect(originalFn).toHaveBeenCalledTimes(2);
   });
   
-  test('cache expires correctly', () => {
-    const originalFn = jest.fn().mockImplementation((a: number) => a * 2);
+  test('cache expires correctly', async () => {
+    const originalFn = vi.fn().mockImplementation((a: number) => a * 2);
     dateCache.setDefaultExpiry(100); // Short expiry for testing
     const memoizedFn = memoizeDateFn('multiply', originalFn);
     
     expect(memoizedFn(5)).toBe(10);
     expect(originalFn).toHaveBeenCalledTimes(1);
     
-    // Wait for cache to expire
-    return new Promise(resolve => {
-      setTimeout(() => {
-        expect(memoizedFn(5)).toBe(10);
-        expect(originalFn).toHaveBeenCalledTimes(2);
-        resolve(null);
-      }, 150);
-    });
+    await new Promise(resolve => setTimeout(resolve, 150));
+    
+    expect(memoizedFn(5)).toBe(10);
+    expect(originalFn).toHaveBeenCalledTimes(2);
   });
 });
