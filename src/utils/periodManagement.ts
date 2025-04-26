@@ -51,15 +51,15 @@ export function calculateOverlapDuration(period1: Period, period2: Period): numb
     return 0;
   }
   
-  const start1 = ensureValidDate(period1.startTime).getHours() * 60 + ensureValidDate(period1.startTime).getMinutes();
-  const end1 = ensureValidDate(period1.endTime).getHours() * 60 + ensureValidDate(period1.endTime).getMinutes();
-  const start2 = ensureValidDate(period2.startTime).getHours() * 60 + ensureValidDate(period2.startTime).getMinutes();
-  const end2 = ensureValidDate(period2.endTime).getHours() * 60 + ensureValidDate(period2.endTime).getMinutes();
+  const start1 = ensureValidDate(period1.startTime);
+  const end1 = ensureValidDate(period1.endTime);
+  const start2 = ensureValidDate(period2.startTime);
+  const end2 = ensureValidDate(period2.endTime);
   
-  const overlapStart = Math.max(start1, start2);
-  const overlapEnd = Math.min(end1, end2);
+  const startOverlap = Math.max(start1.getTime(), start2.getTime());
+  const endOverlap = Math.min(end1.getTime(), end2.getTime());
   
-  return overlapEnd - overlapStart;
+  return (endOverlap - startOverlap) / (1000 * 60); // Convert to minutes
 }
 
 /**

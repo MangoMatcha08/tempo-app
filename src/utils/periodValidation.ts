@@ -1,6 +1,6 @@
 import { Period, PeriodValidationResult } from '@/types/periodTypes';
 import { format } from 'date-fns';
-import { ensureValidDate } from './dateCore';
+import { ensureValidDate, parseTimeString } from './dateCore';
 
 export function validatePeriodTime(date: Date, periodId: string, periods: Period[]): PeriodValidationResult {
   const period = periods.find(p => p.id === periodId);
@@ -54,19 +54,19 @@ export function detectPeriodConflicts(
     };
   }
   
+  const validDate = ensureValidDate(date);
+  const selectedStartTime = ensureValidDate(selectedPeriod.startTime);
+  const selectedEndTime = ensureValidDate(selectedPeriod.endTime);
+  
   const conflictingPeriods = periods.filter(period => {
     if (period.id === periodId) return false;
     
-    const selectedStart = parseTimeString(selectedPeriod.startTime);
-    const selectedEnd = parseTimeString(selectedPeriod.endTime);
-    const periodStart = parseTimeString(period.startTime);
-    const periodEnd = parseTimeString(period.endTime);
+    const periodStartTime = ensureValidDate(period.startTime);
+    const periodEndTime = ensureValidDate(period.endTime);
     
     return (
-      (selectedStart.hours < periodEnd.hours || 
-       (selectedStart.hours === periodEnd.hours && selectedStart.minutes < periodEnd.minutes)) &&
-      (selectedEnd.hours > periodStart.hours ||
-       (selectedEnd.hours === periodStart.hours && selectedEnd.minutes > periodStart.minutes))
+      selectedStartTime < periodEndTime && 
+      selectedEndTime > periodStartTime
     );
   });
   

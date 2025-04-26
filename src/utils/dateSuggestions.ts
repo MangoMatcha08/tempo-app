@@ -1,6 +1,6 @@
-import { addDays, addBusinessDays, isSameDay } from 'date-fns';
+import { addDays, addBusinessDays, isSameDay, isWeekend } from 'date-fns';
 import { Period } from '@/contexts/ScheduleContext';
-import { ensureValidDate } from './enhancedDateUtils';
+import { ensureValidDate } from './dateCore';
 import { findAvailableTimeSlots } from './periodManagement';
 import { ReminderCategory, ReminderPriority } from '@/types/reminderTypes';
 
@@ -31,7 +31,7 @@ export function suggestDueDates(
   // Base suggestion: today for high priority
   if (priority === ReminderPriority.HIGH) {
     suggestions.push({
-      suggestedDate: now,
+      suggestedDate: ensureValidDate(now),
       confidence: 0.9,
       reasoning: "High priority task suggested for today"
     });
