@@ -36,4 +36,3 @@ export {
   toZonedTime,
   fromZonedTime
 } from './timezone';
-
