@@ -40,4 +40,3 @@ export const ValidationErrorMessages: Record<DateValidationErrorType, string> = 
   [DateValidationErrorType.BEFORE_MIN_DATE]: 'Date is before minimum allowed date',
   [DateValidationErrorType.AFTER_MAX_DATE]: 'Date is after maximum allowed date'
 };
-

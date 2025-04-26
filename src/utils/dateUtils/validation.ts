@@ -24,17 +24,20 @@ export function validateDate(
   let sanitizedDate: Date | undefined;
   try {
     sanitizedDate = date ? ensureValidDate(date) : undefined;
-    if (sanitizedDate && !isValid(sanitizedDate)) {
-      errors.push({
-        type: DateValidationErrorType.INVALID_FORMAT,
-        message: 'Invalid date format'
-      });
-    }
-  } catch {
+  } catch (e) {
     errors.push({
       type: DateValidationErrorType.INVALID_FORMAT,
       message: 'Invalid date format'
     });
+    return { isValid: false, errors };
+  }
+  
+  if (!sanitizedDate || !isValid(sanitizedDate)) {
+    errors.push({
+      type: DateValidationErrorType.INVALID_FORMAT,
+      message: 'Invalid date format'
+    });
+    return { isValid: false, errors };
   }
   
   // Apply timezone if specified
@@ -56,14 +59,14 @@ export function validateDate(
     // Check past/future date constraints
     if (options.allowPastDates === false && isBefore(sanitizedDate, now)) {
       errors.push({
-        type: DateValidationErrorType.BEFORE_MIN_DATE,
+        type: DateValidationErrorType.OUT_OF_RANGE,
         message: 'Past dates are not allowed'
       });
     }
     
     if (options.allowFutureDates === false && isAfter(sanitizedDate, now)) {
       errors.push({
-        type: DateValidationErrorType.AFTER_MAX_DATE,
+        type: DateValidationErrorType.OUT_OF_RANGE,
         message: 'Future dates are not allowed'
       });
     }
@@ -71,14 +74,14 @@ export function validateDate(
     // Check explicit min/max date constraints
     if (options.minDate && isBefore(sanitizedDate, options.minDate)) {
       errors.push({
-        type: DateValidationErrorType.BEFORE_MIN_DATE,
+        type: DateValidationErrorType.OUT_OF_RANGE,
         message: 'Date is before minimum allowed date'
       });
     }
     
     if (options.maxDate && isAfter(sanitizedDate, options.maxDate)) {
       errors.push({
-        type: DateValidationErrorType.AFTER_MAX_DATE,
+        type: DateValidationErrorType.OUT_OF_RANGE,
         message: 'Date is after maximum allowed date'
       });
     }

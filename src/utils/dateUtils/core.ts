@@ -1,4 +1,3 @@
-
 import { isValid } from 'date-fns';
 import type { TimeComponents } from './types';
 
@@ -16,7 +15,7 @@ export function ensureValidDate(date: any): Date {
         return converted;
       }
     } catch (err) {
-      console.warn('Invalid Timestamp object:', err);
+      throw new Error('Invalid Timestamp object');
     }
   }
   
@@ -26,6 +25,7 @@ export function ensureValidDate(date: any): Date {
     if (!isNaN(parsed.getTime())) {
       return parsed;
     }
+    throw new Error('Invalid date string');
   }
   
   // Numeric timestamp handling
@@ -36,8 +36,7 @@ export function ensureValidDate(date: any): Date {
     }
   }
   
-  console.warn('Invalid date input, using current date:', date);
-  return new Date();
+  throw new Error('Invalid date input');
 }
 
 export function isTimeValid(hours: number, minutes: number): boolean {
