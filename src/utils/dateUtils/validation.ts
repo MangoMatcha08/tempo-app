@@ -1,6 +1,7 @@
 import { isValid, isBefore, isAfter } from 'date-fns';
 import { ensureValidDate } from './core';
 import { toZonedTime } from './timezone';
+import { DateValidationErrorType } from '../dateValidation';
 import type { DateValidationError, DateValidationResult, DateValidationOptions } from './types';
 
 export function validateDate(
@@ -12,7 +13,7 @@ export function validateDate(
   // Handle required validation
   if (!date && options.required) {
     errors.push({
-      type: 'REQUIRED',
+      type: DateValidationErrorType.REQUIRED,
       message: 'Date is required'
     });
     return { isValid: false, errors };
@@ -24,13 +25,13 @@ export function validateDate(
     sanitizedDate = date ? ensureValidDate(date) : undefined;
     if (sanitizedDate && !isValid(sanitizedDate)) {
       errors.push({
-        type: 'INVALID_FORMAT',
+        type: DateValidationErrorType.INVALID_FORMAT,
         message: 'Invalid date format'
       });
     }
   } catch {
     errors.push({
-      type: 'INVALID_FORMAT',
+      type: DateValidationErrorType.INVALID_FORMAT,
       message: 'Invalid date format'
     });
   }
@@ -41,7 +42,7 @@ export function validateDate(
       sanitizedDate = toZonedTime(sanitizedDate, options.timeZone);
     } catch (e) {
       errors.push({
-        type: 'TIMEZONE_ERROR',
+        type: DateValidationErrorType.TIMEZONE_ERROR,
         message: 'Error converting timezone'
       });
     }
@@ -51,14 +52,14 @@ export function validateDate(
   if (sanitizedDate && errors.length === 0) {
     if (options.minDate && isBefore(sanitizedDate, options.minDate)) {
       errors.push({
-        type: 'BEFORE_MIN_DATE',
+        type: DateValidationErrorType.BEFORE_MIN_DATE,
         message: 'Date is before minimum allowed date'
       });
     }
     
     if (options.maxDate && isAfter(sanitizedDate, options.maxDate)) {
       errors.push({
-        type: 'AFTER_MAX_DATE',
+        type: DateValidationErrorType.AFTER_MAX_DATE,
         message: 'Date is after maximum allowed date'
       });
     }

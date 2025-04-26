@@ -30,3 +30,14 @@ export enum DateValidationErrorType {
   BEFORE_MIN_DATE = 'BEFORE_MIN_DATE',
   AFTER_MAX_DATE = 'AFTER_MAX_DATE'
 }
+
+// Add error message mappings
+export const ValidationErrorMessages: Record<DateValidationErrorType, string> = {
+  [DateValidationErrorType.REQUIRED]: 'Date is required',
+  [DateValidationErrorType.INVALID_FORMAT]: 'Invalid date format',
+  [DateValidationErrorType.OUT_OF_RANGE]: 'Date is out of valid range',
+  [DateValidationErrorType.TIMEZONE_ERROR]: 'Error converting timezone',
+  [DateValidationErrorType.BEFORE_MIN_DATE]: 'Date is before minimum allowed date',
+  [DateValidationErrorType.AFTER_MAX_DATE]: 'Date is after maximum allowed date'
+};
+
