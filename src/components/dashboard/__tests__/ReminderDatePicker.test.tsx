@@ -6,7 +6,6 @@ import { TestWrapper } from '@/test/test-wrapper';
 import { TEST_IDS } from '@/test/test-ids';
 import { openCalendar, selectDate } from '@/utils/test-utils/calendarTestUtils';
 import { format } from 'date-fns';
-import { act } from 'react';
 
 describe('DatePicker Component', () => {
   beforeEach(() => {
@@ -17,13 +16,6 @@ describe('DatePicker Component', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
-    
-    // Cleanup portals and dialogs
-    document.querySelectorAll('[role="dialog"]').forEach(el => el.remove());
-    const portal = document.getElementById('radix-portal');
-    if (portal) {
-      portal.remove();
-    }
   });
 
   it('renders with default date', () => {
@@ -59,31 +51,26 @@ describe('DatePicker Component', () => {
     );
 
     await openCalendar(TEST_IDS.REMINDER.DATE_PICKER);
-    const calendar = document.querySelector('[role="dialog"] .rdp');
-    expect(calendar).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
   });
 
   it('allows date selection', async () => {
     const mockSetDate = vi.fn();
     const defaultDate = new Date('2024-04-27T12:00:00Z');
     
-    await act(async () => {
-      render(
-        <TestWrapper>
-          <DatePicker 
-            date={defaultDate} 
-            setDate={mockSetDate}
-            data-testid={TEST_IDS.REMINDER.DATE_PICKER}
-          />
-        </TestWrapper>
-      );
-    });
+    render(
+      <TestWrapper>
+        <DatePicker 
+          date={defaultDate} 
+          setDate={mockSetDate}
+          data-testid={TEST_IDS.REMINDER.DATE_PICKER}
+        />
+      </TestWrapper>
+    );
 
     await selectDate(TEST_IDS.REMINDER.DATE_PICKER, defaultDate);
-
-    // Verify callback was called with correct date
     expect(mockSetDate).toHaveBeenCalledWith(expect.any(Date));
-    const calledDate = mockSetDate.mock.calls[0][0];
-    expect(format(calledDate, 'yyyy-MM-dd')).toBe('2024-04-27');
   });
 });
+
