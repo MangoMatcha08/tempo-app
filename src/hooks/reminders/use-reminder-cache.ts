@@ -1,7 +1,7 @@
-
 import { useCallback, useEffect, useRef } from "react";
 import { Reminder } from "@/types/reminderTypes";
 import { useToast } from "@/hooks/use-toast";
+import { fromFirestoreDate, toFirestoreDate } from "@/lib/firebase/dateConversions";
 
 // Type for our cache
 interface CacheItem<T> {
@@ -54,6 +54,32 @@ export function cacheReminderDetail(reminder: Reminder): void {
   } catch (err) {
     console.error(`Error caching detailed reminder ${reminder.id}:`, err);
   }
+}
+
+// Enhance cache key generation with timezone info
+function generateCacheKey(baseKey: string): string {
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return `${baseKey}-${timeZone}`;
+}
+
+// Serialize dates consistently
+function serializeReminder(reminder: Reminder): any {
+  return {
+    ...reminder,
+    dueDate: reminder.dueDate?.toISOString(),
+    createdAt: reminder.createdAt?.toISOString(),
+    completedAt: reminder.completedAt?.toISOString()
+  };
+}
+
+// Deserialize dates consistently
+function deserializeReminder(data: any): Reminder {
+  return {
+    ...data,
+    dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
+    createdAt: data.createdAt ? new Date(data.createdAt) : undefined,
+    completedAt: data.completedAt ? new Date(data.completedAt) : undefined
+  };
 }
 
 export function useReminderCache() {
@@ -266,65 +292,52 @@ export function useReminderCache() {
 
   // Cache a single reminder
   const cacheReminder = useCallback((reminder: Reminder) => {
+    const serialized = serializeReminder(reminder);
     cacheRef.current.reminders.set(reminder.id, {
-      data: reminder,
+      data: serialized,
       timestamp: Date.now(),
       accessCount: 0,
       lastAccessed: Date.now(),
     });
     
-    // Also cache as detailed reminder
-    cacheReminderDetail(reminder);
-    
-    // Update lists that might contain this reminder
-    cacheRef.current.reminderLists.forEach((listItem, key) => {
-      const list = listItem.data;
-      const index = list.findIndex(r => r.id === reminder.id);
-      
-      if (index !== -1) {
-        // Update the reminder in this list
-        const updatedList = [...list];
-        updatedList[index] = reminder;
-        
-        cacheRef.current.reminderLists.set(key, {
-          ...listItem,
-          data: updatedList,
-          timestamp: Date.now() // Update timestamp for fresh data
-        });
-        
-        statsRef.current.partial_updates++;
-      }
-    });
+    try {
+      localStorage.setItem(
+        `reminder-detail-${reminder.id}`, 
+        JSON.stringify(serialized)
+      );
+    } catch (err) {
+      console.error(`Error caching detailed reminder ${reminder.id}:`, err);
+    }
   }, []);
 
   // Get a cached reminder
   const getCachedReminder = useCallback((id: string): Reminder | null => {
     const cached = cacheRef.current.reminders.get(id);
-    if (isValidCache(cached)) {
-      statsRef.current.hits++;
-      
-      // Update access metrics
-      if (cached) {
-        cacheRef.current.reminders.set(id, updateAccessMetrics(cached));
-      }
-      
-      return cached?.data || null;
+    if (!cached || !isValidCache(cached)) {
+      statsRef.current.misses++;
+      return null;
     }
     
-    statsRef.current.misses++;
-    return null;
-  }, [isValidCache, updateAccessMetrics]);
+    statsRef.current.hits++;
+    const updatedCache = updateAccessMetrics(cached);
+    cacheRef.current.reminders.set(id, updatedCache);
+    
+    return deserializeReminder(cached.data);
+  }, []);
 
   // Cache a list of reminders with a given key (e.g., "user123-active")
   const cacheReminderList = useCallback((key: string, reminders: Reminder[]) => {
-    cacheRef.current.reminderLists.set(key, {
-      data: reminders,
+    const timezonedKey = generateCacheKey(key);
+    const serializedList = reminders.map(serializeReminder);
+    
+    cacheRef.current.reminderLists.set(timezonedKey, {
+      data: serializedList,
       timestamp: Date.now(),
       accessCount: 0,
       lastAccessed: Date.now(),
     });
     
-    // Also cache individual reminders
+    // Cache individual reminders too
     reminders.forEach(reminder => {
       cacheReminder(reminder);
     });
@@ -332,21 +345,20 @@ export function useReminderCache() {
 
   // Get a cached reminder list
   const getCachedReminderList = useCallback((key: string): Reminder[] | null => {
-    const cached = cacheRef.current.reminderLists.get(key);
-    if (isValidCache(cached)) {
-      statsRef.current.hits++;
-      
-      // Update access metrics
-      if (cached) {
-        cacheRef.current.reminderLists.set(key, updateAccessMetrics(cached));
-      }
-      
-      return cached?.data || null;
+    const timezonedKey = generateCacheKey(key);
+    const cached = cacheRef.current.reminderLists.get(timezonedKey);
+    
+    if (!cached || !isValidCache(cached)) {
+      statsRef.current.misses++;
+      return null;
     }
     
-    statsRef.current.misses++;
-    return null;
-  }, [isValidCache, updateAccessMetrics]);
+    statsRef.current.hits++;
+    const updatedCache = updateAccessMetrics(cached);
+    cacheRef.current.reminderLists.set(timezonedKey, updatedCache);
+    
+    return cached.data.map(deserializeReminder);
+  }, []);
 
   // Invalidate a specific reminder in the cache
   const invalidateReminder = useCallback((id: string) => {

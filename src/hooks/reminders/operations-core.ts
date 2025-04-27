@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useReminderCache } from "./use-reminder-cache";
@@ -14,6 +13,7 @@ export function useReminderOperationsCore(user: any, db: any, isReady: boolean) 
   const { 
     cacheReminder, 
     invalidateReminder,
+    invalidateUserCache
   } = useReminderCache();
 
   // Helper to check if we're in offline mode
@@ -49,14 +49,35 @@ export function useReminderOperationsCore(user: any, db: any, isReady: boolean) 
     return false;
   };
 
+  // Enhanced error handling with cache invalidation
+  const handleOperationError = (err: any, affectedIds?: string[]) => {
+    console.error("Operation error:", err);
+    setError(err instanceof Error ? err : new Error(String(err)));
+    
+    // Invalidate affected reminders on error
+    if (affectedIds?.length) {
+      affectedIds.forEach(id => invalidateReminder(id));
+      console.log("Invalidated cache for affected reminders:", affectedIds);
+    }
+    
+    // If it's a quota error, invalidate all user cache as a precaution
+    if (handleQuotaError(err)) {
+      invalidateUserCache(user?.uid);
+    }
+    
+    return false;
+  };
+
   return {
     toast,
     error,
     setError,
     cacheReminder,
     invalidateReminder,
+    invalidateUserCache,
     isOfflineMode,
     showErrorToast,
-    handleQuotaError
+    handleQuotaError,
+    handleOperationError
   };
 }
