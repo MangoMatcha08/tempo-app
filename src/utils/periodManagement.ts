@@ -322,7 +322,9 @@ export function suggestIdealPeriods(
       score += 10;
       
       // Higher score if slot duration closely matches estimate
-      const duration = (period.endTime.getTime() - period.startTime.getTime()) / (60 * 1000);
+      const startTime = toPeriodDate(period.startTime);
+      const endTime = toPeriodDate(period.endTime);
+      const duration = (endTime.getTime() - startTime.getTime()) / (60 * 1000);
       score += 10 - Math.min(10, Math.abs(duration - durationEstimate) / 10);
     }
     
@@ -332,7 +334,7 @@ export function suggestIdealPeriods(
     }
     
     // Penalize early morning and late evening
-    const hour = period.startTime.getHours();
+    const hour = toPeriodDate(period.startTime).getHours();
     if (hour < 8) score -= 3;
     if (hour > 17) score -= 2;
     
