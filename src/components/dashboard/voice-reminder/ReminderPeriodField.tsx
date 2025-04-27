@@ -7,6 +7,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { mockPeriods } from "@/utils/reminderUtils";
+import { validatePeriodId } from "@/utils/dateUtils";
 
 interface ReminderPeriodFieldProps {
   periodId: string;
@@ -14,10 +15,19 @@ interface ReminderPeriodFieldProps {
 }
 
 const ReminderPeriodField = ({ periodId, setPeriodId }: ReminderPeriodFieldProps) => {
+  const handlePeriodChange = (value: string) => {
+    if (value === 'none' || validatePeriodId(value, mockPeriods)) {
+      setPeriodId(value);
+    } else {
+      console.warn('Invalid period ID selected:', value);
+      setPeriodId('none');
+    }
+  };
+
   return (
     <div className="space-y-2">
       <label htmlFor="period" className="text-sm font-medium">Period</label>
-      <Select value={periodId} onValueChange={setPeriodId}>
+      <Select value={periodId} onValueChange={handlePeriodChange}>
         <SelectTrigger>
           <SelectValue placeholder="Select period (optional)" />
         </SelectTrigger>

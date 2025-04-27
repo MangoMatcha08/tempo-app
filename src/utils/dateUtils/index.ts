@@ -1,4 +1,3 @@
-
 // Core date utilities
 export {
   isDate,
@@ -47,6 +46,14 @@ export {
   validateDate,
   validateDateRange
 } from './validation';
+
+// Period time utilities
+export {
+  applyPeriodTime,
+  validatePeriodId,
+  getPeriodById,
+  hasPeriodTime
+} from './periodTime';
 
 // Date operations
 export function createDateWithTime(date: Date, hours: number, minutes: number): Date {
