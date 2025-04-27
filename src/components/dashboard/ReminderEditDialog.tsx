@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,8 +10,10 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { TimePicker } from "@/components/ui/time-picker";
 import { Reminder } from "@/types/reminder";
 import { ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
-import ReminderPeriodField from './voice-reminder/ReminderPeriodField';
 import { useReminderFormValidation } from '@/hooks/useReminderFormValidation';
+import { useReminderPeriodField } from '@/hooks/useReminderPeriodField';
+import { useReminderDateValidation } from '@/hooks/useReminderDateValidation';
+import { ReminderPeriodSelect } from './ReminderPeriodSelect';
 
 interface ReminderEditDialogProps {
   reminder: Reminder | null;
@@ -33,14 +36,25 @@ const ReminderEditDialog = ({
     validateAndSave
   } = useReminderFormValidation(reminder);
 
-  // Update form when a different reminder is selected
+  const { dateErrors, validateDateAndTime, clearErrors } = useReminderDateValidation();
+
+  const { periodId, setPeriodId } = useReminderPeriodField(
+    formState.periodId,
+    (newDate) => updateField('dueDate', newDate),
+    formState.dueDate || new Date()
+  );
+
   React.useEffect(() => {
     if (reminder) {
       resetForm(reminder);
+      clearErrors();
     }
-  }, [reminder, resetForm]);
+  }, [reminder, resetForm, clearErrors]);
 
   const handleSave = () => {
+    const isDateValid = validateDateAndTime(formState.dueDate, formState.dueTime);
+    if (!isDateValid) return;
+
     const result = validateAndSave();
     if (result.isValid && result.updatedReminder) {
       onSave(result.updatedReminder);
@@ -64,8 +78,13 @@ const ReminderEditDialog = ({
               value={formState.title}
               onChange={(e) => updateField('title', e.target.value)}
               placeholder="Enter reminder title"
+              className={validationErrors.includes('Title is required') ? 'border-red-500' : ''}
             />
+            {validationErrors.includes('Title is required') && (
+              <p className="text-sm text-red-500">Title is required</p>
+            )}
           </div>
+
           <div className="grid gap-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
@@ -76,30 +95,43 @@ const ReminderEditDialog = ({
               rows={3}
             />
           </div>
+
           <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
+            <div className="space-y-2">
               <Label>Due Date</Label>
               <DatePicker 
                 date={formState.dueDate} 
                 setDate={(date) => updateField('dueDate', date)}
-                className="w-full"
+                className={`w-full ${dateErrors.length > 0 ? 'border-red-500' : ''}`}
               />
             </div>
-            <div className="grid gap-2">
+            
+            <div className="space-y-2">
               <Label>Due Time</Label>
               <TimePicker 
                 value={formState.dueTime} 
                 onChange={(time) => updateField('dueTime', time)}
-                className="w-full"
+                className={`w-full ${dateErrors.length > 0 ? 'border-red-500' : ''}`}
               />
             </div>
           </div>
-          <div className="grid gap-2">
-            <ReminderPeriodField
-              periodId={formState.periodId}
-              setPeriodId={(id) => updateField('periodId', id)}
-            />
-          </div>
+
+          {dateErrors.length > 0 && (
+            <div className="text-sm text-red-500">
+              {dateErrors.map((error, index) => (
+                <p key={index}>{error}</p>
+              ))}
+            </div>
+          )}
+
+          <ReminderPeriodSelect 
+            periodId={periodId}
+            onChange={(value) => {
+              setPeriodId(value);
+              updateField('periodId', value === 'none' ? null : value);
+            }}
+          />
+
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="priority">Priority</Label>
@@ -117,6 +149,7 @@ const ReminderEditDialog = ({
                 </SelectContent>
               </Select>
             </div>
+            
             <div className="grid gap-2">
               <Label htmlFor="category">Category</Label>
               <Select 
@@ -137,6 +170,7 @@ const ReminderEditDialog = ({
               </Select>
             </div>
           </div>
+
           {validationErrors.length > 0 && (
             <div className="space-y-1">
               {validationErrors.map((error, index) => (
