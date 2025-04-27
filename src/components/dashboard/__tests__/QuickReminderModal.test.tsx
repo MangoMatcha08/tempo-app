@@ -49,15 +49,29 @@ describe('QuickReminderModal', () => {
     });
   });
   
-  it('handles date selection correctly', async () => {
-    render(<QuickReminderModal {...defaultProps} />);
+  describe('date selection', () => {
+    it('renders with initial date picker state', () => {
+      render(<QuickReminderModal {...defaultProps} />);
+      
+      const dateButton = screen.getByRole('button', {
+        'aria-haspopup': 'dialog'
+      });
+      
+      expect(dateButton).toHaveTextContent(/pick a date/i);
+    });
     
-    // Select today's date and verify the button updates
-    const today = new Date();
-    const updatedDateButton = await selectDate(today);
-    expect(updatedDateButton).toHaveTextContent(format(today, 'PPP'));
+    it('handles date selection correctly', async () => {
+      render(<QuickReminderModal {...defaultProps} />);
+      
+      // Select today's date and verify the button updates
+      const today = new Date();
+      const updatedDateButton = await selectDate(today);
+      
+      // Verify the button shows the selected date
+      expect(updatedDateButton).toHaveTextContent(format(today, 'PPP'));
+    });
   });
-
+  
   it('creates reminder successfully', async () => {
     render(<QuickReminderModal {...defaultProps} />);
     
