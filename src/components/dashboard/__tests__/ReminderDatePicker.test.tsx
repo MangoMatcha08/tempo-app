@@ -11,6 +11,8 @@ import {
 import { TEST_IDS } from '@/test/test-ids';
 import { format } from 'date-fns';
 import { testLogger } from '@/utils/test-utils/testDebugUtils';
+import userEvent from '@testing-library/user-event';
+import { act } from 'react-dom/test-utils';
 
 describe('DatePicker Component', () => {
   beforeEach(() => {
@@ -79,9 +81,28 @@ describe('DatePicker Component', () => {
     // Open date picker
     await openDatePicker(TEST_IDS.REMINDER.DATE_PICKER);
     
-    // Select today's date (27th)
-    const today = new Date('2024-04-27T12:00:00Z');
-    await selectCalendarDate(today);
+    // Get calendar element
+    const calendar = await getCalendarPopover();
+    
+    // Find all day buttons (they have role="gridcell")
+    const days = within(calendar).getAllByRole('gridcell');
+    testLogger.debug(`Found ${days.length} day cells`);
+    
+    // Find the "27" day button (today)
+    const dayText = '27';
+    const dayButton = Array.from(days).find(day => 
+      day.textContent?.trim() === dayText
+    );
+    
+    // Verify we found it
+    expect(dayButton).toBeDefined();
+    
+    if (dayButton) {
+      // Click the day button
+      await act(async () => {
+        await userEvent.click(dayButton);
+      });
+    }
     
     // Verify mockSetDate was called with a date object
     await waitFor(() => {

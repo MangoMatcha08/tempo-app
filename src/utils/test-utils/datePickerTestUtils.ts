@@ -1,5 +1,5 @@
 
-import { screen, waitFor, within, fireEvent, act } from '@testing-library/react';
+import { screen, waitFor, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { testLogger } from './testDebugUtils';
 
@@ -25,77 +25,6 @@ export async function openDatePicker(testId = 'reminder-date-picker') {
 }
 
 /**
- * Find a day cell by its text content 
- */
-export async function findDayCell(dayText: string) {
-  try {
-    // Find all gridcells in the calendar
-    const calendar = await getCalendarPopover();
-    const cells = within(calendar).queryAllByRole('gridcell');
-    
-    // Log for debugging
-    testLogger.debug(`Finding day cell "${dayText}" among ${cells.length} cells`);
-    
-    // Find the cell with matching text content
-    const dayCell = cells.find(cell => {
-      const trimmedContent = cell.textContent?.trim();
-      return trimmedContent === dayText;
-    });
-    
-    if (!dayCell) {
-      throw new Error(`Could not find gridcell for date: ${dayText}`);
-    }
-    
-    return dayCell;
-  } catch (error) {
-    testLogger.error('Error finding day cell:', error);
-    throw error;
-  }
-}
-
-/**
- * Selects a date from the calendar
- */
-export async function selectCalendarDate(date: Date) {
-  const formattedDay = date.getDate().toString();
-  
-  try {
-    // First ensure calendar is open
-    await act(async () => {
-      const calendar = await getCalendarPopover();
-      
-      // Find the specific day button within the gridcell
-      const cells = within(calendar).queryAllByRole('gridcell');
-      testLogger.debug(`Found ${cells.length} gridcells in calendar`);
-      
-      // Find the cell with the day we want
-      const foundCell = cells.find(cell => cell.textContent?.trim() === formattedDay);
-      
-      if (!foundCell) {
-        // Try to log all day cells for debugging
-        testLogger.debug('Available day cells:');
-        cells.forEach(cell => {
-          testLogger.debug(`Cell content: "${cell.textContent?.trim()}"`);
-        });
-        throw new Error(`Could not find gridcell for date: ${formattedDay}`);
-      }
-      
-      // Click the cell directly (in Shadcn, the gridcell is clickable)
-      testLogger.debug(`Clicking on day cell: ${formattedDay}`);
-      await userEvent.click(foundCell);
-    });
-    
-    // Wait for a short time for React state to update
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    return true;
-  } catch (error) {
-    testLogger.error('Error selecting date:', error);
-    throw error;
-  }
-}
-
-/**
  * Gets the calendar popover element
  */
 export const getCalendarPopover = async () => {
@@ -107,11 +36,53 @@ export const getCalendarPopover = async () => {
 };
 
 /**
+ * Selects a date from the calendar
+ */
+export async function selectCalendarDate(date: Date) {
+  try {
+    // First ensure calendar is open
+    const calendar = await getCalendarPopover();
+    
+    // Extract just the day number as a string (1-31)
+    const dayNumber = date.getDate().toString();
+    testLogger.debug(`Selecting day number: ${dayNumber}`);
+    
+    // Find all day buttons within the calendar
+    const buttons = within(calendar).getAllByRole('gridcell');
+    testLogger.debug(`Found ${buttons.length} day cells`);
+    
+    // Look for the button with matching day text
+    const targetButton = Array.from(buttons).find(cell => {
+      // Ensure we're finding an exact match for the day text
+      return cell.textContent?.trim() === dayNumber;
+    });
+
+    if (!targetButton) {
+      testLogger.error(`Could not find day cell with text "${dayNumber}"`);
+      throw new Error(`Day cell with text "${dayNumber}" not found`);
+    }
+
+    testLogger.debug(`Found target day: ${dayNumber}, clicking now`);
+    
+    // Click the day button
+    await act(async () => {
+      await userEvent.click(targetButton);
+    });
+    
+    testLogger.debug(`Click completed on day: ${dayNumber}`);
+    return true;
+  } catch (error) {
+    testLogger.error('Error selecting calendar date:', error);
+    throw error;
+  }
+}
+
+/**
  * Helper function to get all calendar days
  */
 export const getCalendarDays = async () => {
   const calendar = await getCalendarPopover();
-  const days = calendar.querySelectorAll('[role="gridcell"]');
+  const days = within(calendar).getAllByRole('gridcell');
   return Array.from(days);
 };
 

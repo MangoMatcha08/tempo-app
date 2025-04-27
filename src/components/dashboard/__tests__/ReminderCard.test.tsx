@@ -1,5 +1,5 @@
 
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { vi } from 'vitest';
 import { mockDate, restoreDate } from '@/test/mocks/date-mocks';
 import { createMockReminder } from '@/test/mocks/reminder-mocks';
@@ -34,7 +34,7 @@ describe('ReminderCard Component', () => {
       </TestWrapper>
     );
 
-    // Use more direct selectors with shorter timeouts
+    // Use direct selectors
     const dateElement = screen.getByTestId('reminder-date');
     const timeElement = screen.getByTestId('reminder-time');
     
@@ -44,7 +44,7 @@ describe('ReminderCard Component', () => {
   });
 
   it('handles completion correctly', async () => {
-    // Create a mock that resolves immediately to avoid timing issues
+    // Create a mock that doesn't actually remove the component during test
     const mockComplete = vi.fn().mockResolvedValue(true);
     
     const reminder = createMockReminder({
@@ -61,15 +61,16 @@ describe('ReminderCard Component', () => {
       </TestWrapper>
     );
 
-    // Get button and click immediately
+    // Get button
     const completeButton = screen.getByTestId('complete-button');
     expect(completeButton).toBeInTheDocument();
     
-    // Click and verify mock was called
+    // Click and verify mock was called immediately without waiting for state updates
     await act(async () => {
       await userEvent.click(completeButton);
     });
     
+    // Only check if the function was called with the right ID
     expect(mockComplete).toHaveBeenCalledWith('test-reminder-1');
   });
 
@@ -88,7 +89,7 @@ describe('ReminderCard Component', () => {
       </TestWrapper>
     );
 
-    // These are synchronous checks, no need for waitFor
+    // These are synchronous checks
     expect(screen.getByText(/Syncing/i)).toBeInTheDocument();
     expect(screen.getByTestId('complete-button')).toBeDisabled();
   });
