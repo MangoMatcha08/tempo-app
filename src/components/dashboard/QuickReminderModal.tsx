@@ -93,7 +93,7 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
       
       toast({
         title: "Reminder Created",
-        description: `"${title}" has been added to your reminders."
+        description: `"${title}" has been added to your reminders.`
       });
       
       if (onReminderCreated) {
