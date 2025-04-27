@@ -1,9 +1,8 @@
-
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { format } from 'date-fns';
 import QuickReminderModal from '../QuickReminderModal';
-import { openDatePicker, getCalendarDialog } from './test-utils';
+import { selectDate } from './test-utils';
 
 // Mock the toast hook
 const mockToast = vi.fn();
@@ -50,23 +49,13 @@ describe('QuickReminderModal', () => {
     });
   });
   
-  it('handles date selection correctly', () => {
+  it('handles date selection correctly', async () => {
     const today = new Date();
     render(<QuickReminderModal {...defaultProps} />);
     
-    // Open date picker
-    const dateButton = openDatePicker(today);
-    
-    // Calendar should be visible
-    const calendarDialog = getCalendarDialog();
-    expect(calendarDialog).toBeInTheDocument();
-    
-    // Select a date
-    const dayButton = screen.getByRole('gridcell', { name: format(today, 'd') });
-    fireEvent.click(dayButton);
-    
-    // Verify date is selected
-    expect(dateButton).toHaveTextContent(format(today, 'PPP'));
+    // Select a date and verify the button updates
+    const updatedDateButton = await selectDate(today);
+    expect(updatedDateButton).toHaveTextContent(format(today, 'PPP'));
   });
 
   it('creates reminder successfully', async () => {
