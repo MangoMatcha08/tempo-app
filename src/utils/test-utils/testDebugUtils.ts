@@ -1,6 +1,5 @@
-
 import * as React from 'react';
-import { prettyDOM, logRoles, screen } from '@testing-library/react';
+import { prettyDOM, logRoles, screen, within } from '@testing-library/react';
 import { vi } from 'vitest';
 
 /**
@@ -83,15 +82,18 @@ export const testLogger = {
       console.log('----- Calendar Element -----');
       testLogger.dom.logElement(element);
       
-      console.log('----- First Three Calendar Days -----');
-      const days = element.querySelectorAll('[role="gridcell"]');
-      Array.from(days).slice(0, 3).forEach((day, index) => {
-        console.log(`Day ${index + 1}:`);
-        testLogger.dom.logElement(day);
-      });
-      
-      if (days.length > 3) {
-        console.log(`... and ${days.length - 3} more days`);
+      const calendarElement = element instanceof HTMLElement ? element : null;
+      if (calendarElement) {
+        console.log('----- First Three Calendar Days -----');
+        const days = within(calendarElement).queryAllByRole('gridcell');
+        days.slice(0, 3).forEach((day, index) => {
+          console.log(`Day ${index + 1}:`);
+          testLogger.dom.logElement(day);
+        });
+        
+        if (days.length > 3) {
+          console.log(`... and ${days.length - 3} more days`);
+        }
       }
     }
   }

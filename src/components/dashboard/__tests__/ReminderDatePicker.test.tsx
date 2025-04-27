@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { DatePicker } from "@/components/ui/date-picker";
 import { TestWrapper } from '@/test/test-wrapper';
+import { within } from '@testing-library/react';
 import { 
   openDatePicker, 
   getCalendarPopover,
@@ -55,11 +56,12 @@ describe('DatePicker Component', () => {
       </TestWrapper>
     );
 
-    const dialog = await openDatePicker(TEST_IDS.REMINDER.DATE_PICKER);
-    expect(dialog).toBeInTheDocument();
+    const calendar = await openDatePicker(TEST_IDS.REMINDER.DATE_PICKER);
+    expect(calendar).toBeInTheDocument();
     
-    // Debug log calendar structure
-    testLogger.dom.logCalendar(dialog);
+    if (calendar instanceof HTMLElement) {
+      testLogger.dom.logCalendar(calendar);
+    }
   });
 
   it('allows date selection', async () => {
@@ -76,14 +78,11 @@ describe('DatePicker Component', () => {
       </TestWrapper>
     );
 
-    // Open date picker
     await openDatePicker(TEST_IDS.REMINDER.DATE_PICKER);
     
-    // Select today's date (27th)
     const today = new Date('2024-04-27T12:00:00Z');
     await selectCalendarDate(today);
     
-    // Verify mockSetDate was called with a date object
     await waitFor(() => {
       expect(mockSetDate).toHaveBeenCalled();
     }, { timeout: 1000 });
