@@ -1,7 +1,11 @@
+
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import ReminderEditDialog from '../ReminderEditDialog';
 import { ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
+
+// Mock the date to ensure consistent testing
+const MOCK_DATE = new Date('2025-04-27T10:00:00Z');
 
 describe('ReminderEditDialog', () => {
   const mockReminder = {
@@ -10,7 +14,7 @@ describe('ReminderEditDialog', () => {
     description: 'Test Description',
     priority: ReminderPriority.MEDIUM,
     category: ReminderCategory.TASK,
-    dueDate: new Date(),
+    dueDate: MOCK_DATE,
     periodId: null,
     completed: false,
     createdAt: new Date(),
@@ -31,69 +35,93 @@ describe('ReminderEditDialog', () => {
 
   it('renders correctly with reminder data', () => {
     render(<ReminderEditDialog {...mockProps} />);
-    
-    expect(screen.getByLabelText(/title/i)).toHaveValue(mockReminder.title);
-    expect(screen.getByLabelText(/description/i)).toHaveValue(mockReminder.description);
+    expect(screen.getByText(/edit reminder/i)).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Test Reminder')).toBeInTheDocument();
   });
 
-  it('maintains period selection when editing', async () => {
-    const reminderWithPeriod = {
-      ...mockReminder,
-      periodId: 'morning'
-    };
-    
-    render(<ReminderEditDialog {...mockProps} reminder={reminderWithPeriod} />);
-    
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-  });
-
-  it('validates date fields and shows error messages', async () => {
+  it('handles period selection without losing time', async () => {
     render(<ReminderEditDialog {...mockProps} />);
     
-    const dateInput = screen.getByLabelText(/due date/i);
-    fireEvent.change(dateInput, { target: { value: '' } });
+    const periodSelect = screen.getByLabelText(/period/i);
+    expect(periodSelect).toBeInTheDocument();
     
+    fireEvent.click(periodSelect);
+    
+    // Wait for the select content to be visible
+    await waitFor(() => {
+      expect(screen.getByText(/morning/i)).toBeInTheDocument();
+    });
+    
+    // Select a period
+    fireEvent.click(screen.getByText(/morning/i));
+    
+    // Verify time is preserved in the date picker
+    const dateButton = screen.getByTestId('reminder-date-picker');
+    expect(dateButton).toHaveTextContent('10:00');
+  });
+
+  it('validates required fields before saving', async () => {
+    render(<ReminderEditDialog {...mockProps} />);
+    
+    // Clear the title
+    const titleInput = screen.getByLabelText(/title/i);
+    fireEvent.change(titleInput, { target: { value: '' } });
+    
+    // Try to save
     const saveButton = screen.getByText(/save changes/i);
     fireEvent.click(saveButton);
     
+    // Check for validation message
     await waitFor(() => {
-      expect(screen.getByText(/due date is required/i)).toBeInTheDocument();
+      expect(screen.getByText(/title is required/i)).toBeInTheDocument();
     });
+    
+    // Verify save was not called
+    expect(mockProps.onSave).not.toHaveBeenCalled();
   });
 
-  it('handles form submission with valid data', async () => {
+  it('handles date validation', async () => {
     render(<ReminderEditDialog {...mockProps} />);
     
+    // Open the date picker
+    const datePickerButton = screen.getByTestId('reminder-date-picker');
+    fireEvent.click(datePickerButton);
+    
+    // Wait for calendar to be visible
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+    
+    // Select a date (27th of current month)
+    const dayButton = screen.getByRole('gridcell', { name: '27' });
+    fireEvent.click(dayButton);
+    
+    // Verify the date was selected
+    expect(datePickerButton).toHaveTextContent('27');
+  });
+
+  it('handles form submission with all fields', async () => {
+    render(<ReminderEditDialog {...mockProps} />);
+    
+    // Update title
     const titleInput = screen.getByLabelText(/title/i);
     fireEvent.change(titleInput, { target: { value: 'Updated Title' } });
     
+    // Click save
     const saveButton = screen.getByText(/save changes/i);
     fireEvent.click(saveButton);
     
+    // Verify save was called with updated data
     await waitFor(() => {
       expect(mockProps.onSave).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: 'Updated Title'
+          title: 'Updated Title',
+          id: '1'
         })
       );
     });
-  });
-
-  it('preserves time when changing date', async () => {
-    const reminderWithTime = {
-      ...mockReminder,
-      dueDate: new Date('2025-04-27T10:30:00')
-    };
     
-    render(<ReminderEditDialog {...mockProps} reminder={reminderWithTime} />);
-    
-    const timeInput = screen.getByLabelText(/due time/i);
-    expect(timeInput).toHaveValue('10:30');
-    
-    const dateInput = screen.getByLabelText(/due date/i);
-    const newDate = new Date('2025-04-28');
-    fireEvent.change(dateInput, { target: { value: newDate.toISOString() } });
-    
-    expect(timeInput).toHaveValue('10:30');
+    // Verify dialog closes
+    expect(mockProps.onOpenChange).toHaveBeenCalledWith(false);
   });
 });
