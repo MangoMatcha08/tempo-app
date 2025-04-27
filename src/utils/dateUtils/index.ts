@@ -50,8 +50,7 @@ export {
 
 // Date operations
 export function createDateWithTime(date: Date, hours: number, minutes: number): Date {
-  const validDate = ensureValidDate(date);
-  const newDate = new Date(validDate);
-  newDate.setHours(hours, minutes, 0, 0);
-  return newDate;
+  const validDate = new Date(date);
+  validDate.setHours(hours, minutes, 0, 0);
+  return validDate;
 }
