@@ -5,6 +5,9 @@
 // Import timezone functions first since they're used in legacy exports
 import { toZonedTime, fromZonedTime } from './timezoneUtils';
 
+// Import the new adjustment utilities
+import { adjustDateIfPassed, isOnDstTransition } from './adjustment';
+
 // Re-export timezone functions for external use
 export {
   toZonedTime,
@@ -21,6 +24,9 @@ export {
   parseTimeString,
   formatTimeString
 } from './core';
+
+// Export the new adjustment utilities
+export { adjustDateIfPassed, isOnDstTransition };
 
 // Date/Time operations
 export {
@@ -58,12 +64,6 @@ export {
   DateValidationErrorType,
   ValidationErrorMessages
 } from './types';
-
-// Export date adjustment utilities
-export {
-  adjustDateIfPassed,
-  isOnDstTransition
-} from './adjustment';
 
 // Legacy exports for backward compatibility
 export const convertToUtc = fromZonedTime;
