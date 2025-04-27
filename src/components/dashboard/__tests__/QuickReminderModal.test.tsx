@@ -50,10 +50,10 @@ describe('QuickReminderModal', () => {
   });
   
   it('handles date selection correctly', async () => {
-    const today = new Date();
     render(<QuickReminderModal {...defaultProps} />);
     
-    // Select a date and verify the button updates
+    // Select today's date and verify the button updates
+    const today = new Date();
     const updatedDateButton = await selectDate(today);
     expect(updatedDateButton).toHaveTextContent(format(today, 'PPP'));
   });
