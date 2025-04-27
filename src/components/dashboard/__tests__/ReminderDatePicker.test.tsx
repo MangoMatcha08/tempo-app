@@ -56,8 +56,9 @@ describe('DatePicker Component', () => {
       </TestWrapper>
     );
 
-    const calendar = await openCalendar(TEST_IDS.REMINDER.DATE_PICKER);
-    expect(calendar).toBeTruthy();
+    await openCalendar(TEST_IDS.REMINDER.DATE_PICKER);
+    const calendar = document.querySelector('[role="dialog"] .rdp');
+    expect(calendar).toBeInTheDocument();
   });
 
   it('allows date selection', async () => {
@@ -75,6 +76,9 @@ describe('DatePicker Component', () => {
     );
 
     await selectDate(TEST_IDS.REMINDER.DATE_PICKER, defaultDate);
+
     expect(mockSetDate).toHaveBeenCalledWith(expect.any(Date));
+    const calledDate = mockSetDate.mock.calls[0][0];
+    expect(format(calledDate, 'yyyy-MM-dd')).toBe('2024-04-27');
   });
 });

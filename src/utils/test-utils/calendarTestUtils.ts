@@ -24,11 +24,13 @@ const getCalendarContent = async () => {
 export const openCalendar = async (testId: string) => {
   console.log('Opening calendar...');
   const trigger = screen.getByTestId(testId);
+  
   await act(async () => {
     await userEvent.click(trigger);
   });
   
-  const content = await getCalendarContent();
+  // Wait for calendar to be visible and interactive
+  await getCalendarContent();
   console.log('Calendar opened successfully');
   
   return trigger;
@@ -40,10 +42,10 @@ export const openCalendar = async (testId: string) => {
 const findDateButton = async (date: Date) => {
   console.log('Finding date button for:', format(date, 'PPP'));
   
+  // Wait for calendar to be fully rendered
   await waitFor(() => {
-    const table = document.querySelector('[role="dialog"] .rdp');
-    if (!table) {
-      console.log('Available calendar content:', document.querySelector('[role="dialog"]')?.innerHTML);
+    const calendar = document.querySelector('[role="dialog"] .rdp');
+    if (!calendar) {
       throw new Error('Calendar content not found');
     }
   }, { timeout: 2000 });
@@ -72,7 +74,7 @@ const findDateButton = async (date: Date) => {
   });
 
   if (!dateButton) {
-    throw new Error(`Could not find button for day ${targetDay}`);
+    throw new Error(`Could not find button for date ${format(date, 'PPP')}`);
   }
 
   console.log('Found date button:', dateButton.textContent);
@@ -140,4 +142,3 @@ export const selectDate = async (testId: string, date: Date, retries = 3) => {
   
   throw new Error(`Failed to select date after ${retries} attempts. Last error: ${lastError?.message}`);
 };
-
