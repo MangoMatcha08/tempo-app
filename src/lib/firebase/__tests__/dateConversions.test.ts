@@ -72,4 +72,3 @@ describe('Firebase Date Conversion Utilities', () => {
     });
   });
 });
-
