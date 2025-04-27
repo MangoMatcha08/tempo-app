@@ -79,7 +79,8 @@ export const createTestRender = (options: { debug?: boolean } = {}) => {
       return Component(props);
     } catch (error) {
       testLogger.error('Error rendering component:', error);
-      return <div data-testid="render-error">Component render failed</div>;
+      return null;
     }
   };
 };
+

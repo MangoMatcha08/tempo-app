@@ -50,3 +50,4 @@ vi.mock('@/hooks/use-toast', () => ({
     toast: vi.fn(),
   }),
 }));
+
