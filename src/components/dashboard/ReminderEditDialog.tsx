@@ -11,7 +11,7 @@ import { TimePicker } from "@/components/ui/time-picker";
 import { Reminder } from "@/types/reminder";
 import { format } from "date-fns";
 import { ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
-import { validateDate } from '@/utils/dateValidation';
+import { validateDate, DateValidationResult } from '@/utils/dateValidation';
 import { parseTimeString, createDateWithTime } from '@/utils/dateUtils';
 import ReminderPeriodField from './voice-reminder/ReminderPeriodField';
 
@@ -37,7 +37,7 @@ const ReminderEditDialog = ({
   const [dueTime, setDueTime] = useState<string | undefined>(
     reminder?.dueDate ? format(reminder.dueDate, 'HH:mm') : undefined
   );
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   // Update form when a different reminder is selected
   React.useEffect(() => {
@@ -49,24 +49,38 @@ const ReminderEditDialog = ({
       setPeriodId(reminder.periodId || 'none');
       setDueDate(reminder.dueDate);
       setDueTime(format(reminder.dueDate, 'HH:mm'));
+      setValidationErrors([]);
     }
   }, [reminder]);
 
   const handleSave = () => {
-    if (!reminder || !title.trim() || !dueDate) {
-      setValidationError('Please fill in all required fields');
+    const errors: string[] = [];
+    
+    if (!reminder || !title.trim()) {
+      errors.push('Title is required');
+    }
+    
+    if (!dueDate) {
+      errors.push('Due date is required');
+    }
+
+    if (dueDate) {
+      const dateValidation = validateDate(dueDate, {
+        required: true,
+        minDate: new Date()
+      });
+
+      if (!dateValidation.isValid) {
+        errors.push(...dateValidation.errors.map(error => error.message));
+      }
+    }
+
+    if (errors.length > 0) {
+      setValidationErrors(errors);
       return;
     }
 
-    const dateValidation = validateDate(dueDate, {
-      required: true,
-      minDate: new Date()
-    });
-
-    if (!dateValidation.isValid) {
-      setValidationError(dateValidation.errors[0]);
-      return;
-    }
+    if (!reminder || !dueDate) return;
 
     let finalDueDate = new Date(dueDate);
     
@@ -88,7 +102,7 @@ const ReminderEditDialog = ({
     };
 
     onSave(updatedReminder);
-    setValidationError(null);
+    setValidationErrors([]);
     onOpenChange(false);
   };
 
@@ -175,8 +189,12 @@ const ReminderEditDialog = ({
               </Select>
             </div>
           </div>
-          {validationError && (
-            <p className="text-sm text-red-500">{validationError}</p>
+          {validationErrors.length > 0 && (
+            <div className="space-y-1">
+              {validationErrors.map((error, index) => (
+                <p key={index} className="text-sm text-red-500">{error}</p>
+              ))}
+            </div>
           )}
         </div>
         <DialogFooter>
