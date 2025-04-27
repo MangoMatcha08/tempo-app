@@ -1,4 +1,4 @@
-import { ComponentType, ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { prettyDOM, logRoles, screen } from '@testing-library/react';
 import { vi } from 'vitest';
 
@@ -52,16 +52,18 @@ export const testLogger = {
         return;
       }
       
-      const attributes = Array.from(element.attributes)
-        .map(attr => `${attr.name}="${attr.value}"`)
-        .join(' ');
-        
-      console.log(`\n[TEST DOM] Element Details:
-        Tag: ${element.tagName.toLowerCase()}
-        Attributes: ${attributes}
-        Text Content: ${element.textContent}
-        Classes: ${element.className}
-      `);
+      if (element instanceof HTMLElement) {
+        const attributes = Array.from(element.attributes)
+          .map(attr => `${attr.name}="${attr.value}"`)
+          .join(' ');
+          
+        console.log(`\n[TEST DOM] Element Details:
+          Tag: ${element.tagName.toLowerCase()}
+          Attributes: ${attributes}
+          Text Content: ${element.textContent}
+          Classes: ${element.className}
+        `);
+      }
     },
 
     logCalendar: (element: Element | null) => {
@@ -78,7 +80,9 @@ export const testLogger = {
       const days = element.querySelectorAll('[role="gridcell"]');
       Array.from(days).slice(0, 3).forEach((day, index) => {
         console.log(`Day ${index + 1}:`);
-        testLogger.dom.logElement(day);
+        if (day instanceof HTMLElement) {
+          testLogger.dom.logElement(day);
+        }
       });
       
       if (days.length > 3) {
