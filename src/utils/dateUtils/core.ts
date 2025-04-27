@@ -1,34 +1,24 @@
-import { isValid } from 'date-fns';
-import type { TimeComponents } from './types';
 
-export function ensureValidDate(date: any): Date {
+import { format } from 'date-fns';
+
+/**
+ * Validates and converts input to a Date object
+ */
+export function ensureValidDate(date: Date | string | number | null | undefined): Date {
   // Already a valid Date
   if (date instanceof Date && !isNaN(date.getTime())) {
     return date;
   }
   
-  // Firebase Timestamp handling
-  if (date && typeof date === 'object' && 'toDate' in date) {
-    try {
-      const converted = date.toDate();
-      if (converted instanceof Date && !isNaN(converted.getTime())) {
-        return converted;
-      }
-    } catch (err) {
-      throw new Error('Invalid Timestamp object');
-    }
-  }
-  
-  // String handling
+  // Handle string input
   if (typeof date === 'string') {
     const parsed = new Date(date);
     if (!isNaN(parsed.getTime())) {
       return parsed;
     }
-    throw new Error('Invalid date string');
   }
   
-  // Numeric timestamp handling
+  // Handle numeric timestamp
   if (typeof date === 'number' && !isNaN(date)) {
     const parsed = new Date(date);
     if (!isNaN(parsed.getTime())) {
@@ -36,20 +26,19 @@ export function ensureValidDate(date: any): Date {
     }
   }
   
-  throw new Error('Invalid date input');
+  // Return current date as fallback
+  return new Date();
 }
 
 export function isTimeValid(hours: number, minutes: number): boolean {
   return hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60;
 }
 
-export function isDateValid(value: any): boolean {
-  if (!value) return false;
-  const date = ensureValidDate(value);
-  return isValid(date);
+export function isDate(value: unknown): value is Date {
+  return value instanceof Date && !isNaN(value.getTime());
 }
 
-export function parseTimeString(timeStr: string): TimeComponents | null {
+export function parseTimeString(timeStr: string): { hours: number; minutes: number } | null {
   if (!timeStr) return null;
   
   try {
@@ -73,16 +62,3 @@ export function parseTimeString(timeStr: string): TimeComponents | null {
   }
 }
 
-export function formatTimeString(date: Date | string): string {
-  try {
-    const validDate = ensureValidDate(date);
-    return validDate.toLocaleTimeString('en-US', { 
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true 
-    });
-  } catch (error) {
-    console.error('Error formatting time:', error);
-    return '--:--';
-  }
-}

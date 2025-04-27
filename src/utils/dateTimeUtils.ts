@@ -1,34 +1,8 @@
 
-import { ensureValidDate } from './dateUtils';
-import { toZonedTime, fromZonedTime } from './dateUtils/timezone';
-import type { TimeComponents } from './dateUtils/types';
-import { parseTimeString } from './dateUtils/core';
+import { addDays } from 'date-fns';
+import { ensureValidDate, isDate } from './dateUtils/core';
+import { toZonedTime, fromZonedTime } from './dateUtils/timezoneUtils';
 
-// Re-export core utilities
-export { parseTimeString };
-
-/**
- * Type guard to check if value is a valid Date
- */
-export function isDate(value: unknown): value is Date {
-  return value instanceof Date && !isNaN(value.getTime());
-}
-
-/**
- * Type guard to check if value can be converted to a valid Date
- */
-export function isConvertibleToDate(value: unknown): boolean {
-  try {
-    const date = ensureValidDate(value);
-    return isDate(date);
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Create a date with specific time components
- */
 export function createDateWithTime(date: Date, hours: number, minutes: number): Date {
   try {
     const validDate = ensureValidDate(date);
@@ -37,14 +11,11 @@ export function createDateWithTime(date: Date, hours: number, minutes: number): 
     return newDate;
   } catch (error) {
     console.error('Error creating date with time:', error);
-    return new Date(); // Return current date as fallback
+    return new Date();
   }
 }
 
-/**
- * Safe conversion to local time with timezone handling
- */
-export function toLocalTime(date: unknown): Date {
+export function toLocalTime(date: Date): Date {
   try {
     const validDate = ensureValidDate(date);
     return toZonedTime(validDate);
@@ -54,10 +25,7 @@ export function toLocalTime(date: unknown): Date {
   }
 }
 
-/**
- * Safe conversion to UTC with timezone handling
- */
-export function toUtcTime(date: unknown): Date {
+export function toUtcTime(date: Date): Date {
   try {
     const validDate = ensureValidDate(date);
     return fromZonedTime(validDate);
@@ -67,10 +35,7 @@ export function toUtcTime(date: unknown): Date {
   }
 }
 
-/**
- * Parse time components safely
- */
-export function parseTimeComponents(date: unknown): TimeComponents | null {
+export function parseTimeComponents(date: Date): { hours: number; minutes: number } | null {
   try {
     const validDate = ensureValidDate(date);
     return {
@@ -82,9 +47,3 @@ export function parseTimeComponents(date: unknown): TimeComponents | null {
   }
 }
 
-// Re-export timezone functions with consistent naming
-export { toZonedTime, fromZonedTime };
-
-// Legacy names for backward compatibility
-export const convertToUtc = fromZonedTime;
-export const convertToLocal = toZonedTime;

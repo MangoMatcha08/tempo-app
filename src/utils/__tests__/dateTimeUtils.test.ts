@@ -37,17 +37,17 @@ describe('Date Time Utils', () => {
       // Create a date that's definitely in the past (yesterday)
       const pastDate = new Date();
       pastDate.setDate(pastDate.getDate() - 1);
-      pastDate.setHours(0, 0, 0, 0); // Set to midnight for consistent testing
+      pastDate.setHours(0, 0, 0, 0); // Set to midnight
       
       // Get the adjusted date
       const result = adjustDateIfPassed(pastDate);
       
-      // Tomorrow's date for comparison
+      // Create tomorrow's date for comparison
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0); // Set to midnight for consistent comparison
+      tomorrow.setHours(0, 0, 0, 0); // Set to midnight
       
-      // Compare the dates (just the day, month, year)
+      // Compare dates
       expect(result.getDate()).toBe(tomorrow.getDate());
       expect(result.getMonth()).toBe(tomorrow.getMonth());
       expect(result.getFullYear()).toBe(tomorrow.getFullYear());
@@ -58,15 +58,15 @@ describe('Date Time Utils', () => {
     test('toLocalTime handles various inputs', () => {
       const date = new Date();
       expect(isDate(toLocalTime(date))).toBe(true);
-      expect(isDate(toLocalTime('2024-04-26'))).toBe(true);
-      expect(isDate(toLocalTime('invalid'))).toBe(true); // Returns current date
+      expect(isDate(toLocalTime(new Date('2024-04-26')))).toBe(true);
+      expect(isDate(toLocalTime(new Date()))).toBe(true);
     });
 
     test('toUtcTime handles various inputs', () => {
       const date = new Date();
       expect(isDate(toUtcTime(date))).toBe(true);
-      expect(isDate(toUtcTime('2024-04-26'))).toBe(true);
-      expect(isDate(toUtcTime('invalid'))).toBe(true); // Returns current date
+      expect(isDate(toUtcTime(new Date('2024-04-26')))).toBe(true);
+      expect(isDate(toUtcTime(new Date()))).toBe(true);
     });
   });
 

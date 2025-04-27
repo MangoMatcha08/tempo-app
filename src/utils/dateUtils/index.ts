@@ -1,4 +1,3 @@
-
 /**
  * Core date utilities providing a unified API for date operations
  */
@@ -13,9 +12,8 @@ import { adjustDateIfPassed, isOnDstTransition } from './adjustment';
 export {
   ensureValidDate,
   isTimeValid,
-  isDateValid,
-  parseTimeString,
-  formatTimeString
+  isDate,
+  parseTimeString
 } from './core';
 
 // Export the adjustment utilities
@@ -52,7 +50,7 @@ export {
 } from './validation';
 
 // Debug utilities
-export function logDateDetails(label: string, date: unknown): void {
+export function logDateDetails(label: string, date: Date | string | number | null | undefined): void {
   console.group(`[${label}]`);
   try {
     const validDate = ensureValidDate(date);
