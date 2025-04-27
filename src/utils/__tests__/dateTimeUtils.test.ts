@@ -1,12 +1,11 @@
 import {
   isDate,
-  isConvertibleToDate,
   createDateWithTime,
-  toLocalTime,
-  toUtcTime,
+  toZonedTime,
+  fromZonedTime,
   parseTimeComponents,
   adjustDateIfPassed
-} from '@/utils/dateUtils';
+} from '../dateUtils';
 
 describe('Date Time Utils', () => {
   describe('Type Guards', () => {
@@ -37,52 +36,31 @@ describe('Date Time Utils', () => {
       // Create a date that's definitely in the past (yesterday)
       const pastDate = new Date();
       pastDate.setDate(pastDate.getDate() - 1);
-      pastDate.setHours(0, 0, 0, 0); // Set to midnight
+      pastDate.setHours(0, 0, 0, 0);
       
       // Get the adjusted date
       const result = adjustDateIfPassed(pastDate);
-      
-      // Create tomorrow's date for comparison
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0); // Set to midnight
+      tomorrow.setHours(0, 0, 0, 0);
       
-      // Compare dates
       expect(result.getDate()).toBe(tomorrow.getDate());
       expect(result.getMonth()).toBe(tomorrow.getMonth());
       expect(result.getFullYear()).toBe(tomorrow.getFullYear());
     });
   });
 
-  describe('Time Conversions', () => {
-    test('toLocalTime handles various inputs', () => {
-      const date = new Date();
-      expect(isDate(toLocalTime(date))).toBe(true);
-      expect(isDate(toLocalTime(new Date('2024-04-26')))).toBe(true);
-      expect(isDate(toLocalTime(new Date()))).toBe(true);
-    });
-
-    test('toUtcTime handles various inputs', () => {
-      const date = new Date();
-      expect(isDate(toUtcTime(date))).toBe(true);
-      expect(isDate(toUtcTime(new Date('2024-04-26')))).toBe(true);
-      expect(isDate(toUtcTime(new Date()))).toBe(true);
-    });
-  });
-
   describe('Time Components', () => {
     test('parseTimeComponents extracts correct components', () => {
-      const date = new Date('2024-04-26T14:30:00Z');
-      const components = parseTimeComponents(date);
-      expect(components).toEqual({
-        hours: expect.any(Number),
-        minutes: expect.any(Number)
+      const date = new Date(2024, 3, 26, 14, 30);
+      expect(parseTimeComponents(date)).toEqual({
+        hours: 14,
+        minutes: 30
       });
     });
 
     test('parseTimeComponents handles invalid input', () => {
-      expect(parseTimeComponents('invalid')).toBeNull();
-      expect(parseTimeComponents(null)).toBeNull();
+      expect(parseTimeComponents(new Date('invalid'))).toBeNull();
     });
   });
 });

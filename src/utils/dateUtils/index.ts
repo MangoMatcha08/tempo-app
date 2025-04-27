@@ -1,75 +1,24 @@
-/**
- * Core date utilities providing a unified API for date operations
- */
 
-// Import timezone functions first since they're used in legacy exports
-import { toZonedTime, fromZonedTime } from './timezoneUtils';
-
-// Import the adjustment utilities
-import { adjustDateIfPassed, isOnDstTransition } from './adjustment';
-
-// Core date validation and conversion
+// Core date utilities
 export {
+  isDate,
   ensureValidDate,
   isTimeValid,
-  isDate,
-  parseTimeString
+  parseTimeString,
+  formatTimeString
 } from './core';
 
-// Export the adjustment utilities
-export { adjustDateIfPassed, isOnDstTransition };
-
-// Export timezone functions for external use
+// Timezone utilities
 export {
   toZonedTime,
   fromZonedTime,
   getUserTimeZone,
-  formatWithTimeZone
+  formatWithTimeZone,
+  convertToUtc,
+  convertToLocal
 } from './timezoneUtils';
 
-// Date/Time operations
-export {
-  isDate,
-  isConvertibleToDate,
-  createDateWithTime,
-  parseTimeComponents,
-  toLocalTime,
-  toUtcTime
-} from '../dateTimeUtils';
-
-// Formatting utilities
-export {
-  formatDate,
-  formatDateRange
-} from './formatting';
-
-// Validation utilities
-export {
-  validateDate,
-  validateDateRange
-} from './validation';
-
-// Debug utilities
-export function logDateDetails(label: string, date: Date | string | number | null | undefined): void {
-  console.group(`[${label}]`);
-  try {
-    const validDate = ensureValidDate(date);
-    console.log({
-      date: validDate.toString(),
-      iso: validDate.toISOString(),
-      time: validDate.toLocaleTimeString(),
-      timestamp: validDate.getTime(),
-      isValid: isDate(validDate),
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    });
-  } catch (error) {
-    console.error('Invalid date:', date);
-    console.error('Error:', error);
-  }
-  console.groupEnd();
-}
-
-// Type exports
+// Re-export types
 export type {
   TimeComponents,
   DateValidationError,
@@ -77,13 +26,35 @@ export type {
   DateValidationOptions
 } from './types';
 
-// Export enums and constants
+// Re-export enums and constants
 export {
   DateFormats,
   DateValidationErrorType,
   ValidationErrorMessages
 } from './types';
 
-// Legacy exports for backward compatibility
-export const convertToUtc = fromZonedTime;
-export const convertToLocal = toZonedTime;
+// Date operations from dateTimeUtils (moved here)
+export function createDateWithTime(date: Date, hours: number, minutes: number): Date {
+  const validDate = ensureValidDate(date);
+  const newDate = new Date(validDate);
+  newDate.setHours(hours, minutes, 0, 0);
+  return newDate;
+}
+
+export function parseTimeComponents(date: Date): { hours: number; minutes: number } | null {
+  try {
+    const validDate = ensureValidDate(date);
+    return {
+      hours: validDate.getHours(),
+      minutes: validDate.getMinutes()
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Re-export validation functions
+export {
+  validateDate,
+  validateDateRange
+} from './validation';

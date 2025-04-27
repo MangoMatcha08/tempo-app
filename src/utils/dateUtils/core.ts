@@ -1,41 +1,44 @@
 
 import { format } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 
-/**
- * Validates and converts input to a Date object
- */
+export function isDate(value: unknown): value is Date {
+  return value instanceof Date && !isNaN(value.getTime());
+}
+
 export function ensureValidDate(date: Date | string | number | null | undefined): Date {
   // Already a valid Date
-  if (date instanceof Date && !isNaN(date.getTime())) {
+  if (isDate(date)) {
     return date;
   }
   
-  // Handle string input
-  if (typeof date === 'string') {
-    const parsed = new Date(date);
-    if (!isNaN(parsed.getTime())) {
-      return parsed;
+  try {
+    // Handle string input
+    if (typeof date === 'string') {
+      const parsed = new Date(date);
+      if (isDate(parsed)) {
+        return parsed;
+      }
+      throw new Error('Invalid date string');
     }
-  }
-  
-  // Handle numeric timestamp
-  if (typeof date === 'number' && !isNaN(date)) {
-    const parsed = new Date(date);
-    if (!isNaN(parsed.getTime())) {
-      return parsed;
+    
+    // Handle numeric timestamp
+    if (typeof date === 'number' && !isNaN(date)) {
+      const parsed = new Date(date);
+      if (isDate(parsed)) {
+        return parsed;
+      }
     }
+    
+    throw new Error('Invalid date input');
+  } catch (error) {
+    console.error('Error validating date:', error);
+    return new Date();
   }
-  
-  // Return current date as fallback
-  return new Date();
 }
 
 export function isTimeValid(hours: number, minutes: number): boolean {
   return hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60;
-}
-
-export function isDate(value: unknown): value is Date {
-  return value instanceof Date && !isNaN(value.getTime());
 }
 
 export function parseTimeString(timeStr: string): { hours: number; minutes: number } | null {
@@ -62,3 +65,6 @@ export function parseTimeString(timeStr: string): { hours: number; minutes: numb
   }
 }
 
+export function formatTimeString(date: Date): string {
+  return format(ensureValidDate(date), 'h:mm a');
+}
