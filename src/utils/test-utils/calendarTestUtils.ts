@@ -25,7 +25,9 @@ export const openCalendar = async (testId: string) => {
   console.log('Opening calendar...');
   const trigger = screen.getByTestId(testId);
   
+  // Focus the trigger first
   await act(async () => {
+    trigger.focus();
     await userEvent.click(trigger);
   });
   
@@ -42,9 +44,10 @@ export const openCalendar = async (testId: string) => {
 const findDateButton = async (date: Date) => {
   console.log('Finding date button for:', format(date, 'PPP'));
   
-  // Wait for calendar to be fully rendered
+  // Wait for calendar to be fully rendered with retry
+  let calendar;
   await waitFor(() => {
-    const calendar = document.querySelector('[role="dialog"] .rdp');
+    calendar = document.querySelector('[role="dialog"] .rdp');
     if (!calendar) {
       throw new Error('Calendar content not found');
     }
@@ -65,34 +68,24 @@ const findDateButton = async (date: Date) => {
   const targetDay = format(date, 'd'); // 'd' gives us just the day number
   console.log('Looking for day number:', targetDay);
 
-  // Find button with matching day number
-  const dateButton = buttons.find(btn => {
-    const btnText = btn.textContent?.trim();
-    const isMatch = btnText === targetDay;
-    console.log(`Comparing button text "${btnText}" with target "${targetDay}":`, isMatch);
-    return isMatch;
-  });
+  // Find button with matching day number and ensure it's interactable
+  const dateButton = await waitFor(() => {
+    const btn = buttons.find(btn => {
+      const btnText = btn.textContent?.trim();
+      const isMatch = btnText === targetDay;
+      console.log(`Comparing button text "${btnText}" with target "${targetDay}":`, isMatch);
+      return isMatch;
+    });
 
-  if (!dateButton) {
-    throw new Error(`Could not find button for date ${format(date, 'PPP')}`);
-  }
+    if (!btn || btn.hasAttribute('disabled') || btn.getAttribute('aria-disabled') === 'true') {
+      throw new Error('Date button not found or not interactable');
+    }
+
+    return btn;
+  }, { timeout: 2000 });
 
   console.log('Found date button:', dateButton.textContent);
   return dateButton;
-};
-
-/**
- * Closes calendar using Escape key
- */
-export const closeCalendar = async () => {
-  await act(async () => {
-    await userEvent.keyboard('{Escape}');
-  });
-
-  await waitFor(() => {
-    const calendar = document.querySelector('[role="dialog"] .rdp');
-    expect(calendar).not.toBeInTheDocument();
-  });
 };
 
 /**
@@ -110,8 +103,14 @@ export const selectDate = async (testId: string, date: Date, retries = 3) => {
       const dateButton = await findDateButton(date);
       
       console.log('Clicking date button...');
+      
+      // Simulate full click interaction
       await act(async () => {
-        await userEvent.click(dateButton);
+        dateButton.focus();
+        await userEvent.pointer([
+          { keys: '[MouseLeft>]', target: dateButton },
+          { keys: '[/MouseLeft]', target: dateButton }
+        ]);
       });
       
       // Wait for selected date to be reflected in trigger button
@@ -126,7 +125,9 @@ export const selectDate = async (testId: string, date: Date, retries = 3) => {
           expectedDate: formattedDate
         });
         
-        expect(normalizedText).toContain(formattedDate);
+        if (!normalizedText.includes(formattedDate)) {
+          throw new Error('Date not updated in button text');
+        }
       }, { timeout: 2000 });
       
       console.log('Date selected successfully');

@@ -17,7 +17,8 @@ describe('DatePicker Component', () => {
     vi.useRealTimers();
     vi.clearAllMocks();
     
-    // Cleanup portal root
+    // Cleanup portal root and any remaining dialogs
+    document.querySelectorAll('[role="dialog"]').forEach(el => el.remove());
     const portal = document.getElementById('radix-portal');
     if (portal) {
       portal.remove();
@@ -75,8 +76,10 @@ describe('DatePicker Component', () => {
       </TestWrapper>
     );
 
+    // Set explicit timeout for the test
     await selectDate(TEST_IDS.REMINDER.DATE_PICKER, defaultDate);
 
+    // Verify callback was called with correct date
     expect(mockSetDate).toHaveBeenCalledWith(expect.any(Date));
     const calledDate = mockSetDate.mock.calls[0][0];
     expect(format(calledDate, 'yyyy-MM-dd')).toBe('2024-04-27');
