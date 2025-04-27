@@ -1,5 +1,6 @@
 
 import { fireEvent, screen, within } from '@testing-library/react';
+import { format } from 'date-fns';
 
 /**
  * Gets the opened calendar popover content
@@ -9,39 +10,63 @@ export async function getCalendarPopover() {
 }
 
 /**
- * Gets day button in calendar by text
+ * Gets day button in calendar by text with enhanced error handling and debugging
  */
 export function getDayButtonByText(calendar: HTMLElement, dayText: string) {
   console.log('Looking for day:', dayText);
+  console.log('Calendar content:', calendar.innerHTML);
   
   // First try by aria-label (Shadcn format)
   const buttons = within(calendar).getAllByRole('button');
-  const targetButton = buttons.find(button => {
-    const label = button.getAttribute('aria-label');
-    console.log('Checking button with aria-label:', label);
-    return label && label.includes(dayText);
+  console.log('Found buttons:', buttons.length);
+  
+  // Log all button attributes for debugging
+  buttons.forEach((button, index) => {
+    console.log(`Button ${index}:`, {
+      text: button.textContent,
+      ariaLabel: button.getAttribute('aria-label'),
+      role: button.getAttribute('role'),
+      date: button.getAttribute('data-date')
+    });
   });
 
-  if (targetButton) {
-    return targetButton;
+  // Try to find by various date formats
+  const dateFormats = ['d', 'dd', 'D'];
+  for (const fmt of dateFormats) {
+    const formattedDate = format(new Date(dayText), fmt);
+    console.log('Trying date format:', fmt, 'Result:', formattedDate);
+    
+    const targetButton = buttons.find(button => {
+      const label = button.getAttribute('aria-label');
+      const content = button.textContent?.trim();
+      return label?.includes(formattedDate) || content === formattedDate;
+    });
+
+    if (targetButton) {
+      console.log('Found button with format:', fmt);
+      return targetButton;
+    }
   }
 
-  // Fallback to cell content
-  const cells = within(calendar).getAllByRole('gridcell');
-  const targetCell = cells.find(cell => {
-    const button = cell.querySelector('button');
-    const text = button?.textContent;
-    console.log('Checking cell button with text:', text);
-    return text === dayText;
-  });
+  // If no button found, log available buttons for debugging
+  console.error('Available buttons:', 
+    buttons.map(b => ({
+      text: b.textContent,
+      ariaLabel: b.getAttribute('aria-label'),
+      date: b.getAttribute('data-date')
+    }))
+  );
   
-  return targetCell?.querySelector('button') || null;
+  // Return null instead of throwing to allow caller to handle the error
+  return null;
 }
 
 /**
- * Simple date selection helper
+ * Enhanced date selection helper with better error handling
  */
 export async function selectDate(targetDate: Date) {
+  console.log('Starting date selection for:', format(targetDate, 'PPP'));
+  
   // Click date picker to open calendar
   const dateButton = screen.getByTestId('reminder-date-picker');
   fireEvent.click(dateButton);
@@ -49,21 +74,23 @@ export async function selectDate(targetDate: Date) {
   // Wait for calendar to open
   const calendar = await getCalendarPopover();
   
-  // Get the day button and click it
-  const dayString = targetDate.getDate().toString();
+  // Format date as a string
+  const dayString = format(targetDate, 'yyyy-MM-dd');
+  console.log('Looking for date:', dayString);
+  
+  // Get the day button with enhanced error handling
   const dayButton = getDayButtonByText(calendar, dayString);
   
   if (!dayButton) {
-    console.error('Available buttons:', 
-      within(calendar).getAllByRole('button')
-        .map(b => ({
-          text: b.textContent,
-          ariaLabel: b.getAttribute('aria-label')
-        }))
-    );
+    console.error('Failed to find date button in calendar');
     throw new Error(`Could not find button for date ${dayString}`);
   }
   
+  // Click the button and verify the selection
   fireEvent.click(dayButton);
+  
+  // Allow a moment for state to update
+  await new Promise(resolve => setTimeout(resolve, 0));
+  
   return dateButton;
 }
