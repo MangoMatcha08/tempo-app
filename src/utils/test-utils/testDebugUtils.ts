@@ -1,3 +1,4 @@
+
 import { vi } from 'vitest';
 import { ComponentType } from 'react';
 
@@ -76,11 +77,11 @@ export const createTestRender = (options: { debug?: boolean } = {}) => {
     }
     
     try {
-      return <Component {...props} />;
+      // Use functional createElement instead of JSX syntax
+      return React.createElement(Component, props);
     } catch (error) {
       testLogger.error('Error rendering component:', error);
       return null;
     }
   };
 };
-

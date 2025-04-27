@@ -1,8 +1,10 @@
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { format, addDays } from 'date-fns';
 import QuickReminderModal from '../QuickReminderModal';
-import { getCalendarPopover, selectDate } from '../../../utils/test-utils/datePickerTestUtils';
+import { TestWrapper } from '@/test/test-wrapper';
+import { openDatePicker, selectCalendarDate, getCalendarPopover } from '@/utils/test-utils/datePickerTestUtils';
 
 describe('QuickReminderModal DatePicker', () => {
   const mockOnOpenChange = vi.fn();
@@ -16,18 +18,19 @@ describe('QuickReminderModal DatePicker', () => {
   
   beforeEach(() => {
     vi.clearAllMocks();
+    render(
+      <TestWrapper>
+        <QuickReminderModal {...defaultProps} />
+      </TestWrapper>
+    );
   });
 
-  it('displays current date by default', () => {
-    render(<QuickReminderModal {...defaultProps} />);
-    
+  it('displays current date by default', async () => {
     const dateButton = screen.getByTestId('reminder-date-picker');
     expect(dateButton).toHaveTextContent(format(new Date(), 'PPP'));
   });
 
   it('opens calendar on date picker click', async () => {
-    render(<QuickReminderModal {...defaultProps} />);
-    
     const dateButton = screen.getByTestId('reminder-date-picker');
     fireEvent.click(dateButton);
     
@@ -35,20 +38,44 @@ describe('QuickReminderModal DatePicker', () => {
     expect(calendar).toBeInTheDocument();
   });
 
-  // Skipping date selection tests until we update test utilities for Shadcn DatePicker
-  it.skip('allows selecting current date', async () => {
+  // Re-enable these tests once we've fixed the date picker utilities
+  it('allows selecting current date', async () => {
     const today = new Date();
-    await selectDate(today);
     
+    // Open the date picker
     const dateButton = screen.getByTestId('reminder-date-picker');
-    expect(dateButton).toHaveTextContent(format(today, 'PPP'));
+    fireEvent.click(dateButton);
+    
+    // Wait for calendar to appear
+    await getCalendarPopover();
+    
+    // Select today's date
+    await selectCalendarDate(today);
+    
+    // Verify the date was selected
+    await waitFor(() => {
+      const updatedButton = screen.getByTestId('reminder-date-picker');
+      expect(updatedButton).toHaveTextContent(format(today, 'PPP'));
+    }, { timeout: 5000 });
   });
 
-  it.skip('allows selecting tomorrow', async () => {
+  it('allows selecting tomorrow', async () => {
     const tomorrow = addDays(new Date(), 1);
-    await selectDate(tomorrow);
     
+    // Open the date picker
     const dateButton = screen.getByTestId('reminder-date-picker');
-    expect(dateButton).toHaveTextContent(format(tomorrow, 'PPP'));
+    fireEvent.click(dateButton);
+    
+    // Wait for calendar to appear
+    await getCalendarPopover();
+    
+    // Select tomorrow's date
+    await selectCalendarDate(tomorrow);
+    
+    // Verify the date was selected
+    await waitFor(() => {
+      const updatedButton = screen.getByTestId('reminder-date-picker');
+      expect(updatedButton).toHaveTextContent(format(tomorrow, 'PPP'));
+    }, { timeout: 5000 });
   });
 });

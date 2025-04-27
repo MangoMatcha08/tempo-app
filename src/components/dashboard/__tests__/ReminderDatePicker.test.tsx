@@ -1,5 +1,6 @@
 
 import { render, screen } from '@testing-library/react';
+import { vi } from 'vitest';
 import { DatePicker } from "@/components/ui/date-picker";
 import { TestWrapper } from '@/test/test-wrapper';
 import { openDatePicker, selectCalendarDate, verifySelectedDate } from '@/utils/test-utils/datePickerTestUtils';
@@ -37,7 +38,7 @@ describe('DatePicker Component', () => {
       </TestWrapper>
     );
 
-    const dialog = await openDatePicker();
+    const dialog = await openDatePicker(TEST_IDS.REMINDER.DATE_PICKER);
     expect(dialog).toBeInTheDocument();
   });
 
@@ -56,7 +57,7 @@ describe('DatePicker Component', () => {
       </TestWrapper>
     );
 
-    await openDatePicker();
+    await openDatePicker(TEST_IDS.REMINDER.DATE_PICKER);
     await selectCalendarDate(targetDate);
     
     expect(mockSetDate).toHaveBeenCalledWith(expect.any(Date));

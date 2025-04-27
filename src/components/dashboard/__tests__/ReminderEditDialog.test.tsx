@@ -6,21 +6,22 @@ import { createMockReminder } from '@/test/mocks/reminder-mocks';
 import ReminderEditDialog from '@/components/dashboard/ReminderEditDialog';
 import { TestWrapper } from '@/test/test-wrapper';
 import { ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
+import userEvent from '@testing-library/user-event';
 
 describe('ReminderEditDialog Component', () => {
-  const mockOnSave = vi.fn();
+  const mockOnSave = vi.fn().mockResolvedValue(true);
   const mockOnOpenChange = vi.fn();
 
   beforeEach(() => {
     mockDate('2024-04-27T12:00:00Z');
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
     restoreDate();
-    vi.clearAllMocks();
   });
 
-  it('renders with reminder data', () => {
+  it('renders with reminder data', async () => {
     const reminder = createMockReminder({
       title: 'Test Reminder',
       description: 'Test Description',
@@ -40,9 +41,11 @@ describe('ReminderEditDialog Component', () => {
       </TestWrapper>
     );
 
-    expect(screen.getByDisplayValue('Test Reminder')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Test Description')).toBeInTheDocument();
-    expect(screen.getByText('High')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Test Reminder')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('Test Description')).toBeInTheDocument();
+      expect(screen.getByText('High')).toBeInTheDocument();
+    }, { timeout: 5000 });
   });
 
   it('validates required fields', async () => {
@@ -62,15 +65,15 @@ describe('ReminderEditDialog Component', () => {
       </TestWrapper>
     );
 
-    const titleInput = screen.getByLabelText(/title/i);
-    fireEvent.change(titleInput, { target: { value: '' } });
+    const titleInput = await screen.findByLabelText(/title/i);
+    await userEvent.clear(titleInput);
     
     const saveButton = screen.getByText('Save Changes');
-    fireEvent.click(saveButton);
+    await userEvent.click(saveButton);
 
     await waitFor(() => {
       expect(screen.getByText('Title is required')).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
     expect(mockOnSave).not.toHaveBeenCalled();
   });
 
@@ -91,11 +94,12 @@ describe('ReminderEditDialog Component', () => {
       </TestWrapper>
     );
 
-    const titleInput = screen.getByLabelText(/title/i);
-    fireEvent.change(titleInput, { target: { value: 'Updated Title' } });
+    const titleInput = await screen.findByLabelText(/title/i);
+    await userEvent.clear(titleInput);
+    await userEvent.type(titleInput, 'Updated Title');
     
     const saveButton = screen.getByText('Save Changes');
-    fireEvent.click(saveButton);
+    await userEvent.click(saveButton);
 
     await waitFor(() => {
       expect(mockOnSave).toHaveBeenCalledWith(
@@ -104,6 +108,6 @@ describe('ReminderEditDialog Component', () => {
           title: 'Updated Title'
         })
       );
-    });
+    }, { timeout: 5000 });
   });
 });
