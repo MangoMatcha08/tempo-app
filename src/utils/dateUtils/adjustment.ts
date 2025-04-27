@@ -8,20 +8,23 @@ export function adjustDateIfPassed(date: Date): Date {
   const now = new Date();
   const timeZone = getUserTimeZone();
   
-  // Convert both to local timezone for comparison
-  const localDate = toZonedTime(validDate, timeZone);
-  const localNow = toZonedTime(now, timeZone);
+  // Convert dates to UTC for comparison to avoid timezone issues
+  const localDate = toZonedTime(validDate, 'UTC');
+  const localNow = toZonedTime(now, 'UTC');
   
   if (localDate < localNow) {
-    // Save the time components
-    const hours = localDate.getHours();
-    const minutes = localDate.getMinutes();
+    // Convert to user's timezone to preserve correct time components
+    const zonedDate = toZonedTime(validDate, timeZone);
     
-    // Add a day and preserve time components
-    const zonedTomorrow = addDays(localDate, 1);
+    // Save the time components
+    const hours = zonedDate.getHours();
+    const minutes = zonedDate.getMinutes();
+    
+    // Add a day while preserving time components
+    const zonedTomorrow = addDays(zonedDate, 1);
     zonedTomorrow.setHours(hours, minutes, 0, 0);
     
-    // Convert back to UTC before returning
+    // Convert back to UTC for return
     return fromZonedTime(zonedTomorrow, timeZone);
   }
   
