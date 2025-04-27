@@ -1,10 +1,7 @@
 
-import { vi, beforeAll, afterEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
-
-// Explicitly declare vi as global
-global.vi = vi;
+import { afterEach, beforeAll, vi } from 'vitest';
 
 // Run cleanup automatically between tests
 afterEach(() => {
@@ -32,15 +29,6 @@ beforeAll(() => {
       removeEventListener: vi.fn(),
       dispatchEvent: vi.fn(),
     };
-  };
-});
-
-// Setup React test environment
-vi.mock('react', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('react')>();
-  return {
-    ...actual,
-    useEffect: vi.fn(actual.useEffect),
   };
 });
 
