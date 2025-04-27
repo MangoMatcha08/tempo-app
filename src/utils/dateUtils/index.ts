@@ -3,7 +3,10 @@
  * Core date utilities providing a unified API for date operations
  */
 
-// Timezone conversions - imported first since other modules depend on them
+// Import timezone functions first since they're used in legacy exports
+import { toZonedTime, fromZonedTime } from './timezoneUtils';
+
+// Re-export timezone functions for external use
 export {
   toZonedTime,
   fromZonedTime,
@@ -61,3 +64,4 @@ export {
 // Legacy exports for backward compatibility
 export const convertToUtc = fromZonedTime;
 export const convertToLocal = toZonedTime;
+
