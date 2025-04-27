@@ -33,22 +33,25 @@ function applyTimeComponents(date: Date, time: TimeComponents, timeZone?: string
 /**
  * Adjusts a date if it's in the past, preserving time components and handling timezones
  */
-export function adjustDateIfPassed(date: Date, timeZone?: string): Date {
+export function adjustDateIfPassed(date: Date, timeZone: string = Intl.DateTimeFormat().resolvedOptions().timeZone): Date {
   try {
     const validDate = ensureValidDate(date);
     const now = new Date();
     
     // Convert both dates to target timezone for comparison
-    const zonedDate = timeZone ? toZonedTime(validDate, timeZone) : validDate;
-    const zonedNow = timeZone ? toZonedTime(now, timeZone) : now;
+    const zonedDate = toZonedTime(validDate, timeZone);
+    const zonedNow = toZonedTime(now, timeZone);
     
     if (zonedDate < zonedNow) {
       // Save original time components
       const timeComponents = extractTimeComponents(zonedDate, timeZone);
       
-      // Add a day and reapply the original time
+      // Add a day and reapply the original time, ensuring timezone consistency
       const tomorrow = addDays(zonedDate, 1);
-      return applyTimeComponents(tomorrow, timeComponents, timeZone);
+      const adjustedDate = applyTimeComponents(tomorrow, timeComponents, timeZone);
+      
+      // Convert back to the original timezone context
+      return fromZonedTime(adjustedDate, timeZone);
     }
     
     return validDate;

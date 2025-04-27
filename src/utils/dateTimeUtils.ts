@@ -1,11 +1,10 @@
 import { ensureValidDate } from './dateUtils';
 import { toZonedTime, fromZonedTime } from './dateUtils/timezone';
-import { adjustDateIfPassed } from './dateUtils/adjustment';
 import type { TimeComponents } from './dateUtils/types';
 import { parseTimeString } from './dateUtils/core';
 
-// Re-export parseTimeString
-export { parseTimeString, adjustDateIfPassed };
+// Re-export core utilities
+export { parseTimeString };
 
 /**
  * Type guard to check if value is a valid Date
@@ -42,12 +41,7 @@ export function createDateWithTime(date: Date, hours: number, minutes: number): 
 }
 
 /**
- * Adjust date if it's in the past (used for reminders)
- */
-export { adjustDateIfPassed };
-
-/**
- * Safe conversion to local time
+ * Safe conversion to local time with timezone handling
  */
 export function toLocalTime(date: unknown): Date {
   try {
@@ -60,7 +54,7 @@ export function toLocalTime(date: unknown): Date {
 }
 
 /**
- * Safe conversion to UTC
+ * Safe conversion to UTC with timezone handling
  */
 export function toUtcTime(date: unknown): Date {
   try {
@@ -109,13 +103,9 @@ export function logDateDetails(label: string, date: unknown): void {
   console.groupEnd();
 }
 
-// Re-export timezone conversion functions with new names for backward compatibility
+// Re-export timezone functions with consistent naming
 export { toZonedTime, fromZonedTime };
 
-// Provide legacy function names for backward compatibility
+// Legacy names for backward compatibility
 export const convertToUtc = fromZonedTime;
 export const convertToLocal = toZonedTime;
-
-// Export the centralized functions for direct use
-export { toZonedTime as convertToZonedTime } from './dateUtils/timezone';
-export { fromZonedTime as convertFromZonedTime } from './dateUtils/timezone';

@@ -25,7 +25,7 @@ export {
   formatTimeString
 } from './core';
 
-// Export the new adjustment utilities
+// Export the adjustment utilities
 export { adjustDateIfPassed, isOnDstTransition };
 
 // Date/Time operations
