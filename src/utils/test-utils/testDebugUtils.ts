@@ -36,7 +36,7 @@ export const testLogger = {
         console.warn('[TEST DOM] No element provided for inspection');
         return;
       }
-      console.log('\n[TEST DOM] Structure:', prettyDOM(element, maxDepth));
+      console.log('\n[TEST DOM] Structure:', prettyDOM(element as HTMLElement, maxDepth));
     },
 
     logRoles: (element: Element | null) => {
@@ -45,7 +45,7 @@ export const testLogger = {
         return;
       }
       console.log('\n[TEST DOM] Accessible Roles:');
-      logRoles(element);
+      logRoles(element as HTMLElement);
     },
 
     logElement: (element: Element | null) => {
@@ -136,7 +136,8 @@ export const createTestRender = (options: { debug?: boolean } = {}) => {
     }
     
     try {
-      return React.createElement(Component, props);
+      // Use proper React import
+      return ComponentType<any>;
     } catch (error) {
       testLogger.error('Error rendering component:', error);
       return null;
@@ -149,7 +150,7 @@ export const createTestRender = (options: { debug?: boolean } = {}) => {
  */
 export const inspectCalendar = async () => {
   try {
-    const calendar = await screen.findByRole('application');
+    const calendar = await screen.findByRole('dialog', { name: 'Calendar' });
     testLogger.dom.logStructure(calendar);
     testLogger.dom.logRoles(calendar);
     console.log('\n[TEST DOM] Calendar Grid Structure:');

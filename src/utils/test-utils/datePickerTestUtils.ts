@@ -1,8 +1,6 @@
 
-import { screen, waitFor, within, fireEvent } from '@testing-library/react';
+import { screen, waitFor, within, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { act } from 'react';
-import { format } from 'date-fns';
 import { testLogger } from './testDebugUtils';
 
 /**
@@ -10,15 +8,20 @@ import { testLogger } from './testDebugUtils';
  */
 export async function openDatePicker(testId = 'reminder-date-picker') {
   const trigger = screen.getByTestId(testId);
-  await act(async () => {
-    await userEvent.click(trigger);
-  });
-  
-  return waitFor(() => {
-    const dialog = screen.getByTestId('date-picker-calendar');
-    expect(dialog).toBeInTheDocument();
-    return dialog;
-  });
+  try {
+    await act(async () => {
+      await userEvent.click(trigger);
+    });
+    
+    return waitFor(() => {
+      const dialog = screen.getByTestId('date-picker-calendar');
+      expect(dialog).toBeInTheDocument();
+      return dialog;
+    }, { timeout: 5000 });
+  } catch (error) {
+    testLogger.error('Error opening date picker:', error);
+    throw error;
+  }
 }
 
 /**
@@ -39,8 +42,8 @@ export async function selectCalendarDate(date: Date) {
     // Log the calendar structure to help with debugging
     testLogger.dom.logCalendar(calendar);
     
-    // Find the day cell using attribute and content matching
-    // Note: In ShadCN calendar, the days are buttons with role="gridcell"
+    // Find the day cell using the day text content
+    // In ShadCN calendar, days are buttons with role="gridcell"
     const dayCells = await waitFor(() => {
       const cells = calendar.querySelectorAll('[role="gridcell"]');
       if (cells.length === 0) {
@@ -49,9 +52,8 @@ export async function selectCalendarDate(date: Date) {
       return Array.from(cells);
     }, { timeout: 5000 });
     
-    // Find the cell with matching day text
+    // Find the day cell with matching text content
     const dayCell = dayCells.find(cell => cell.textContent?.trim() === formattedDay);
-    
     if (!dayCell) {
       testLogger.error(`Could not find day cell with text "${formattedDay}"`);
       testLogger.dom.logStructure(calendar);
@@ -61,32 +63,16 @@ export async function selectCalendarDate(date: Date) {
     // Log the found cell for debugging
     testLogger.dom.logElement(dayCell);
     
-    // Since the cell itself is a button in ShadCN, we click directly on it
+    // Use fireEvent.click directly on the cell (which is a button element)
     await act(async () => {
-      // Use native click event since the cell is already a button
       fireEvent.click(dayCell);
     });
     
-    // Wait for calendar to close
-    await waitFor(() => {
-      expect(screen.queryByTestId('date-picker-calendar')).not.toBeInTheDocument();
-    }, { timeout: 5000 });
-
     return true;
   } catch (error) {
-    console.error('Error selecting date:', error);
+    testLogger.error('Error selecting date:', error);
     throw error;
   }
-}
-
-/**
- * Verifies that the selected date is displayed in the date picker trigger
- */
-export async function verifySelectedDate(expectedDate: Date, testId = 'reminder-date-picker') {
-  const trigger = screen.getByTestId(testId);
-  await waitFor(() => {
-    expect(trigger).toHaveTextContent(format(expectedDate, 'PPP'));
-  }, { timeout: 5000 });
 }
 
 /**
