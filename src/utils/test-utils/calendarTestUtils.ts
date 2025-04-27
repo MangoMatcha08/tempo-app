@@ -14,18 +14,18 @@ const defaultOptions: CalendarTestHelperOptions = {
 };
 
 /**
- * Gets the calendar from within a portal/popover
+ * Gets the calendar dialog from portal
  */
 export const getCalendarDialog = async () => {
   return waitFor(() => {
-    // First try to find the calendar in a popover
-    const popover = document.querySelector('[role="dialog"]');
+    // Find the Radix popover content in the portal
+    const popover = document.querySelector('[role="dialog"]') as HTMLElement;
     if (!popover) {
       throw new Error('Calendar popover not found');
     }
     
-    // Find the calendar element within the popover
-    const calendar = within(popover).getByRole('grid');
+    // Find the calendar table within the popover
+    const calendar = within(popover).getByRole('table');
     expect(calendar).toBeInTheDocument();
     return calendar;
   });
@@ -44,30 +44,28 @@ export const openCalendar = async (testId: string) => {
 };
 
 /**
- * Closes the calendar using the Escape key
+ * Closes calendar using Escape key
  */
 export const closeCalendar = async () => {
   await act(async () => {
     await userEvent.keyboard('{Escape}');
   });
 
-  // Wait for the calendar to be removed from the DOM
   await waitFor(() => {
-    const calendar = screen.queryByRole('grid');
+    const calendar = screen.queryByRole('table');
     expect(calendar).not.toBeInTheDocument();
   });
 };
 
 /**
- * Locates a date button within the calendar
+ * Finds the date button in the calendar
  */
 const findDateButton = async (date: Date, calendar: HTMLElement) => {
   const formattedDay = format(date, 'd');
-  const dayButtons = within(calendar).getAllByRole('gridcell');
+  const dayButtons = within(calendar).getAllByRole('button');
   
-  // Find the button that matches our target date
   const dayButton = dayButtons.find(button => 
-    button.textContent?.trim() === formattedDay
+    button.textContent?.includes(formattedDay)
   );
   
   if (!dayButton) {
@@ -80,31 +78,24 @@ const findDateButton = async (date: Date, calendar: HTMLElement) => {
 /**
  * Selects a date in the calendar
  */
-export const selectDate = async (date: Date, options: CalendarTestHelperOptions = {}) => {
-  const { timeout = defaultOptions.timeout, retries = defaultOptions.retries } = options;
-  
+export const selectDate = async (testId: string, date: Date, options: CalendarTestHelperOptions = {}) => {
+  const { retries = defaultOptions.retries } = options;
   let lastError: Error | null = null;
   
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      // Open calendar and get dialog
-      const calendar = await openCalendar('reminder-date-picker');
-      
-      // Find and click date button
+      const calendar = await openCalendar(testId);
       const dateButton = await findDateButton(date, calendar);
+      
       await act(async () => {
-        dateButton.click();
+        await userEvent.click(dateButton);
       });
       
-      // Close calendar
       await closeCalendar();
-      
       return true;
     } catch (error) {
-      console.log(`Attempt ${attempt} failed:`, error);
+      console.error(`Attempt ${attempt} failed:`, error);
       lastError = error as Error;
-      
-      // Wait before retrying
       await new Promise(resolve => setTimeout(resolve, 100));
     }
   }

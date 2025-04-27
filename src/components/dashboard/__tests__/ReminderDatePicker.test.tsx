@@ -9,7 +9,6 @@ import { openCalendar, selectDate } from '@/utils/test-utils/calendarTestUtils';
 describe('DatePicker Component', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    // Set a stable date for testing
     vi.setSystemTime(new Date('2024-04-27T12:00:00Z'));
   });
 
@@ -67,8 +66,10 @@ describe('DatePicker Component', () => {
       </TestWrapper>
     );
 
-    await selectDate(defaultDate);
+    await selectDate(TEST_IDS.REMINDER.DATE_PICKER, defaultDate);
     
     expect(mockSetDate).toHaveBeenCalledWith(expect.any(Date));
+    const selectedDate = mockSetDate.mock.calls[0][0];
+    expect(selectedDate.getDate()).toBe(defaultDate.getDate());
   });
 });
