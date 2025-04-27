@@ -1,5 +1,5 @@
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { vi } from 'vitest';
 import { DatePicker } from "@/components/ui/date-picker";
 import { TestWrapper } from '@/test/test-wrapper';
@@ -59,6 +59,7 @@ describe('DatePicker Component', () => {
     const calendar = await openDatePicker(TEST_IDS.REMINDER.DATE_PICKER);
     expect(calendar).toBeInTheDocument();
     
+    // Type-safe calendar logging
     if (calendar instanceof HTMLElement) {
       testLogger.dom.logCalendar(calendar);
     }
@@ -81,7 +82,11 @@ describe('DatePicker Component', () => {
     await openDatePicker(TEST_IDS.REMINDER.DATE_PICKER);
     
     const today = new Date('2024-04-27T12:00:00Z');
-    await selectCalendarDate(today);
+    
+    // Wrap in act for React state updates
+    await act(async () => {
+      await selectCalendarDate(today);
+    });
     
     await waitFor(() => {
       expect(mockSetDate).toHaveBeenCalled();

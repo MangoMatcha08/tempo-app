@@ -1,3 +1,4 @@
+
 import * as React from 'react';
 import { prettyDOM, logRoles, screen, within } from '@testing-library/react';
 import { vi } from 'vitest';
@@ -80,20 +81,43 @@ export const testLogger = {
 
       console.log('\n[TEST DOM] Calendar Structure:');
       console.log('----- Calendar Element -----');
-      testLogger.dom.logElement(element);
       
-      const calendarElement = element instanceof HTMLElement ? element : null;
-      if (calendarElement) {
+      // Type-safe element handling
+      if (element instanceof HTMLElement) {
+        // Safe to use HTMLElement-specific properties
+        const attributes = Array.from(element.attributes)
+          .map(attr => `${attr.name}="${attr.value}"`)
+          .join(' ');
+          
+        console.log(`Tag: ${element.tagName.toLowerCase()}`);
+        console.log(`Attributes: ${attributes}`);
+        console.log(`Text Content: ${element.textContent}`);
+        console.log(`Classes: ${element.className}`);
+        
         console.log('----- First Three Calendar Days -----');
-        const days = within(calendarElement).queryAllByRole('gridcell');
+        const days = within(element).queryAllByRole('gridcell');
         days.slice(0, 3).forEach((day, index) => {
           console.log(`Day ${index + 1}:`);
-          testLogger.dom.logElement(day);
+          if (day instanceof HTMLElement) {
+            const dayAttributes = Array.from(day.attributes)
+              .map(attr => `${attr.name}="${attr.value}"`)
+              .join(' ');
+            console.log(`Tag: ${day.tagName.toLowerCase()}`);
+            console.log(`Attributes: ${dayAttributes}`);
+            console.log(`Text Content: ${day.textContent}`);
+          } else {
+            console.log('Day element is not an HTMLElement');
+          }
         });
         
         if (days.length > 3) {
           console.log(`... and ${days.length - 3} more days`);
         }
+      } else {
+        // Just log basic Element properties
+        console.log(`Node Name: ${element.nodeName}`);
+        console.log(`Node Type: ${element.nodeType}`);
+        console.log(`Text Content: ${element.textContent}`);
       }
     }
   }
@@ -141,7 +165,12 @@ export const createTestRender = (options: TestRenderOptions = {}) => {
 export const inspectCalendar = async () => {
   try {
     const calendar = await screen.findByRole('dialog', { name: 'Calendar' });
-    testLogger.dom.logCalendar(calendar);
+    
+    if (calendar instanceof HTMLElement) {
+      testLogger.dom.logCalendar(calendar);
+    } else {
+      testLogger.error('Calendar element is not an HTMLElement');
+    }
   } catch (error) {
     testLogger.error('Failed to inspect calendar:', error);
   }

@@ -1,91 +1,173 @@
 
-import { isValid } from 'date-fns';
+import { format } from 'date-fns';
 
+/**
+ * Type guard for Date objects
+ */
 export function isDate(value: unknown): value is Date {
   return value instanceof Date && !isNaN(value.getTime());
 }
 
-export function ensureValidDate(date: Date | string | number | null | undefined): Date {
+/**
+ * Ensures a value is a valid Date object
+ * Throws an error for invalid dates
+ */
+export function ensureValidDate(date: unknown): Date {
+  if (date === null || date === undefined) {
+    throw new Error('Invalid date input');
+  }
+  
   // Already a valid Date
   if (isDate(date)) {
     return date;
   }
   
-  try {
-    // Handle string input
-    if (typeof date === 'string') {
-      const parsed = new Date(date);
-      if (isDate(parsed)) {
-        return parsed;
+  // Handle Firestore Timestamp objects
+  if (typeof date === 'object' && date && 'toDate' in date && typeof date.toDate === 'function') {
+    try {
+      const converted = date.toDate();
+      if (isDate(converted)) {
+        return converted;
       }
-      throw new Error('Invalid date string');
+    } catch {
+      // Fall through to other methods
     }
-    
-    // Handle numeric timestamp
-    if (typeof date === 'number' && !isNaN(date)) {
-      const parsed = new Date(date);
-      if (isDate(parsed)) {
-        return parsed;
-      }
-    }
-    
-    throw new Error('Invalid date input');
-  } catch (error) {
-    throw error instanceof Error ? error : new Error('Invalid date input');
   }
-}
-
-export function isTimeValid(hours: number, minutes: number): boolean {
-  return hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60;
-}
-
-export function parseTimeString(timeStr: string): { hours: number; minutes: number } | null {
-  if (!timeStr) return null;
   
-  try {
-    const timeRegex = /(\d{1,2})(?::(\d{1,2}))?\s*([AP]M)?/i;
-    const match = timeStr.match(timeRegex);
+  // Try to parse string
+  if (typeof date === 'string') {
+    const parsed = new Date(date);
+    if (isDate(parsed)) {
+      return parsed;
+    }
+    throw new Error('Invalid date string');
+  }
+  
+  // Try to handle numeric timestamp
+  if (typeof date === 'number') {
+    const parsed = new Date(date);
+    if (isDate(parsed)) {
+      return parsed;
+    }
+  }
+  
+  throw new Error(`Unable to convert to Date: ${String(date)}`);
+}
+
+/**
+ * Time parsing interface
+ */
+export interface TimeComponents {
+  hours: number;
+  minutes: number;
+}
+
+/**
+ * Validates if a time string is valid
+ */
+export function isTimeValid(timeStr: string): boolean {
+  return !!parseTimeString(timeStr);
+}
+
+/**
+ * Parses a time string to hours and minutes
+ * Handles both 12h and 24h formats
+ */
+export function parseTimeString(timeStr: string): TimeComponents | null {
+  // Handle 12-hour format (e.g., "3:00 PM")
+  const amPmRegex = /^(\d{1,2}):(\d{2})\s?(AM|PM|am|pm)$/i;
+  const amPmMatch = timeStr.match(amPmRegex);
+  if (amPmMatch) {
+    let hours = parseInt(amPmMatch[1], 10);
+    const minutes = parseInt(amPmMatch[2], 10);
+    const isPM = amPmMatch[3].toLowerCase() === 'pm';
     
-    if (!match) return null;
+    if (hours === 12) {
+      hours = isPM ? 12 : 0;
+    } else if (isPM) {
+      hours += 12;
+    }
     
-    let hours = parseInt(match[1], 10);
-    const minutes = match[2] ? parseInt(match[2], 10) : 0;
-    const meridiem = match[3]?.toUpperCase();
-    
-    if (meridiem === 'PM' && hours < 12) hours += 12;
-    if (meridiem === 'AM' && hours === 12) hours = 0;
-    
-    if (!isTimeValid(hours, minutes)) return null;
-    
-    return { hours, minutes };
-  } catch {
+    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+      return { hours, minutes };
+    }
     return null;
   }
-}
-
-export function parseTimeComponents(date: Date): { hours: number; minutes: number } | null {
-  if (!isDate(date)) return null;
   
-  return {
-    hours: date.getHours(),
-    minutes: date.getMinutes()
-  };
+  // Handle 24-hour format (e.g., "14:30")
+  const hourMinuteRegex = /^(\d{1,2}):(\d{2})$/;
+  const hourMinuteMatch = timeStr.match(hourMinuteRegex);
+  if (hourMinuteMatch) {
+    const hours = parseInt(hourMinuteMatch[1], 10);
+    const minutes = parseInt(hourMinuteMatch[2], 10);
+    
+    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+      return { hours, minutes };
+    }
+  }
+  
+  return null;
 }
 
-export function isConvertibleToDate(value: any): boolean {
+/**
+ * Parses object with hours/minutes properties to TimeComponents
+ */
+export function parseTimeComponents(obj: any): TimeComponents | null {
+  if (obj && typeof obj === 'object' && 
+      'hours' in obj && typeof obj.hours === 'number' &&
+      'minutes' in obj && typeof obj.minutes === 'number') {
+    
+    const { hours, minutes } = obj;
+    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+      return { hours, minutes };
+    }
+  }
+  return null;
+}
+
+/**
+ * Checks if a value can be converted to a Date
+ */
+export function isConvertibleToDate(value: unknown): boolean {
   try {
-    const date = ensureValidDate(value);
-    return isValid(date);
+    ensureValidDate(value);
+    return true;
   } catch {
     return false;
   }
 }
 
-export function logDateDetails(label: string, date: Date): void {
-  console.group(label);
-  console.log('Date:', date);
-  console.log('ISO:', date.toISOString());
-  console.log('Local:', date.toString());
-  console.log('Timezone:', Intl.DateTimeFormat().resolvedOptions().timeZone);
+/**
+ * Safely logs date details for debugging
+ */
+export function logDateDetails(label: string, date: unknown): void {
+  console.group(`Date Details: ${label}`);
+  
+  if (date === undefined) {
+    console.log('Date is undefined');
+  } else if (date === null) {
+    console.log('Date is null');
+  } else if (isDate(date)) {
+    console.log('Is valid Date:', true);
+    console.log('ISO string:', date.toISOString());
+    console.log('Timestamp:', date.getTime());
+    console.log('Local string:', date.toString());
+  } else if (typeof date === 'object' && date && typeof date === 'object' && 
+             'toDate' in date && typeof (date as any).toDate === 'function') {
+    console.log('Is Firestore Timestamp:', true);
+    try {
+      const jsDate = (date as any).toDate();
+      console.log('Converted to Date:', jsDate);
+      if (jsDate instanceof Date) {
+        console.log('ISO string:', jsDate.toISOString());
+      }
+    } catch (e) {
+      console.error('Error converting to Date:', e);
+    }
+  } else {
+    console.log('Type:', typeof date);
+    console.log('Value:', date);
+  }
+  
   console.groupEnd();
 }
