@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +13,7 @@ import { useReminderFormValidation } from '@/hooks/useReminderFormValidation';
 import { useReminderPeriodField } from '@/hooks/useReminderPeriodField';
 import { useReminderDateValidation } from '@/hooks/useReminderDateValidation';
 import { ReminderPeriodSelect } from './ReminderPeriodSelect';
+import { applyPeriodTimeToDate } from '@/utils/periodTimeConversion';
 
 interface ReminderEditDialogProps {
   reminder: Reminder | null;
@@ -38,11 +38,18 @@ const ReminderEditDialog = ({
 
   const { dateErrors, validateDateAndTime, clearErrors } = useReminderDateValidation();
 
-  const { periodId, setPeriodId } = useReminderPeriodField(
-    formState.periodId,
-    (newDate) => updateField('dueDate', newDate),
-    formState.dueDate || new Date()
-  );
+  const { periodId, setPeriodId } = useReminderPeriodField(formState.periodId);
+
+  const handlePeriodChange = useCallback((newPeriodId: string) => {
+    setPeriodId(newPeriodId);
+    const finalPeriodId = newPeriodId === 'none' ? null : newPeriodId;
+    updateField('periodId', finalPeriodId);
+
+    if (formState.dueDate) {
+      const updatedDate = applyPeriodTimeToDate(finalPeriodId, formState.dueDate);
+      updateField('dueDate', updatedDate);
+    }
+  }, [formState.dueDate, setPeriodId, updateField]);
 
   React.useEffect(() => {
     if (reminder) {
@@ -126,10 +133,7 @@ const ReminderEditDialog = ({
 
           <ReminderPeriodSelect 
             periodId={periodId}
-            onChange={(value) => {
-              setPeriodId(value);
-              updateField('periodId', value === 'none' ? null : value);
-            }}
+            onChange={handlePeriodChange}
           />
 
           <div className="grid grid-cols-2 gap-4">
