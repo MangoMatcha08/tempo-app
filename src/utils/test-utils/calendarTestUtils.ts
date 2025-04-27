@@ -6,13 +6,11 @@ import { format } from 'date-fns';
 interface CalendarTestHelperOptions {
   timeout?: number;
   retries?: number;
-  animationDelay?: number;
 }
 
 const defaultOptions: CalendarTestHelperOptions = {
   timeout: 1000,
-  retries: 3,
-  animationDelay: 300 // Default animation duration for Radix
+  retries: 3
 };
 
 /**
@@ -35,39 +33,22 @@ export const openCalendar = async (testId: string) => {
     await userEvent.click(trigger);
   });
   
-  const dialog = await getCalendarDialog();
-  
-  // Wait for Radix animation to complete
-  await waitFor(() => {
-    expect(dialog).toHaveAttribute('data-state', 'open');
-  });
-  
-  return dialog;
+  return getCalendarDialog();
 };
 
 /**
- * Closes the calendar popover
+ * Closes the calendar using the Escape key
  */
-export const closeCalendar = async (options: CalendarTestHelperOptions = {}) => {
-  const { timeout = defaultOptions.timeout, animationDelay = defaultOptions.animationDelay } = options;
-  
-  // Find the calendar dialog
-  const dialog = await getCalendarDialog();
-  
-  // Click outside to close
+export const closeCalendar = async () => {
   await act(async () => {
-    // Using document.body ensures we click outside the popover
-    await userEvent.click(document.body);
+    await userEvent.keyboard('{Escape}');
   });
-  
-  // Wait for animation duration
-  await new Promise(resolve => setTimeout(resolve, animationDelay));
-  
-  // Verify calendar is closed
+
+  // Wait for the calendar to be removed from the DOM
   await waitFor(() => {
     const calendar = screen.queryByTestId('date-picker-calendar');
     expect(calendar).not.toBeInTheDocument();
-  }, { timeout });
+  });
 };
 
 /**
@@ -77,8 +58,6 @@ const findDateButton = async (date: Date, dialog: HTMLElement) => {
   const formattedDay = format(date, 'd');
   const buttons = within(dialog).queryAllByRole('gridcell');
   
-  console.log('Available calendar cells:', buttons.map(b => b.textContent));
-  
   // Find the button that contains our target date
   const dayButton = buttons.find(button => 
     button.textContent?.trim() === formattedDay && 
@@ -86,7 +65,7 @@ const findDateButton = async (date: Date, dialog: HTMLElement) => {
   );
   
   if (!dayButton) {
-    throw new Error(`Could not find clickable button for date ${formattedDay}. Available dates: ${buttons.map(b => b.textContent)}`);
+    throw new Error(`Could not find clickable button for date ${formattedDay}`);
   }
   
   return dayButton;
@@ -96,7 +75,7 @@ const findDateButton = async (date: Date, dialog: HTMLElement) => {
  * Selects a date in the calendar dialog
  */
 export const selectDate = async (date: Date, options: CalendarTestHelperOptions = {}) => {
-  const { timeout = defaultOptions.timeout, retries = defaultOptions.retries, animationDelay = defaultOptions.animationDelay } = options;
+  const { timeout = defaultOptions.timeout, retries = defaultOptions.retries } = options;
   
   let lastError: Error | null = null;
   
@@ -106,18 +85,17 @@ export const selectDate = async (date: Date, options: CalendarTestHelperOptions 
       const dialog = await getCalendarDialog();
       const dateButton = await findDateButton(date, dialog);
       
-      // Click the date button
+      // Click the date button using fireEvent directly
       await act(async () => {
-        await userEvent.click(dateButton);
-        // Wait for state updates
+        // Use regular click event which doesn't check pointer-events
+        dateButton.click();
+        
+        // Give React time to process the click
         await new Promise(resolve => setTimeout(resolve, 50));
       });
       
-      // Wait for any animations
-      await new Promise(resolve => setTimeout(resolve, animationDelay));
-      
-      // Try to close the calendar
-      await closeCalendar({ timeout, animationDelay });
+      // Close the calendar using Escape key
+      await closeCalendar();
       
       return true;
     } catch (error) {
@@ -129,16 +107,3 @@ export const selectDate = async (date: Date, options: CalendarTestHelperOptions 
   
   throw new Error(`Failed to select date after ${retries} attempts. Last error: ${lastError?.message}`);
 };
-
-/**
- * Verifies that a date is selected
- */
-export const verifySelectedDate = async (date: Date, testId: string) => {
-  const button = screen.getByTestId(testId);
-  const expectedDate = format(date, 'PPP');
-  
-  await waitFor(() => {
-    expect(button).toHaveTextContent(expectedDate);
-  });
-};
-

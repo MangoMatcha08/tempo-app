@@ -1,14 +1,10 @@
+
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { format, addDays } from 'date-fns';
+import { render, screen } from '@testing-library/react';
+import { format } from 'date-fns';
 import QuickReminderModal from '../QuickReminderModal';
 import { TestWrapper } from '@/test/test-wrapper';
-import { 
-  openCalendar, 
-  getCalendarDialog,
-  selectDate 
-} from '@/utils/test-utils/calendarTestUtils';
-import { testLogger } from '@/utils/test-utils/testDebugUtils';
+import { openCalendar, selectDate } from '@/utils/test-utils/calendarTestUtils';
 
 describe('QuickReminderModal DatePicker', () => {
   const mockOnOpenChange = vi.fn();
@@ -43,45 +39,23 @@ describe('QuickReminderModal DatePicker', () => {
   });
 
   it('opens calendar on date picker click', async () => {
-    // Click the date button and verify calendar opens
     const calendar = await openCalendar('reminder-date-picker');
     expect(calendar).toBeInTheDocument();
-    
-    // Log the calendar structure for debugging
-    testLogger.dom.logCalendar(calendar);
   });
 
   it('allows selecting current date', async () => {
-    // Open the date picker
-    await openCalendar('reminder-date-picker');
-    
-    // Select today's date (27th)
     const today = new Date('2024-04-27T12:00:00Z');
     await selectDate(today);
     
-    // Wait for the button text to update - but with more robust assertion
-    await waitFor(() => {
-      // Check if button element contains today's date in any format
-      const updatedButton = screen.getByTestId('reminder-date-picker');
-      // Just check for the day number which should be consistent regardless of format
-      expect(updatedButton.textContent).toContain('27');
-    }, { timeout: 1000 });
+    const dateButton = screen.getByTestId('reminder-date-picker');
+    expect(dateButton).toHaveTextContent(format(today, 'PPP'));
   });
 
   it('allows selecting tomorrow', async () => {
-    // Open the date picker
-    await openCalendar('reminder-date-picker');
-    
-    // Select tomorrow's date (28th)
     const tomorrow = new Date('2024-04-28T12:00:00Z');
     await selectDate(tomorrow);
     
-    // Wait for the button text to update - with more robust assertion
-    await waitFor(() => {
-      // Check if button element contains today's date in any format
-      const updatedButton = screen.getByTestId('reminder-date-picker');
-      // Just check for the day number which should be consistent regardless of format
-      expect(updatedButton.textContent).toContain('28');
-    }, { timeout: 1000 });
+    const dateButton = screen.getByTestId('reminder-date-picker');
+    expect(dateButton).toHaveTextContent(format(tomorrow, 'PPP'));
   });
 });
