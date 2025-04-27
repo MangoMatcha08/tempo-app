@@ -3,10 +3,18 @@ import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { format } from 'date-fns';
 
 export async function openDatePicker() {
-  const dateButton = screen.getByTestId('reminder-date-picker');
-  console.log('Found date picker button with text:', dateButton.textContent);
-  fireEvent.click(dateButton);
-  return dateButton;
+  try {
+    const dateButton = screen.getByTestId('reminder-date-picker');
+    console.log('Found date picker button with text:', dateButton.textContent);
+    fireEvent.click(dateButton);
+    return dateButton;
+  } catch (error) {
+    console.error('Failed to find date picker by test id, falling back to role...');
+    const dateButton = screen.getByRole('button', { name: /pick a date|calendar/i });
+    console.log('Found date picker button by role with text:', dateButton.textContent);
+    fireEvent.click(dateButton);
+    return dateButton;
+  }
 }
 
 export function getCalendarDialog() {
