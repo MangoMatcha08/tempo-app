@@ -1,4 +1,3 @@
-
 /**
  * Core date utilities providing a unified API for date operations
  */
@@ -12,18 +11,13 @@ export {
   formatTimeString
 } from './core';
 
-// Timezone conversions
-import {
-  toZonedTime as zonedTime,
-  fromZonedTime as fromZoned,
+// Timezone conversions - now from timezoneUtils
+export {
+  toZonedTime,
+  fromZonedTime,
   getUserTimeZone,
   formatWithTimeZone
-} from './timezone';
-
-// Re-export timezone functions
-export const toZonedTime = zonedTime;
-export const fromZonedTime = fromZoned;
-export { getUserTimeZone, formatWithTimeZone };
+} from './timezoneUtils';
 
 // Date/Time operations
 export {
@@ -64,5 +58,5 @@ export {
 } from './types';
 
 // Legacy exports for backward compatibility
-export const convertToUtc = fromZoned;
-export const convertToLocal = zonedTime;
+export const convertToUtc = fromZonedTime;
+export const convertToLocal = toZonedTime;
