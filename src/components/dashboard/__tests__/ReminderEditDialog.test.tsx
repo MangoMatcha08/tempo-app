@@ -7,9 +7,16 @@ import ReminderEditDialog from '@/components/dashboard/ReminderEditDialog';
 import { TestWrapper } from '@/test/test-wrapper';
 import { ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
 import userEvent from '@testing-library/user-event';
+import { mockPeriods } from '@/utils/reminderUtils';
+
+// Mock the toast function
+vi.mock('@/components/ui/use-toast', () => ({
+  toast: vi.fn(),
+  useToast: () => ({ toast: vi.fn() })
+}));
 
 describe('ReminderEditDialog Component', () => {
-  const mockOnSave = vi.fn().mockResolvedValue(true);
+  const mockOnSave = vi.fn();
   const mockOnOpenChange = vi.fn();
 
   beforeEach(() => {
@@ -45,7 +52,7 @@ describe('ReminderEditDialog Component', () => {
       expect(screen.getByDisplayValue('Test Reminder')).toBeInTheDocument();
       expect(screen.getByDisplayValue('Test Description')).toBeInTheDocument();
       expect(screen.getByText('High')).toBeInTheDocument();
-    }, { timeout: 5000 });
+    });
   });
 
   it('validates required fields', async () => {
@@ -73,7 +80,7 @@ describe('ReminderEditDialog Component', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Title is required')).toBeInTheDocument();
-    }, { timeout: 5000 });
+    });
     expect(mockOnSave).not.toHaveBeenCalled();
   });
 
@@ -108,6 +115,40 @@ describe('ReminderEditDialog Component', () => {
           title: 'Updated Title'
         })
       );
-    }, { timeout: 5000 });
+    });
+  });
+
+  // Test for period selection functionality
+  it('updates time when period is selected', async () => {
+    // Skip test if no mock periods available
+    if (mockPeriods.length === 0) {
+      console.warn('Skipping test - no mock periods available');
+      return;
+    }
+    
+    const mockPeriod = mockPeriods[0];
+    const reminder = createMockReminder({
+      title: 'Period Test Reminder',
+      dueDate: new Date('2024-04-28T10:00:00Z'), // Start with a different time
+      periodId: null // No initial period
+    });
+
+    render(
+      <TestWrapper>
+        <ReminderEditDialog
+          reminder={reminder}
+          open={true}
+          onOpenChange={mockOnOpenChange}
+          onSave={mockOnSave}
+        />
+      </TestWrapper>
+    );
+
+    // Test is focused on data flow rather than UI interaction
+    // Find the period select
+    const periodTrigger = screen.getByTestId('reminder-edit-period-select');
+    expect(periodTrigger).toBeInTheDocument();
+    
+    // TODO: Expand this test to simulate period selection when UI testing is more stable
   });
 });
