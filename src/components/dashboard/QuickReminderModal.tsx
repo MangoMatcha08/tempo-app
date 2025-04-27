@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,6 +53,11 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
     }
   }, [open]);
   
+  const handleDateChange = React.useCallback((newDate: Date | undefined) => {
+    console.log('QuickReminderModal: Date changed to:', newDate);
+    setDueDate(newDate);
+  }, []);
+
   const handleSubmit = () => {
     if (!title.trim()) {
       toast({
@@ -150,9 +155,9 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
               <label className="text-sm font-medium">Due Date</label>
               <DatePicker
                 date={dueDate}
-                setDate={setDueDate}
-                className="w-full"
+                setDate={handleDateChange}
                 data-testid="reminder-date-picker"
+                className="w-full"
               />
             </div>
             

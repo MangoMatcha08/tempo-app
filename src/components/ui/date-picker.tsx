@@ -19,6 +19,11 @@ interface DatePickerProps {
 }
 
 export function DatePicker({ date, setDate, className, "data-testid": testId }: DatePickerProps) {
+  const handleDateSelect = React.useCallback((newDate: Date | undefined) => {
+    console.log('DatePicker: Date selected:', newDate);
+    setDate(newDate);
+  }, [setDate]);
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -39,7 +44,7 @@ export function DatePicker({ date, setDate, className, "data-testid": testId }: 
         <Calendar
           mode="single"
           selected={date}
-          onSelect={setDate}
+          onSelect={handleDateSelect}
           initialFocus
           className={cn("p-3 pointer-events-auto")}
         />
