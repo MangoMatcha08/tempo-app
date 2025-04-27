@@ -1,9 +1,11 @@
+
 import * as React from 'react';
 import { prettyDOM, logRoles, screen, within } from '@testing-library/react';
 import { vi } from 'vitest';
 
 /**
  * Enhanced logging for test debugging with DOM inspection
+ * Note: All DOM inspection methods require HTMLElement instances
  */
 export const testLogger = {
   debug: (message: string, ...args: any[]) => {
@@ -30,7 +32,7 @@ export const testLogger = {
 
   // DOM inspection methods
   dom: {
-    logStructure: (element: Element | null, maxDepth = 7) => {
+    logStructure: (element: HTMLElement | null, maxDepth = 7) => {
       if (!element) {
         console.warn('[TEST DOM] No element provided for inspection');
         return;
@@ -38,7 +40,7 @@ export const testLogger = {
       console.log('\n[TEST DOM] Structure:', prettyDOM(element, maxDepth, { highlight: false }));
     },
 
-    logRoles: (element: Element | null) => {
+    logRoles: (element: HTMLElement | null) => {
       if (!element) {
         console.warn('[TEST DOM] No element provided for role inspection');
         return;
@@ -46,7 +48,7 @@ export const testLogger = {
       logRoles(element);
     },
 
-    logElement: (element: Element | null) => {
+    logElement: (element: HTMLElement | null) => {
       if (!element) {
         console.warn('[TEST DOM] No element provided for inspection');
         return;
@@ -61,14 +63,11 @@ export const testLogger = {
         Attributes: ${attributes}
         Text Content: ${element.textContent}
         Node Type: ${element.nodeType}
+        Classes: ${element.className}
       `);
-
-      if (element instanceof HTMLElement) {
-        console.log(`Classes: ${element.className}`);
-      }
     },
 
-    logCalendar: (element: Element | null) => {
+    logCalendar: (element: HTMLElement | null) => {
       if (!element) {
         console.warn('[TEST DOM] No calendar element provided for inspection');
         return;
@@ -84,21 +83,20 @@ export const testLogger = {
       console.log(`Tag: ${element.tagName.toLowerCase()}`);
       console.log(`Attributes: ${attributes}`);
       console.log(`Text Content: ${element.textContent}`);
-      
-      if (element instanceof HTMLElement) {
-        console.log(`Classes: ${element.className}`);
-      }
+      console.log(`Classes: ${element.className}`);
       
       console.log('----- First Three Calendar Days -----');
       const days = within(element).queryAllByRole('gridcell');
       days.slice(0, 3).forEach((day, index) => {
-        console.log(`Day ${index + 1}:`);
-        const dayAttributes = Array.from(day.attributes || [])
-          .map(attr => `${attr.name}="${attr.value}"`)
-          .join(' ');
-        console.log(`Tag: ${day.tagName.toLowerCase()}`);
-        console.log(`Attributes: ${dayAttributes}`);
-        console.log(`Text Content: ${day.textContent}`);
+        if (day instanceof HTMLElement) {
+          console.log(`Day ${index + 1}:`);
+          const dayAttributes = Array.from(day.attributes || [])
+            .map(attr => `${attr.name}="${attr.value}"`)
+            .join(' ');
+          console.log(`Tag: ${day.tagName.toLowerCase()}`);
+          console.log(`Attributes: ${dayAttributes}`);
+          console.log(`Text Content: ${day.textContent}`);
+        }
       });
       
       if (days.length > 3) {
@@ -146,6 +144,7 @@ export const createTestRender = (options: TestRenderOptions = {}) => {
 
 /**
  * Inspect DOM for Shadcn Calendar
+ * Expects dialog element to be an HTMLElement
  */
 export const inspectCalendar = async () => {
   try {
@@ -160,3 +159,4 @@ export const inspectCalendar = async () => {
     testLogger.error('Failed to inspect calendar:', error);
   }
 };
+
