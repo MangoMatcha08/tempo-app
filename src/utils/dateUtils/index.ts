@@ -13,12 +13,17 @@ export {
 } from './core';
 
 // Timezone conversions
-export {
-  toZonedTime,
-  fromZonedTime,
+import {
+  toZonedTime as zonedTime,
+  fromZonedTime as fromZoned,
   getUserTimeZone,
   formatWithTimeZone
 } from './timezone';
+
+// Re-export timezone functions
+export const toZonedTime = zonedTime;
+export const fromZonedTime = fromZoned;
+export { getUserTimeZone, formatWithTimeZone };
 
 // Date/Time operations
 export {
@@ -59,6 +64,5 @@ export {
 } from './types';
 
 // Legacy exports for backward compatibility
-export const convertToUtc = fromZonedTime;
-export const convertToLocal = toZonedTime;
-
+export const convertToUtc = fromZoned;
+export const convertToLocal = zonedTime;

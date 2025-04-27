@@ -30,8 +30,8 @@ export const advancedDateValidation = () => {
     minDate: new Date('2024-01-01'),
     maxDate: new Date('2024-12-31'),
     allowFutureDates: true,
-    allowPastDates: false,
-    format: DateFormats.ISO
+    allowPastDates: false
+    // DateFormats moved to a separate import, no longer part of options
   };
   
   const result = validateDate(new Date('2024-04-25'), options);
