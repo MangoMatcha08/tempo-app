@@ -3,19 +3,13 @@ import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { format } from 'date-fns';
 
 export async function openDatePicker() {
-  // Find date picker button using aria-haspopup
-  const dateButton = screen.getByRole('button', {
-    name: (name) => /pick a date|april/i.test(name),
-    'aria-haspopup': 'dialog'
-  });
-  
+  const dateButton = screen.getByTestId('reminder-date-picker');
   console.log('Found date picker button with text:', dateButton.textContent);
   fireEvent.click(dateButton);
   return dateButton;
 }
 
 export function getCalendarDialog() {
-  // Get the calendar dialog
   return screen.getAllByRole('dialog').find(dialog => 
     dialog.querySelector('.rdp') !== null
   );
@@ -50,17 +44,12 @@ export async function selectDate(date: Date) {
   
   // Wait for the button text to update
   await waitFor(() => {
-    const button = screen.getByRole('button', {
-      'aria-haspopup': 'dialog',
-    });
+    const button = screen.getByTestId('reminder-date-picker');
     expect(button).toHaveTextContent(expectedDateText);
     return button;
   });
   
-  const finalButton = screen.getByRole('button', {
-    'aria-haspopup': 'dialog',
-  });
-  
+  const finalButton = screen.getByTestId('reminder-date-picker');
   console.log('Final button text:', finalButton.textContent);
   return finalButton;
 }

@@ -42,7 +42,6 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
   const [periodId, setPeriodId] = useState<string>("none");
   const { toast } = useToast();
   
-  // Reset form when modal opens
   useEffect(() => {
     if (open) {
       setTitle("");
@@ -74,7 +73,6 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
     }
     
     try {
-      // Get final date with period time if selected
       let finalDueDate = new Date(dueDate);
       
       if (periodId !== "none") {
@@ -84,7 +82,6 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
         }
       }
       
-      // Create reminder with Firestore timestamp
       const newReminder = createReminder({
         title,
         description,
@@ -96,7 +93,7 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
       
       toast({
         title: "Reminder Created",
-        description: `"${title}" has been added to your reminders.`
+        description: `"${title}" has been added to your reminders."
       });
       
       if (onReminderCreated) {
@@ -155,6 +152,7 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
                 date={dueDate}
                 setDate={setDueDate}
                 className="w-full"
+                data-testid="reminder-date-picker"
               />
             </div>
             

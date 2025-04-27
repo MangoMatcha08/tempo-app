@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { format } from 'date-fns';
 import QuickReminderModal from '../QuickReminderModal';
 import { selectDate } from './test-utils';
@@ -53,21 +53,16 @@ describe('QuickReminderModal', () => {
     it('renders with initial date picker state', () => {
       render(<QuickReminderModal {...defaultProps} />);
       
-      const dateButton = screen.getByRole('button', {
-        'aria-haspopup': 'dialog'
-      });
-      
+      const dateButton = screen.getByTestId('reminder-date-picker');
       expect(dateButton).toHaveTextContent(/pick a date/i);
     });
     
     it('handles date selection correctly', async () => {
       render(<QuickReminderModal {...defaultProps} />);
       
-      // Select today's date and verify the button updates
       const today = new Date();
       const updatedDateButton = await selectDate(today);
       
-      // Verify the button shows the selected date
       expect(updatedDateButton).toHaveTextContent(format(today, 'PPP'));
     });
   });
