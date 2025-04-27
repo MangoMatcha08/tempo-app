@@ -8,13 +8,16 @@ import { TestWrapper } from '@/test/test-wrapper';
 import { ReminderPriority } from '@/types/reminderTypes';
 
 describe('ReminderCard Component', () => {
+  beforeEach(() => {
+    mockDate('2024-04-27T12:00:00Z');
+  });
+
   afterEach(() => {
     restoreDate();
+    vi.clearAllMocks();
   });
 
   it('displays formatted date correctly', () => {
-    mockDate('2024-04-27T12:00:00Z');
-    
     const reminder = createMockReminder({
       dueDate: new Date('2024-04-28T14:30:00Z'),
       title: 'Test Reminder',
@@ -27,15 +30,15 @@ describe('ReminderCard Component', () => {
       </TestWrapper>
     );
 
-    expect(screen.getByText(/Apr 28/i)).toBeInTheDocument();
-    expect(screen.getByText(/2:30 PM/i)).toBeInTheDocument();
+    expect(screen.getByTestId('reminder-date')).toHaveTextContent('Apr 28');
+    expect(screen.getByTestId('reminder-time')).toHaveTextContent('2:30 PM');
   });
 
   it('handles completion correctly', () => {
     const mockComplete = vi.fn();
     const reminder = createMockReminder({
-      dueDate: new Date(),
-      title: 'Test Reminder'
+      id: 'test-reminder-1',
+      dueDate: new Date()
     });
 
     render(
@@ -47,8 +50,8 @@ describe('ReminderCard Component', () => {
       </TestWrapper>
     );
 
-    fireEvent.click(screen.getByText(/Complete/i));
-    expect(mockComplete).toHaveBeenCalledWith(reminder.id);
+    fireEvent.click(screen.getByTestId('complete-button'));
+    expect(mockComplete).toHaveBeenCalledWith('test-reminder-1');
   });
 
   it('shows pending state correctly', () => {
@@ -67,6 +70,6 @@ describe('ReminderCard Component', () => {
     );
 
     expect(screen.getByText(/Syncing/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Complete/i })).toBeDisabled();
+    expect(screen.getByTestId('complete-button')).toBeDisabled();
   });
 });

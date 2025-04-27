@@ -4,8 +4,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { UIReminder } from '@/types/reminderTypes';
 import { Button } from '@/components/ui/button';
-import { Check, Clock, CalendarIcon, Loader2 } from 'lucide-react';
-import { formatTimeWithPeriod, getPriorityColorClass } from '@/utils/timeUtils';
+import { Check, Clock, CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface ReminderCardProps {
   reminder: UIReminder;
@@ -25,10 +25,7 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
   const handleComplete = () => {
     if (reminder.id && onComplete && !isPending) {
       setIsCompleting(true);
-      // Let the animation play before calling the completion handler
-      setTimeout(() => {
-        onComplete(reminder.id!);
-      }, 300);
+      onComplete(reminder.id);
     }
   };
 
@@ -38,12 +35,18 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
     }
   };
 
-  // Get color class based on priority
-  const priorityColorClass = getPriorityColorClass(reminder.priority);
+  const priorityColorClass = reminder.priority === 'high' 
+    ? 'text-red-500 bg-red-50' 
+    : reminder.priority === 'medium'
+    ? 'text-yellow-500 bg-yellow-50'
+    : 'text-green-500 bg-green-50';
 
   if (isCompleting) {
-    return null; // Don't render anything if being completed
+    return null;
   }
+
+  const formattedDate = format(reminder.dueDate, 'MMM d');
+  const formattedTime = format(reminder.dueDate, 'h:mm a');
 
   return (
     <Card className={`w-full transition-all duration-300 ${isPending ? 'opacity-80' : ''}`}>
@@ -55,14 +58,16 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
           <div className="flex items-center space-x-2">
             {isPending && (
               <div className="flex items-center mr-2">
-                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground mr-1" />
-                <span className="text-xs text-muted-foreground">Syncing</span>
+                <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <span className="text-xs text-muted-foreground ml-1">Syncing</span>
               </div>
             )}
             <CalendarIcon className="h-4 w-4 text-gray-500" />
             <Clock className="h-4 w-4 text-gray-500" />
             <span className="text-sm text-gray-500">
-              {formatTimeWithPeriod(reminder.dueDate, reminder.periodId)}
+              <span data-testid="reminder-date">{formattedDate}</span>
+              {' '}
+              <span data-testid="reminder-time">{formattedTime}</span>
             </span>
           </div>
         </div>
@@ -81,6 +86,7 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
             size="sm" 
             onClick={handleComplete} 
             disabled={isPending}
+            data-testid="complete-button"
           >
             <Check className="h-4 w-4 mr-2" />
             Complete
