@@ -1,11 +1,12 @@
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { mockDate, restoreDate } from '@/test/mocks/date-mocks';
 import { createMockReminder } from '@/test/mocks/reminder-mocks';
 import ReminderCard from '@/components/dashboard/ReminderCard';
 import { TestWrapper } from '@/test/test-wrapper';
 import { ReminderPriority } from '@/types/reminderTypes';
+import userEvent from '@testing-library/user-event';
 
 describe('ReminderCard Component', () => {
   beforeEach(() => {
@@ -30,12 +31,9 @@ describe('ReminderCard Component', () => {
       </TestWrapper>
     );
 
-    // Wait for date elements to be rendered with specific test ids
     await waitFor(() => {
-      const dateSpan = screen.getByTestId('reminder-date');
-      const timeSpan = screen.getByTestId('reminder-time');
-      expect(dateSpan).toHaveTextContent('Apr 28');
-      expect(timeSpan).toHaveTextContent('2:30 PM');
+      expect(screen.getByTestId('reminder-date')).toHaveTextContent('Apr 28');
+      expect(screen.getByTestId('reminder-time')).toHaveTextContent('2:30 PM');
     });
   });
 
@@ -56,7 +54,7 @@ describe('ReminderCard Component', () => {
     );
 
     const completeButton = screen.getByTestId('complete-button');
-    await fireEvent.click(completeButton);
+    await userEvent.click(completeButton);
 
     await waitFor(() => {
       expect(mockComplete).toHaveBeenCalledWith('test-reminder-1');

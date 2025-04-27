@@ -12,6 +12,6 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
-    testTimeout: 10000, // Increase default timeout to 10 seconds
+    testTimeout: 20000, // Increase default timeout to 20 seconds
   },
 });

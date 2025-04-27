@@ -2,7 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import { DatePicker } from "@/components/ui/date-picker";
 import { TestWrapper } from '@/test/test-wrapper';
-import { openDatePicker, selectCalendarDate } from '@/utils/test-utils/datePickerTestUtils';
+import { openDatePicker, selectCalendarDate, verifySelectedDate } from '@/utils/test-utils/datePickerTestUtils';
 import { TEST_IDS } from '@/test/test-ids';
 
 describe('DatePicker Component', () => {
