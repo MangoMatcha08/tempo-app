@@ -1,9 +1,10 @@
 
 import { vi } from 'vitest';
 import { ComponentType } from 'react';
+import { prettyDOM, logRoles, screen } from '@testing-library/react';
 
 /**
- * Enhanced logging for test debugging
+ * Enhanced logging for test debugging with DOM inspection
  */
 export const testLogger = {
   debug: (message: string, ...args: any[]) => {
@@ -26,6 +27,46 @@ export const testLogger = {
   
   groupEnd: () => {
     console.groupEnd();
+  },
+
+  // New DOM inspection methods
+  dom: {
+    logStructure: (element: Element | null, maxDepth = 7) => {
+      if (!element) {
+        console.warn('[TEST DOM] No element provided for inspection');
+        return;
+      }
+      console.log('\n[TEST DOM] Structure:', prettyDOM(element, { maxDepth }));
+    },
+
+    logRoles: (element: Element | null) => {
+      if (!element) {
+        console.warn('[TEST DOM] No element provided for role inspection');
+        return;
+      }
+      console.log('\n[TEST DOM] Accessible Roles:');
+      logRoles(element);
+    },
+
+    logElement: (element: Element | null) => {
+      if (!element) {
+        console.warn('[TEST DOM] No element provided for inspection');
+        return;
+      }
+      
+      const attributes = Array.from(element.attributes)
+        .map(attr => `${attr.name}="${attr.value}"`)
+        .join(' ');
+        
+      console.log(`\n[TEST DOM] Element Details:
+        Tag: ${element.tagName.toLowerCase()}
+        Attributes: ${attributes}
+        Text Content: ${element.textContent}
+        Classes: ${element.className}
+        ARIA Role: ${element.getAttribute('role')}
+        ARIA Label: ${element.getAttribute('aria-label')}
+      `);
+    }
   }
 };
 
@@ -77,7 +118,6 @@ export const createTestRender = (options: { debug?: boolean } = {}) => {
     }
     
     try {
-      // Use functional createElement instead of JSX syntax
       return React.createElement(Component, props);
     } catch (error) {
       testLogger.error('Error rendering component:', error);
@@ -85,3 +125,22 @@ export const createTestRender = (options: { debug?: boolean } = {}) => {
     }
   };
 };
+
+/**
+ * Inspect DOM for Shadcn Calendar
+ */
+export const inspectCalendar = async () => {
+  try {
+    const calendar = await screen.findByRole('application');
+    testLogger.dom.logStructure(calendar);
+    testLogger.dom.logRoles(calendar);
+    console.log('\n[TEST DOM] Calendar Grid Structure:');
+    const gridCells = calendar.querySelectorAll('[role="gridcell"]');
+    gridCells.forEach((cell, index) => {
+      testLogger.dom.logElement(cell);
+    });
+  } catch (error) {
+    testLogger.error('Failed to inspect calendar:', error);
+  }
+};
+

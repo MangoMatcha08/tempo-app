@@ -1,8 +1,9 @@
 
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { act } from 'react';  // Import from React instead of react-dom/test-utils
+import { act } from 'react';
 import { format } from 'date-fns';
+import { testLogger } from './testDebugUtils';
 
 export async function openDatePicker(testId = 'reminder-date-picker') {
   const trigger = screen.getByTestId(testId);
@@ -10,7 +11,6 @@ export async function openDatePicker(testId = 'reminder-date-picker') {
     await userEvent.click(trigger);
   });
   
-  // Wait for calendar dialog to be visible
   return waitFor(() => {
     const dialog = screen.getByTestId('date-picker-calendar');
     expect(dialog).toBeInTheDocument();
@@ -19,20 +19,28 @@ export async function openDatePicker(testId = 'reminder-date-picker') {
 }
 
 export async function selectCalendarDate(date: Date) {
-  // Format day to match calendar button format
   const formattedDay = date.getDate().toString();
   
   try {
-    // Find the day cell first - in Shadcn Calendar, days are in gridcells
+    // Find the day cell first
     const dayCell = await waitFor(() => {
       const cell = screen.getByRole('gridcell', { name: new RegExp(`^${formattedDay}$`) });
-      if (!cell) throw new Error(`Could not find gridcell for date: ${formattedDay}`);
+      if (!cell) {
+        // Log DOM structure for debugging
+        const calendar = screen.getByRole('application');
+        testLogger.dom.logStructure(calendar);
+        throw new Error(`Could not find gridcell for date: ${formattedDay}`);
+      }
       return cell;
     });
 
-    // Get the button inside the gridcell
-    const dayButton = dayCell.querySelector('button');
+    // Log the found cell's structure
+    testLogger.dom.logElement(dayCell);
+
+    // Find button within the cell using 'within'
+    const dayButton = within(dayCell).getByRole('button');
     if (!dayButton) {
+      testLogger.dom.logElement(dayCell);
       throw new Error(`Could not find button inside gridcell for date: ${formattedDay}`);
     }
 
@@ -53,7 +61,6 @@ export async function selectCalendarDate(date: Date) {
   }
 }
 
-// Helper to verify selected date in the date picker
 export async function verifySelectedDate(expectedDate: Date, testId = 'reminder-date-picker') {
   const trigger = screen.getByTestId(testId);
   await waitFor(() => {
@@ -61,7 +68,6 @@ export async function verifySelectedDate(expectedDate: Date, testId = 'reminder-
   }, { timeout: 5000 });
 }
 
-// Export a function for QuickReminderModal test that was missing
 export const getCalendarPopover = async () => {
   return waitFor(() => {
     const popover = screen.getByTestId('date-picker-calendar');
@@ -69,3 +75,4 @@ export const getCalendarPopover = async () => {
     return popover;
   }, { timeout: 5000 });
 };
+
