@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { format } from 'date-fns';
 import QuickReminderModal from '../QuickReminderModal';
-import { toFirestoreDate } from '@/lib/firebase/dateConversions';
+import { openDatePicker, getCalendarDialog } from './test-utils';
 
 // Mock the toast hook
 const mockToast = vi.fn();
@@ -54,14 +54,19 @@ describe('QuickReminderModal', () => {
     const today = new Date();
     render(<QuickReminderModal {...defaultProps} />);
     
-    const dateButton = screen.getByRole('button', { 
-      name: format(today, 'PPP')
-    });
-    expect(dateButton).toBeInTheDocument();
-    fireEvent.click(dateButton);
+    // Open date picker
+    const dateButton = openDatePicker(today);
     
     // Calendar should be visible
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    const calendarDialog = getCalendarDialog();
+    expect(calendarDialog).toBeInTheDocument();
+    
+    // Select a date
+    const dayButton = screen.getByRole('gridcell', { name: format(today, 'd') });
+    fireEvent.click(dayButton);
+    
+    // Verify date is selected
+    expect(dateButton).toHaveTextContent(format(today, 'PPP'));
   });
 
   it('creates reminder successfully', async () => {
