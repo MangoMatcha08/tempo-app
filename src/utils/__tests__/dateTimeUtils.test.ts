@@ -4,9 +4,9 @@ import {
   createDateWithTime,
   toLocalTime,
   toUtcTime,
-  parseTimeComponents
-} from '../dateTimeUtils';
-import { adjustDateIfPassed } from '../dateUtils';
+  parseTimeComponents,
+  adjustDateIfPassed
+} from '@/utils/dateUtils';
 
 describe('Date Time Utils', () => {
   describe('Type Guards', () => {
@@ -37,13 +37,15 @@ describe('Date Time Utils', () => {
       // Create a date that's definitely in the past (yesterday)
       const pastDate = new Date();
       pastDate.setDate(pastDate.getDate() - 1);
+      pastDate.setHours(0, 0, 0, 0); // Set to midnight for consistent testing
       
       // Get the adjusted date
       const result = adjustDateIfPassed(pastDate);
       
-      // Now should be today, result should be tomorrow
+      // Tomorrow's date for comparison
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0); // Set to midnight for consistent comparison
       
       // Compare the dates (just the day, month, year)
       expect(result.getDate()).toBe(tomorrow.getDate());

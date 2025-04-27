@@ -6,7 +6,7 @@ import { extractChecklistItems } from './extractChecklistItems';
 import { detectDateTime } from './detectDateTime';
 import { mockPeriods } from '@/utils/reminderUtils';
 import { generateMeaningfulTitle } from '@/utils/voiceReminderUtils';
-import { createDateWithTime, adjustDateIfPassed, logDateDetails } from '@/utils/dateTimeUtils';
+import { createDateWithTime, adjustDateIfPassed, logDateDetails } from '@/utils/dateUtils';
 
 // Threshold for accepting period detection
 const PERIOD_CONFIDENCE_THRESHOLD = 0.6;

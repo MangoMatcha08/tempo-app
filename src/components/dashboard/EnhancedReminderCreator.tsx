@@ -16,7 +16,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { v4 as uuidv4 } from 'uuid';
 import { Reminder as UIReminder } from '@/types/reminder';
 import { convertToUIReminder } from '@/utils/typeUtils';
-import { parseTimeString, createDateWithTime, adjustDateIfPassed, logDateDetails } from '@/utils/dateTimeUtils';
+import { parseTimeString, createDateWithTime, adjustDateIfPassed, logDateDetails } from '@/utils/dateUtils';
 
 interface EnhancedReminderCreatorProps {
   onReminderCreated?: (reminder: UIReminder) => void;

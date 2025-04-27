@@ -26,7 +26,7 @@ import { mockPeriods } from "@/utils/reminderUtils";
 import { Reminder as UIReminder } from "@/types/reminder";
 import { convertToUIReminder } from "@/utils/typeUtils";
 import { useToast } from "@/hooks/use-toast";
-import { createDateWithTime, adjustDateIfPassed, logDateDetails } from '@/utils/dateTimeUtils';
+import { createDateWithTime, adjustDateIfPassed, logDateDetails } from '@/utils/dateUtils';
 
 interface QuickReminderModalProps {
   open: boolean;
