@@ -1,11 +1,34 @@
 
 import { fireEvent, screen, within, waitFor } from '@testing-library/react';
-import { format } from 'date-fns';
+import { format, addMonths, subMonths } from 'date-fns';
+
+async function navigateToMonth(targetDate: Date) {
+  const calendarDialog = await waitFor(() => getCalendarDialog());
+  if (!calendarDialog) throw new Error('Calendar dialog not found');
+  
+  const calendar = within(calendarDialog);
+  const currentMonthText = calendar.getByRole('presentation').textContent || '';
+  const targetMonthText = format(targetDate, 'MMMM yyyy');
+  
+  // Navigate until we reach the target month
+  while (currentMonthText !== targetMonthText) {
+    const isNext = new Date(currentMonthText) < targetDate;
+    const button = calendar.getByRole('button', {
+      name: isNext ? 'Go to next month' : 'Go to previous month'
+    });
+    fireEvent.click(button);
+    await waitFor(() => {
+      const newMonthText = calendar.getByRole('presentation').textContent || '';
+      if (newMonthText === currentMonthText) {
+        throw new Error('Month navigation did not update');
+      }
+    });
+  }
+}
 
 export async function getCalendarDialog() {
-  // Get all dialogs
-  const dialogs = screen.getAllByRole('dialog');
-  // Find the one that contains the calendar (has rdp class)
+  const dialogs = screen.queryAllByRole('dialog');
+  // Find the calendar dialog by checking for the calendar-specific content
   return dialogs.find(dialog => dialog.querySelector('.rdp')) || null;
 }
 
@@ -21,6 +44,9 @@ export async function selectDate(date: Date) {
   if (!calendarDialog) {
     throw new Error('Calendar dialog not found');
   }
+  
+  // Navigate to correct month first
+  await navigateToMonth(date);
   
   // Use within to scope our queries to the calendar dialog
   const calendar = within(calendarDialog);
@@ -48,9 +74,11 @@ export async function selectDate(date: Date) {
   await waitFor(() => {
     const updatedButton = screen.getByTestId('reminder-date-picker');
     const buttonText = updatedButton.textContent || '';
-    expect(buttonText).toContain(format(date, 'PPP'));
-  });
+    const expectedText = format(date, 'PPP');
+    if (!buttonText.includes(expectedText)) {
+      throw new Error(`Expected button to contain "${expectedText}", got "${buttonText}"`);
+    }
+  }, { timeout: 2000 });
   
   return dateButton;
 }
-
