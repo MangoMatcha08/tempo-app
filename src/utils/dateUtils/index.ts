@@ -21,7 +21,10 @@ export {
 } from './timezoneUtils';
 
 // Adjustment utilities
-export { adjustDateIfPassed } from './adjustment';
+export {
+  adjustDateIfPassed,
+  debugDate
+} from './adjustment';
 
 // Re-export types and constants
 export type {

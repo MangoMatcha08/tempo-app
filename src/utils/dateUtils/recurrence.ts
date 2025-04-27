@@ -1,179 +1,139 @@
-
-import { addDays, addWeeks, addMonths, addYears } from 'date-fns';
+import { addDays, addWeeks, addMonths, isEqual, isBefore } from 'date-fns';
 import { ensureValidDate } from './core';
-import { Period } from '@/types/periodTypes';
-import { ReminderCategory, ReminderPriority } from '@/types/reminderTypes';
 
+/**
+ * Enum for recurrence types
+ */
 export enum RecurrenceType {
-  DAILY = 'daily',
-  WEEKLY = 'weekly',
-  MONTHLY = 'monthly',
-  YEARLY = 'yearly',
-  CUSTOM = 'custom'
+  DAILY = 'DAILY',
+  WEEKLY = 'WEEKLY',
+  MONTHLY = 'MONTHLY',
+  YEARLY = 'YEARLY',
+  CUSTOM = 'CUSTOM'
 }
 
+/**
+ * Interface for recurrence rules
+ */
 export interface RecurrenceRule {
   type: RecurrenceType;
   interval: number;
   startDate: Date;
-  count?: number | null;
   endDate?: Date | null;
-  daysOfWeek?: number[]; // 0 = Sunday, 1 = Monday, etc.
+  count?: number | null;
+  daysOfWeek?: number[];
   dayOfMonth?: number;
+  exclusions?: Date[];
 }
 
 /**
- * Generates occurrences based on a recurrence rule
+ * Generates occurrence dates based on recurrence rule
  */
-export function generateOccurrences(rule: RecurrenceRule, maxOccurrences: number = 10): Date[] {
+export function generateOccurrences(rule: RecurrenceRule, maxOccurrences: number = 100): Date[] {
   const occurrences: Date[] = [];
-  const { type, interval, startDate } = rule;
+  const startDate = ensureValidDate(rule.startDate);
   const maxCount = rule.count || maxOccurrences;
-  const endDate = rule.endDate;
   
   let currentDate = new Date(startDate);
+  let count = 0;
   
-  for (let i = 0; i < maxCount; i++) {
-    if (i > 0) {
-      // Skip the first one since it's the start date
-      switch (type) {
-        case RecurrenceType.DAILY:
-          currentDate = addDays(currentDate, interval);
-          break;
-        case RecurrenceType.WEEKLY:
-          currentDate = addWeeks(currentDate, interval);
-          break;
-        case RecurrenceType.MONTHLY:
-          currentDate = addMonths(currentDate, interval);
-          break;
-        case RecurrenceType.YEARLY:
-          currentDate = addYears(currentDate, interval);
-          break;
-        case RecurrenceType.CUSTOM:
-          // Custom handling would go here
-          currentDate = addDays(currentDate, interval);
-          break;
-      }
+  // Include start date
+  occurrences.push(new Date(currentDate));
+  count++;
+  
+  // Generate subsequent occurrences
+  while (count < maxCount) {
+    // Generate next date based on recurrence type
+    switch (rule.type) {
+      case RecurrenceType.DAILY:
+        currentDate = addDays(currentDate, rule.interval || 1);
+        break;
+      case RecurrenceType.WEEKLY:
+        currentDate = addWeeks(currentDate, rule.interval || 1);
+        break;
+      case RecurrenceType.MONTHLY:
+        currentDate = addMonths(currentDate, rule.interval || 1);
+        break;
+      default:
+        return occurrences;
     }
     
-    // Check if we've passed the end date
-    if (endDate && currentDate > endDate) {
+    // Stop if we've passed the end date
+    if (rule.endDate && isBefore(rule.endDate, currentDate)) {
       break;
     }
     
     occurrences.push(new Date(currentDate));
+    count++;
   }
   
   return occurrences;
 }
 
 /**
- * Finds available time slots in a periods array
+ * Finds available time slots based on existing periods
  */
-export function findAvailableTimeSlots(
-  periods: Period[],
-  minDuration: number = 30,
-  date: Date = new Date()
-): Array<{ start: Date; end: Date; duration: number }> {
+export function findAvailableTimeSlots(periods: any[], minDuration: number = 30, date: Date = new Date()): Array<{ start: Date, end: Date, duration: number }> {
   // Placeholder implementation
-  return [
-    { 
-      start: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 8, 0), 
-      end: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0),
-      duration: 60
-    },
-    { 
-      start: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 13, 0), 
-      end: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 14, 0),
-      duration: 60
-    }
-  ];
+  return [{ 
+    start: new Date(date), 
+    end: new Date(date.getTime() + minDuration * 60000),
+    duration: minDuration
+  }];
 }
 
 /**
- * Suggests ideal periods based on availability
+ * Suggests ideal periods for scheduling
  */
-export function suggestIdealPeriods(
-  periods: Period[],
-  duration: number = 30,
-  preferredTypes: string[] = []
-): Period[] {
+export function suggestIdealPeriods(periods: any[], duration: number = 30, preferredTypes: string[] = []): any[] {
   // Placeholder implementation
-  return periods.filter(p => {
-    if (preferredTypes.length > 0) {
-      return preferredTypes.includes(p.type);
-    }
-    return true;
-  }).slice(0, 3);
+  return periods.filter(period => 
+    preferredTypes.length === 0 || preferredTypes.includes(period.type)
+  );
 }
 
 /**
- * Suggests due dates based on reminder properties
+ * Suggests due dates based on reminder category and priority
  */
-export function suggestDueDates(
-  category: ReminderCategory,
-  priority: ReminderPriority,
-  description: string = "",
-  periods: Period[] = []
-): Date[] {
+export function suggestDueDates(category: string, priority: string, description: string = "", periods: any[] = []): Date[] {
   // Placeholder implementation
-  const today = new Date();
+  const now = new Date();
   return [
-    new Date(today.getFullYear(), today.getMonth(), today.getDate(), 9, 0),
-    new Date(today.getFullYear(), today.getMonth(), today.getDate(), 14, 0),
-    new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1, 9, 0)
+    now,
+    addDays(now, 1),
+    addDays(now, 3)
   ];
 }
 
 /**
  * Detects date conflicts with existing reminders
  */
-export function detectDateConflicts(
-  date: Date,
-  periods: Period[],
-  existingReminders: Array<{ dueDate: Date; priority: ReminderPriority; category: ReminderCategory }> = []
-): { hasConflicts: boolean; conflicts: Array<{ type: string; priority: ReminderPriority }> } {
+export function detectDateConflicts(date: Date, periods: any[], existingReminders: any[] = []): boolean {
   // Placeholder implementation
-  const conflicts = existingReminders
-    .filter(reminder => {
-      const reminderDate = reminder.dueDate;
-      return Math.abs(reminderDate.getTime() - date.getTime()) < 30 * 60 * 1000; // Within 30 minutes
-    })
-    .map(reminder => ({
-      type: 'time',
-      priority: reminder.priority
-    }));
-    
-  return {
-    hasConflicts: conflicts.length > 0,
-    conflicts
-  };
+  return false;
 }
 
 /**
- * Utility for memoizing date functions
+ * Memoizes a date function for better performance
  */
 export function memoizeDateFn<T extends (...args: any[]) => any>(
   key: string,
   fn: T,
-  ttl: number = 5 * 60 * 1000 // 5 minutes by default
+  ttl: number = 60000
 ): T {
-  const cache: Record<string, { value: any; timestamp: number }> = {};
+  const cache = new Map<string, { value: any, timestamp: number }>();
   
-  return ((...args: any[]) => {
-    const cacheKey = `${key}_${JSON.stringify(args)}`;
+  return ((...args: Parameters<T>): ReturnType<T> => {
+    const cacheKey = `${key}:${JSON.stringify(args)}`;
     const now = Date.now();
+    const cached = cache.get(cacheKey);
     
-    if (cache[cacheKey] && now - cache[cacheKey].timestamp < ttl) {
-      return cache[cacheKey].value;
+    if (cached && now - cached.timestamp < ttl) {
+      return cached.value as ReturnType<T>;
     }
     
     const result = fn(...args);
-    
-    cache[cacheKey] = {
-      value: result,
-      timestamp: now
-    };
+    cache.set(cacheKey, { value: result, timestamp: now });
     
     return result;
   }) as T;

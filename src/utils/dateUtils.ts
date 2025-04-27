@@ -7,8 +7,7 @@ export {
   ensureValidDate,
   parseTimeString,
   createDateWithTime,
-  adjustDateIfPassed,
-  debugDate as logDateDetails
+  logDateDetails
 } from './dateUtils/core';
 
 // Re-export timezone utilities
@@ -26,13 +25,24 @@ export {
   DateValidationErrorType
 } from './dateUtils/validation';
 
-// Re-export transformations
+// Re-export formatting
 export {
   formatDate,
   formatDateRange,
+  formatTimeString
+} from './dateUtils/formatting';
+
+// Re-export transformations
+export {
+  parseStringToDate,
   isDateInRange,
   areDatesEqual,
-  parseStringToDate,
   convertToUtc,
   convertToLocal
-} from './dateUtils/formatting';
+} from './dateUtils/transformation';
+
+// Re-export adjustment
+export {
+  adjustDateIfPassed,
+  debugDate
+} from './dateUtils/adjustment';
