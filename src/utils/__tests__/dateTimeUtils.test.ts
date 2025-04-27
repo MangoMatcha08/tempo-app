@@ -1,13 +1,12 @@
-
 import {
   isDate,
   isConvertibleToDate,
   createDateWithTime,
-  adjustDateIfPassed,
   toLocalTime,
   toUtcTime,
   parseTimeComponents
 } from '../dateTimeUtils';
+import { adjustDateIfPassed } from '../dateUtils';
 
 describe('Date Time Utils', () => {
   describe('Type Guards', () => {

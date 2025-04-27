@@ -3,25 +3,18 @@
 import { 
   parseTimeString,
   formatTimeString,
-  type TimeComponents
+  type TimeComponents,
+  createDateWithTime,
+  adjustDateIfPassed
 } from '../dateUtils';
 
 export {
   parseTimeString,
-  formatTimeString
+  formatTimeString,
+  createDateWithTime,
+  adjustDateIfPassed
 };
 
 export type {
   TimeComponents
-};
-
-// Re-export additional functions from dateTimeUtils
-import { 
-  createDateWithTime,
-  adjustDateIfPassed
-} from '../dateTimeUtils';
-
-export {
-  createDateWithTime,
-  adjustDateIfPassed
 };

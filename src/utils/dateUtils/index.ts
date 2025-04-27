@@ -1,3 +1,4 @@
+
 /**
  * Core date utilities providing a unified API for date operations
  */
@@ -5,16 +6,8 @@
 // Import timezone functions first since they're used in legacy exports
 import { toZonedTime, fromZonedTime } from './timezoneUtils';
 
-// Import the new adjustment utilities
+// Import the adjustment utilities
 import { adjustDateIfPassed, isOnDstTransition } from './adjustment';
-
-// Re-export timezone functions for external use
-export {
-  toZonedTime,
-  fromZonedTime,
-  getUserTimeZone,
-  formatWithTimeZone
-} from './timezoneUtils';
 
 // Core date validation and conversion
 export {
@@ -27,6 +20,14 @@ export {
 
 // Export the adjustment utilities
 export { adjustDateIfPassed, isOnDstTransition };
+
+// Export timezone functions for external use
+export {
+  toZonedTime,
+  fromZonedTime,
+  getUserTimeZone,
+  formatWithTimeZone
+} from './timezoneUtils';
 
 // Date/Time operations
 export {

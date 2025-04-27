@@ -1,3 +1,4 @@
+
 import { ensureValidDate } from './dateUtils';
 import { toZonedTime, fromZonedTime } from './dateUtils/timezone';
 import type { TimeComponents } from './dateUtils/types';
@@ -79,28 +80,6 @@ export function parseTimeComponents(date: unknown): TimeComponents | null {
   } catch {
     return null;
   }
-}
-
-/**
- * Log date details for debugging
- */
-export function logDateDetails(label: string, date: unknown): void {
-  console.group(`[${label}]`);
-  try {
-    const validDate = ensureValidDate(date);
-    console.log({
-      date: validDate.toString(),
-      iso: validDate.toISOString(),
-      time: validDate.toLocaleTimeString(),
-      timestamp: validDate.getTime(),
-      isValid: isDate(validDate),
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    });
-  } catch (error) {
-    console.error('Invalid date:', date);
-    console.error('Error:', error);
-  }
-  console.groupEnd();
 }
 
 // Re-export timezone functions with consistent naming
