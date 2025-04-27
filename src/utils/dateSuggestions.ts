@@ -1,5 +1,6 @@
+
 import { addDays, addBusinessDays, isSameDay, isWeekend } from 'date-fns';
-import { Period } from '@/contexts/ScheduleContext';
+import { Period, toPeriodDate } from '@/types/periodTypes';
 import { ensureValidDate } from './dateCore';
 import { findAvailableTimeSlots } from './periodManagement';
 import { ReminderCategory, ReminderPriority } from '@/types/reminderTypes';
@@ -76,7 +77,7 @@ export function suggestDueDates(
       if (availableToday.length > 0) {
         const meetingSlot = availableToday[0];
         suggestions.push({
-          suggestedDate: meetingSlot.startTime,
+          suggestedDate: toPeriodDate(meetingSlot.startTime),
           confidence: 0.75,
           reasoning: "Available time slot found today"
         });
@@ -88,7 +89,7 @@ export function suggestDueDates(
         if (availableTomorrow.length > 0) {
           const meetingSlot = availableTomorrow[0];
           suggestions.push({
-            suggestedDate: meetingSlot.startTime,
+            suggestedDate: toPeriodDate(meetingSlot.startTime),
             confidence: 0.7,
             reasoning: "Available time slot found tomorrow"
           });
@@ -149,10 +150,10 @@ export function suggestDueDates(
   // Add period-based suggestions if available
   if (periods.length > 0) {
     const matchingPeriods = periods.filter(period => {
-      if (category === ReminderCategory.GRADING && period.title.toLowerCase().includes("planning")) {
+      if (category === ReminderCategory.GRADING && period.title?.toLowerCase().includes("planning")) {
         return true;
       }
-      if (category === ReminderCategory.COMMUNICATION && period.title.toLowerCase().includes("break")) {
+      if (category === ReminderCategory.COMMUNICATION && period.title?.toLowerCase().includes("break")) {
         return true;
       }
       return false;
@@ -161,7 +162,7 @@ export function suggestDueDates(
     if (matchingPeriods.length > 0) {
       const bestPeriod = matchingPeriods[0];
       suggestions.push({
-        suggestedDate: ensureValidDate(bestPeriod.startTime),
+        suggestedDate: toPeriodDate(bestPeriod.startTime),
         confidence: 0.8,
         periodId: bestPeriod.id,
         reasoning: `Matched with "${bestPeriod.title}" period`

@@ -2,20 +2,21 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { ClockIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Period, toPeriodDate } from "@/types/periodTypes";
 
 const CurrentPeriodIndicator = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   
   // Mock data - in a real app, this would come from a hook like useSchedule
   const periods = [
-    { id: 1, name: "1st Period", start: "8:00", end: "8:50", room: "Room 101" },
-    { id: 2, name: "2nd Period", start: "9:00", end: "9:50", room: "Room 102" },
-    { id: 3, name: "3rd Period", start: "10:00", end: "10:50", room: "Room 204" },
-    { id: 4, name: "Lunch", start: "11:00", end: "11:30", room: "Cafeteria" },
-    { id: 5, name: "4th Period", start: "11:40", end: "12:30", room: "Room 105" },
-    { id: 6, name: "5th Period", start: "12:40", end: "13:30", room: "Room 106" },
-    { id: 7, name: "6th Period", start: "13:40", end: "14:30", room: "Room 107" },
-  ];
+    { id: "1", name: "1st Period", startTime: "8:00", endTime: "8:50", location: "Room 101" },
+    { id: "2", name: "2nd Period", startTime: "9:00", endTime: "9:50", location: "Room 102" },
+    { id: "3", name: "3rd Period", startTime: "10:00", endTime: "10:50", location: "Room 204" },
+    { id: "4", name: "Lunch", startTime: "11:00", endTime: "11:30", location: "Cafeteria" },
+    { id: "5", name: "4th Period", startTime: "11:40", endTime: "12:30", location: "Room 105" },
+    { id: "6", name: "5th Period", startTime: "12:40", endTime: "13:30", location: "Room 106" },
+    { id: "7", name: "6th Period", startTime: "13:40", endTime: "14:30", location: "Room 107" },
+  ] as Period[];
 
   // Update time every minute
   useEffect(() => {
@@ -38,8 +39,9 @@ const CurrentPeriodIndicator = () => {
     
     // Find current period based on mock data
     for (const period of periods) {
-      const [startHour, startMin] = period.start.split(":").map(Number);
-      const [endHour, endMin] = period.end.split(":").map(Number);
+      // Parse the time strings (format: "HH:MM")
+      const [startHour, startMin] = period.startTime.toString().split(":").map(Number);
+      const [endHour, endMin] = period.endTime.toString().split(":").map(Number);
       
       if (
         (hours > startHour || (hours === startHour && mins >= startMin)) &&
@@ -47,8 +49,8 @@ const CurrentPeriodIndicator = () => {
       ) {
         return { 
           name: period.name, 
-          time: `${period.start} - ${period.end}`,
-          room: period.room
+          time: `${period.startTime} - ${period.endTime}`,
+          room: period.location
         };
       }
     }

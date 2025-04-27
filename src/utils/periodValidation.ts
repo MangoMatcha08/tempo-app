@@ -1,5 +1,5 @@
 
-import { Period, PeriodValidationResult, ensurePeriodDates } from '@/types/periodTypes';
+import { Period, PeriodValidationResult, ensurePeriodDates, toPeriodDate } from '@/types/periodTypes';
 import { format } from 'date-fns';
 import { ensureValidDate, parseTimeString } from './dateCore';
 
@@ -16,8 +16,8 @@ export function validatePeriodTime(date: Date, periodId: string, periods: Period
   }
   
   try {
-    const periodStart = period.startTime;
-    const periodEnd = period.endTime;
+    const periodStart = toPeriodDate(period.startTime);
+    const periodEnd = toPeriodDate(period.endTime);
     const validDate = ensureValidDate(date);
     
     const startFormatted = format(periodStart, 'HH:mm');
@@ -66,10 +66,10 @@ export function detectPeriodConflicts(
     if (period.id === periodId) return false;
     
     // Check if periods overlap in time
-    const selectedStartTime = selectedPeriod.startTime.getHours() * 60 + selectedPeriod.startTime.getMinutes();
-    const selectedEndTime = selectedPeriod.endTime.getHours() * 60 + selectedPeriod.endTime.getMinutes();
-    const periodStartTime = period.startTime.getHours() * 60 + period.startTime.getMinutes();
-    const periodEndTime = period.endTime.getHours() * 60 + period.endTime.getMinutes();
+    const selectedStartTime = toPeriodDate(selectedPeriod.startTime).getHours() * 60 + toPeriodDate(selectedPeriod.startTime).getMinutes();
+    const selectedEndTime = toPeriodDate(selectedPeriod.endTime).getHours() * 60 + toPeriodDate(selectedPeriod.endTime).getMinutes();
+    const periodStartTime = toPeriodDate(period.startTime).getHours() * 60 + toPeriodDate(period.startTime).getMinutes();
+    const periodEndTime = toPeriodDate(period.endTime).getHours() * 60 + toPeriodDate(period.endTime).getMinutes();
     
     return (
       selectedStartTime < periodEndTime && 
