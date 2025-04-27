@@ -1,3 +1,4 @@
+
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import ReminderEditDialog from '../ReminderEditDialog';
@@ -14,7 +15,8 @@ describe('ReminderEditDialog', () => {
     periodId: null,
     completed: false,
     createdAt: new Date(),
-    userId: 'test-user'
+    userId: 'test-user',
+    checklist: null // Add the missing checklist property
   };
 
   const mockProps = {
@@ -38,7 +40,8 @@ describe('ReminderEditDialog', () => {
   it('maintains period selection when editing', async () => {
     const reminderWithPeriod = {
       ...mockReminder,
-      periodId: 'morning'
+      periodId: 'morning',
+      checklist: null // Make sure checklist is included here too
     };
     
     render(<ReminderEditDialog {...mockProps} reminder={reminderWithPeriod} />);
@@ -82,7 +85,8 @@ describe('ReminderEditDialog', () => {
   it('preserves time when changing date', async () => {
     const reminderWithTime = {
       ...mockReminder,
-      dueDate: new Date('2025-04-27T10:30:00')
+      dueDate: new Date('2025-04-27T10:30:00'),
+      checklist: null // Make sure checklist is included here too
     };
     
     render(<ReminderEditDialog {...mockProps} reminder={reminderWithTime} />);
