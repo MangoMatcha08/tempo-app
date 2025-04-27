@@ -8,10 +8,10 @@ import { format } from 'date-fns';
  */
 const getCalendarContent = async () => {
   return waitFor(() => {
-    // Find calendar in portal
-    const content = document.querySelector('[role="dialog"] .react-calendar');
+    // Find Shadcn calendar in portal
+    const content = document.querySelector('[role="dialog"] .rdp');
     if (!content) {
-      throw new Error('Calendar content not found');
+      throw new Error('Calendar content not found in portal');
     }
     return content;
   }, { timeout: 1000 });
@@ -26,11 +26,11 @@ export const openCalendar = async (testId: string) => {
     await userEvent.click(trigger);
   });
   
-  // Wait for calendar to be visible in portal
+  // Wait for Shadcn calendar to be visible in portal
   await waitFor(() => {
-    const calendar = document.querySelector('.react-calendar');
+    const calendar = document.querySelector('.rdp');
     if (!calendar) {
-      throw new Error('Calendar not found after clicking trigger');
+      throw new Error('Shadcn calendar not found after clicking trigger');
     }
   });
   
@@ -43,15 +43,15 @@ export const openCalendar = async (testId: string) => {
 const findDateButton = async (date: Date) => {
   const formattedDay = format(date, 'd');
   
-  // Wait for date buttons to be rendered
+  // Wait for Shadcn date buttons to be rendered
   await waitFor(() => {
-    const buttons = document.querySelectorAll('button[role="gridcell"]');
+    const buttons = document.querySelectorAll('button.rdp-button_reset');
     if (!buttons.length) {
-      throw new Error('No date buttons found in calendar');
+      throw new Error('No date buttons found in Shadcn calendar');
     }
   });
 
-  const dayButtons = Array.from(document.querySelectorAll('button[role="gridcell"]'));
+  const dayButtons = Array.from(document.querySelectorAll('button.rdp-button_reset'));
   const dayButton = dayButtons.find(button => 
     button.getAttribute('aria-label')?.includes(format(date, 'PPP'))
   );
@@ -72,7 +72,7 @@ export const closeCalendar = async () => {
   });
 
   await waitFor(() => {
-    const calendar = document.querySelector('.react-calendar');
+    const calendar = document.querySelector('.rdp');
     expect(calendar).not.toBeInTheDocument();
   });
 };
@@ -95,7 +95,10 @@ export const selectDate = async (testId: string, date: Date, retries = 3) => {
       // Wait for selected date to be reflected in trigger button
       await waitFor(() => {
         const trigger = screen.getByTestId(testId);
-        expect(trigger).toHaveTextContent(format(date, 'PPP'));
+        const buttonText = trigger.textContent || '';
+        // Remove any extra whitespace and check if the date text is included
+        const normalizedText = buttonText.trim().replace(/\s+/g, ' ');
+        expect(normalizedText).toContain(format(date, 'PPP'));
       }, { timeout: 2000 });
       
       return true;
@@ -110,3 +113,4 @@ export const selectDate = async (testId: string, date: Date, retries = 3) => {
   
   throw new Error(`Failed to select date after ${retries} attempts. Last error: ${lastError?.message}`);
 };
+
