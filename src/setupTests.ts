@@ -2,6 +2,7 @@
 import { vi } from 'vitest';
 import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
+import { afterEach, beforeAll } from 'vitest';
 
 // Run cleanup automatically between tests
 afterEach(() => {
@@ -9,19 +10,28 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-// Mock browser APIs if needed
-global.matchMedia = global.matchMedia || function(query: string) {
-  return {
-    matches: false,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    media: query,
-    onchange: null,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
+beforeAll(() => {
+  // Mock ResizeObserver
+  global.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
   };
-};
+  
+  // Mock window.matchMedia
+  global.matchMedia = global.matchMedia || function(query: string) {
+    return {
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    };
+  };
+});
 
 // Setup React test environment
 vi.mock('react', async (importOriginal) => {
@@ -38,5 +48,3 @@ vi.mock('@/hooks/use-toast', () => ({
     toast: vi.fn(),
   }),
 }));
-
-// Add any additional test setup here
