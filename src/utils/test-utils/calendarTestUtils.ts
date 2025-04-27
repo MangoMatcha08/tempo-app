@@ -2,19 +2,17 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { format } from 'date-fns';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 /**
  * Gets the calendar content from Radix Portal
  */
 const getCalendarContent = async () => {
   return waitFor(() => {
-    console.log('Looking for calendar content...');
     const calendar = document.querySelector('[role="dialog"] .rdp');
     if (!calendar) {
       throw new Error('Calendar content not found in portal');
     }
-    console.log('Found calendar content');
     return calendar;
   }, { timeout: 2000 });
 };
@@ -26,16 +24,10 @@ export const openCalendar = async (testId: string) => {
   console.log('Opening calendar...');
   const trigger = screen.getByTestId(testId);
   
-  // Type assertion since we know this is an HTMLElement from screen.getByTestId
-  const triggerElement = trigger as HTMLElement;
-  
-  // Focus and click with proper event sequence
   await act(async () => {
-    triggerElement.focus();
-    await userEvent.click(triggerElement);
+    await userEvent.click(trigger);
   });
   
-  // Wait for calendar to be visible and interactive
   await getCalendarContent();
   console.log('Calendar opened successfully');
   
@@ -50,7 +42,7 @@ const findDateButton = async (date: Date) => {
   
   let calendar: Element | null;
   
-  // Wait for calendar to be fully rendered with retry
+  // Wait for calendar to be fully rendered
   await waitFor(() => {
     calendar = document.querySelector('[role="dialog"] .rdp');
     if (!calendar) {
@@ -58,39 +50,16 @@ const findDateButton = async (date: Date) => {
     }
   }, { timeout: 2000 });
 
-  // Get all calendar day buttons
-  const buttons = Array.from(document.querySelectorAll('[role="dialog"] .rdp button'));
-  
-  console.log('Found buttons:', buttons.length);
-  buttons.forEach(btn => {
-    console.log('Button:', {
-      text: btn.textContent,
-      className: btn.className
-    });
-  });
-
-  const targetDay = format(date, 'd');
-  console.log('Looking for day number:', targetDay);
-
-  // Find button with matching day number and ensure it's interactable
-  const dateButton = await waitFor(() => {
-    const btn = buttons.find(btn => {
-      const btnText = btn.textContent?.trim();
-      const isMatch = btnText === targetDay;
-      console.log(`Comparing button text "${btnText}" with target "${targetDay}":`, isMatch);
-      return isMatch;
-    });
-
+  const dayText = format(date, 'd');
+  const button = await waitFor(() => {
+    const btn = screen.getByRole('button', { name: dayText });
     if (!btn || btn.hasAttribute('disabled') || btn.getAttribute('aria-disabled') === 'true') {
       throw new Error('Date button not found or not interactable');
     }
-
-    // Type assertion since we know this is an HTMLButtonElement
-    return btn as HTMLButtonElement;
+    return btn;
   }, { timeout: 2000 });
 
-  console.log('Found date button:', dateButton.textContent);
-  return dateButton;
+  return button;
 };
 
 /**
@@ -109,46 +78,16 @@ export const selectDate = async (testId: string, date: Date, retries = 3) => {
       
       console.log('Clicking date button...');
       
-      // Simulate full click interaction with proper focus
       await act(async () => {
-        // Type assertion since we know this is an HTMLButtonElement
-        const button = dateButton as HTMLButtonElement;
-        button.focus();
-        
-        // Trigger mousedown event
-        button.dispatchEvent(new MouseEvent('mousedown', { 
-          bubbles: true,
-          cancelable: true,
-          view: window
-        }));
-
-        // Small delay to simulate real interaction
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        // Trigger click event
-        button.click();
-
-        // Trigger mouseup event
-        button.dispatchEvent(new MouseEvent('mouseup', {
-          bubbles: true,
-          cancelable: true,
-          view: window
-        }));
+        await userEvent.click(dateButton);
       });
       
       // Wait for selected date to be reflected in trigger button
       await waitFor(() => {
         const trigger = screen.getByTestId(testId);
-        const buttonText = trigger.textContent || '';
         const formattedDate = format(date, 'PPP');
-        const normalizedText = buttonText.trim().replace(/\s+/g, ' ');
         
-        console.log('Checking button text:', {
-          buttonText: normalizedText,
-          expectedDate: formattedDate
-        });
-        
-        if (!normalizedText.includes(formattedDate)) {
+        if (!trigger.textContent?.includes(formattedDate)) {
           throw new Error('Date not updated in button text');
         }
       }, { timeout: 2000 });

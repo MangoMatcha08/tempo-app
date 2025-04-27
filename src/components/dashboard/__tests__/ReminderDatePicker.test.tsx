@@ -1,3 +1,4 @@
+
 import { render, screen } from '@testing-library/react';
 import { vi, beforeEach, afterEach } from 'vitest';
 import { DatePicker } from "@/components/ui/date-picker";
@@ -5,6 +6,7 @@ import { TestWrapper } from '@/test/test-wrapper';
 import { TEST_IDS } from '@/test/test-ids';
 import { openCalendar, selectDate } from '@/utils/test-utils/calendarTestUtils';
 import { format } from 'date-fns';
+import { act } from 'react';
 
 describe('DatePicker Component', () => {
   beforeEach(() => {
@@ -65,15 +67,17 @@ describe('DatePicker Component', () => {
     const mockSetDate = vi.fn();
     const defaultDate = new Date('2024-04-27T12:00:00Z');
     
-    render(
-      <TestWrapper>
-        <DatePicker 
-          date={defaultDate} 
-          setDate={mockSetDate}
-          data-testid={TEST_IDS.REMINDER.DATE_PICKER}
-        />
-      </TestWrapper>
-    );
+    await act(async () => {
+      render(
+        <TestWrapper>
+          <DatePicker 
+            date={defaultDate} 
+            setDate={mockSetDate}
+            data-testid={TEST_IDS.REMINDER.DATE_PICKER}
+          />
+        </TestWrapper>
+      );
+    });
 
     await selectDate(TEST_IDS.REMINDER.DATE_PICKER, defaultDate);
 
