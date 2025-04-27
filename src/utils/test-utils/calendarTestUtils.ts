@@ -3,32 +3,18 @@ import { screen, within, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { format } from 'date-fns';
 
-interface CalendarTestHelperOptions {
-  timeout?: number;
-  retries?: number;
-}
-
-const defaultOptions: CalendarTestHelperOptions = {
-  timeout: 1000,
-  retries: 3
-};
-
 /**
- * Gets the calendar dialog from portal
+ * Gets the calendar content from Radix Portal
  */
-export const getCalendarDialog = async () => {
+const getCalendarContent = async () => {
   return waitFor(() => {
-    // Find the Radix popover content in the portal
-    const popover = document.querySelector('[role="dialog"]') as HTMLElement;
-    if (!popover) {
-      throw new Error('Calendar popover not found');
+    // Find PopoverContent in portal
+    const content = document.querySelector('[role="dialog"].rdp');
+    if (!content) {
+      throw new Error('Calendar content not found');
     }
-    
-    // Find the calendar table within the popover
-    const calendar = within(popover).getByRole('table');
-    expect(calendar).toBeInTheDocument();
-    return calendar;
-  });
+    return content;
+  }, { timeout: 1000 });
 };
 
 /**
@@ -40,30 +26,31 @@ export const openCalendar = async (testId: string) => {
     await userEvent.click(trigger);
   });
   
-  return getCalendarDialog();
-};
-
-/**
- * Closes calendar using Escape key
- */
-export const closeCalendar = async () => {
-  await act(async () => {
-    await userEvent.keyboard('{Escape}');
-  });
-
+  // Wait for calendar to be visible
   await waitFor(() => {
-    const calendar = screen.queryByRole('table');
-    expect(calendar).not.toBeInTheDocument();
+    const calendar = document.querySelector('.rdp');
+    if (!calendar) {
+      throw new Error('Calendar not found after clicking trigger');
+    }
   });
+  
+  return trigger;
 };
 
 /**
  * Finds the date button in the calendar
  */
-const findDateButton = async (date: Date, calendar: HTMLElement) => {
+const findDateButton = async (date: Date) => {
   const formattedDay = format(date, 'd');
-  const dayButtons = within(calendar).getAllByRole('button');
   
+  await waitFor(() => {
+    const buttons = document.querySelectorAll('.rdp-button');
+    if (!buttons.length) {
+      throw new Error('No date buttons found in calendar');
+    }
+  });
+
+  const dayButtons = Array.from(document.querySelectorAll('.rdp-button'));
   const dayButton = dayButtons.find(button => 
     button.textContent?.includes(formattedDay)
   );
@@ -76,27 +63,41 @@ const findDateButton = async (date: Date, calendar: HTMLElement) => {
 };
 
 /**
+ * Closes calendar using Escape key
+ */
+export const closeCalendar = async () => {
+  await act(async () => {
+    await userEvent.keyboard('{Escape}');
+  });
+
+  await waitFor(() => {
+    const calendar = document.querySelector('.rdp');
+    expect(calendar).not.toBeInTheDocument();
+  });
+};
+
+/**
  * Selects a date in the calendar
  */
-export const selectDate = async (testId: string, date: Date, options: CalendarTestHelperOptions = {}) => {
-  const { retries = defaultOptions.retries } = options;
+export const selectDate = async (testId: string, date: Date, retries = 3) => {
   let lastError: Error | null = null;
-  
+
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const calendar = await openCalendar(testId);
-      const dateButton = await findDateButton(date, calendar);
+      await openCalendar(testId);
+      const dateButton = await findDateButton(date);
       
       await act(async () => {
         await userEvent.click(dateButton);
       });
       
-      await closeCalendar();
       return true;
     } catch (error) {
       console.error(`Attempt ${attempt} failed:`, error);
       lastError = error as Error;
-      await new Promise(resolve => setTimeout(resolve, 100));
+      if (attempt < retries) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     }
   }
   
