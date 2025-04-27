@@ -1,5 +1,6 @@
 
 import { render, screen, fireEvent } from '@testing-library/react';
+import { vi } from 'vitest';
 import { mockDate, restoreDate } from '@/test/mocks/date-mocks';
 import { getCalendarPopover, selectDate } from '@/utils/test-utils/datePickerTestUtils';
 import { TEST_IDS } from '@/test/test-ids';

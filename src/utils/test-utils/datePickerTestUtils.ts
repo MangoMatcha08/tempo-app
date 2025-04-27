@@ -1,6 +1,7 @@
 
 import { fireEvent, screen, within } from '@testing-library/react';
 import { format } from 'date-fns';
+import { vi } from 'vitest';
 
 /**
  * Gets the opened calendar popover content

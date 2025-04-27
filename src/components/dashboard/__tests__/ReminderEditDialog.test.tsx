@@ -1,5 +1,6 @@
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { vi } from 'vitest';
 import { mockDate, restoreDate } from '@/test/mocks/date-mocks';
 import { createMockReminder } from '@/test/mocks/reminder-mocks';
 import ReminderEditDialog from '@/components/dashboard/ReminderEditDialog';

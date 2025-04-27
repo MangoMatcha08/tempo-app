@@ -1,63 +1,28 @@
 
 /// <reference types="vite/client" />
+/// <reference types="vitest/globals" />
 
-// Define SpeechRecognition interfaces
-interface SpeechRecognitionEvent extends Event {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
+interface ImportMetaEnv {
+  readonly VITE_APP_TITLE: string;
+  readonly VITE_FIREBASE_API_KEY: string;
+  readonly VITE_FIREBASE_AUTH_DOMAIN: string;
+  readonly VITE_FIREBASE_PROJECT_ID: string;
+  readonly VITE_FIREBASE_STORAGE_BUCKET: string;
+  readonly VITE_FIREBASE_MESSAGING_SENDER_ID: string;
+  readonly VITE_FIREBASE_APP_ID: string;
+  readonly VITE_FIREBASE_MEASUREMENT_ID: string;
+  readonly VITE_DEBUG_TESTS: string;
 }
 
-interface SpeechRecognitionResult {
-  readonly isFinal: boolean;
-  readonly length: number;
-  [index: number]: SpeechRecognitionAlternative;
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
 }
 
-interface SpeechRecognitionResultList {
-  readonly length: number;
-  [index: number]: SpeechRecognitionResult;
+// Ensure the global vi object is defined properly in TypeScript
+declare global {
+  var vi: typeof import('vitest')['vi'];
+  namespace Vi {
+    export interface Assertion extends jest.Matchers<any, any> {}
+    export interface AsymmetricMatchersContaining extends jest.Matchers<any, any> {}
+  }
 }
-
-interface SpeechRecognitionAlternative {
-  readonly transcript: string;
-  readonly confidence: number;
-}
-
-interface SpeechRecognitionErrorEvent extends Event {
-  error: 'aborted' | 'audio-capture' | 'bad-grammar' | 'language-not-supported' | 'network' | 
-         'no-speech' | 'not-allowed' | 'service-not-allowed' | 'not-secure' | 'permission-blocked';
-  message: string;
-}
-
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  maxAlternatives: number;
-  
-  onaudiostart: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onaudioend: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onend: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any) | null;
-  onnomatch: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
-  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
-  onsoundstart: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onsoundend: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onspeechstart: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onspeechend: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onstart: ((this: SpeechRecognition, ev: Event) => any) | null;
-  
-  start(): void;
-  stop(): void;
-  abort(): void;
-}
-
-// Extend the Window interface to include firebase and speech recognition
-interface Window {
-  firebase: any;
-  SpeechRecognition?: new () => SpeechRecognition;
-  webkitSpeechRecognition?: new () => SpeechRecognition;
-  mozSpeechRecognition?: new () => SpeechRecognition;
-  msSpeechRecognition?: new () => SpeechRecognition;
-}
-
