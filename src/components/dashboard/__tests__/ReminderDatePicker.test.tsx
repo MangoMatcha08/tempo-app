@@ -1,4 +1,3 @@
-
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { vi } from 'vitest';
 import { DatePicker } from "@/components/ui/date-picker";
@@ -6,12 +5,9 @@ import { TestWrapper } from '@/test/test-wrapper';
 import { within } from '@testing-library/react';
 import { 
   openDatePicker, 
-  getCalendarPopover,
   selectCalendarDate
 } from '@/utils/test-utils/datePickerTestUtils';
 import { TEST_IDS } from '@/test/test-ids';
-import { format } from 'date-fns';
-import { testLogger } from '@/utils/test-utils/testDebugUtils';
 
 describe('DatePicker Component', () => {
   beforeEach(() => {
@@ -81,18 +77,16 @@ describe('DatePicker Component', () => {
 
     await openDatePicker(TEST_IDS.REMINDER.DATE_PICKER);
     
-    const today = new Date('2024-04-27T12:00:00Z');
-    
-    // Wrap in act for React state updates
     await act(async () => {
-      await selectCalendarDate(today);
+      await selectCalendarDate(defaultDate);
     });
     
     await waitFor(() => {
-      expect(mockSetDate).toHaveBeenCalled();
+      expect(mockSetDate).toHaveBeenCalledWith(expect.any(Date));
     }, { timeout: 1000 });
     
     const call = mockSetDate.mock.calls[0][0];
     expect(call instanceof Date).toBeTruthy();
+    expect(call.getDate()).toBe(defaultDate.getDate());
   });
 });
