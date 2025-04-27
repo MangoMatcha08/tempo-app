@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { mockPeriods } from '@/utils/reminderUtils';
 import { parseTimeString, createDateWithTime } from '@/utils/dateUtils';
 
@@ -9,7 +9,7 @@ export function useReminderPeriodField(
   currentDate: Date
 ) {
   const [periodId, setPeriodId] = useState(initialPeriodId || 'none');
-  const [lastUpdatedDate, setLastUpdatedDate] = useState<Date>(currentDate);
+  const lastUpdateRef = useRef<Date>(currentDate);
 
   useEffect(() => {
     if (periodId && periodId !== 'none') {
@@ -24,15 +24,20 @@ export function useReminderPeriodField(
             timeComponents.minutes
           );
           
-          // Only update if the date has actually changed
-          if (updatedDate.getTime() !== lastUpdatedDate.getTime()) {
-            setLastUpdatedDate(updatedDate);
+          // Only update if the date has actually changed, using ref instead of state
+          if (updatedDate.getTime() !== lastUpdateRef.current.getTime()) {
+            lastUpdateRef.current = updatedDate;
             onTimeUpdate(updatedDate);
           }
         }
       }
     }
-  }, [periodId, currentDate, onTimeUpdate, lastUpdatedDate]);
+
+    // Cleanup function to prevent memory leaks
+    return () => {
+      lastUpdateRef.current = currentDate;
+    };
+  }, [periodId, currentDate, onTimeUpdate]); // Removed lastUpdatedDate from deps
 
   return {
     periodId,
