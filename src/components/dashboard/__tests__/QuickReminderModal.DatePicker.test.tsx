@@ -1,14 +1,13 @@
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { format, addDays } from 'date-fns';
 import QuickReminderModal from '../QuickReminderModal';
 import { TestWrapper } from '@/test/test-wrapper';
 import { 
-  openDatePicker, 
-  getCalendarPopover,
-  selectCalendarDate 
-} from '@/utils/test-utils/datePickerTestUtils';
+  openCalendar, 
+  getCalendarDialog,
+  selectDate 
+} from '@/utils/test-utils/calendarTestUtils';
 import { testLogger } from '@/utils/test-utils/testDebugUtils';
 
 describe('QuickReminderModal DatePicker', () => {
@@ -45,7 +44,7 @@ describe('QuickReminderModal DatePicker', () => {
 
   it('opens calendar on date picker click', async () => {
     // Click the date button and verify calendar opens
-    const calendar = await openDatePicker('reminder-date-picker');
+    const calendar = await openCalendar('reminder-date-picker');
     expect(calendar).toBeInTheDocument();
     
     // Log the calendar structure for debugging
@@ -54,11 +53,11 @@ describe('QuickReminderModal DatePicker', () => {
 
   it('allows selecting current date', async () => {
     // Open the date picker
-    await openDatePicker('reminder-date-picker');
+    await openCalendar('reminder-date-picker');
     
     // Select today's date (27th)
     const today = new Date('2024-04-27T12:00:00Z');
-    await selectCalendarDate(today);
+    await selectDate(today);
     
     // Wait for the button text to update - but with more robust assertion
     await waitFor(() => {
@@ -71,11 +70,11 @@ describe('QuickReminderModal DatePicker', () => {
 
   it('allows selecting tomorrow', async () => {
     // Open the date picker
-    await openDatePicker('reminder-date-picker');
+    await openCalendar('reminder-date-picker');
     
     // Select tomorrow's date (28th)
     const tomorrow = new Date('2024-04-28T12:00:00Z');
-    await selectCalendarDate(tomorrow);
+    await selectDate(tomorrow);
     
     // Wait for the button text to update - with more robust assertion
     await waitFor(() => {
