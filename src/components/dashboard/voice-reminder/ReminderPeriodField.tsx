@@ -1,3 +1,4 @@
+
 import { 
   Select,
   SelectContent,
@@ -8,35 +9,18 @@ import {
 import { mockPeriods } from "@/utils/reminderUtils";
 import { validatePeriodId } from "@/utils/dateUtils";
 import { toPeriodDate } from "@/types/periodTypes";
-import { useEffect, useState } from "react";
 
 interface ReminderPeriodFieldProps {
   periodId: string;
   setPeriodId: (periodId: string) => void;
-  disabled?: boolean;
-  testId?: string;
 }
 
-const ReminderPeriodField = ({ 
-  periodId, 
-  setPeriodId, 
-  disabled = false, 
-  testId 
-}: ReminderPeriodFieldProps) => {
-  const [selectedValue, setSelectedValue] = useState(periodId);
-  
-  useEffect(() => {
-    setSelectedValue(periodId);
-  }, [periodId]);
-  
+const ReminderPeriodField = ({ periodId, setPeriodId }: ReminderPeriodFieldProps) => {
   const handlePeriodChange = (value: string) => {
     if (value === 'none' || validatePeriodId(value, mockPeriods)) {
-      setSelectedValue(value);
       setPeriodId(value);
-      console.log('Period selected:', { value });
     } else {
       console.warn('Invalid period ID selected:', value);
-      setSelectedValue('none');
       setPeriodId('none');
     }
   };
@@ -49,12 +33,8 @@ const ReminderPeriodField = ({
   return (
     <div className="space-y-2">
       <label htmlFor="period" className="text-sm font-medium">Period</label>
-      <Select 
-        value={selectedValue} 
-        onValueChange={handlePeriodChange}
-        disabled={disabled}
-      >
-        <SelectTrigger data-testid={testId}>
+      <Select value={periodId} onValueChange={handlePeriodChange}>
+        <SelectTrigger>
           <SelectValue placeholder="Select period (optional)" />
         </SelectTrigger>
         <SelectContent>

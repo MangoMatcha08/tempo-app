@@ -1,12 +1,65 @@
 
-// Re-export everything from dateUtils for backward compatibility
-export * from './dateUtils';
+// Re-export everything from the new structure
+export * from './dateUtils/index';
 
-// Export additional period time utility
-export function getPeriodTime(periodId: string, periods: any[]) {
-  const period = periods.find(p => p.id === periodId);
-  if (!period || !period.startTime) return null;
-  
-  const { parseTimeString } = require('./dateUtils/core');
-  return parseTimeString(period.startTime);
-}
+// Re-export from dateCore for backward compatibility
+export {
+  convertToUtc,
+  convertToLocal,
+  debugDate
+} from './dateCore';
+
+// Export memoization utility
+export { memoizeDateFn } from './dateMemoization';
+
+// Export date transformation utilities
+export {
+  parseStringToDate,
+  compareDates,
+  isDateInRange,
+  areDatesEqual
+} from './dateTransformations';
+
+// Export scheduling utilities
+export type {
+  TimeSlot
+} from './dateSchedulingUtils';
+
+export {
+  findAvailableTimeSlots,
+  suggestIdealPeriods,
+  suggestDueDates,
+  detectDateConflicts,
+} from './dateSchedulingUtils';
+
+// Export enhanced utilities
+export {
+  formatDateWithPeriod,
+  getRelativeTimeDisplay,
+  getNearestPeriodTime,
+  formatDisplayDate,
+  toLocalTime,
+  toUtcTime
+} from './enhancedDateUtils';
+
+// Export recurrence utilities
+export type {
+  RecurrenceRule
+} from './recurringDatePatterns';
+
+export {
+  RecurrenceType,
+  generateOccurrences,
+  formatRecurrenceRule,
+  dateMatchesRecurrence
+} from './recurringDatePatterns';
+
+// Export Period types
+export type {
+  Period,
+  PeriodValidationResult,
+  DateWithPeriod
+} from '../types/periodTypes';
+
+// Export date performance monitoring
+export { datePerformance } from './datePerformanceMonitor';

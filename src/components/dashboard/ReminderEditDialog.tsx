@@ -1,5 +1,4 @@
-
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,8 +12,7 @@ import { ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
 import { useReminderFormValidation } from '@/hooks/useReminderFormValidation';
 import { useReminderPeriodField } from '@/hooks/useReminderPeriodField';
 import { useReminderDateValidation } from '@/hooks/useReminderDateValidation';
-import ReminderPeriodField from './voice-reminder/ReminderPeriodField';
-import { toast } from '@/components/ui/use-toast';
+import { ReminderPeriodSelect } from './ReminderPeriodSelect';
 
 interface ReminderEditDialogProps {
   reminder: Reminder | null;
@@ -39,73 +37,36 @@ const ReminderEditDialog = ({
 
   const { dateErrors, validateDateAndTime, clearErrors } = useReminderDateValidation();
 
-  // Handle time updates from period selection
   const handleTimeUpdate = useCallback((newDate: Date) => {
     console.log('Time update callback called with:', newDate.toISOString());
     updateField('dueDate', newDate);
-    
-    // Also update the time string for the TimePicker
-    const hours = newDate.getHours().toString().padStart(2, '0');
-    const minutes = newDate.getMinutes().toString().padStart(2, '0');
-    updateField('dueTime', `${hours}:${minutes}`);
   }, [updateField]);
 
-  // Use the enhanced reminder period field hook
-  const { periodId, setPeriodId, findPeriod } = useReminderPeriodField(
+  const { periodId, setPeriodId } = useReminderPeriodField(
     formState.periodId,
     handleTimeUpdate,
     formState.dueDate || new Date()
   );
 
-  // Reset form when reminder changes
-  useEffect(() => {
+  React.useEffect(() => {
     if (reminder) {
       resetForm(reminder);
       clearErrors();
     }
   }, [reminder, resetForm, clearErrors]);
 
-  // Handle save with validation
   const handleSave = useCallback(() => {
     const isDateValid = validateDateAndTime(formState.dueDate, formState.dueTime);
-    if (!isDateValid) {
-      toast({
-        title: "Date validation failed",
-        description: "Please check the date and time fields.",
-        variant: "destructive"
-      });
-      return;
-    }
+    if (!isDateValid) return;
 
     const result = validateAndSave();
     if (result.isValid && result.updatedReminder) {
-      // Add extra logging for debugging
-      console.log('Saving reminder with:', {
-        title: result.updatedReminder.title,
-        dueDate: result.updatedReminder.dueDate.toISOString(),
-        periodId: result.updatedReminder.periodId
-      });
-      
       onSave(result.updatedReminder);
       onOpenChange(false);
-      
-      toast({
-        title: "Reminder updated",
-        description: "Your reminder has been successfully updated."
-      });
-    } else {
-      toast({
-        title: "Validation failed",
-        description: validationErrors.join(", "),
-        variant: "destructive"
-      });
     }
-  }, [validateDateAndTime, validateAndSave, onSave, onOpenChange, formState.dueDate, formState.dueTime, validationErrors]);
+  }, [validateDateAndTime, validateAndSave, onSave, onOpenChange, formState.dueDate, formState.dueTime]);
 
   if (!reminder) return null;
-
-  // Find the selected period details if any
-  const selectedPeriod = periodId && periodId !== 'none' ? findPeriod(periodId) : undefined;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -167,20 +128,13 @@ const ReminderEditDialog = ({
             </div>
           )}
 
-          <ReminderPeriodField 
+          <ReminderPeriodSelect 
             periodId={periodId}
-            setPeriodId={(value) => {
+            onChange={(value) => {
               setPeriodId(value);
               updateField('periodId', value === 'none' ? null : value);
             }}
-            testId="reminder-edit-period-select"
           />
-          
-          {selectedPeriod && (
-            <div className="text-sm text-muted-foreground">
-              Period time will be set to {selectedPeriod.startTime}
-            </div>
-          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
