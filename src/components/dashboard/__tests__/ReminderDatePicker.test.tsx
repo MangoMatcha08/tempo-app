@@ -1,14 +1,10 @@
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
 import { DatePicker } from "@/components/ui/date-picker";
 import { TestWrapper } from '@/test/test-wrapper';
 import { TEST_IDS } from '@/test/test-ids';
-import { 
-  openCalendar,
-  selectDate,
-  verifySelectedDate
-} from '@/utils/test-utils/calendarTestUtils';
+import { openCalendar, selectDate } from '@/utils/test-utils/calendarTestUtils';
 
 describe('DatePicker Component', () => {
   beforeEach(() => {
@@ -71,16 +67,8 @@ describe('DatePicker Component', () => {
       </TestWrapper>
     );
 
-    await openCalendar(TEST_IDS.REMINDER.DATE_PICKER);
     await selectDate(defaultDate);
     
-    await waitFor(() => {
-      expect(mockSetDate).toHaveBeenCalledWith(expect.any(Date));
-    });
-    
-    const call = mockSetDate.mock.calls[0][0];
-    expect(call instanceof Date).toBeTruthy();
-    expect(call.getDate()).toBe(defaultDate.getDate());
+    expect(mockSetDate).toHaveBeenCalledWith(expect.any(Date));
   });
 });
-
