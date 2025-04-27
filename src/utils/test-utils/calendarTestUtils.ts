@@ -1,5 +1,5 @@
 
-import { screen, within, waitFor, act } from '@testing-library/react';
+import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { format } from 'date-fns';
 
@@ -9,14 +9,13 @@ import { format } from 'date-fns';
 const getCalendarContent = async () => {
   return waitFor(() => {
     console.log('Looking for calendar content...');
-    // Find calendar in portal with role="dialog"
     const calendar = document.querySelector('[role="dialog"] .rdp');
     if (!calendar) {
       throw new Error('Calendar content not found in portal');
     }
     console.log('Found calendar content');
     return calendar;
-  }, { timeout: 2000 }); // Increased timeout for slower environments
+  }, { timeout: 2000 });
 };
 
 /**
@@ -29,7 +28,6 @@ export const openCalendar = async (testId: string) => {
     await userEvent.click(trigger);
   });
   
-  // Wait for calendar to be visible and interactive
   const content = await getCalendarContent();
   console.log('Calendar opened successfully');
   
@@ -37,43 +35,47 @@ export const openCalendar = async (testId: string) => {
 };
 
 /**
- * Finds the date button in the calendar
+ * Finds the date button in the calendar by matching the day number
  */
 const findDateButton = async (date: Date) => {
   console.log('Finding date button for:', format(date, 'PPP'));
   
-  // Wait for the table to be rendered
   await waitFor(() => {
-    const table = document.querySelector('[role="dialog"] .rdp table');
+    const table = document.querySelector('[role="dialog"] .rdp');
     if (!table) {
       console.log('Available calendar content:', document.querySelector('[role="dialog"]')?.innerHTML);
-      throw new Error('Calendar table not found');
+      throw new Error('Calendar content not found');
     }
   }, { timeout: 2000 });
 
-  // Look for the date cell and button
-  const formattedDate = format(date, 'PPP');
-  const buttons = Array.from(document.querySelectorAll('[role="dialog"] .rdp table button'));
+  // Get all calendar day buttons
+  const buttons = Array.from(document.querySelectorAll('[role="dialog"] .rdp button'));
   
   console.log('Found buttons:', buttons.length);
   buttons.forEach(btn => {
     console.log('Button:', {
       text: btn.textContent,
-      ariaLabel: btn.getAttribute('aria-label'),
       className: btn.className
     });
   });
 
+  // Get just the day number we're looking for
+  const targetDay = format(date, 'd'); // 'd' gives us just the day number
+  console.log('Looking for day number:', targetDay);
+
+  // Find button with matching day number
   const dateButton = buttons.find(btn => {
-    const ariaLabel = btn.getAttribute('aria-label');
-    return ariaLabel?.includes(formattedDate);
+    const btnText = btn.textContent?.trim();
+    const isMatch = btnText === targetDay;
+    console.log(`Comparing button text "${btnText}" with target "${targetDay}":`, isMatch);
+    return isMatch;
   });
 
   if (!dateButton) {
-    throw new Error(`Could not find button for date ${formattedDate}`);
+    throw new Error(`Could not find button for day ${targetDay}`);
   }
 
-  console.log('Found date button:', dateButton.getAttribute('aria-label'));
+  console.log('Found date button:', dateButton.textContent);
   return dateButton;
 };
 
@@ -131,7 +133,7 @@ export const selectDate = async (testId: string, date: Date, retries = 3) => {
       console.error(`Attempt ${attempt} failed:`, error);
       lastError = error as Error;
       if (attempt < retries) {
-        await new Promise(resolve => setTimeout(resolve, 500)); // Added delay between retries
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
   }
