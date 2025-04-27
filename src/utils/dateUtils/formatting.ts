@@ -1,6 +1,7 @@
 
 import { format } from 'date-fns';
 import { ensureValidDate } from './core';
+import { formatWithTimeZone } from './timezoneUtils';
 
 export function formatDate(date: Date | string | null | undefined, formatStr: string = 'yyyy-MM-dd'): string {
   try {
