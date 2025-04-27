@@ -12,10 +12,27 @@ export async function getCalendarPopover() {
  * Gets day button in calendar by text
  */
 export function getDayButtonByText(calendar: HTMLElement, dayText: string) {
+  console.log('Looking for day:', dayText);
+  
+  // First try by aria-label (Shadcn format)
+  const buttons = within(calendar).getAllByRole('button');
+  const targetButton = buttons.find(button => {
+    const label = button.getAttribute('aria-label');
+    console.log('Checking button with aria-label:', label);
+    return label && label.includes(dayText);
+  });
+
+  if (targetButton) {
+    return targetButton;
+  }
+
+  // Fallback to cell content
   const cells = within(calendar).getAllByRole('gridcell');
   const targetCell = cells.find(cell => {
     const button = cell.querySelector('button');
-    return button && button.textContent === dayText;
+    const text = button?.textContent;
+    console.log('Checking cell button with text:', text);
+    return text === dayText;
   });
   
   return targetCell?.querySelector('button') || null;
@@ -37,6 +54,13 @@ export async function selectDate(targetDate: Date) {
   const dayButton = getDayButtonByText(calendar, dayString);
   
   if (!dayButton) {
+    console.error('Available buttons:', 
+      within(calendar).getAllByRole('button')
+        .map(b => ({
+          text: b.textContent,
+          ariaLabel: b.getAttribute('aria-label')
+        }))
+    );
     throw new Error(`Could not find button for date ${dayString}`);
   }
   
