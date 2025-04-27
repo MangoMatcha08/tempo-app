@@ -1,7 +1,8 @@
 
-import { screen, waitFor, act } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { format } from 'date-fns';
+import { act } from 'react-dom/test-utils';
 
 /**
  * Gets the calendar content from Radix Portal
@@ -25,10 +26,13 @@ export const openCalendar = async (testId: string) => {
   console.log('Opening calendar...');
   const trigger = screen.getByTestId(testId);
   
-  // Focus the trigger first
+  // Type assertion since we know this is an HTMLElement from screen.getByTestId
+  const triggerElement = trigger as HTMLElement;
+  
+  // Focus and click with proper event sequence
   await act(async () => {
-    trigger.focus();
-    await userEvent.click(trigger);
+    triggerElement.focus();
+    await userEvent.click(triggerElement);
   });
   
   // Wait for calendar to be visible and interactive
@@ -44,8 +48,9 @@ export const openCalendar = async (testId: string) => {
 const findDateButton = async (date: Date) => {
   console.log('Finding date button for:', format(date, 'PPP'));
   
+  let calendar: Element | null;
+  
   // Wait for calendar to be fully rendered with retry
-  let calendar;
   await waitFor(() => {
     calendar = document.querySelector('[role="dialog"] .rdp');
     if (!calendar) {
@@ -64,8 +69,7 @@ const findDateButton = async (date: Date) => {
     });
   });
 
-  // Get just the day number we're looking for
-  const targetDay = format(date, 'd'); // 'd' gives us just the day number
+  const targetDay = format(date, 'd');
   console.log('Looking for day number:', targetDay);
 
   // Find button with matching day number and ensure it's interactable
@@ -81,7 +85,8 @@ const findDateButton = async (date: Date) => {
       throw new Error('Date button not found or not interactable');
     }
 
-    return btn;
+    // Type assertion since we know this is an HTMLButtonElement
+    return btn as HTMLButtonElement;
   }, { timeout: 2000 });
 
   console.log('Found date button:', dateButton.textContent);
@@ -104,13 +109,31 @@ export const selectDate = async (testId: string, date: Date, retries = 3) => {
       
       console.log('Clicking date button...');
       
-      // Simulate full click interaction
+      // Simulate full click interaction with proper focus
       await act(async () => {
-        dateButton.focus();
-        await userEvent.pointer([
-          { keys: '[MouseLeft>]', target: dateButton },
-          { keys: '[/MouseLeft]', target: dateButton }
-        ]);
+        // Type assertion since we know this is an HTMLButtonElement
+        const button = dateButton as HTMLButtonElement;
+        button.focus();
+        
+        // Trigger mousedown event
+        button.dispatchEvent(new MouseEvent('mousedown', { 
+          bubbles: true,
+          cancelable: true,
+          view: window
+        }));
+
+        // Small delay to simulate real interaction
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Trigger click event
+        button.click();
+
+        // Trigger mouseup event
+        button.dispatchEvent(new MouseEvent('mouseup', {
+          bubbles: true,
+          cancelable: true,
+          view: window
+        }));
       });
       
       // Wait for selected date to be reflected in trigger button

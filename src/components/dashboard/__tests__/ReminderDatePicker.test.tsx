@@ -1,4 +1,3 @@
-
 import { render, screen } from '@testing-library/react';
 import { vi, beforeEach, afterEach } from 'vitest';
 import { DatePicker } from "@/components/ui/date-picker";
@@ -17,7 +16,7 @@ describe('DatePicker Component', () => {
     vi.useRealTimers();
     vi.clearAllMocks();
     
-    // Cleanup portal root and any remaining dialogs
+    // Cleanup portals and dialogs
     document.querySelectorAll('[role="dialog"]').forEach(el => el.remove());
     const portal = document.getElementById('radix-portal');
     if (portal) {
@@ -76,7 +75,6 @@ describe('DatePicker Component', () => {
       </TestWrapper>
     );
 
-    // Set explicit timeout for the test
     await selectDate(TEST_IDS.REMINDER.DATE_PICKER, defaultDate);
 
     // Verify callback was called with correct date
