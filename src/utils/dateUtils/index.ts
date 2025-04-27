@@ -4,6 +4,7 @@ export {
   isDate,
   ensureValidDate,
   isTimeValid,
+  parseTimeString,
   parseTimeComponents,
   isConvertibleToDate,
   logDateDetails
@@ -11,8 +12,8 @@ export {
 
 // Timezone utilities
 export {
-  toZonedTime as convertToLocal,
-  fromZonedTime as convertToUtc,
+  toZonedTime,
+  fromZonedTime,
   formatWithTimeZone,
   getUserTimeZone
 } from './timezoneUtils';
@@ -20,7 +21,7 @@ export {
 // Adjustment utilities
 export { adjustDateIfPassed } from './adjustment';
 
-// Re-export types
+// Re-export types and constants
 export type {
   TimeComponents,
   DateValidationError,
@@ -28,7 +29,6 @@ export type {
   DateValidationOptions
 } from './types';
 
-// Re-export enums and constants
 export {
   DateFormats,
   DateValidationErrorType,
@@ -42,6 +42,12 @@ export {
   formatTimeString
 } from './formatting';
 
+// Re-export validation functions
+export {
+  validateDate,
+  validateDateRange
+} from './validation';
+
 // Date operations
 export function createDateWithTime(date: Date, hours: number, minutes: number): Date {
   const validDate = ensureValidDate(date);
@@ -49,9 +55,3 @@ export function createDateWithTime(date: Date, hours: number, minutes: number): 
   newDate.setHours(hours, minutes, 0, 0);
   return newDate;
 }
-
-// Re-export validation functions
-export {
-  validateDate,
-  validateDateRange
-} from './validation';

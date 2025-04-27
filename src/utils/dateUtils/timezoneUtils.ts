@@ -16,10 +16,6 @@ export function fromZonedTime(date: Date | string, timeZone: string = getUserTim
   return new Date(formatInTimeZone(validDate, 'UTC', "yyyy-MM-dd'T'HH:mm:ssXXX"));
 }
 
-// Alias functions for backward compatibility
-export const convertToUtc = fromZonedTime;
-export const convertToLocal = toZonedTime;
-
 export function formatWithTimeZone(
   date: Date | string,
   formatStr: string = 'yyyy-MM-dd HH:mm:ss',

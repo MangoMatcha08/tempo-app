@@ -1,7 +1,7 @@
 
 import { addDays } from 'date-fns';
 import { ensureValidDate } from './core';
-import { toZonedTime, fromZonedTime, getUserTimeZone } from './timezoneUtils';
+import { toZonedTime, getUserTimeZone } from './timezoneUtils';
 
 export function adjustDateIfPassed(date: Date): Date {
   const validDate = ensureValidDate(date);
@@ -13,24 +13,10 @@ export function adjustDateIfPassed(date: Date): Date {
   const localNow = toZonedTime(now, timeZone);
   
   if (localDate < localNow) {
-    // Save the time components before adjustment
-    const hours = localDate.getHours();
-    const minutes = localDate.getMinutes();
-    
     // Add a day while preserving time
     const tomorrow = addDays(localDate, 1);
-    tomorrow.setHours(hours, minutes, 0, 0);
-    
     return tomorrow;
   }
   
   return validDate;
-}
-
-export function isOnDstTransition(date: Date): boolean {
-  const validDate = ensureValidDate(date);
-  const before = new Date(validDate.getTime() - 60000);
-  const after = new Date(validDate.getTime() + 60000);
-  
-  return before.getTimezoneOffset() !== after.getTimezoneOffset();
 }

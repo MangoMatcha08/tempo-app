@@ -39,6 +39,30 @@ export function isTimeValid(hours: number, minutes: number): boolean {
   return hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60;
 }
 
+export function parseTimeString(timeStr: string): { hours: number; minutes: number } | null {
+  if (!timeStr) return null;
+  
+  try {
+    const timeRegex = /(\d{1,2})(?::(\d{1,2}))?\s*([AP]M)?/i;
+    const match = timeStr.match(timeRegex);
+    
+    if (!match) return null;
+    
+    let hours = parseInt(match[1], 10);
+    const minutes = match[2] ? parseInt(match[2], 10) : 0;
+    const meridiem = match[3]?.toUpperCase();
+    
+    if (meridiem === 'PM' && hours < 12) hours += 12;
+    if (meridiem === 'AM' && hours === 12) hours = 0;
+    
+    if (!isTimeValid(hours, minutes)) return null;
+    
+    return { hours, minutes };
+  } catch {
+    return null;
+  }
+}
+
 export function parseTimeComponents(date: Date): { hours: number; minutes: number } | null {
   if (!isDate(date)) return null;
   
