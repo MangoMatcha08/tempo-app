@@ -6,9 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
+import { TimePicker } from "@/components/ui/time-picker";
 import { Reminder } from "@/types/reminder";
 import { format } from "date-fns";
-import { ReminderPriority } from '@/types/reminderTypes';
+import { ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
+import { validateDate } from '@/utils/dateValidation';
+import { parseTimeString, createDateWithTime } from '@/utils/dateUtils';
+import ReminderPeriodField from './voice-reminder/ReminderPeriodField';
 
 interface ReminderEditDialogProps {
   reminder: Reminder | null;
@@ -26,16 +31,13 @@ const ReminderEditDialog = ({
   const [title, setTitle] = useState(reminder?.title || '');
   const [description, setDescription] = useState(reminder?.description || '');
   const [priority, setPriority] = useState<ReminderPriority>(reminder?.priority || ReminderPriority.MEDIUM);
-  const [dueDate, setDueDate] = useState(
-    reminder?.dueDate 
-      ? format(reminder.dueDate, "yyyy-MM-dd")
-      : format(new Date(), "yyyy-MM-dd")
+  const [category, setCategory] = useState<ReminderCategory>(reminder?.category || ReminderCategory.TASK);
+  const [periodId, setPeriodId] = useState<string>(reminder?.periodId || 'none');
+  const [dueDate, setDueDate] = useState<Date | undefined>(reminder?.dueDate);
+  const [dueTime, setDueTime] = useState<string | undefined>(
+    reminder?.dueDate ? format(reminder.dueDate, 'HH:mm') : undefined
   );
-  const [dueTime, setDueTime] = useState(
-    reminder?.dueDate 
-      ? format(reminder.dueDate, "HH:mm")
-      : format(new Date(), "HH:mm")
-  );
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   // Update form when a different reminder is selected
   React.useEffect(() => {
@@ -43,28 +45,50 @@ const ReminderEditDialog = ({
       setTitle(reminder.title);
       setDescription(reminder.description);
       setPriority(reminder.priority);
-      setDueDate(format(reminder.dueDate, "yyyy-MM-dd"));
-      setDueTime(format(reminder.dueDate, "HH:mm"));
+      setCategory(reminder.category);
+      setPeriodId(reminder.periodId || 'none');
+      setDueDate(reminder.dueDate);
+      setDueTime(format(reminder.dueDate, 'HH:mm'));
     }
   }, [reminder]);
 
   const handleSave = () => {
-    if (!reminder) return;
+    if (!reminder || !title.trim() || !dueDate) {
+      setValidationError('Please fill in all required fields');
+      return;
+    }
 
-    // Combine date and time into a Date object
-    const [year, month, day] = dueDate.split('-').map(Number);
-    const [hour, minute] = dueTime.split(':').map(Number);
-    const dueDateObj = new Date(year, month - 1, day, hour, minute);
+    const dateValidation = validateDate(dueDate, {
+      required: true,
+      minDate: new Date()
+    });
+
+    if (!dateValidation.isValid) {
+      setValidationError(dateValidation.errors[0]);
+      return;
+    }
+
+    let finalDueDate = new Date(dueDate);
+    
+    if (dueTime) {
+      const timeComponents = parseTimeString(dueTime);
+      if (timeComponents) {
+        finalDueDate = createDateWithTime(finalDueDate, timeComponents.hours, timeComponents.minutes);
+      }
+    }
 
     const updatedReminder: Reminder = {
       ...reminder,
       title,
       description,
       priority,
-      dueDate: dueDateObj
+      category,
+      periodId: periodId === 'none' ? null : periodId,
+      dueDate: finalDueDate
     };
 
     onSave(updatedReminder);
+    setValidationError(null);
     onOpenChange(false);
   };
 
@@ -98,37 +122,62 @@ const ReminderEditDialog = ({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="due-date">Due Date</Label>
-              <Input
-                id="due-date"
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+              <Label>Due Date</Label>
+              <DatePicker 
+                date={dueDate} 
+                setDate={setDueDate}
+                className="w-full"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="due-time">Due Time</Label>
-              <Input
-                id="due-time"
-                type="time"
-                value={dueTime}
-                onChange={(e) => setDueTime(e.target.value)}
+              <Label>Due Time</Label>
+              <TimePicker 
+                value={dueTime} 
+                onChange={setDueTime}
+                className="w-full"
               />
             </div>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="priority">Priority</Label>
-            <Select value={priority} onValueChange={(value) => setPriority(value as ReminderPriority)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ReminderPriority.LOW}>Low</SelectItem>
-                <SelectItem value={ReminderPriority.MEDIUM}>Medium</SelectItem>
-                <SelectItem value={ReminderPriority.HIGH}>High</SelectItem>
-              </SelectContent>
-            </Select>
+            <ReminderPeriodField
+              periodId={periodId}
+              setPeriodId={setPeriodId}
+            />
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="priority">Priority</Label>
+              <Select value={priority} onValueChange={(value) => setPriority(value as ReminderPriority)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ReminderPriority.LOW}>Low</SelectItem>
+                  <SelectItem value={ReminderPriority.MEDIUM}>Medium</SelectItem>
+                  <SelectItem value={ReminderPriority.HIGH}>High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="category">Category</Label>
+              <Select value={category} onValueChange={(value) => setCategory(value as ReminderCategory)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ReminderCategory.TASK}>Task</SelectItem>
+                  <SelectItem value={ReminderCategory.MEETING}>Meeting</SelectItem>
+                  <SelectItem value={ReminderCategory.DEADLINE}>Deadline</SelectItem>
+                  <SelectItem value={ReminderCategory.PREPARATION}>Preparation</SelectItem>
+                  <SelectItem value={ReminderCategory.GRADING}>Grading</SelectItem>
+                  <SelectItem value={ReminderCategory.COMMUNICATION}>Communication</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {validationError && (
+            <p className="text-sm text-red-500">{validationError}</p>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
