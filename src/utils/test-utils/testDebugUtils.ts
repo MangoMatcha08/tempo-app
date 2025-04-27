@@ -1,4 +1,5 @@
-import { type ReactNode } from 'react';
+
+import * as React from 'react';
 import { prettyDOM, logRoles, screen } from '@testing-library/react';
 import { vi } from 'vitest';
 
@@ -63,6 +64,12 @@ export const testLogger = {
           Text Content: ${element.textContent}
           Classes: ${element.className}
         `);
+      } else {
+        console.log(`\n[TEST DOM] Element Details (non-HTMLElement):
+          Node Name: ${element.nodeName}
+          Node Type: ${element.nodeType}
+          Text Content: ${element.textContent}
+        `);
       }
     },
 
@@ -80,9 +87,7 @@ export const testLogger = {
       const days = element.querySelectorAll('[role="gridcell"]');
       Array.from(days).slice(0, 3).forEach((day, index) => {
         console.log(`Day ${index + 1}:`);
-        if (day instanceof HTMLElement) {
-          testLogger.dom.logElement(day);
-        }
+        testLogger.dom.logElement(day);
       });
       
       if (days.length > 3) {

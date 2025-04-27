@@ -1,20 +1,29 @@
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { DatePicker } from "@/components/ui/date-picker";
 import { TestWrapper } from '@/test/test-wrapper';
 import { 
   openDatePicker, 
-  findDayCell, 
   getCalendarPopover,
   selectCalendarDate
 } from '@/utils/test-utils/datePickerTestUtils';
 import { TEST_IDS } from '@/test/test-ids';
-import { fireEvent, waitFor } from '@testing-library/react';
 import { format } from 'date-fns';
 import { testLogger } from '@/utils/test-utils/testDebugUtils';
 
 describe('DatePicker Component', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    // Set a stable date for testing
+    vi.setSystemTime(new Date('2024-04-27T12:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
   it('renders with default date', () => {
     const mockSetDate = vi.fn();
     const defaultDate = new Date();
@@ -49,14 +58,13 @@ describe('DatePicker Component', () => {
     const dialog = await openDatePicker(TEST_IDS.REMINDER.DATE_PICKER);
     expect(dialog).toBeInTheDocument();
     
-    // Log calendar structure for debugging
+    // Debug log calendar structure
     testLogger.dom.logCalendar(dialog);
   });
 
   it('allows date selection', async () => {
     const mockSetDate = vi.fn();
-    const defaultDate = new Date();
-    const targetDate = new Date();
+    const defaultDate = new Date('2024-04-27T12:00:00Z');
     
     render(
       <TestWrapper>
@@ -68,13 +76,19 @@ describe('DatePicker Component', () => {
       </TestWrapper>
     );
 
-    // Open date picker and select today's date (which is always in current month)
+    // Open date picker
     await openDatePicker(TEST_IDS.REMINDER.DATE_PICKER);
-    await selectCalendarDate(targetDate);
     
-    // Verify the date was selected
+    // Select today's date (27th)
+    const today = new Date('2024-04-27T12:00:00Z');
+    await selectCalendarDate(today);
+    
+    // Verify mockSetDate was called with a date object
     await waitFor(() => {
       expect(mockSetDate).toHaveBeenCalled();
-    }, { timeout: 2000 });
+    }, { timeout: 1000 });
+    
+    const call = mockSetDate.mock.calls[0][0];
+    expect(call instanceof Date).toBeTruthy();
   });
 });

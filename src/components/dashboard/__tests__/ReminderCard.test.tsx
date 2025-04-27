@@ -9,18 +9,16 @@ import { ReminderPriority } from '@/types/reminderTypes';
 import userEvent from '@testing-library/user-event';
 import { testLogger } from '@/utils/test-utils/testDebugUtils';
 
-// Shorter timeouts for waitFor to quickly detect failures
-const TEST_TIMEOUT = 5000;
-const WAIT_OPTIONS = { timeout: 2000 };
-
 describe('ReminderCard Component', () => {
   beforeEach(() => {
     mockDate('2024-04-27T12:00:00Z');
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
     restoreDate();
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   it('displays formatted date correctly', async () => {
@@ -36,19 +34,19 @@ describe('ReminderCard Component', () => {
       </TestWrapper>
     );
 
-    // Wait for date elements with shorter timeout
-    await waitFor(() => {
-      const dateElement = screen.getByTestId('reminder-date');
-      expect(dateElement).toBeInTheDocument();
-    }, WAIT_OPTIONS);
+    // Use more direct selectors with shorter timeouts
+    const dateElement = screen.getByTestId('reminder-date');
+    const timeElement = screen.getByTestId('reminder-time');
     
-    // Once we know the elements exist, perform the assertions
-    expect(screen.getByTestId('reminder-date')).toHaveTextContent('Apr 28');
-    expect(screen.getByTestId('reminder-time')).toHaveTextContent('2:30 PM');
-  }, TEST_TIMEOUT); // Add explicit timeout to test
+    // Verify the content
+    expect(dateElement).toHaveTextContent('Apr 28');
+    expect(timeElement).toHaveTextContent('2:30 PM');
+  });
 
   it('handles completion correctly', async () => {
+    // Create a mock that resolves immediately to avoid timing issues
     const mockComplete = vi.fn().mockResolvedValue(true);
+    
     const reminder = createMockReminder({
       id: 'test-reminder-1',
       dueDate: new Date()
@@ -63,23 +61,17 @@ describe('ReminderCard Component', () => {
       </TestWrapper>
     );
 
-    // Check that the button exists first
-    await waitFor(() => {
-      const completeButton = screen.getByTestId('complete-button');
-      expect(completeButton).toBeInTheDocument();
-    }, WAIT_OPTIONS);
-
-    // Then click it
+    // Get button and click immediately
     const completeButton = screen.getByTestId('complete-button');
+    expect(completeButton).toBeInTheDocument();
+    
+    // Click and verify mock was called
     await act(async () => {
       await userEvent.click(completeButton);
     });
-
-    // Verify mock was called
-    await waitFor(() => {
-      expect(mockComplete).toHaveBeenCalledWith('test-reminder-1');
-    }, WAIT_OPTIONS);
-  }, TEST_TIMEOUT); // Add explicit timeout to test
+    
+    expect(mockComplete).toHaveBeenCalledWith('test-reminder-1');
+  });
 
   it('shows pending state correctly', () => {
     const reminder = createMockReminder({
