@@ -1,5 +1,7 @@
+
 import {
   isDate,
+  isConvertibleToDate,
   createDateWithTime,
   toZonedTime,
   fromZonedTime,
@@ -36,17 +38,21 @@ describe('Date Time Utils', () => {
       // Create a date that's definitely in the past (yesterday)
       const pastDate = new Date();
       pastDate.setDate(pastDate.getDate() - 1);
-      pastDate.setHours(0, 0, 0, 0);
+      pastDate.setHours(14, 30, 0, 0); // Set specific time
       
       // Get the adjusted date
       const result = adjustDateIfPassed(pastDate);
+      
+      // Create expected date (tomorrow with same time)
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
+      tomorrow.setHours(14, 30, 0, 0);
       
       expect(result.getDate()).toBe(tomorrow.getDate());
       expect(result.getMonth()).toBe(tomorrow.getMonth());
       expect(result.getFullYear()).toBe(tomorrow.getFullYear());
+      expect(result.getHours()).toBe(14);
+      expect(result.getMinutes()).toBe(30);
     });
   });
 

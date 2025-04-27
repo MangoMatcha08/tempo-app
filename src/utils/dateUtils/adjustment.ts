@@ -13,8 +13,14 @@ export function adjustDateIfPassed(date: Date): Date {
   const localNow = toZonedTime(now, timeZone);
   
   if (localDate < localNow) {
+    // Save the time components before adjustment
+    const hours = localDate.getHours();
+    const minutes = localDate.getMinutes();
+    
     // Add a day while preserving time
     const tomorrow = addDays(localDate, 1);
+    tomorrow.setHours(hours, minutes, 0, 0);
+    
     return tomorrow;
   }
   
