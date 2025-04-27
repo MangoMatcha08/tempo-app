@@ -1,4 +1,3 @@
-
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import ReminderEditDialog from '../ReminderEditDialog';
@@ -16,7 +15,7 @@ describe('ReminderEditDialog', () => {
     completed: false,
     createdAt: new Date(),
     userId: 'test-user',
-    checklist: null // Add the missing checklist property
+    checklist: null
   };
 
   const mockProps = {

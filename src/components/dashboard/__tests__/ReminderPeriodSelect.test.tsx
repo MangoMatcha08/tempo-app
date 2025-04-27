@@ -1,8 +1,9 @@
 
 import { render, screen, fireEvent } from '@testing-library/react';
-import { vi } from 'vitest'; // Add missing import
+import { vi } from 'vitest';
 import { ReminderPeriodSelect } from '../ReminderPeriodSelect';
 import { mockPeriods } from '@/utils/reminderUtils';
+import userEvent from '@testing-library/user-event';
 
 describe('ReminderPeriodSelect', () => {
   const mockProps = {
@@ -19,31 +20,29 @@ describe('ReminderPeriodSelect', () => {
     expect(screen.getByText(/no specific period/i)).toBeInTheDocument();
   });
 
-  it('renders all available periods', () => {
+  it('renders all available periods', async () => {
     render(<ReminderPeriodSelect {...mockProps} />);
     
-    // Just check for "No specific period" to validate the select is rendered
-    expect(screen.getByText(/no specific period/i)).toBeInTheDocument();
+    // Open the select dropdown
+    const trigger = screen.getByRole('combobox');
+    await userEvent.click(trigger);
     
-    // We need to open the select to check for all periods
-    // This is a simplified test since Shadcn UI Select content is not in the DOM until opened
-    // In real interactions, we would click to open the select first
+    // Now we can check for the first period
+    expect(screen.getByText(mockPeriods[0].name)).toBeInTheDocument();
   });
 
-  it('calls onChange when a period is selected', () => {
-    // This test needs special handling for Shadcn Select
-    // For now, we'll just verify the component renders correctly
+  it('calls onChange when a period is selected', async () => {
     render(<ReminderPeriodSelect {...mockProps} />);
     
-    // A full test would need to:
-    // 1. Open the select dropdown (click on trigger)
-    // 2. Click on an option
-    // 3. Verify onChange was called
-    // But this requires more complex test setup for Shadcn components
+    // Open the select
+    const trigger = screen.getByRole('combobox');
+    await userEvent.click(trigger);
     
-    // For now, let's directly call the onChange to verify the callback works
-    mockProps.onChange('before-school');
-    expect(mockProps.onChange).toHaveBeenCalledWith('before-school');
+    // Click the first period option
+    const option = screen.getByText(mockPeriods[0].name);
+    await userEvent.click(option);
+    
+    expect(mockProps.onChange).toHaveBeenCalledWith(mockPeriods[0].id);
   });
 
   it('displays the currently selected period', () => {
@@ -55,10 +54,7 @@ describe('ReminderPeriodSelect', () => {
       />
     );
     
-    // Instead of checking the value directly (which doesn't work with Shadcn Select),
-    // we can check if the trigger button contains the expected text
-    // This is a simpler approach that avoids the complexity of testing Shadcn Select
-    const selectButton = screen.getByRole('combobox');
-    expect(selectButton).toBeInTheDocument();
+    const trigger = screen.getByRole('combobox');
+    expect(trigger).toHaveTextContent(selectedPeriod.name);
   });
 });

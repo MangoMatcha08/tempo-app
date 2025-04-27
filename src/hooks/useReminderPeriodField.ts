@@ -9,6 +9,7 @@ export function useReminderPeriodField(
   currentDate: Date
 ) {
   const [periodId, setPeriodId] = useState(initialPeriodId || 'none');
+  const [lastUpdatedDate, setLastUpdatedDate] = useState<Date>(currentDate);
 
   useEffect(() => {
     if (periodId && periodId !== 'none') {
@@ -22,11 +23,16 @@ export function useReminderPeriodField(
             timeComponents.hours,
             timeComponents.minutes
           );
-          onTimeUpdate(updatedDate);
+          
+          // Only update if the date has actually changed
+          if (updatedDate.getTime() !== lastUpdatedDate.getTime()) {
+            setLastUpdatedDate(updatedDate);
+            onTimeUpdate(updatedDate);
+          }
         }
       }
     }
-  }, [periodId, currentDate, onTimeUpdate]);
+  }, [periodId, currentDate, onTimeUpdate, lastUpdatedDate]);
 
   return {
     periodId,
