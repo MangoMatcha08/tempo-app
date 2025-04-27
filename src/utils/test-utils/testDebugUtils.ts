@@ -29,14 +29,14 @@ export const testLogger = {
     console.groupEnd();
   },
 
-  // New DOM inspection methods
+  // DOM inspection methods
   dom: {
     logStructure: (element: Element | null, maxDepth = 7) => {
       if (!element) {
         console.warn('[TEST DOM] No element provided for inspection');
         return;
       }
-      console.log('\n[TEST DOM] Structure:', prettyDOM(element, { maxDepth }));
+      console.log('\n[TEST DOM] Structure:', prettyDOM(element, maxDepth));
     },
 
     logRoles: (element: Element | null) => {
@@ -66,6 +66,24 @@ export const testLogger = {
         ARIA Role: ${element.getAttribute('role')}
         ARIA Label: ${element.getAttribute('aria-label')}
       `);
+    },
+
+    logCalendar: (element: Element | null) => {
+      if (!element) {
+        console.warn('[TEST DOM] No calendar element provided for inspection');
+        return;
+      }
+
+      console.log('\n[TEST DOM] Calendar Structure:');
+      console.log('----- Calendar Element -----');
+      testLogger.dom.logElement(element);
+      
+      console.log('----- Calendar Days -----');
+      const days = element.querySelectorAll('[role="gridcell"]');
+      days.forEach((day, index) => {
+        console.log(`Day ${index + 1}:`);
+        testLogger.dom.logElement(day);
+      });
     }
   }
 };
@@ -143,4 +161,3 @@ export const inspectCalendar = async () => {
     testLogger.error('Failed to inspect calendar:', error);
   }
 };
-

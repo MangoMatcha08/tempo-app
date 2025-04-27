@@ -4,7 +4,14 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { format, addDays } from 'date-fns';
 import QuickReminderModal from '../QuickReminderModal';
 import { TestWrapper } from '@/test/test-wrapper';
-import { openDatePicker, selectCalendarDate, getCalendarPopover } from '@/utils/test-utils/datePickerTestUtils';
+import { 
+  openDatePicker, 
+  selectCalendarDate, 
+  getCalendarPopover, 
+  findDayCell, 
+  withRetry 
+} from '@/utils/test-utils/datePickerTestUtils';
+import { testLogger } from '@/utils/test-utils/testDebugUtils';
 
 describe('QuickReminderModal DatePicker', () => {
   const mockOnOpenChange = vi.fn();
@@ -36,9 +43,11 @@ describe('QuickReminderModal DatePicker', () => {
     
     const calendar = await getCalendarPopover();
     expect(calendar).toBeInTheDocument();
+    
+    // Log the calendar structure for debugging
+    testLogger.dom.logCalendar(calendar);
   });
 
-  // Re-enable these tests once we've fixed the date picker utilities
   it('allows selecting current date', async () => {
     const today = new Date();
     
@@ -47,16 +56,22 @@ describe('QuickReminderModal DatePicker', () => {
     fireEvent.click(dateButton);
     
     // Wait for calendar to appear
-    await getCalendarPopover();
+    const calendar = await getCalendarPopover();
     
-    // Select today's date
-    await selectCalendarDate(today);
+    // Find today's day cell and click it directly
+    const dayCell = await findDayCell(today.getDate().toString());
     
-    // Verify the date was selected
-    await waitFor(() => {
-      const updatedButton = screen.getByTestId('reminder-date-picker');
-      expect(updatedButton).toHaveTextContent(format(today, 'PPP'));
-    }, { timeout: 5000 });
+    if (dayCell) {
+      fireEvent.click(dayCell);
+      
+      // Verify the date was selected
+      await waitFor(() => {
+        const updatedButton = screen.getByTestId('reminder-date-picker');
+        expect(updatedButton).toHaveTextContent(format(today, 'PPP'));
+      }, { timeout: 5000 });
+    } else {
+      throw new Error(`Could not find day cell for date: ${today.getDate()}`);
+    }
   });
 
   it('allows selecting tomorrow', async () => {
@@ -67,15 +82,21 @@ describe('QuickReminderModal DatePicker', () => {
     fireEvent.click(dateButton);
     
     // Wait for calendar to appear
-    await getCalendarPopover();
+    const calendar = await getCalendarPopover();
     
-    // Select tomorrow's date
-    await selectCalendarDate(tomorrow);
+    // Find tomorrow's day cell and click it directly
+    const dayCell = await findDayCell(tomorrow.getDate().toString());
     
-    // Verify the date was selected
-    await waitFor(() => {
-      const updatedButton = screen.getByTestId('reminder-date-picker');
-      expect(updatedButton).toHaveTextContent(format(tomorrow, 'PPP'));
-    }, { timeout: 5000 });
+    if (dayCell) {
+      fireEvent.click(dayCell);
+      
+      // Verify the date was selected
+      await waitFor(() => {
+        const updatedButton = screen.getByTestId('reminder-date-picker');
+        expect(updatedButton).toHaveTextContent(format(tomorrow, 'PPP'));
+      }, { timeout: 5000 });
+    } else {
+      throw new Error(`Could not find day cell for date: ${tomorrow.getDate()}`);
+    }
   });
 });
