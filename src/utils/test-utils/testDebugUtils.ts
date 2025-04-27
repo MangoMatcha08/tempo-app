@@ -1,4 +1,3 @@
-
 import * as React from 'react';
 import { prettyDOM, logRoles, screen, within } from '@testing-library/react';
 import { vi } from 'vitest';
@@ -53,23 +52,19 @@ export const testLogger = {
         return;
       }
       
+      const attributes = Array.from(element.attributes || [])
+        .map(attr => `${attr.name}="${attr.value}"`)
+        .join(' ');
+        
+      console.log(`\n[TEST DOM] Element Details:
+        Tag: ${element.tagName.toLowerCase()}
+        Attributes: ${attributes}
+        Text Content: ${element.textContent}
+        Node Type: ${element.nodeType}
+      `);
+
       if (element instanceof HTMLElement) {
-        const attributes = Array.from(element.attributes)
-          .map(attr => `${attr.name}="${attr.value}"`)
-          .join(' ');
-          
-        console.log(`\n[TEST DOM] Element Details:
-          Tag: ${element.tagName.toLowerCase()}
-          Attributes: ${attributes}
-          Text Content: ${element.textContent}
-          Classes: ${element.className}
-        `);
-      } else {
-        console.log(`\n[TEST DOM] Element Details (non-HTMLElement):
-          Node Name: ${element.nodeName}
-          Node Type: ${element.nodeType}
-          Text Content: ${element.textContent}
-        `);
+        console.log(`Classes: ${element.className}`);
       }
     },
 
@@ -82,42 +77,32 @@ export const testLogger = {
       console.log('\n[TEST DOM] Calendar Structure:');
       console.log('----- Calendar Element -----');
       
-      // Type-safe element handling
+      const attributes = Array.from(element.attributes || [])
+        .map(attr => `${attr.name}="${attr.value}"`)
+        .join(' ');
+        
+      console.log(`Tag: ${element.tagName.toLowerCase()}`);
+      console.log(`Attributes: ${attributes}`);
+      console.log(`Text Content: ${element.textContent}`);
+      
       if (element instanceof HTMLElement) {
-        // Safe to use HTMLElement-specific properties
-        const attributes = Array.from(element.attributes)
+        console.log(`Classes: ${element.className}`);
+      }
+      
+      console.log('----- First Three Calendar Days -----');
+      const days = within(element).queryAllByRole('gridcell');
+      days.slice(0, 3).forEach((day, index) => {
+        console.log(`Day ${index + 1}:`);
+        const dayAttributes = Array.from(day.attributes || [])
           .map(attr => `${attr.name}="${attr.value}"`)
           .join(' ');
-          
-        console.log(`Tag: ${element.tagName.toLowerCase()}`);
-        console.log(`Attributes: ${attributes}`);
-        console.log(`Text Content: ${element.textContent}`);
-        console.log(`Classes: ${element.className}`);
-        
-        console.log('----- First Three Calendar Days -----');
-        const days = within(element).queryAllByRole('gridcell');
-        days.slice(0, 3).forEach((day, index) => {
-          console.log(`Day ${index + 1}:`);
-          if (day instanceof HTMLElement) {
-            const dayAttributes = Array.from(day.attributes)
-              .map(attr => `${attr.name}="${attr.value}"`)
-              .join(' ');
-            console.log(`Tag: ${day.tagName.toLowerCase()}`);
-            console.log(`Attributes: ${dayAttributes}`);
-            console.log(`Text Content: ${day.textContent}`);
-          } else {
-            console.log('Day element is not an HTMLElement');
-          }
-        });
-        
-        if (days.length > 3) {
-          console.log(`... and ${days.length - 3} more days`);
-        }
-      } else {
-        // Just log basic Element properties
-        console.log(`Node Name: ${element.nodeName}`);
-        console.log(`Node Type: ${element.nodeType}`);
-        console.log(`Text Content: ${element.textContent}`);
+        console.log(`Tag: ${day.tagName.toLowerCase()}`);
+        console.log(`Attributes: ${dayAttributes}`);
+        console.log(`Text Content: ${day.textContent}`);
+      });
+      
+      if (days.length > 3) {
+        console.log(`... and ${days.length - 3} more days`);
       }
     }
   }

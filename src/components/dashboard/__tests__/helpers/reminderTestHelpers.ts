@@ -1,7 +1,7 @@
 
 import { vi } from 'vitest';
 import { act } from '@testing-library/react';
-import { UIReminder, ReminderPriority } from '@/types/reminderTypes';
+import { UIReminder, ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
 
 /**
  * Sets up consistent timezone for tests
@@ -32,18 +32,27 @@ export function setupTimezoneMock() {
  */
 export function createTestReminder(overrides: Partial<UIReminder> = {}): UIReminder {
   const dueDate = overrides.dueDate || new Date('2024-04-27T12:00:00Z');
+  const createdAt = new Date('2024-04-26T10:00:00Z');
   
-  return {
+  const baseReminder: UIReminder = {
     id: 'test-reminder-id',
     title: 'Test Reminder',
     description: 'Test Description',
-    dueDate: dueDate,
-    createdAt: new Date('2024-04-26T10:00:00Z'),
+    dueDate,
+    createdAt,
     completed: false,
+    completedAt: null,  // Now correctly set as non-optional
     priority: ReminderPriority.MEDIUM,
+    category: ReminderCategory.TASK,
+    periodId: null,
+    checklist: null,
     userId: 'test-user',
-    ...overrides
+    timeRemaining: '1 day',
+    formattedDate: 'Apr 27, 2024',
+    completedTimeAgo: undefined
   };
+
+  return { ...baseReminder, ...overrides };
 }
 
 /**
