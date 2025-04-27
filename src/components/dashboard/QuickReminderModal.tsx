@@ -16,17 +16,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
 import { createReminder } from "@/utils/reminderUtils";
 import { ReminderPriority, ReminderCategory } from "@/types/reminderTypes";
 import { mockPeriods } from "@/utils/reminderUtils";
 import { Reminder as UIReminder } from "@/types/reminder";
 import { convertToUIReminder } from "@/utils/typeUtils";
 import { useToast } from "@/hooks/use-toast";
-import { createDateWithTime, adjustDateIfPassed, logDateDetails } from '@/utils/dateUtils';
+import { toFirestoreDate } from '@/lib/firebase/dateConversions';
+import { applyPeriodTime } from '@/utils/dateUtils/periodTime';
 
 interface QuickReminderModalProps {
   open: boolean;
@@ -37,7 +35,7 @@ interface QuickReminderModalProps {
 const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickReminderModalProps) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [dueDate, setDueDate] = useState<Date | undefined>(new Date()); // Default to today
+  const [dueDate, setDueDate] = useState<Date | undefined>(new Date());
   const [priority, setPriority] = useState<ReminderPriority>(ReminderPriority.MEDIUM);
   const [category, setCategory] = useState<ReminderCategory>(ReminderCategory.TASK);
   const [periodId, setPeriodId] = useState<string>("none");
@@ -48,7 +46,7 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
     if (open) {
       setTitle("");
       setDescription("");
-      setDueDate(new Date()); // Default to today
+      setDueDate(new Date());
       setPriority(ReminderPriority.MEDIUM);
       setCategory(ReminderCategory.TASK);
       setPeriodId("none");
@@ -65,37 +63,27 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
       return;
     }
     
-    try {
-      console.log('[QuickReminderModal] Creating reminder:', {
-        title,
-        dueDate,
-        periodId
+    if (!dueDate) {
+      toast({
+        title: "Date Required",
+        description: "Please select a due date",
+        variant: "destructive"
       });
+      return;
+    }
+    
+    try {
+      // Get final date with period time if selected
+      let finalDueDate = new Date(dueDate);
       
-      // Get selected due date or default to today
-      let finalDueDate = dueDate ? new Date(dueDate) : new Date();
-      logDateDetails('Initial dueDate', finalDueDate);
-      
-      // If a period is selected, use that period's time
       if (periodId !== "none") {
         const selectedPeriod = mockPeriods.find(p => p.id === periodId);
-        console.log('[QuickReminderModal] Selected period:', selectedPeriod);
-        
-        if (selectedPeriod && selectedPeriod.startTime) {
-          const [hours, minutes] = selectedPeriod.startTime.split(':').map(Number);
-          console.log(`[QuickReminderModal] Period time: ${hours}:${minutes}`);
-          
-          // Create a new date with the period's time
-          finalDueDate = createDateWithTime(finalDueDate, hours, minutes);
-          
-          // Check if we need to move to tomorrow
-          finalDueDate = adjustDateIfPassed(finalDueDate);
-          
-          logDateDetails('Final dueDate after period time applied', finalDueDate);
+        if (selectedPeriod) {
+          finalDueDate = applyPeriodTime(finalDueDate, selectedPeriod);
         }
       }
       
-      // Create a new reminder
+      // Create reminder with Firestore timestamp
       const newReminder = createReminder({
         title,
         description,
@@ -105,21 +93,16 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
         periodId: periodId === "none" ? undefined : periodId
       });
       
-      console.log("[QuickReminderModal] Created new reminder:", newReminder);
-      
-      // Show success toast
       toast({
         title: "Reminder Created",
         description: `"${title}" has been added to your reminders.`
       });
       
-      // Convert backend reminder to UI reminder type before passing to callback
       if (onReminderCreated) {
         const uiReminder = convertToUIReminder(newReminder);
         onReminderCreated(uiReminder);
       }
       
-      // Close the modal
       onOpenChange(false);
     } catch (error) {
       console.error("Error creating reminder:", error);
@@ -140,9 +123,7 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
         
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <label htmlFor="title" className="text-sm font-medium">
-              Title
-            </label>
+            <label htmlFor="title" className="text-sm font-medium">Title</label>
             <Input
               id="title"
               placeholder="Enter reminder title"
@@ -152,9 +133,7 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
           </div>
           
           <div className="space-y-2">
-            <label htmlFor="description" className="text-sm font-medium">
-              Description (Optional)
-            </label>
+            <label htmlFor="description" className="text-sm font-medium">Description (Optional)</label>
             <Textarea
               id="description"
               placeholder="Enter reminder details"
@@ -167,35 +146,16 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label htmlFor="date" className="text-sm font-medium">
-                Due Date
-              </label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                    id="date"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dueDate ? format(dueDate, "PPP") : "Select date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={dueDate}
-                    onSelect={setDueDate}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <label className="text-sm font-medium">Due Date</label>
+              <DatePicker
+                date={dueDate}
+                setDate={setDueDate}
+                className="w-full"
+              />
             </div>
             
             <div className="space-y-2">
-              <label htmlFor="priority" className="text-sm font-medium">
-                Priority
-              </label>
+              <label htmlFor="priority" className="text-sm font-medium">Priority</label>
               <Select 
                 value={priority} 
                 onValueChange={(value) => setPriority(value as ReminderPriority)}
@@ -214,9 +174,7 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label htmlFor="category" className="text-sm font-medium">
-                Category
-              </label>
+              <label htmlFor="category" className="text-sm font-medium">Category</label>
               <Select 
                 value={category} 
                 onValueChange={(value) => setCategory(value as ReminderCategory)}
@@ -237,9 +195,7 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
             </div>
             
             <div className="space-y-2">
-              <label htmlFor="period" className="text-sm font-medium">
-                Period (Optional)
-              </label>
+              <label htmlFor="period" className="text-sm font-medium">Period (Optional)</label>
               <Select 
                 value={periodId} 
                 onValueChange={(value) => setPeriodId(value)}
