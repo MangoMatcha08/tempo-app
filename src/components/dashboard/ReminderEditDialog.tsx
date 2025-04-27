@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,11 +8,9 @@ import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { TimePicker } from "@/components/ui/time-picker";
 import { Reminder } from "@/types/reminder";
-import { format } from "date-fns";
 import { ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
-import { validateDate, DateValidationResult } from '@/utils/dateValidation';
-import { parseTimeString, createDateWithTime } from '@/utils/dateUtils';
 import ReminderPeriodField from './voice-reminder/ReminderPeriodField';
+import { useReminderFormValidation } from '@/hooks/useReminderFormValidation';
 
 interface ReminderEditDialogProps {
   reminder: Reminder | null;
@@ -28,82 +25,27 @@ const ReminderEditDialog = ({
   onOpenChange, 
   onSave 
 }: ReminderEditDialogProps) => {
-  const [title, setTitle] = useState(reminder?.title || '');
-  const [description, setDescription] = useState(reminder?.description || '');
-  const [priority, setPriority] = useState<ReminderPriority>(reminder?.priority || ReminderPriority.MEDIUM);
-  const [category, setCategory] = useState<ReminderCategory>(reminder?.category || ReminderCategory.TASK);
-  const [periodId, setPeriodId] = useState<string>(reminder?.periodId || 'none');
-  const [dueDate, setDueDate] = useState<Date | undefined>(reminder?.dueDate);
-  const [dueTime, setDueTime] = useState<string | undefined>(
-    reminder?.dueDate ? format(reminder.dueDate, 'HH:mm') : undefined
-  );
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const {
+    formState,
+    validationErrors,
+    updateField,
+    resetForm,
+    validateAndSave
+  } = useReminderFormValidation(reminder);
 
   // Update form when a different reminder is selected
   React.useEffect(() => {
     if (reminder) {
-      setTitle(reminder.title);
-      setDescription(reminder.description);
-      setPriority(reminder.priority);
-      setCategory(reminder.category);
-      setPeriodId(reminder.periodId || 'none');
-      setDueDate(reminder.dueDate);
-      setDueTime(format(reminder.dueDate, 'HH:mm'));
-      setValidationErrors([]);
+      resetForm(reminder);
     }
-  }, [reminder]);
+  }, [reminder, resetForm]);
 
   const handleSave = () => {
-    const errors: string[] = [];
-    
-    if (!reminder || !title.trim()) {
-      errors.push('Title is required');
+    const result = validateAndSave();
+    if (result.isValid && result.updatedReminder) {
+      onSave(result.updatedReminder);
+      onOpenChange(false);
     }
-    
-    if (!dueDate) {
-      errors.push('Due date is required');
-    }
-
-    if (dueDate) {
-      const dateValidation = validateDate(dueDate, {
-        required: true,
-        minDate: new Date()
-      });
-
-      if (!dateValidation.isValid) {
-        errors.push(...dateValidation.errors.map(error => error.message));
-      }
-    }
-
-    if (errors.length > 0) {
-      setValidationErrors(errors);
-      return;
-    }
-
-    if (!reminder || !dueDate) return;
-
-    let finalDueDate = new Date(dueDate);
-    
-    if (dueTime) {
-      const timeComponents = parseTimeString(dueTime);
-      if (timeComponents) {
-        finalDueDate = createDateWithTime(finalDueDate, timeComponents.hours, timeComponents.minutes);
-      }
-    }
-
-    const updatedReminder: Reminder = {
-      ...reminder,
-      title,
-      description,
-      priority,
-      category,
-      periodId: periodId === 'none' ? null : periodId,
-      dueDate: finalDueDate
-    };
-
-    onSave(updatedReminder);
-    setValidationErrors([]);
-    onOpenChange(false);
   };
 
   if (!reminder) return null;
@@ -119,8 +61,8 @@ const ReminderEditDialog = ({
             <Label htmlFor="title">Title</Label>
             <Input
               id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              value={formState.title}
+              onChange={(e) => updateField('title', e.target.value)}
               placeholder="Enter reminder title"
             />
           </div>
@@ -128,8 +70,8 @@ const ReminderEditDialog = ({
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={formState.description}
+              onChange={(e) => updateField('description', e.target.value)}
               placeholder="Enter reminder description"
               rows={3}
             />
@@ -138,30 +80,33 @@ const ReminderEditDialog = ({
             <div className="grid gap-2">
               <Label>Due Date</Label>
               <DatePicker 
-                date={dueDate} 
-                setDate={setDueDate}
+                date={formState.dueDate} 
+                setDate={(date) => updateField('dueDate', date)}
                 className="w-full"
               />
             </div>
             <div className="grid gap-2">
               <Label>Due Time</Label>
               <TimePicker 
-                value={dueTime} 
-                onChange={setDueTime}
+                value={formState.dueTime} 
+                onChange={(time) => updateField('dueTime', time)}
                 className="w-full"
               />
             </div>
           </div>
           <div className="grid gap-2">
             <ReminderPeriodField
-              periodId={periodId}
-              setPeriodId={setPeriodId}
+              periodId={formState.periodId}
+              setPeriodId={(id) => updateField('periodId', id)}
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="priority">Priority</Label>
-              <Select value={priority} onValueChange={(value) => setPriority(value as ReminderPriority)}>
+              <Select 
+                value={formState.priority} 
+                onValueChange={(value) => updateField('priority', value as ReminderPriority)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select priority" />
                 </SelectTrigger>
@@ -174,7 +119,10 @@ const ReminderEditDialog = ({
             </div>
             <div className="grid gap-2">
               <Label htmlFor="category">Category</Label>
-              <Select value={category} onValueChange={(value) => setCategory(value as ReminderCategory)}>
+              <Select 
+                value={formState.category} 
+                onValueChange={(value) => updateField('category', value as ReminderCategory)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
