@@ -2,8 +2,8 @@
 export interface Period {
   id: string;
   name: string;
-  startTime: Date; 
-  endTime: Date;
+  startTime: Date | string; 
+  endTime: Date | string;
   type?: 'core' | 'elective' | 'planning' | 'meeting' | 'other';
   title?: string;            // Add title as optional for backward compatibility
   isRecurring?: boolean;     // Add support for recurring periods
@@ -12,51 +12,23 @@ export interface Period {
   notes?: string;            // Optional notes
 }
 
-export interface PeriodValidationResult {
-  isValid: boolean;
-  error?: string;
-  conflictingPeriods?: Period[];
-}
+// Re-export PeriodType for backward compatibility
+export type PeriodType = 'core' | 'elective' | 'planning' | 'meeting' | 'other';
 
 export interface DateWithPeriod {
   date: Date;
   periodId?: string;
 }
 
-// Re-export PeriodType for backward compatibility
-export type PeriodType = 'core' | 'elective' | 'planning' | 'meeting' | 'other';
-
-// Recurrence types that were missing
-export enum RecurrenceType {
-  DAILY = 'daily',
-  WEEKLY = 'weekly',
-  MONTHLY = 'monthly',
-  YEARLY = 'yearly',
-  CUSTOM = 'custom'
-}
-
-export interface RecurrenceRule {
-  type: RecurrenceType;
-  interval: number;
-  startDate: Date;
-  endDate?: Date | null;
-  count?: number | null;
-  daysOfWeek?: number[];
-  dayOfMonth?: number;
-  exclusions?: Date[];
-}
-
-/**
- * Type guard to check if a value is a Period object
- */
+// Re-export Period validation utilities
 export function isPeriod(value: any): value is Period {
   return (
     typeof value === 'object' &&
     value !== null &&
     typeof value.id === 'string' &&
     typeof value.name === 'string' &&
-    value.startTime instanceof Date &&
-    value.endTime instanceof Date
+    (value.startTime instanceof Date || typeof value.startTime === 'string') &&
+    (value.endTime instanceof Date || typeof value.endTime === 'string')
   );
 }
 
@@ -81,3 +53,4 @@ export function ensurePeriodDates(period: any): Period {
     endTime
   };
 }
+

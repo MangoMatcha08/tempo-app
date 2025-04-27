@@ -35,7 +35,11 @@ const ReminderPeriodField = ({ periodId, setPeriodId }: ReminderPeriodFieldProps
           <SelectItem value="none">None</SelectItem>
           {mockPeriods.map(period => (
             <SelectItem key={period.id} value={period.id}>
-              {period.name} ({period.startTime} - {period.endTime})
+              {period.name} ({period.startTime instanceof Date ? 
+                period.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+                period.startTime} - {period.endTime instanceof Date ? 
+                period.endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+                period.endTime})
             </SelectItem>
           ))}
         </SelectContent>
@@ -45,3 +49,4 @@ const ReminderPeriodField = ({ periodId, setPeriodId }: ReminderPeriodFieldProps
 };
 
 export default ReminderPeriodField;
+

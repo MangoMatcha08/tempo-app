@@ -24,7 +24,8 @@ describe('Period Time Utilities', () => {
   test('applyPeriodTime correctly applies Date time', () => {
     const periodWithDateTime: Period = {
       ...mockPeriod,
-      startTime: new Date('2024-04-27T09:00:00Z')
+      startTime: new Date('2024-04-27T09:00:00Z'),
+      endTime: new Date('2024-04-27T10:00:00Z')
     };
     
     const date = new Date('2024-04-27T00:00:00Z');
@@ -58,3 +59,4 @@ describe('Period Time Utilities', () => {
     expect(hasPeriodTime(invalidPeriod)).toBe(false);
   });
 });
+
