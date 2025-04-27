@@ -8,8 +8,8 @@ import { format } from 'date-fns';
  */
 const getCalendarContent = async () => {
   return waitFor(() => {
-    // Find PopoverContent in portal
-    const content = document.querySelector('[role="dialog"].rdp');
+    // Find calendar in portal
+    const content = document.querySelector('[role="dialog"] .react-calendar');
     if (!content) {
       throw new Error('Calendar content not found');
     }
@@ -26,9 +26,9 @@ export const openCalendar = async (testId: string) => {
     await userEvent.click(trigger);
   });
   
-  // Wait for calendar to be visible
+  // Wait for calendar to be visible in portal
   await waitFor(() => {
-    const calendar = document.querySelector('.rdp');
+    const calendar = document.querySelector('.react-calendar');
     if (!calendar) {
       throw new Error('Calendar not found after clicking trigger');
     }
@@ -43,16 +43,17 @@ export const openCalendar = async (testId: string) => {
 const findDateButton = async (date: Date) => {
   const formattedDay = format(date, 'd');
   
+  // Wait for date buttons to be rendered
   await waitFor(() => {
-    const buttons = document.querySelectorAll('.rdp-button');
+    const buttons = document.querySelectorAll('button[role="gridcell"]');
     if (!buttons.length) {
       throw new Error('No date buttons found in calendar');
     }
   });
 
-  const dayButtons = Array.from(document.querySelectorAll('.rdp-button'));
+  const dayButtons = Array.from(document.querySelectorAll('button[role="gridcell"]'));
   const dayButton = dayButtons.find(button => 
-    button.textContent?.includes(formattedDay)
+    button.getAttribute('aria-label')?.includes(format(date, 'PPP'))
   );
   
   if (!dayButton) {
@@ -71,7 +72,7 @@ export const closeCalendar = async () => {
   });
 
   await waitFor(() => {
-    const calendar = document.querySelector('.rdp');
+    const calendar = document.querySelector('.react-calendar');
     expect(calendar).not.toBeInTheDocument();
   });
 };
@@ -90,6 +91,12 @@ export const selectDate = async (testId: string, date: Date, retries = 3) => {
       await act(async () => {
         await userEvent.click(dateButton);
       });
+      
+      // Wait for selected date to be reflected in trigger button
+      await waitFor(() => {
+        const trigger = screen.getByTestId(testId);
+        expect(trigger).toHaveTextContent(format(date, 'PPP'));
+      }, { timeout: 2000 });
       
       return true;
     } catch (error) {

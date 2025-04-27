@@ -1,9 +1,11 @@
+
 import { render, screen } from '@testing-library/react';
 import { vi, beforeEach, afterEach } from 'vitest';
 import { DatePicker } from "@/components/ui/date-picker";
 import { TestWrapper } from '@/test/test-wrapper';
 import { TEST_IDS } from '@/test/test-ids';
 import { openCalendar, selectDate } from '@/utils/test-utils/calendarTestUtils';
+import { format } from 'date-fns';
 
 describe('DatePicker Component', () => {
   beforeEach(() => {
@@ -36,7 +38,8 @@ describe('DatePicker Component', () => {
       </TestWrapper>
     );
 
-    expect(screen.getByTestId(TEST_IDS.REMINDER.DATE_PICKER)).toBeInTheDocument();
+    const button = screen.getByTestId(TEST_IDS.REMINDER.DATE_PICKER);
+    expect(button).toHaveTextContent(format(defaultDate, 'PPP'));
   });
 
   it('opens calendar on click', async () => {
