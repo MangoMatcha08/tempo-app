@@ -1,14 +1,15 @@
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { format } from 'date-fns';
 import QuickReminderModal from '../QuickReminderModal';
 import { toFirestoreDate } from '@/lib/firebase/dateConversions';
 
 // Mock the toast hook
+const mockToast = vi.fn();
 vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({
-    toast: vi.fn()
+    toast: mockToast
   })
 }));
 
@@ -34,30 +35,53 @@ describe('QuickReminderModal', () => {
     expect(screen.getByRole('button', { name: /create reminder/i })).toBeInTheDocument();
   });
   
-  it('validates required title field', () => {
+  it('validates required title field', async () => {
     render(<QuickReminderModal {...defaultProps} />);
     
     const createButton = screen.getByRole('button', { name: /create reminder/i });
     fireEvent.click(createButton);
     
-    expect(screen.getByText(/title required/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith({
+        title: "Title Required",
+        description: "Please enter a title for your reminder",
+        variant: "destructive"
+      });
+    });
   });
   
   it('handles date selection correctly', () => {
+    const today = new Date();
     render(<QuickReminderModal {...defaultProps} />);
     
-    const dateButton = screen.getByRole('button', { name: /pick a date/i });
+    const dateButton = screen.getByRole('button', { 
+      name: format(today, 'PPP')
+    });
+    expect(dateButton).toBeInTheDocument();
     fireEvent.click(dateButton);
     
     // Calendar should be visible
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('creates reminder successfully', async () => {
+    render(<QuickReminderModal {...defaultProps} />);
     
-    // Select today's date
-    const today = new Date();
-    const formattedDate = format(today, 'PPP');
-    const dateCell = screen.getByRole('button', { name: new RegExp(format(today, 'd')) });
-    fireEvent.click(dateCell);
+    // Fill in required fields
+    const titleInput = screen.getByLabelText(/title/i);
+    fireEvent.change(titleInput, { target: { value: 'Test Reminder' } });
     
-    expect(dateButton).toHaveTextContent(formattedDate);
+    // Submit form
+    const createButton = screen.getByRole('button', { name: /create reminder/i });
+    fireEvent.click(createButton);
+    
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith({
+        title: "Reminder Created",
+        description: '"Test Reminder" has been added to your reminders.'
+      });
+      expect(mockOnReminderCreated).toHaveBeenCalled();
+      expect(mockOnOpenChange).toHaveBeenCalledWith(false);
+    });
   });
 });

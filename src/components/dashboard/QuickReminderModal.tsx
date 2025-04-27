@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -5,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -119,6 +121,9 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Create Quick Reminder</DialogTitle>
+          <DialogDescription>
+            Fill in the details to create a new reminder.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
