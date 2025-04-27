@@ -1,4 +1,3 @@
-
 import { ensureValidDate } from './dateUtils';
 import { toZonedTime, fromZonedTime } from './dateUtils/timezone';
 import type { TimeComponents } from './dateUtils/types';
@@ -44,32 +43,7 @@ export function createDateWithTime(date: Date, hours: number, minutes: number): 
 /**
  * Adjust date if it's in the past (used for reminders)
  */
-export function adjustDateIfPassed(date: Date): Date {
-  try {
-    const validDate = ensureValidDate(date);
-    const now = new Date();
-    const adjustedDate = new Date(validDate);
-    
-    // If date is in the past, move it to tomorrow (from current date)
-    if (adjustedDate < now) {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      // Preserve the time from the original date
-      tomorrow.setHours(
-        adjustedDate.getHours(),
-        adjustedDate.getMinutes(),
-        adjustedDate.getSeconds(),
-        adjustedDate.getMilliseconds()
-      );
-      return tomorrow;
-    }
-    
-    return adjustedDate;
-  } catch (error) {
-    console.error('Error adjusting date:', error);
-    return new Date(); // Return current date as fallback
-  }
-}
+export { adjustDateIfPassed };
 
 /**
  * Safe conversion to local time

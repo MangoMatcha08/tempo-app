@@ -1,4 +1,3 @@
-
 /**
  * Core date utilities providing a unified API for date operations
  */
@@ -28,7 +27,6 @@ export {
   isDate,
   isConvertibleToDate,
   createDateWithTime,
-  adjustDateIfPassed,
   parseTimeComponents,
   toLocalTime,
   toUtcTime
@@ -61,7 +59,12 @@ export {
   ValidationErrorMessages
 } from './types';
 
+// Export date adjustment utilities
+export {
+  adjustDateIfPassed,
+  isOnDstTransition
+} from './adjustment';
+
 // Legacy exports for backward compatibility
 export const convertToUtc = fromZonedTime;
 export const convertToLocal = toZonedTime;
-

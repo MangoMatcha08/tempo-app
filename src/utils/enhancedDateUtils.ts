@@ -81,16 +81,7 @@ export const createDateWithTime = (
 };
 
 // Check if a date needs to be moved to tomorrow
-export const adjustDateIfPassed = (date: Date): Date => {
-  const now = new Date();
-  const adjustedDate = new Date(date);
-  
-  if (adjustedDate < now) {
-    return addDays(adjustedDate, 1);
-  }
-  
-  return adjustedDate;
-};
+export { adjustDateIfPassed } from './dateUtils';
 
 // Parse time string (e.g., "3:00 PM")
 export const parseTimeString = (timeStr: string): { hours: number; minutes: number } => {
