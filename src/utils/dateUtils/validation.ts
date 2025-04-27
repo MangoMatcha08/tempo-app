@@ -1,4 +1,3 @@
-
 import { isValid, isBefore, isAfter } from 'date-fns';
 import { ensureValidDate } from './core';
 import { toZonedTime } from './timezone';
@@ -35,7 +34,7 @@ export function validateDate(
   let sanitizedDate: Date | undefined;
   try {
     sanitizedDate = date ? ensureValidDate(date) : undefined;
-  } catch (e) {
+  } catch {
     errors.push({
       type: DateValidationErrorType.INVALID_FORMAT,
       message: 'Invalid date format'
