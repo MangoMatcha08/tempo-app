@@ -1,13 +1,14 @@
-import { render, screen, waitFor, act } from '@testing-library/react';
+
+import { render, screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { DatePicker } from "@/components/ui/date-picker";
 import { TestWrapper } from '@/test/test-wrapper';
-import { within } from '@testing-library/react';
-import { 
-  openDatePicker, 
-  selectCalendarDate
-} from '@/utils/test-utils/datePickerTestUtils';
 import { TEST_IDS } from '@/test/test-ids';
+import { 
+  openCalendar,
+  selectDate,
+  verifySelectedDate
+} from '@/utils/test-utils/calendarTestUtils';
 
 describe('DatePicker Component', () => {
   beforeEach(() => {
@@ -52,13 +53,8 @@ describe('DatePicker Component', () => {
       </TestWrapper>
     );
 
-    const calendar = await openDatePicker(TEST_IDS.REMINDER.DATE_PICKER);
+    const calendar = await openCalendar(TEST_IDS.REMINDER.DATE_PICKER);
     expect(calendar).toBeInTheDocument();
-    
-    // Type-safe calendar logging
-    if (calendar instanceof HTMLElement) {
-      testLogger.dom.logCalendar(calendar);
-    }
   });
 
   it('allows date selection', async () => {
@@ -75,18 +71,16 @@ describe('DatePicker Component', () => {
       </TestWrapper>
     );
 
-    await openDatePicker(TEST_IDS.REMINDER.DATE_PICKER);
-    
-    await act(async () => {
-      await selectCalendarDate(defaultDate);
-    });
+    await openCalendar(TEST_IDS.REMINDER.DATE_PICKER);
+    await selectDate(defaultDate);
     
     await waitFor(() => {
       expect(mockSetDate).toHaveBeenCalledWith(expect.any(Date));
-    }, { timeout: 1000 });
+    });
     
     const call = mockSetDate.mock.calls[0][0];
     expect(call instanceof Date).toBeTruthy();
     expect(call.getDate()).toBe(defaultDate.getDate());
   });
 });
+
