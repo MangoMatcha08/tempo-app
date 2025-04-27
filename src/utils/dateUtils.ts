@@ -9,7 +9,7 @@ export {
   createDateWithTime,
   adjustDateIfPassed,
   debugDate as logDateDetails
-} from './dateCore';
+} from './dateUtils/core';
 
 // Re-export timezone utilities
 export {
@@ -17,14 +17,14 @@ export {
   fromZonedTime,
   formatWithTimeZone,
   getUserTimeZone
-} from './dateUtils/timezone';
+} from './dateUtils/timezoneUtils';
 
 // Re-export validation utilities
 export {
   validateDate,
   validateDateRange,
   DateValidationErrorType
-} from './dateValidation';
+} from './dateUtils/validation';
 
 // Re-export transformations
 export {
@@ -32,6 +32,7 @@ export {
   formatDateRange,
   isDateInRange,
   areDatesEqual,
-  parseStringToDate
-} from './dateTransformations';
-
+  parseStringToDate,
+  convertToUtc,
+  convertToLocal
+} from './dateUtils/formatting';

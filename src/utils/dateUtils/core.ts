@@ -1,3 +1,4 @@
+
 import { format } from 'date-fns';
 
 /**
@@ -158,6 +159,15 @@ export function isConvertibleToDate(value: unknown): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Creates a date with specific time components
+ */
+export function createDateWithTime(date: Date, hours: number, minutes: number): Date {
+  const validDate = new Date(date);
+  validDate.setHours(hours, minutes, 0, 0);
+  return validDate;
 }
 
 /**

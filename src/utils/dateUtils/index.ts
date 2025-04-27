@@ -1,3 +1,4 @@
+
 // Core date utilities
 export {
   isDate,
@@ -6,7 +7,9 @@ export {
   parseTimeString,
   parseTimeComponents,
   isConvertibleToDate,
-  logDateDetails
+  createDateWithTime,
+  logDateDetails as debugDate,
+  type TimeComponents
 } from './core';
 
 // Timezone utilities
@@ -22,7 +25,6 @@ export { adjustDateIfPassed } from './adjustment';
 
 // Re-export types and constants
 export type {
-  TimeComponents,
   DateValidationError,
   DateValidationResult,
   DateValidationOptions
@@ -55,9 +57,28 @@ export {
   hasPeriodTime
 } from './periodTime';
 
-// Date operations
-export function createDateWithTime(date: Date, hours: number, minutes: number): Date {
-  const validDate = new Date(date);
-  validDate.setHours(hours, minutes, 0, 0);
-  return validDate;
-}
+// Re-export transformation functions
+export {
+  parseStringToDate,
+  isDateInRange,
+  areDatesEqual,
+  convertToUtc,
+  convertToLocal
+} from './transformation';
+
+// Adding recurrence functionality
+export {
+  generateOccurrences,
+  RecurrenceType,
+  type RecurrenceRule,
+  findAvailableTimeSlots,
+  suggestIdealPeriods,
+  suggestDueDates,
+  detectDateConflicts,
+  memoizeDateFn
+} from './recurrence';
+
+// Performance monitoring
+export {
+  datePerformance
+} from './performance';

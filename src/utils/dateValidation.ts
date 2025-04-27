@@ -1,8 +1,8 @@
 
-// Re-export from dateUtils for backward compatibility
+// Re-export from dateUtils/validation for backward compatibility
 import { 
-  validateDate,
-  validateDateRange,
+  validateDate as validateDateFn,
+  validateDateRange as validateDateRangeFn,
   type DateValidationError,
   type DateValidationResult,
   type DateValidationOptions,
@@ -12,8 +12,8 @@ import {
 } from './dateUtils';
 
 export {
-  validateDate,
-  validateDateRange,
+  validateDateFn as validateDate,
+  validateDateRangeFn as validateDateRange,
   DateFormats,
   DateValidationErrorType,
   ValidationErrorMessages
