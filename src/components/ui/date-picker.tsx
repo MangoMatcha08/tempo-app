@@ -21,13 +21,7 @@ interface DatePickerProps {
 export function DatePicker({ date, setDate, className, "data-testid": testId }: DatePickerProps) {
   const handleDateSelect = React.useCallback((newDate: Date | undefined) => {
     console.log('DatePicker: Date selected:', newDate);
-    // Ensure we're creating a new Date object to guarantee state update
-    if (newDate) {
-      const selectedDate = new Date(newDate);
-      setDate(selectedDate);
-    } else {
-      setDate(undefined);
-    }
+    setDate(newDate);
   }, [setDate]);
 
   const calendarId = React.useId();

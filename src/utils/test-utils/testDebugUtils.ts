@@ -53,17 +53,24 @@ export const testLogger = {
         return;
       }
       
-      // Use type guard to safely handle Element vs HTMLElement
-      console.log(`\n[TEST DOM] Element Details:
-        Tag: ${element.nodeName.toLowerCase()}
-        Text Content: ${element.textContent}
-        ${element instanceof HTMLElement ? 
-          `Attributes: ${Array.from(element.attributes)
-            .map(attr => `${attr.name}="${attr.value}"`)
-            .join(' ')}
-          Classes: ${element.className}` : 
-          'Not an HTMLElement'}
-      `);
+      if (element instanceof HTMLElement) {
+        const attributes = Array.from(element.attributes)
+          .map(attr => `${attr.name}="${attr.value}"`)
+          .join(' ');
+          
+        console.log(`\n[TEST DOM] Element Details:
+          Tag: ${element.tagName.toLowerCase()}
+          Attributes: ${attributes}
+          Text Content: ${element.textContent}
+          Classes: ${element.className}
+        `);
+      } else {
+        console.log(`\n[TEST DOM] Element Details (non-HTMLElement):
+          Node Name: ${element.nodeName}
+          Node Type: ${element.nodeType}
+          Text Content: ${element.textContent}
+        `);
+      }
     },
 
     logCalendar: (element: Element | null) => {

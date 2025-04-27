@@ -1,6 +1,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { format, addDays } from 'date-fns';
 import QuickReminderModal from '../QuickReminderModal';
 import { TestWrapper } from '@/test/test-wrapper';
@@ -10,8 +10,6 @@ import {
   selectCalendarDate 
 } from '@/utils/test-utils/datePickerTestUtils';
 import { testLogger } from '@/utils/test-utils/testDebugUtils';
-import userEvent from '@testing-library/user-event';
-import { act } from 'react-dom/test-utils';
 
 describe('QuickReminderModal DatePicker', () => {
   const mockOnOpenChange = vi.fn();
@@ -58,65 +56,33 @@ describe('QuickReminderModal DatePicker', () => {
     // Open the date picker
     await openDatePicker('reminder-date-picker');
     
-    // Get calendar element
-    const calendar = await getCalendarPopover();
+    // Select today's date (27th)
+    const today = new Date('2024-04-27T12:00:00Z');
+    await selectCalendarDate(today);
     
-    // Find all day buttons (they have role="gridcell")
-    const days = within(calendar).getAllByRole('gridcell');
-    
-    // Find the "27" day button (today)
-    const dayText = '27';
-    const dayButton = Array.from(days).find(day => 
-      day.textContent?.trim() === dayText
-    );
-    
-    // Verify we found it
-    expect(dayButton).toBeDefined();
-    
-    if (dayButton) {
-      // Click the day button
-      await act(async () => {
-        await userEvent.click(dayButton);
-      });
-      
-      // Verify the button text updated
-      await waitFor(() => {
-        const updatedButton = screen.getByTestId('reminder-date-picker');
-        expect(updatedButton.textContent).toContain('27');
-      }, { timeout: 1000 });
-    }
+    // Wait for the button text to update - but with more robust assertion
+    await waitFor(() => {
+      // Check if button element contains today's date in any format
+      const updatedButton = screen.getByTestId('reminder-date-picker');
+      // Just check for the day number which should be consistent regardless of format
+      expect(updatedButton.textContent).toContain('27');
+    }, { timeout: 1000 });
   });
 
   it('allows selecting tomorrow', async () => {
     // Open the date picker
     await openDatePicker('reminder-date-picker');
     
-    // Get calendar element
-    const calendar = await getCalendarPopover();
+    // Select tomorrow's date (28th)
+    const tomorrow = new Date('2024-04-28T12:00:00Z');
+    await selectCalendarDate(tomorrow);
     
-    // Find all day buttons (they have role="gridcell")
-    const days = within(calendar).getAllByRole('gridcell');
-    
-    // Find the "28" day button (tomorrow)
-    const dayText = '28';
-    const dayButton = Array.from(days).find(day => 
-      day.textContent?.trim() === dayText
-    );
-    
-    // Verify we found it
-    expect(dayButton).toBeDefined();
-    
-    if (dayButton) {
-      // Click the day button
-      await act(async () => {
-        await userEvent.click(dayButton);
-      });
-      
-      // Verify the button text updated
-      await waitFor(() => {
-        const updatedButton = screen.getByTestId('reminder-date-picker');
-        expect(updatedButton.textContent).toContain('28');
-      }, { timeout: 1000 });
-    }
+    // Wait for the button text to update - with more robust assertion
+    await waitFor(() => {
+      // Check if button element contains today's date in any format
+      const updatedButton = screen.getByTestId('reminder-date-picker');
+      // Just check for the day number which should be consistent regardless of format
+      expect(updatedButton.textContent).toContain('28');
+    }, { timeout: 1000 });
   });
 });
