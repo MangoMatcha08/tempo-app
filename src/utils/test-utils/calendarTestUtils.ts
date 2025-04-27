@@ -28,7 +28,7 @@ export const openCalendar = async (testId: string) => {
   
   // Wait for Shadcn calendar to be visible in portal
   await waitFor(() => {
-    const calendar = document.querySelector('.rdp');
+    const calendar = document.querySelector('[role="dialog"] .rdp');
     if (!calendar) {
       throw new Error('Shadcn calendar not found after clicking trigger');
     }
@@ -38,29 +38,40 @@ export const openCalendar = async (testId: string) => {
 };
 
 /**
- * Finds the date button in the calendar
+ * Finds the date button in the calendar using Shadcn's button structure
  */
 const findDateButton = async (date: Date) => {
-  const formattedDay = format(date, 'd');
+  const formattedDate = format(date, 'PPP');
   
   // Wait for Shadcn date buttons to be rendered
   await waitFor(() => {
-    const buttons = document.querySelectorAll('button.rdp-button_reset');
-    if (!buttons.length) {
-      throw new Error('No date buttons found in Shadcn calendar');
+    const tableRows = document.querySelectorAll('.rdp-tbody .rdp-row');
+    if (!tableRows.length) {
+      throw new Error('No date rows found in Shadcn calendar');
     }
   });
 
-  const dayButtons = Array.from(document.querySelectorAll('button.rdp-button_reset'));
-  const dayButton = dayButtons.find(button => 
-    button.getAttribute('aria-label')?.includes(format(date, 'PPP'))
-  );
+  // Find the button by its full date in aria-label
+  const button = Array.from(document.querySelectorAll('button.rdp-button'))
+    .find(btn => {
+      const ariaLabel = btn.getAttribute('aria-label');
+      if (!ariaLabel) return false;
+      // Use includes because aria-label might have additional text
+      return ariaLabel.includes(formattedDate);
+    });
   
-  if (!dayButton) {
-    throw new Error(`Could not find button for date ${formattedDay}`);
+  if (!button) {
+    console.error('Available buttons:', 
+      Array.from(document.querySelectorAll('button.rdp-button'))
+        .map(btn => ({
+          ariaLabel: btn.getAttribute('aria-label'),
+          text: btn.textContent
+        }))
+    );
+    throw new Error(`Could not find button for date ${formattedDate}`);
   }
   
-  return dayButton;
+  return button;
 };
 
 /**
@@ -72,7 +83,7 @@ export const closeCalendar = async () => {
   });
 
   await waitFor(() => {
-    const calendar = document.querySelector('.rdp');
+    const calendar = document.querySelector('[role="dialog"] .rdp');
     expect(calendar).not.toBeInTheDocument();
   });
 };
@@ -88,6 +99,7 @@ export const selectDate = async (testId: string, date: Date, retries = 3) => {
       await openCalendar(testId);
       const dateButton = await findDateButton(date);
       
+      // Click the date button
       await act(async () => {
         await userEvent.click(dateButton);
       });
@@ -96,9 +108,10 @@ export const selectDate = async (testId: string, date: Date, retries = 3) => {
       await waitFor(() => {
         const trigger = screen.getByTestId(testId);
         const buttonText = trigger.textContent || '';
+        const formattedDate = format(date, 'PPP');
         // Remove any extra whitespace and check if the date text is included
         const normalizedText = buttonText.trim().replace(/\s+/g, ' ');
-        expect(normalizedText).toContain(format(date, 'PPP'));
+        expect(normalizedText).toContain(formattedDate);
       }, { timeout: 2000 });
       
       return true;
