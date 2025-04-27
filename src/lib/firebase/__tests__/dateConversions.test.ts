@@ -6,11 +6,11 @@ import { toFirestoreDate, fromFirestoreDate } from '../dateConversions';
 describe('Firebase Date Conversion Utilities', () => {
   describe('toFirestoreDate', () => {
     it('should convert Date to Timestamp', () => {
-      const date = new Date('2024-04-27T10:30:00Z');
+      const date = new Date('2024-04-27T10:30:00.123Z');
       const result = toFirestoreDate(date);
       
       expect(result).toBeInstanceOf(Timestamp);
-      expect(result?.toDate().toISOString()).toBe('2024-04-27T10:30:00.000Z');
+      expect(result?.toDate().toISOString()).toBe('2024-04-27T10:30:00.123Z');
     });
     
     it('should handle null input', () => {
@@ -22,7 +22,7 @@ describe('Firebase Date Conversion Utilities', () => {
     });
     
     it('should pass through existing Timestamp', () => {
-      const timestamp = Timestamp.fromDate(new Date('2024-04-27T10:30:00Z'));
+      const timestamp = Timestamp.fromDate(new Date('2024-04-27T10:30:00.123Z'));
       const result = toFirestoreDate(timestamp);
       expect(result).toBe(timestamp);
     });
@@ -30,12 +30,11 @@ describe('Firebase Date Conversion Utilities', () => {
   
   describe('fromFirestoreDate', () => {
     it('should convert Timestamp to local Date', () => {
-      const timestamp = Timestamp.fromDate(new Date('2024-04-27T10:30:00Z'));
+      const timestamp = Timestamp.fromDate(new Date('2024-04-27T10:30:00.123Z'));
       const result = fromFirestoreDate(timestamp);
       
       expect(result).toBeInstanceOf(Date);
-      // Note: We can't directly test timezone conversion here since it depends on system timezone
-      expect(result?.toISOString()).toBeDefined();
+      expect(result?.toISOString()).toBe('2024-04-27T10:30:00.123Z');
     });
     
     it('should handle null input', () => {
@@ -57,12 +56,10 @@ describe('Firebase Date Conversion Utilities', () => {
   
   describe('Timezone Handling', () => {
     it('should handle timezone transitions correctly', () => {
-      // Create a date during daylight saving time
-      const dstDate = new Date('2024-07-01T10:30:00Z');
+      const dstDate = new Date('2024-07-01T10:30:00.123Z');
       const timestamp = toFirestoreDate(dstDate);
       const result = fromFirestoreDate(timestamp!);
       
-      // Even through timezone conversions, the UTC time should match
       expect(result?.toISOString()).toBe(dstDate.toISOString());
     });
     
