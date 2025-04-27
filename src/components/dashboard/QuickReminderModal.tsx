@@ -53,7 +53,7 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
     }
   }, [open]);
   
-  const handleDateChange = React.useCallback((newDate: Date | undefined) => {
+  const handleDateChange = useCallback((newDate: Date | undefined) => {
     console.log('QuickReminderModal: Date changed to:', newDate);
     setDueDate(newDate);
   }, []);
