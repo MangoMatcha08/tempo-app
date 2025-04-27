@@ -105,10 +105,10 @@ export function findAvailableTimeSlots(
     return period.daysOfWeek?.includes(dayOfWeek) || false;
   });
   
-  // Sort periods by start time
+  // Sort periods by their start times
   dayPeriods.sort((a, b) => {
-    const startA = toPeriodDate(a.startTime).getHours() * 60 + toPeriodDate(a.startTime).getMinutes();
-    const startB = toPeriodDate(b.startTime).getHours() * 60 + toPeriodDate(b.startTime).getMinutes();
+    const startA = toPeriodDate(a.startTime).getTime();
+    const startB = toPeriodDate(b.startTime).getTime();
     return startA - startB;
   });
   
@@ -224,7 +224,6 @@ export function findAvailableTimeSlots(
 
 /**
  * Group periods by day
- * @returns Map of day date string to period array
  */
 export function groupPeriodsByDay(periods: Period[]): Map<string, Period[]> {
   const periodsByDay = new Map<string, Period[]>();
@@ -252,11 +251,12 @@ export function groupPeriodsByDay(periods: Period[]): Map<string, Period[]> {
     }
   });
   
+  // Sort periods by their start times
   periodsByDay.forEach((dayPeriods) => {
     dayPeriods.sort((a, b) => {
-      const startA = toPeriodDate(a.startTime);
-      const startB = toPeriodDate(b.startTime);
-      return startA.getTime() - startB.getTime();
+      const startA = toPeriodDate(a.startTime).getTime();
+      const startB = toPeriodDate(b.startTime).getTime();
+      return startA - startB;
     });
   });
   
@@ -265,7 +265,6 @@ export function groupPeriodsByDay(periods: Period[]): Map<string, Period[]> {
 
 /**
  * Calculate period transition times
- * @returns Array of transition times with from/to period info
  */
 export function calculatePeriodTransitions(periods: Period[]): Array<{
   time: Date;
