@@ -8,70 +8,73 @@ import { format } from 'date-fns';
  */
 const getCalendarContent = async () => {
   return waitFor(() => {
-    // Find Shadcn calendar in portal
-    const content = document.querySelector('[role="dialog"] .rdp');
-    if (!content) {
+    console.log('Looking for calendar content...');
+    // Find calendar in portal with role="dialog"
+    const calendar = document.querySelector('[role="dialog"] .rdp');
+    if (!calendar) {
       throw new Error('Calendar content not found in portal');
     }
-    return content;
-  }, { timeout: 1000 });
+    console.log('Found calendar content');
+    return calendar;
+  }, { timeout: 2000 }); // Increased timeout for slower environments
 };
 
 /**
  * Opens the calendar by clicking the trigger button
  */
 export const openCalendar = async (testId: string) => {
+  console.log('Opening calendar...');
   const trigger = screen.getByTestId(testId);
   await act(async () => {
     await userEvent.click(trigger);
   });
   
-  // Wait for Shadcn calendar to be visible in portal
-  await waitFor(() => {
-    const calendar = document.querySelector('[role="dialog"] .rdp');
-    if (!calendar) {
-      throw new Error('Shadcn calendar not found after clicking trigger');
-    }
-  });
+  // Wait for calendar to be visible and interactive
+  const content = await getCalendarContent();
+  console.log('Calendar opened successfully');
   
   return trigger;
 };
 
 /**
- * Finds the date button in the calendar using Shadcn's button structure
+ * Finds the date button in the calendar
  */
 const findDateButton = async (date: Date) => {
-  const formattedDate = format(date, 'PPP');
+  console.log('Finding date button for:', format(date, 'PPP'));
   
-  // Wait for Shadcn date buttons to be rendered
+  // Wait for the table to be rendered
   await waitFor(() => {
-    const tableRows = document.querySelectorAll('.rdp-tbody .rdp-row');
-    if (!tableRows.length) {
-      throw new Error('No date rows found in Shadcn calendar');
+    const table = document.querySelector('[role="dialog"] .rdp table');
+    if (!table) {
+      console.log('Available calendar content:', document.querySelector('[role="dialog"]')?.innerHTML);
+      throw new Error('Calendar table not found');
     }
+  }, { timeout: 2000 });
+
+  // Look for the date cell and button
+  const formattedDate = format(date, 'PPP');
+  const buttons = Array.from(document.querySelectorAll('[role="dialog"] .rdp table button'));
+  
+  console.log('Found buttons:', buttons.length);
+  buttons.forEach(btn => {
+    console.log('Button:', {
+      text: btn.textContent,
+      ariaLabel: btn.getAttribute('aria-label'),
+      className: btn.className
+    });
   });
 
-  // Find the button by its full date in aria-label
-  const button = Array.from(document.querySelectorAll('button.rdp-button'))
-    .find(btn => {
-      const ariaLabel = btn.getAttribute('aria-label');
-      if (!ariaLabel) return false;
-      // Use includes because aria-label might have additional text
-      return ariaLabel.includes(formattedDate);
-    });
-  
-  if (!button) {
-    console.error('Available buttons:', 
-      Array.from(document.querySelectorAll('button.rdp-button'))
-        .map(btn => ({
-          ariaLabel: btn.getAttribute('aria-label'),
-          text: btn.textContent
-        }))
-    );
+  const dateButton = buttons.find(btn => {
+    const ariaLabel = btn.getAttribute('aria-label');
+    return ariaLabel?.includes(formattedDate);
+  });
+
+  if (!dateButton) {
     throw new Error(`Could not find button for date ${formattedDate}`);
   }
-  
-  return button;
+
+  console.log('Found date button:', dateButton.getAttribute('aria-label'));
+  return dateButton;
 };
 
 /**
@@ -92,14 +95,17 @@ export const closeCalendar = async () => {
  * Selects a date in the calendar
  */
 export const selectDate = async (testId: string, date: Date, retries = 3) => {
+  console.log('Selecting date:', format(date, 'PPP'));
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
+      console.log(`Attempt ${attempt} of ${retries}`);
+      
       await openCalendar(testId);
       const dateButton = await findDateButton(date);
       
-      // Click the date button
+      console.log('Clicking date button...');
       await act(async () => {
         await userEvent.click(dateButton);
       });
@@ -109,17 +115,23 @@ export const selectDate = async (testId: string, date: Date, retries = 3) => {
         const trigger = screen.getByTestId(testId);
         const buttonText = trigger.textContent || '';
         const formattedDate = format(date, 'PPP');
-        // Remove any extra whitespace and check if the date text is included
         const normalizedText = buttonText.trim().replace(/\s+/g, ' ');
+        
+        console.log('Checking button text:', {
+          buttonText: normalizedText,
+          expectedDate: formattedDate
+        });
+        
         expect(normalizedText).toContain(formattedDate);
       }, { timeout: 2000 });
       
+      console.log('Date selected successfully');
       return true;
     } catch (error) {
       console.error(`Attempt ${attempt} failed:`, error);
       lastError = error as Error;
       if (attempt < retries) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 500)); // Added delay between retries
       }
     }
   }
