@@ -12,15 +12,33 @@ export interface Period {
   notes?: string;            // Optional notes
 }
 
-// Re-export PeriodType for backward compatibility
-export type PeriodType = 'core' | 'elective' | 'planning' | 'meeting' | 'other';
+export interface PeriodValidationResult {
+  isValid: boolean;
+  error?: string;
+  conflictingPeriods?: Period[];
+}
 
 export interface DateWithPeriod {
   date: Date;
   periodId?: string;
 }
 
-// Re-export Period validation utilities
+// Re-export PeriodType for backward compatibility
+export type PeriodType = 'core' | 'elective' | 'planning' | 'meeting' | 'other';
+
+/**
+ * Helper to convert any time value to a Date
+ */
+export function toPeriodDate(time: Date | string): Date {
+  if (time instanceof Date) {
+    return time;
+  }
+  return new Date(time);
+}
+
+/**
+ * Type guard to check if a value is a Period object
+ */
 export function isPeriod(value: any): value is Period {
   return (
     typeof value === 'object' &&
@@ -36,21 +54,13 @@ export function isPeriod(value: any): value is Period {
  * Helper function to ensure Period objects have Date objects for startTime and endTime
  */
 export function ensurePeriodDates(period: any): Period {
-  if (isPeriod(period)) {
-    return period;
+  if (!isPeriod(period)) {
+    throw new Error('Invalid period object');
   }
   
-  // If startTime or endTime are strings, convert them to Date objects
-  const startTime = period.startTime instanceof Date ? 
-    period.startTime : new Date(period.startTime);
-    
-  const endTime = period.endTime instanceof Date ?
-    period.endTime : new Date(period.endTime);
-    
   return {
     ...period,
-    startTime,
-    endTime
+    startTime: toPeriodDate(period.startTime),
+    endTime: toPeriodDate(period.endTime)
   };
 }
-

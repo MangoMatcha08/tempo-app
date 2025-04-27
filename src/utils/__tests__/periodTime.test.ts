@@ -1,6 +1,6 @@
 
 import { applyPeriodTime, validatePeriodId, getPeriodById, hasPeriodTime } from '../dateUtils';
-import { Period } from '@/types/periodTypes';
+import { Period, toPeriodDate } from '@/types/periodTypes';
 import { vi } from 'vitest';
 
 describe('Period Time Utilities', () => {
@@ -59,4 +59,3 @@ describe('Period Time Utilities', () => {
     expect(hasPeriodTime(invalidPeriod)).toBe(false);
   });
 });
-

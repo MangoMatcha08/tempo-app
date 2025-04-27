@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/select";
 import { mockPeriods } from "@/utils/reminderUtils";
 import { validatePeriodId } from "@/utils/dateUtils";
+import { toPeriodDate } from "@/types/periodTypes";
 
 interface ReminderPeriodFieldProps {
   periodId: string;
@@ -24,6 +25,11 @@ const ReminderPeriodField = ({ periodId, setPeriodId }: ReminderPeriodFieldProps
     }
   };
 
+  const formatTime = (time: Date | string) => {
+    const date = toPeriodDate(time);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   return (
     <div className="space-y-2">
       <label htmlFor="period" className="text-sm font-medium">Period</label>
@@ -35,11 +41,7 @@ const ReminderPeriodField = ({ periodId, setPeriodId }: ReminderPeriodFieldProps
           <SelectItem value="none">None</SelectItem>
           {mockPeriods.map(period => (
             <SelectItem key={period.id} value={period.id}>
-              {period.name} ({period.startTime instanceof Date ? 
-                period.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
-                period.startTime} - {period.endTime instanceof Date ? 
-                period.endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
-                period.endTime})
+              {period.name} ({formatTime(period.startTime)} - {formatTime(period.endTime)})
             </SelectItem>
           ))}
         </SelectContent>
@@ -49,4 +51,3 @@ const ReminderPeriodField = ({ periodId, setPeriodId }: ReminderPeriodFieldProps
 };
 
 export default ReminderPeriodField;
-

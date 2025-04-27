@@ -46,7 +46,7 @@ describe('Period Type Handling', () => {
       const validPeriod = createTestPeriod();
       const ensuredPeriod = ensurePeriodDates(validPeriod);
       
-      expect(ensuredPeriod).toBe(validPeriod);
+      expect(ensuredPeriod).toEqual(validPeriod);
     });
   });
 
@@ -83,8 +83,6 @@ describe('Period Type Handling', () => {
       });
 
       const overlapDuration = calculateOverlapDuration(period1, period2);
-      
-      // 30 minutes of overlap
       expect(overlapDuration).toBe(30);
     });
   });
