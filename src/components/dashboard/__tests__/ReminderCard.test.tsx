@@ -30,7 +30,7 @@ describe('ReminderCard Component', () => {
       </TestWrapper>
     );
 
-    // Wait for date elements to be rendered
+    // Wait for date elements to be rendered with specific test ids
     await waitFor(() => {
       const dateSpan = screen.getByTestId('reminder-date');
       const timeSpan = screen.getByTestId('reminder-time');
@@ -56,7 +56,7 @@ describe('ReminderCard Component', () => {
     );
 
     const completeButton = screen.getByTestId('complete-button');
-    fireEvent.click(completeButton);
+    await fireEvent.click(completeButton);
 
     await waitFor(() => {
       expect(mockComplete).toHaveBeenCalledWith('test-reminder-1');

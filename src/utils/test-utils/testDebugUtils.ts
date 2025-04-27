@@ -1,5 +1,5 @@
-
 import { vi } from 'vitest';
+import { ComponentType } from 'react';
 
 /**
  * Enhanced logging for test debugging
@@ -62,7 +62,7 @@ export const withErrorHandling = async <T>(
 /**
  * Simple component type for test wrappers
  */
-export type TestComponentType = React.ComponentType<{
+export type TestComponentType = ComponentType<{
   [key: string]: any;
 }>;
 
@@ -76,7 +76,7 @@ export const createTestRender = (options: { debug?: boolean } = {}) => {
     }
     
     try {
-      return Component(props);
+      return <Component {...props} />;
     } catch (error) {
       testLogger.error('Error rendering component:', error);
       return null;

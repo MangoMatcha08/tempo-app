@@ -15,6 +15,9 @@ interface TestWrapperProps {
 }
 
 export function TestWrapper({ children }: TestWrapperProps) {
+  // Reset query client between tests
+  queryClient.clear();
+  
   return (
     <QueryClientProvider client={queryClient}>
       {children}
