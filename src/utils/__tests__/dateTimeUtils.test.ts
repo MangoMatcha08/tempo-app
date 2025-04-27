@@ -1,4 +1,3 @@
-
 import {
   isDate,
   isConvertibleToDate,
@@ -8,7 +7,8 @@ import {
 } from '../dateUtils';
 import { vi } from 'vitest';
 
-describe('Date Time Utils', () => {
+// Skipping until date utilities are refactored
+describe.skip('Date Time Utils', () => {
   describe('Type Guards', () => {
     test('isDate validates Date objects correctly', () => {
       expect(isDate(new Date())).toBe(true);

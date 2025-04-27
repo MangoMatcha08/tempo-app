@@ -2,64 +2,36 @@
 // Re-export everything from the new structure
 export * from './dateUtils/index';
 
-// Re-export from dateCore for backward compatibility
+// Re-export core functionality
 export {
-  convertToUtc,
-  convertToLocal,
-  debugDate
+  ensureValidDate,
+  parseTimeString,
+  createDateWithTime,
+  adjustDateIfPassed,
+  debugDate as logDateDetails
 } from './dateCore';
 
-// Export memoization utility
-export { memoizeDateFn } from './dateMemoization';
-
-// Export date transformation utilities
+// Re-export timezone utilities
 export {
-  parseStringToDate,
-  compareDates,
+  toZonedTime,
+  fromZonedTime,
+  formatWithTimeZone,
+  getUserTimeZone
+} from './dateUtils/timezone';
+
+// Re-export validation utilities
+export {
+  validateDate,
+  validateDateRange,
+  DateValidationErrorType
+} from './dateValidation';
+
+// Re-export transformations
+export {
+  formatDate,
+  formatDateRange,
   isDateInRange,
-  areDatesEqual
+  areDatesEqual,
+  parseStringToDate
 } from './dateTransformations';
 
-// Export scheduling utilities
-export type {
-  TimeSlot
-} from './dateSchedulingUtils';
-
-export {
-  findAvailableTimeSlots,
-  suggestIdealPeriods,
-  suggestDueDates,
-  detectDateConflicts,
-} from './dateSchedulingUtils';
-
-// Export enhanced utilities
-export {
-  formatDateWithPeriod,
-  getRelativeTimeDisplay,
-  getNearestPeriodTime,
-  formatDisplayDate,
-  toLocalTime,
-  toUtcTime
-} from './enhancedDateUtils';
-
-// Export recurrence utilities
-export type {
-  RecurrenceRule
-} from './recurringDatePatterns';
-
-export {
-  RecurrenceType,
-  generateOccurrences,
-  formatRecurrenceRule,
-  dateMatchesRecurrence
-} from './recurringDatePatterns';
-
-// Export Period types
-export type {
-  Period,
-  PeriodValidationResult,
-  DateWithPeriod
-} from '../types/periodTypes';
-
-// Export date performance monitoring
-export { datePerformance } from './datePerformanceMonitor';
