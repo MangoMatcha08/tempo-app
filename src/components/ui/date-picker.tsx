@@ -24,12 +24,15 @@ export function DatePicker({ date, setDate, className, "data-testid": testId }: 
     setDate(newDate);
   }, [setDate]);
 
+  const calendarId = React.useId();
+
   return (
     <Popover>
       <PopoverTrigger asChild>
         <Button
           variant={"outline"}
           data-testid={testId}
+          aria-label="Pick a date"
           className={cn(
             "w-full justify-start text-left font-normal",
             !date && "text-muted-foreground",
@@ -40,8 +43,14 @@ export function DatePicker({ date, setDate, className, "data-testid": testId }: 
           {date ? format(date, "PPP") : <span>Pick a date</span>}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent 
+        className="w-auto p-0" 
+        align="start" 
+        aria-label="Calendar"
+        data-testid="date-picker-calendar"
+      >
         <Calendar
+          id={calendarId}
           mode="single"
           selected={date}
           onSelect={handleDateSelect}

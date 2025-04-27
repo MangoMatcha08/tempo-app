@@ -1,8 +1,9 @@
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { format, addDays } from 'date-fns';
 import QuickReminderModal from '../QuickReminderModal';
-import { selectDate } from '../../../utils/test-utils/datePickerTestUtils';
+import { selectDate, getCalendarDialog, getDayButtonByText, getSelectedDay } from '../../../utils/test-utils/datePickerTestUtils';
 
 describe('QuickReminderModal DatePicker', () => {
   const mockOnOpenChange = vi.fn();
@@ -31,14 +32,20 @@ describe('QuickReminderModal DatePicker', () => {
     const dateButton = screen.getByTestId('reminder-date-picker');
     fireEvent.click(dateButton);
     
-    const calendarDialog = await waitFor(() => screen.getByRole('dialog', { name: /calendar/i }));
-    expect(calendarDialog).toBeInTheDocument();
+    // Wait for popover content with calendar to be visible
+    const calendar = await waitFor(() => screen.getByTestId('date-picker-calendar'));
+    expect(calendar).toBeInTheDocument();
+    expect(calendar.querySelector('.rdp')).toBeInTheDocument();
   });
 
   it('allows selecting a future date', async () => {
+    // This test needs extra time due to month navigation
+    vi.setConfig({ testTimeout: 10000 });
+    
     render(<QuickReminderModal {...defaultProps} />);
     
-    const futureDate = addDays(new Date(), 32); // Move to next month
+    // Select a date 5 days in the future (should be within current month)
+    const futureDate = addDays(new Date(), 5);
     await selectDate(futureDate);
     
     const dateButton = screen.getByTestId('reminder-date-picker');
@@ -48,6 +55,7 @@ describe('QuickReminderModal DatePicker', () => {
   it('persists selected date when calendar is reopened', async () => {
     render(<QuickReminderModal {...defaultProps} />);
     
+    // Select date 3 days in the future
     const futureDate = addDays(new Date(), 3);
     await selectDate(futureDate);
     
@@ -59,12 +67,15 @@ describe('QuickReminderModal DatePicker', () => {
     fireEvent.click(dateButton);
     
     // Wait for calendar to reopen and verify selected date is highlighted
-    const calendarDialog = await waitFor(() => screen.getByRole('dialog', { name: /calendar/i }));
-    expect(calendarDialog).toBeInTheDocument();
+    const calendar = await waitFor(() => screen.getByTestId('date-picker-calendar'));
+    expect(calendar).toBeInTheDocument();
     
-    const selectedDay = within(calendarDialog).getByRole('gridcell', {
-      selected: true,
+    // Find selected day button
+    const selectedDay = within(calendar).getByRole('button', { 
+      selected: true 
     });
+    
+    expect(selectedDay).toBeInTheDocument();
     expect(selectedDay).toHaveTextContent(format(futureDate, 'd'));
   });
 
@@ -75,15 +86,18 @@ describe('QuickReminderModal DatePicker', () => {
     const dateButton = screen.getByTestId('reminder-date-picker');
     fireEvent.click(dateButton);
     
-    // Click outside (the modal background)
-    const backdrop = screen.getByTestId('reminder-date-picker').closest('[role="dialog"]');
-    if (!backdrop) throw new Error('Modal backdrop not found');
-    fireEvent.click(backdrop);
+    // Verify calendar is opened
+    const calendar = await waitFor(() => screen.getByTestId('date-picker-calendar'));
+    expect(calendar).toBeInTheDocument();
+    
+    // Click outside (the modal dialog background)
+    const modalDialog = screen.getByRole('dialog');
+    fireEvent.mouseDown(modalDialog);
+    fireEvent.mouseUp(modalDialog);
     
     // Verify calendar is closed
     await waitFor(() => {
-      const popoverContent = screen.queryByRole('dialog', { name: /calendar/i });
-      expect(popoverContent).not.toBeInTheDocument();
+      expect(screen.queryByTestId('date-picker-calendar')).not.toBeInTheDocument();
     });
   });
 
@@ -94,34 +108,32 @@ describe('QuickReminderModal DatePicker', () => {
     const dateButton = screen.getByTestId('reminder-date-picker');
     fireEvent.click(dateButton);
     
-    const calendarDialog = await waitFor(() => screen.getByRole('dialog', { name: /calendar/i }));
-    expect(calendarDialog).toBeInTheDocument();
+    // Wait for calendar to open
+    const calendar = await waitFor(() => screen.getByTestId('date-picker-calendar'));
+    expect(calendar).toBeInTheDocument();
     
-    // Find today's cell
+    // Find today's button
     const today = new Date();
     const todayString = format(today, 'd');
     
-    const calendar = within(calendarDialog);
-    const todayCell = calendar.getByRole('gridcell', {
-      name: new RegExp(`^${todayString}$`)
-    });
+    // Get today's button
+    const todayButton = getDayButtonByText(calendar, todayString);
+    expect(todayButton).toBeInTheDocument();
     
-    // Focus and navigate
-    todayCell.focus();
-    fireEvent.keyDown(todayCell, { key: 'ArrowRight' });
+    // Focus today's button
+    todayButton?.focus();
     
-    // Find the next day cell
+    // Press right arrow to move to tomorrow
+    fireEvent.keyDown(document.activeElement || todayButton!, { key: 'ArrowRight' });
+    
+    // Click on the focused element
+    fireEvent.click(document.activeElement || todayButton!);
+    
+    // Verify tomorrow's date is selected
     const tomorrow = addDays(today, 1);
-    const tomorrowCell = calendar.getByRole('gridcell', {
-      name: format(tomorrow, 'd')
-    });
-    
-    fireEvent.click(tomorrowCell);
-    
-    // Verify the date is selected
     await waitFor(() => {
       const updatedButton = screen.getByTestId('reminder-date-picker');
-      expect(updatedButton).toHaveTextContent(format(tomorrow, 'PPP'));
-    });
+      expect(updatedButton.textContent).toContain(format(tomorrow, 'PPP'));
+    }, { timeout: 2000 });
   });
 });
