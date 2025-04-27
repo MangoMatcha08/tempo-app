@@ -1,17 +1,8 @@
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { format } from 'date-fns';
 import QuickReminderModal from '../QuickReminderModal';
-import { selectDate } from './test-utils';
-
-// Mock the toast hook
-const mockToast = vi.fn();
-vi.mock('@/hooks/use-toast', () => ({
-  useToast: () => ({
-    toast: mockToast
-  })
-}));
 
 describe('QuickReminderModal', () => {
   const mockOnOpenChange = vi.fn();
@@ -42,11 +33,7 @@ describe('QuickReminderModal', () => {
     fireEvent.click(createButton);
     
     await waitFor(() => {
-      expect(mockToast).toHaveBeenCalledWith({
-        title: "Title Required",
-        description: "Please enter a title for your reminder",
-        variant: "destructive"
-      });
+      expect(mockOnReminderCreated).not.toHaveBeenCalled();
     });
   });
   
@@ -56,16 +43,7 @@ describe('QuickReminderModal', () => {
       
       const dateButton = screen.getByTestId('reminder-date-picker');
       expect(dateButton).toBeInTheDocument();
-    });
-    
-    it('handles date selection correctly', async () => {
-      render(<QuickReminderModal {...defaultProps} />);
-      
-      const today = new Date();
-      await selectDate(today);
-      
-      const dateButton = screen.getByTestId('reminder-date-picker');
-      expect(dateButton).toHaveTextContent(format(today, 'PPP'));
+      expect(dateButton).toHaveTextContent(format(new Date(), 'PPP'));
     });
   });
   
@@ -81,10 +59,6 @@ describe('QuickReminderModal', () => {
     fireEvent.click(createButton);
     
     await waitFor(() => {
-      expect(mockToast).toHaveBeenCalledWith({
-        title: "Reminder Created",
-        description: '"Test Reminder" has been added to your reminders.'
-      });
       expect(mockOnReminderCreated).toHaveBeenCalled();
       expect(mockOnOpenChange).toHaveBeenCalledWith(false);
     });

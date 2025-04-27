@@ -1,6 +1,13 @@
 
 import { vi } from 'vitest';
 import '@testing-library/jest-dom';
+import { cleanup } from '@testing-library/react';
+
+// Run cleanup automatically between tests
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 // Mock browser APIs if needed
 global.matchMedia = global.matchMedia || function(query: string) {
@@ -16,14 +23,20 @@ global.matchMedia = global.matchMedia || function(query: string) {
   };
 };
 
-// Setup DOM environment
-Object.defineProperty(window, 'document', {
-  writable: true,
-  value: document,
+// Setup React test environment
+vi.mock('react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react')>();
+  return {
+    ...actual,
+    useEffect: vi.fn(actual.useEffect),
+  };
 });
 
-// Mock window properties commonly used in tests
-Object.defineProperty(window, 'scrollTo', { value: vi.fn(), writable: true });
+// Mock toast hook since we don't need actual toast functionality in tests
+vi.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({
+    toast: vi.fn(),
+  }),
+}));
 
 // Add any additional test setup here
-
