@@ -1,6 +1,15 @@
+
 /**
  * Core date utilities providing a unified API for date operations
  */
+
+// Timezone conversions - imported first since other modules depend on them
+export {
+  toZonedTime,
+  fromZonedTime,
+  getUserTimeZone,
+  formatWithTimeZone
+} from './timezoneUtils';
 
 // Core date validation and conversion
 export {
@@ -10,14 +19,6 @@ export {
   parseTimeString,
   formatTimeString
 } from './core';
-
-// Timezone conversions - now from timezoneUtils
-export {
-  toZonedTime,
-  fromZonedTime,
-  getUserTimeZone,
-  formatWithTimeZone
-} from './timezoneUtils';
 
 // Date/Time operations
 export {
