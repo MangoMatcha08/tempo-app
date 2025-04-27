@@ -6,7 +6,9 @@ import { format } from 'date-fns';
 /**
  * Helper to find elements within portals (like dialogs, popovers)
  */
-export const getPortalRoot = () => document.querySelector("[role='dialog']");
+export const getPortalRoot = (): HTMLElement | null => {
+  return document.querySelector("[role='dialog']") as HTMLElement;
+};
 
 /**
  * Enhanced query that works with portaled content

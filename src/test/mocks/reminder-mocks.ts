@@ -1,19 +1,19 @@
 
-import { Reminder } from '@/types/reminder';
+import { DatabaseReminder } from '@/types/reminderTypes';
 import { ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
 
-export const createMockReminder = (overrides?: Partial<Reminder>): Reminder => ({
+export const createMockReminder = (overrides?: Partial<DatabaseReminder>): DatabaseReminder => ({
   id: 'test-reminder-1',
   title: 'Test Reminder',
   description: 'Test Description',
   dueDate: new Date(),
-  dueTime: '15:00',
   priority: ReminderPriority.MEDIUM,
   category: ReminderCategory.TASK,
   periodId: null,
-  isCompleted: false,
+  completed: false,
+  completedAt: null,
+  createdAt: new Date(),
   userId: 'test-user',
-  created: new Date(),
-  updated: new Date(),
+  checklist: null,
   ...overrides
 });
