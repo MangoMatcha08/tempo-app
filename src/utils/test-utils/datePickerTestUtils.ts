@@ -1,4 +1,3 @@
-
 import { screen, waitFor, within, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { testLogger } from './testDebugUtils';
@@ -17,7 +16,7 @@ export async function openDatePicker(testId = 'reminder-date-picker') {
       const dialog = screen.getByTestId('date-picker-calendar');
       expect(dialog).toBeInTheDocument();
       return dialog;
-    }, { timeout: 5000 });
+    }, { timeout: 2000 });
   } catch (error) {
     testLogger.error('Error opening date picker:', error);
     throw error;
@@ -32,38 +31,25 @@ export async function selectCalendarDate(date: Date) {
   const formattedDay = date.getDate().toString();
   
   try {
-    // Find the calendar container first
     const calendar = await waitFor(() => {
       const cal = screen.getByTestId('date-picker-calendar');
       expect(cal).toBeInTheDocument();
       return cal;
-    }, { timeout: 5000 });
+    }, { timeout: 2000 });
 
-    // Log the calendar structure to help with debugging
-    testLogger.dom.logCalendar(calendar);
-    
-    // Find the day cell using the day text content
-    // In ShadCN calendar, days are buttons with role="gridcell"
     const dayCells = await waitFor(() => {
       const cells = calendar.querySelectorAll('[role="gridcell"]');
       if (cells.length === 0) {
         throw new Error('No gridcell elements found in calendar');
       }
       return Array.from(cells);
-    }, { timeout: 5000 });
+    }, { timeout: 2000 });
     
-    // Find the day cell with matching text content
     const dayCell = dayCells.find(cell => cell.textContent?.trim() === formattedDay);
     if (!dayCell) {
-      testLogger.error(`Could not find day cell with text "${formattedDay}"`);
-      testLogger.dom.logStructure(calendar);
       throw new Error(`Could not find gridcell for date: ${formattedDay}`);
     }
     
-    // Log the found cell for debugging
-    testLogger.dom.logElement(dayCell);
-    
-    // Use fireEvent.click directly on the cell (which is a button element)
     await act(async () => {
       fireEvent.click(dayCell);
     });

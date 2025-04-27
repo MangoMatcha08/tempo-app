@@ -1,7 +1,6 @@
-
-import { vi } from 'vitest';
-import { ComponentType } from 'react';
+import { ComponentType, ReactNode } from 'react';
 import { prettyDOM, logRoles, screen } from '@testing-library/react';
+import { vi } from 'vitest';
 
 /**
  * Enhanced logging for test debugging with DOM inspection
@@ -36,7 +35,7 @@ export const testLogger = {
         console.warn('[TEST DOM] No element provided for inspection');
         return;
       }
-      console.log('\n[TEST DOM] Structure:', prettyDOM(element as HTMLElement, maxDepth));
+      console.log('\n[TEST DOM] Structure:', prettyDOM(element, maxDepth, { highlight: false }));
     },
 
     logRoles: (element: Element | null) => {
@@ -44,8 +43,7 @@ export const testLogger = {
         console.warn('[TEST DOM] No element provided for role inspection');
         return;
       }
-      console.log('\n[TEST DOM] Accessible Roles:');
-      logRoles(element as HTMLElement);
+      logRoles(element);
     },
 
     logElement: (element: Element | null) => {
@@ -63,8 +61,6 @@ export const testLogger = {
         Attributes: ${attributes}
         Text Content: ${element.textContent}
         Classes: ${element.className}
-        ARIA Role: ${element.getAttribute('role')}
-        ARIA Label: ${element.getAttribute('aria-label')}
       `);
     },
 
@@ -78,12 +74,16 @@ export const testLogger = {
       console.log('----- Calendar Element -----');
       testLogger.dom.logElement(element);
       
-      console.log('----- Calendar Days -----');
+      console.log('----- First Three Calendar Days -----');
       const days = element.querySelectorAll('[role="gridcell"]');
-      days.forEach((day, index) => {
+      Array.from(days).slice(0, 3).forEach((day, index) => {
         console.log(`Day ${index + 1}:`);
         testLogger.dom.logElement(day);
       });
+      
+      if (days.length > 3) {
+        console.log(`... and ${days.length - 3} more days`);
+      }
     }
   }
 };
@@ -94,50 +94,29 @@ export const testLogger = {
 export const createDateMock = (baseDate?: string | Date) => {
   const date = baseDate ? new Date(baseDate) : new Date('2024-04-27T12:00:00Z');
   
-  const dateMock = {
+  return {
     date,
     formatFn: vi.fn((d) => d.toISOString()),
     parseFn: vi.fn(() => date),
     validateFn: vi.fn(() => ({ isValid: true, errors: [] })),
   };
-  
-  return dateMock;
 };
 
-/**
- * Enhanced error handler for test failures
- */
-export const withErrorHandling = async <T>(
-  testFunction: () => Promise<T> | T,
-  errorMessage = 'Test failed with error'
-): Promise<T> => {
-  try {
-    return await testFunction();
-  } catch (error) {
-    testLogger.error(`${errorMessage}:`, error);
-    throw error;
-  }
-};
+interface TestRenderOptions {
+  debug?: boolean;
+}
 
 /**
- * Simple component type for test wrappers
+ * Debug wrapper for components
  */
-export type TestComponentType = ComponentType<{
-  [key: string]: any;
-}>;
-
-/**
- * Debug wrapper for components with useful fallbacks
- */
-export const createTestRender = (options: { debug?: boolean } = {}) => {
-  return (Component: TestComponentType, props: any = {}) => {
+export const createTestRender = (options: TestRenderOptions = {}) => {
+  return (Component: React.ComponentType<any>, props: Record<string, any> = {}) => {
     if (options.debug) {
       testLogger.debug('Rendering component with props:', props);
     }
     
     try {
-      // Use proper React import
-      return ComponentType<any>;
+      return React.createElement(Component, props);
     } catch (error) {
       testLogger.error('Error rendering component:', error);
       return null;
@@ -151,13 +130,7 @@ export const createTestRender = (options: { debug?: boolean } = {}) => {
 export const inspectCalendar = async () => {
   try {
     const calendar = await screen.findByRole('dialog', { name: 'Calendar' });
-    testLogger.dom.logStructure(calendar);
-    testLogger.dom.logRoles(calendar);
-    console.log('\n[TEST DOM] Calendar Grid Structure:');
-    const gridCells = calendar.querySelectorAll('[role="gridcell"]');
-    gridCells.forEach((cell, index) => {
-      testLogger.dom.logElement(cell);
-    });
+    testLogger.dom.logCalendar(calendar);
   } catch (error) {
     testLogger.error('Failed to inspect calendar:', error);
   }
