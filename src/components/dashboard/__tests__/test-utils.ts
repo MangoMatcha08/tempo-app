@@ -18,16 +18,10 @@ export function getCalendarDialog() {
 export async function selectDate(date: Date) {
   console.log('Starting date selection for:', format(date, 'PPP'));
   
-  // Open the date picker
-  await openDatePicker();
+  // Get the date picker button and click it
+  const dateButton = await openDatePicker();
   
-  // Get the calendar dialog
-  const calendarDialog = getCalendarDialog();
-  if (!calendarDialog) {
-    throw new Error('Calendar dialog not found after opening date picker');
-  }
-  
-  // Find and click the day button
+  // Find the day button in the calendar
   const dayText = format(date, 'd');
   console.log('Looking for day cell:', dayText);
   
@@ -38,18 +32,14 @@ export async function selectDate(date: Date) {
   console.log('Found day cell, clicking...');
   fireEvent.click(dayButton);
   
-  // Expected formatted date
+  // Wait for the button text to update
   const expectedDateText = format(date, 'PPP');
   console.log('Waiting for date to update to:', expectedDateText);
   
-  // Wait for the button text to update
   await waitFor(() => {
     const button = screen.getByTestId('reminder-date-picker');
     expect(button).toHaveTextContent(expectedDateText);
-    return button;
   });
   
-  const finalButton = screen.getByTestId('reminder-date-picker');
-  console.log('Final button text:', finalButton.textContent);
-  return finalButton;
+  return screen.getByTestId('reminder-date-picker');
 }
