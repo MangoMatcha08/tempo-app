@@ -1,13 +1,11 @@
-
 import {
   isDate,
   isConvertibleToDate,
   createDateWithTime,
-  toZonedTime,
-  fromZonedTime,
   parseTimeComponents,
   adjustDateIfPassed
 } from '../dateUtils';
+import { vi } from 'vitest';
 
 describe('Date Time Utils', () => {
   describe('Type Guards', () => {
@@ -35,24 +33,23 @@ describe('Date Time Utils', () => {
     });
 
     test('adjustDateIfPassed moves past dates forward', () => {
-      // Create a date that's definitely in the past (yesterday)
-      const pastDate = new Date();
-      pastDate.setDate(pastDate.getDate() - 1);
-      pastDate.setHours(14, 30, 0, 0); // Set specific time
+      // Mock current date to a fixed time
+      const mockNow = new Date('2024-04-26T12:00:00Z');
+      vi.setSystemTime(mockNow);
+
+      // Create a date in the past (same day, earlier time)
+      const pastDate = new Date('2024-04-26T10:00:00Z');
       
       // Get the adjusted date
       const result = adjustDateIfPassed(pastDate);
       
-      // Create expected date (tomorrow with same time)
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(14, 30, 0, 0);
+      // Expected: next day, same time (10:00)
+      const expected = new Date('2024-04-27T10:00:00Z');
       
-      expect(result.getDate()).toBe(tomorrow.getDate());
-      expect(result.getMonth()).toBe(tomorrow.getMonth());
-      expect(result.getFullYear()).toBe(tomorrow.getFullYear());
-      expect(result.getHours()).toBe(14);
-      expect(result.getMinutes()).toBe(30);
+      expect(result.toISOString()).toBe(expected.toISOString());
+
+      // Restore system time
+      vi.useRealTimers();
     });
   });
 
