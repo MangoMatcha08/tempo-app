@@ -95,6 +95,8 @@ const DashboardContent = ({
         <QuickActionsBar 
           onNewReminder={onNewReminder}
           onNewVoiceNote={onNewVoiceNote}
+          onRefresh={onLoadMore}
+          isRefreshing={isRefreshing}
         />
       </div>
     );
@@ -107,6 +109,8 @@ const DashboardContent = ({
         <QuickActionsBar 
           onNewReminder={onNewReminder}
           onNewVoiceNote={onNewVoiceNote}
+          onRefresh={onLoadMore}
+          isRefreshing={isRefreshing}
         />
         <ReminderLoadingState 
           isLoading={true}
@@ -135,6 +139,8 @@ const DashboardContent = ({
       <QuickActionsBar 
         onNewReminder={onNewReminder}
         onNewVoiceNote={onNewVoiceNote}
+        onRefresh={onLoadMore}
+        isRefreshing={isRefreshing}
       />
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">

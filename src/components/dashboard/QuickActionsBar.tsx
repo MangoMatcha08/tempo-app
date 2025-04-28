@@ -1,13 +1,37 @@
 
 import { Button } from "@/components/ui/button";
-import { Mic, Plus, Bell, Calendar } from "lucide-react";
+import { Mic, Plus, Bell, Calendar, RefreshCw } from "lucide-react";
+import { useState } from "react";
 
 interface QuickActionsBarProps {
   onNewReminder: () => void;
   onNewVoiceNote: () => void;
+  onRefresh?: () => Promise<boolean>;
+  isRefreshing?: boolean;
 }
 
-const QuickActionsBar = ({ onNewReminder, onNewVoiceNote }: QuickActionsBarProps) => {
+const QuickActionsBar = ({ 
+  onNewReminder, 
+  onNewVoiceNote, 
+  onRefresh, 
+  isRefreshing = false 
+}: QuickActionsBarProps) => {
+  const [isRefreshAnimating, setIsRefreshAnimating] = useState(false);
+
+  const handleRefresh = async () => {
+    if (!onRefresh || isRefreshing || isRefreshAnimating) return;
+    
+    setIsRefreshAnimating(true);
+    try {
+      await onRefresh();
+    } finally {
+      // Reset animation state after a delay to ensure animation completes
+      setTimeout(() => {
+        setIsRefreshAnimating(false);
+      }, 750); // Animation duration
+    }
+  };
+  
   return (
     <div className="flex justify-between items-center p-2 bg-secondary/10 rounded-lg mb-4">
       <div className="flex space-x-2">
@@ -30,6 +54,22 @@ const QuickActionsBar = ({ onNewReminder, onNewVoiceNote }: QuickActionsBarProps
           <Plus className="h-5 w-5" />
           <span className="sr-only">Add New Reminder</span>
         </Button>
+        
+        {onRefresh && (
+          <Button
+            size="icon"
+            variant="outline"
+            className="rounded-full bg-white dark:bg-gray-800"
+            onClick={handleRefresh}
+            disabled={isRefreshing || isRefreshAnimating}
+            title="Refresh Reminders"
+          >
+            <RefreshCw 
+              className={`h-5 w-5 text-primary ${isRefreshing || isRefreshAnimating ? "animate-spin" : ""}`} 
+            />
+            <span className="sr-only">Refresh</span>
+          </Button>
+        )}
       </div>
       
       <div className="flex items-center">
