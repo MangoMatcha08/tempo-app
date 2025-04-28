@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useCallback } from "react";
 import CurrentPeriodIndicator from "@/components/dashboard/CurrentPeriodIndicator";
 import QuickActionsBar from "@/components/dashboard/QuickActionsBar";
 import RemindersSection from "@/components/dashboard/RemindersSection";
@@ -71,6 +72,12 @@ const DashboardContent = ({
     setEditDialogOpen(false);
   };
 
+  // Create a wrapper function that returns a Promise<boolean>
+  const handleRefresh = useCallback(async (): Promise<boolean> => {
+    onLoadMore();
+    return true;
+  }, [onLoadMore]);
+
   if (hasError) {
     return (
       <div className="space-y-4">
@@ -95,7 +102,7 @@ const DashboardContent = ({
         <QuickActionsBar 
           onNewReminder={onNewReminder}
           onNewVoiceNote={onNewVoiceNote}
-          onRefresh={onLoadMore}
+          onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
         />
       </div>
@@ -109,7 +116,7 @@ const DashboardContent = ({
         <QuickActionsBar 
           onNewReminder={onNewReminder}
           onNewVoiceNote={onNewVoiceNote}
-          onRefresh={onLoadMore}
+          onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
         />
         <ReminderLoadingState 
@@ -139,7 +146,7 @@ const DashboardContent = ({
       <QuickActionsBar 
         onNewReminder={onNewReminder}
         onNewVoiceNote={onNewVoiceNote}
-        onRefresh={onLoadMore}
+        onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
       />
       
