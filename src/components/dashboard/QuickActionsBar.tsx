@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Mic, Plus, Bell, Calendar, RefreshCw } from "lucide-react";
 import { useState } from "react";
@@ -22,13 +21,20 @@ const QuickActionsBar = ({
     if (!onRefresh || isRefreshing || isRefreshAnimating) return;
     
     setIsRefreshAnimating(true);
+    
     try {
-      await onRefresh();
-    } finally {
-      // Reset animation state after a delay to ensure animation completes
+      // Start animation and wait a short time to show feedback
       setTimeout(() => {
-        setIsRefreshAnimating(false);
-      }, 750); // Animation duration
+        // Perform a hard refresh of the page
+        window.location.reload();
+      }, 500); // Short delay to show the animation
+      
+      // This won't execute due to page reload, but keeping for type safety
+      return true;
+    } catch (error) {
+      console.error("Error during refresh:", error);
+      setIsRefreshAnimating(false);
+      return false;
     }
   };
   
@@ -62,7 +68,7 @@ const QuickActionsBar = ({
             className="rounded-full bg-white dark:bg-gray-800"
             onClick={handleRefresh}
             disabled={isRefreshing || isRefreshAnimating}
-            title="Refresh Reminders"
+            title="Refresh Page"
           >
             <RefreshCw 
               className={`h-5 w-5 text-primary ${isRefreshing || isRefreshAnimating ? "animate-spin" : ""}`} 
