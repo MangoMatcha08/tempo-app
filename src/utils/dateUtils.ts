@@ -2,47 +2,64 @@
 // Re-export everything from the new structure
 export * from './dateUtils/index';
 
-// Re-export core functionality
+// Re-export from dateCore for backward compatibility
 export {
-  ensureValidDate,
-  parseTimeString,
-  createDateWithTime,
-  logDateDetails
-} from './dateUtils/core';
+  convertToUtc,
+  convertToLocal,
+  debugDate
+} from './dateCore';
 
-// Re-export timezone utilities
-export {
-  toZonedTime,
-  fromZonedTime,
-  formatWithTimeZone,
-  getUserTimeZone
-} from './dateUtils/timezoneUtils';
+// Export memoization utility
+export { memoizeDateFn } from './dateMemoization';
 
-// Re-export validation utilities
-export {
-  validateDate,
-  validateDateRange,
-  DateValidationErrorType
-} from './dateUtils/validation';
-
-// Re-export formatting
-export {
-  formatDate,
-  formatDateRange,
-  formatTimeString
-} from './dateUtils/formatting';
-
-// Re-export transformations
+// Export date transformation utilities
 export {
   parseStringToDate,
+  compareDates,
   isDateInRange,
-  areDatesEqual,
-  convertToUtc,
-  convertToLocal
-} from './dateUtils/transformation';
+  areDatesEqual
+} from './dateTransformations';
 
-// Re-export adjustment
+// Export scheduling utilities
+export type {
+  TimeSlot
+} from './dateSchedulingUtils';
+
 export {
-  adjustDateIfPassed,
-  debugDate
-} from './dateUtils/adjustment';
+  findAvailableTimeSlots,
+  suggestIdealPeriods,
+  suggestDueDates,
+  detectDateConflicts,
+} from './dateSchedulingUtils';
+
+// Export enhanced utilities
+export {
+  formatDateWithPeriod,
+  getRelativeTimeDisplay,
+  getNearestPeriodTime,
+  formatDisplayDate,
+  toLocalTime,
+  toUtcTime
+} from './enhancedDateUtils';
+
+// Export recurrence utilities
+export type {
+  RecurrenceRule
+} from './recurringDatePatterns';
+
+export {
+  RecurrenceType,
+  generateOccurrences,
+  formatRecurrenceRule,
+  dateMatchesRecurrence
+} from './recurringDatePatterns';
+
+// Export Period types
+export type {
+  Period,
+  PeriodValidationResult,
+  DateWithPeriod
+} from '../types/periodTypes';
+
+// Export date performance monitoring
+export { datePerformance } from './datePerformanceMonitor';

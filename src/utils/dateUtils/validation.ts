@@ -1,10 +1,8 @@
 import { isValid, isBefore, isAfter } from 'date-fns';
 import { ensureValidDate } from './core';
-import { toZonedTime } from './timezoneUtils';
+import { toZonedTime } from './timezone';
 import { DateValidationErrorType } from './types';
 import type { DateValidationError, DateValidationResult, DateValidationOptions } from './types';
-
-export { DateValidationErrorType };
 
 /**
  * Validates a date value against a set of constraints

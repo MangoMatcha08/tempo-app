@@ -1,3 +1,4 @@
+
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
@@ -9,8 +10,7 @@ vi.mock('@/hooks/notifications/useNotificationDisplay', () => ({
   useNotificationDisplay: vi.fn()
 }));
 
-// Mark as todo until we fix notification display
-describe.todo('NotificationBadge', () => {
+describe('NotificationBadge', () => {
   it('should render without badge when no unread notifications', () => {
     (useNotificationDisplay as ReturnType<typeof vi.fn>).mockReturnValue({
       unreadCount: 0

@@ -1,3 +1,4 @@
+
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { mockDate, restoreDate } from '@/test/mocks/date-mocks';
@@ -7,7 +8,7 @@ import { TestWrapper } from '@/test/test-wrapper';
 import { ReminderPriority, ReminderCategory } from '@/types/reminderTypes';
 import userEvent from '@testing-library/user-event';
 
-describe.skip('ReminderEditDialog Component', () => {
+describe('ReminderEditDialog Component', () => {
   const mockOnSave = vi.fn().mockResolvedValue(true);
   const mockOnOpenChange = vi.fn();
 

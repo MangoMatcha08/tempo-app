@@ -13,17 +13,15 @@ import {
 
 interface DatePickerProps {
   date?: Date
-  setDate: (date: Date) => void
+  setDate: (date?: Date) => void
   className?: string
   "data-testid"?: string
 }
 
 export function DatePicker({ date, setDate, className, "data-testid": testId }: DatePickerProps) {
   const handleDateSelect = React.useCallback((newDate: Date | undefined) => {
-    if (newDate) {
-      console.log('DatePicker: Date selected:', newDate.toISOString());
-      setDate(newDate);
-    }
+    console.log('DatePicker: Date selected:', newDate);
+    setDate(newDate);
   }, [setDate]);
 
   const calendarId = React.useId();
@@ -47,7 +45,9 @@ export function DatePicker({ date, setDate, className, "data-testid": testId }: 
       </PopoverTrigger>
       <PopoverContent 
         className="w-auto p-0" 
-        align="start"
+        align="start" 
+        aria-label="Calendar"
+        data-testid="date-picker-calendar"
       >
         <Calendar
           id={calendarId}

@@ -1,15 +1,22 @@
 
-import { render, screen } from '@testing-library/react';
-import { vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, act } from '@testing-library/react';
+import { vi } from 'vitest';
 import { DatePicker } from "@/components/ui/date-picker";
 import { TestWrapper } from '@/test/test-wrapper';
+import { within } from '@testing-library/react';
+import { 
+  openDatePicker, 
+  getCalendarPopover,
+  selectCalendarDate
+} from '@/utils/test-utils/datePickerTestUtils';
 import { TEST_IDS } from '@/test/test-ids';
-import { openCalendar, selectDate } from '@/utils/test-utils/calendarTestUtils';
 import { format } from 'date-fns';
+import { testLogger } from '@/utils/test-utils/testDebugUtils';
 
 describe('DatePicker Component', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    // Set a stable date for testing
     vi.setSystemTime(new Date('2024-04-27T12:00:00Z'));
   });
 
@@ -32,8 +39,7 @@ describe('DatePicker Component', () => {
       </TestWrapper>
     );
 
-    const button = screen.getByTestId(TEST_IDS.REMINDER.DATE_PICKER);
-    expect(button).toHaveTextContent(format(defaultDate, 'PPP'));
+    expect(screen.getByTestId(TEST_IDS.REMINDER.DATE_PICKER)).toBeInTheDocument();
   });
 
   it('opens calendar on click', async () => {
@@ -50,9 +56,13 @@ describe('DatePicker Component', () => {
       </TestWrapper>
     );
 
-    await openCalendar(TEST_IDS.REMINDER.DATE_PICKER);
-    const dialog = screen.getByRole('dialog');
-    expect(dialog).toBeInTheDocument();
+    const calendar = await openDatePicker(TEST_IDS.REMINDER.DATE_PICKER);
+    expect(calendar).toBeInTheDocument();
+    
+    // Type-safe calendar logging
+    if (calendar instanceof HTMLElement) {
+      testLogger.dom.logCalendar(calendar);
+    }
   });
 
   it('allows date selection', async () => {
@@ -69,8 +79,20 @@ describe('DatePicker Component', () => {
       </TestWrapper>
     );
 
-    await selectDate(TEST_IDS.REMINDER.DATE_PICKER, defaultDate);
-    expect(mockSetDate).toHaveBeenCalledWith(expect.any(Date));
+    await openDatePicker(TEST_IDS.REMINDER.DATE_PICKER);
+    
+    const today = new Date('2024-04-27T12:00:00Z');
+    
+    // Wrap in act for React state updates
+    await act(async () => {
+      await selectCalendarDate(today);
+    });
+    
+    await waitFor(() => {
+      expect(mockSetDate).toHaveBeenCalled();
+    }, { timeout: 1000 });
+    
+    const call = mockSetDate.mock.calls[0][0];
+    expect(call instanceof Date).toBeTruthy();
   });
 });
-

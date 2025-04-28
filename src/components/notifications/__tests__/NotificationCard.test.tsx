@@ -1,3 +1,4 @@
+
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import NotificationCard from '../NotificationCard';
@@ -6,8 +7,7 @@ import { NotificationType, ReminderPriority } from '@/types/reminderTypes';
 import { NotificationDeliveryStatus } from '@/types/notifications/notificationHistoryTypes';
 import { NotificationChannel } from '@/types/notifications/settingsTypes';
 
-// Mark as todo until notifications are refactored
-describe.todo('NotificationCard', () => {
+describe('NotificationCard', () => {
   const mockNotification: NotificationRecord = {
     id: 'test-notification-1',
     title: 'Test Notification',

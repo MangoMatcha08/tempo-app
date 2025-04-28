@@ -1,17 +1,18 @@
-import {
-  ensureValidDate,
+
+import { 
   parseTimeString,
   formatTimeString,
   formatDateRange,
-  toZonedTime,
-  fromZonedTime,
-  getUserTimeZone,
+  formatWithTimeZone,
   validateDate,
-  validateDateRange
+  validateDateRange,
+  ensureValidDate,
+  getUserTimeZone,
+  toZonedTime,
+  fromZonedTime
 } from '../dateUtils';
-import { describe, it, expect } from 'vitest';
 
-describe.skip('Date Utils', () => {
+describe('Date Utils', () => {
   describe('Core Functions', () => {
     test('ensureValidDate handles various inputs', () => {
       const date = new Date(2024, 3, 25);

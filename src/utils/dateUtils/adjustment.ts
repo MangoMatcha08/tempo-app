@@ -1,3 +1,4 @@
+
 import { addDays } from 'date-fns';
 import { ensureValidDate } from './core';
 import { toZonedTime, fromZonedTime, getUserTimeZone } from './timezoneUtils';
@@ -27,6 +28,3 @@ export function adjustDateIfPassed(date: Date): Date {
   
   return validDate;
 }
-
-// Alias for debugDate to keep backward compatibility
-export { logDateDetails as debugDate } from './core';

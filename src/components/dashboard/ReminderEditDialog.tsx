@@ -1,4 +1,5 @@
-import React, { useCallback } from 'react';
+
+import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,14 +38,9 @@ const ReminderEditDialog = ({
 
   const { dateErrors, validateDateAndTime, clearErrors } = useReminderDateValidation();
 
-  const handleTimeUpdate = useCallback((newDate: Date) => {
-    console.log('Time update callback called with:', newDate.toISOString());
-    updateField('dueDate', newDate);
-  }, [updateField]);
-
   const { periodId, setPeriodId } = useReminderPeriodField(
     formState.periodId,
-    handleTimeUpdate,
+    (newDate) => updateField('dueDate', newDate),
     formState.dueDate || new Date()
   );
 
@@ -55,7 +51,7 @@ const ReminderEditDialog = ({
     }
   }, [reminder, resetForm, clearErrors]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = () => {
     const isDateValid = validateDateAndTime(formState.dueDate, formState.dueTime);
     if (!isDateValid) return;
 
@@ -64,7 +60,7 @@ const ReminderEditDialog = ({
       onSave(result.updatedReminder);
       onOpenChange(false);
     }
-  }, [validateDateAndTime, validateAndSave, onSave, onOpenChange, formState.dueDate, formState.dueTime]);
+  };
 
   if (!reminder) return null;
 

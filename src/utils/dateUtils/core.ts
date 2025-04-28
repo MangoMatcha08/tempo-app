@@ -112,40 +112,16 @@ export function parseTimeString(timeStr: string): TimeComponents | null {
 /**
  * Parses object with hours/minutes properties to TimeComponents
  */
-export function parseTimeComponents(value: unknown): TimeComponents | null {
-  // Handle Date objects
-  if (value instanceof Date && !isNaN(value.getTime())) {
-    return {
-      hours: value.getHours(),
-      minutes: value.getMinutes()
-    };
-  }
-  
-  // Handle time string in format "HH:mm" or "H:mm"
-  if (typeof value === 'string') {
-    const match = value.match(/^(\d{1,2}):(\d{2})$/);
-    if (match) {
-      const hours = parseInt(match[1], 10);
-      const minutes = parseInt(match[2], 10);
-      
-      if (hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60) {
-        return { hours, minutes };
-      }
-    }
-  }
-  
-  // Handle object with hours/minutes properties
-  if (value && typeof value === 'object' && 'hours' in value && 'minutes' in value) {
-    const hours = Number(value.hours);
-    const minutes = Number(value.minutes);
+export function parseTimeComponents(obj: any): TimeComponents | null {
+  if (obj && typeof obj === 'object' && 
+      'hours' in obj && typeof obj.hours === 'number' &&
+      'minutes' in obj && typeof obj.minutes === 'number') {
     
-    if (!isNaN(hours) && !isNaN(minutes) &&
-        hours >= 0 && hours < 24 && 
-        minutes >= 0 && minutes < 60) {
+    const { hours, minutes } = obj;
+    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
       return { hours, minutes };
     }
   }
-  
   return null;
 }
 
@@ -159,15 +135,6 @@ export function isConvertibleToDate(value: unknown): boolean {
   } catch {
     return false;
   }
-}
-
-/**
- * Creates a date with specific time components
- */
-export function createDateWithTime(date: Date, hours: number, minutes: number): Date {
-  const validDate = new Date(date);
-  validDate.setHours(hours, minutes, 0, 0);
-  return validDate;
 }
 
 /**

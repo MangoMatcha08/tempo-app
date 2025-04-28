@@ -18,13 +18,6 @@ export function TestWrapper({ children }: TestWrapperProps) {
   // Reset query client between tests
   queryClient.clear();
   
-  // Create portal root if it doesn't exist
-  if (!document.getElementById('radix-portal')) {
-    const portalRoot = document.createElement('div');
-    portalRoot.setAttribute('id', 'radix-portal');
-    document.body.appendChild(portalRoot);
-  }
-  
   return (
     <QueryClientProvider client={queryClient}>
       {children}
