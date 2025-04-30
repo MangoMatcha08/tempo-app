@@ -1,6 +1,6 @@
 
 import { Timestamp } from 'firebase/firestore';
-import { toFirestoreDate, fromFirestoreDate, formatFirestoreDate } from './dateConversions';
+import { toFirestoreTimestamp, fromFirestoreTimestamp, formatFirestoreDate } from './dateConversions';
 import { toPSTTime, APP_TIMEZONE } from '@/utils/dateTimeUtils';
 import { ensureValidDate } from '@/utils/dateUtils';
 import { formatWithTimeZone } from '@/utils/dateUtils/timezone';
@@ -13,12 +13,12 @@ import { formatWithTimeZone } from '@/utils/dateUtils/timezone';
 /**
  * Converts a Date to a Firestore Timestamp with UTC normalization
  */
-export const dateToTimestamp = toFirestoreDate;
+export const dateToTimestamp = toFirestoreTimestamp;
 
 /**
  * Converts a Firestore Timestamp to a PST Date
  */
-export const timestampToDate = fromFirestoreDate;
+export const timestampToDate = fromFirestoreTimestamp;
 
 /**
  * Formats a Firestore timestamp directly to a string
@@ -35,16 +35,17 @@ export const normalizeDocumentDates = <T extends Record<string, any>>(
 ): T => {
   if (!doc) return doc;
   
-  const result = { ...doc };
+  const result = { ...doc } as T;
   
   for (const field of dateFields) {
-    if (result[field]) {
-      if (result[field] instanceof Timestamp) {
+    const value = result[field as keyof T];
+    if (value) {
+      if (value instanceof Timestamp) {
         // Convert Firestore Timestamp to PST Date
-        result[field] = timestampToDate(result[field]);
-      } else if (result[field] instanceof Date || typeof result[field] === 'string') {
+        (result as any)[field] = timestampToDate(value as Timestamp);
+      } else if (value instanceof Date || typeof value === 'string') {
         // Ensure any existing Date is in PST timezone
-        result[field] = toPSTTime(ensureValidDate(result[field]));
+        (result as any)[field] = toPSTTime(ensureValidDate(value));
       }
     }
   }

@@ -7,8 +7,9 @@ import { ensureValidDate } from '@/utils/dateUtils';
 /**
  * Converts a Date or Timestamp to a standardized UTC Timestamp
  * Preserves original milliseconds but normalizes to UTC for storage
+ * Consistent naming: toFirestoreTimestamp
  */
-export function toFirestoreDate(date: Date | Timestamp | null | undefined): Timestamp | null {
+export function toFirestoreTimestamp(date: Date | Timestamp | null | undefined): Timestamp | null {
   if (!date) return null;
   
   try {
@@ -24,7 +25,7 @@ export function toFirestoreDate(date: Date | Timestamp | null | undefined): Time
     // Preserve the original milliseconds
     return Timestamp.fromDate(utcDate);
   } catch (error) {
-    console.error('Error converting to Firestore date:', error);
+    console.error('Error converting to Firestore timestamp:', error);
     return null;
   }
 }
@@ -32,8 +33,9 @@ export function toFirestoreDate(date: Date | Timestamp | null | undefined): Time
 /**
  * Converts a Firestore Timestamp to a PST timezone Date
  * All dates in the application should be in PST timezone
+ * Consistent naming: fromFirestoreTimestamp
  */
-export function fromFirestoreDate(timestamp: Timestamp | null | undefined): Date | null {
+export function fromFirestoreTimestamp(timestamp: Timestamp | null | undefined): Date | null {
   if (!timestamp) return null;
   
   try {
@@ -43,7 +45,7 @@ export function fromFirestoreDate(timestamp: Timestamp | null | undefined): Date
     // Convert to PST timezone for consistency
     return toPSTTime(utcDate);
   } catch (error) {
-    console.error('Error converting from Firestore date:', error);
+    console.error('Error converting from Firestore timestamp:', error);
     return null;
   }
 }
@@ -55,7 +57,7 @@ export function formatFirestoreDate(timestamp: Timestamp | null | undefined, for
   if (!timestamp) return '';
   
   try {
-    const pstDate = fromFirestoreDate(timestamp);
+    const pstDate = fromFirestoreTimestamp(timestamp);
     if (!pstDate) return '';
     
     const { format } = require('date-fns');
@@ -65,3 +67,7 @@ export function formatFirestoreDate(timestamp: Timestamp | null | undefined, for
     return '';
   }
 }
+
+// Legacy function names for compatibility
+export const toFirestoreDate = toFirestoreTimestamp;
+export const fromFirestoreDate = fromFirestoreTimestamp;

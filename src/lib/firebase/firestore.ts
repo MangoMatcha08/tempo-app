@@ -6,7 +6,7 @@ import {
   Timestamp
 } from "firebase/firestore";
 import { firebaseApp } from "./config";
-import { toFirestoreDate, fromFirestoreDate } from "./dateConversions";
+import { toFirestoreTimestamp, fromFirestoreTimestamp } from "./dateConversions";
 
 // Firestore status tracking
 let firestoreInitialized = false;
@@ -61,7 +61,7 @@ const initializeFirestoreWithSettings = async (db) => {
  * Utility to help with Firestore document conversion
  * This ensures all timestamps are converted to PST dates
  */
-export const convertTimestampFields = <T extends Record<string, any>>(data: T, timestampFields: string[] = ['createdAt', 'updatedAt', 'dueDate', 'completedAt']): T => {
+export const convertTimestampFields = <T extends Record<string, any>>(data: T): T => {
   if (!data) return data;
   
   const result = { ...data };
@@ -69,7 +69,7 @@ export const convertTimestampFields = <T extends Record<string, any>>(data: T, t
   for (const key in result) {
     // Convert Timestamp fields to PST dates
     if (result[key] && typeof result[key] === 'object' && 'toDate' in result[key]) {
-      result[key] = fromFirestoreDate(result[key]);
+      (result as any)[key] = fromFirestoreTimestamp(result[key]);
     }
   }
   
@@ -85,12 +85,20 @@ export const prepareForFirestore = <T extends Record<string, any>>(data: T, date
   const result = { ...data };
   
   for (const key of dateFields) {
-    if (result[key] && (result[key] instanceof Date || typeof result[key] === 'string')) {
-      result[key] = toFirestoreDate(result[key]);
+    const value = result[key as keyof T];
+    if (value) {
+      if (value instanceof Date) {
+        (result as any)[key] = toFirestoreTimestamp(value as Date);
+      } else if (typeof value === 'string') {
+        const date = new Date(value);
+        if (!isNaN(date.getTime())) {
+          (result as any)[key] = toFirestoreTimestamp(date);
+        }
+      }
     }
   }
   
   return result;
 };
 
-export { Timestamp, toFirestoreDate, fromFirestoreDate };
+export { Timestamp, toFirestoreTimestamp, fromFirestoreTimestamp };

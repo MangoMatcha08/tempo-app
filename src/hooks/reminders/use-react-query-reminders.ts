@@ -10,7 +10,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useState, useCallback } from 'react';
 import { DatabaseReminder, Reminder } from '@/types/reminderTypes';
 import { toPSTTime } from '@/utils/dateTimeUtils';
-import { toFirestoreDate, fromFirestoreDate, convertTimestampFields, prepareForFirestore } from '@/lib/firebase/firestore';
+import { toFirestoreTimestamp, fromFirestoreTimestamp } from '@/lib/firebase/dateConversions';
+import { convertTimestampFields, prepareForFirestore } from '@/lib/firebase/firestore';
+import { toUtc } from '@/utils/dateCore';
 
 const BATCH_SIZE = 10;
 const REMINDER_COLLECTION = 'reminders';
@@ -157,7 +159,7 @@ export function useReactQueryReminders() {
       if (!db || !isReady) throw new Error('Firestore not initialized');
       
       const docRef = doc(db, REMINDER_COLLECTION, id);
-      const utcNow = convertToUtc(new Date());
+      const utcNow = toUtc(new Date());
       const updateData = {
         completed,
         completedAt: completed ? Timestamp.fromDate(utcNow) : null
@@ -182,10 +184,10 @@ export function useReactQueryReminders() {
       const reminderWithUserId = {
         ...reminder,
         userId: user.uid,
-        createdAt: reminder.createdAt ? toFirestoreDate(reminder.createdAt) : serverTimestamp(),
-        dueDate: toFirestoreDate(reminder.dueDate),
+        createdAt: reminder.createdAt ? toFirestoreTimestamp(reminder.createdAt) : serverTimestamp(),
+        dueDate: toFirestoreTimestamp(reminder.dueDate),
         completed: reminder.completed || false,
-        completedAt: reminder.completedAt ? toFirestoreDate(reminder.completedAt) : null,
+        completedAt: reminder.completedAt ? toFirestoreTimestamp(reminder.completedAt) : null,
       };
       
       const docRef = await addDoc(collection(db, REMINDER_COLLECTION), reminderWithUserId);
@@ -248,7 +250,7 @@ export function useReactQueryReminders() {
       if (!db || !isReady) throw new Error('Firestore not initialized');
       
       const batch = writeBatch(db);
-      const utcNow = convertToUtc(new Date());
+      const utcNow = toUtc(new Date());
       const completedAt = completed ? Timestamp.fromDate(utcNow) : null;
       
       ids.forEach(id => {

@@ -1,9 +1,10 @@
+
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useReminderCache } from "./use-reminder-cache";
 import { doc, Timestamp, writeBatch } from "firebase/firestore";
 import { isQuotaError } from "@/lib/firebase/error-utils";
-import { toFirestoreDate } from "@/lib/firebase/firestore";
+import { toFirestoreTimestamp } from "@/lib/firebase/dateConversions";
 import { toPSTTime } from "@/utils/dateTimeUtils";
 
 /**
@@ -26,15 +27,15 @@ export function useReminderOperationsCore(user: any, db: any, isReady: boolean) 
     
     // Convert dates to Firestore Timestamps
     if (result.dueDate) {
-      result.dueDate = toFirestoreDate(result.dueDate);
+      result.dueDate = toFirestoreTimestamp(result.dueDate);
     }
     
     if (result.createdAt) {
-      result.createdAt = toFirestoreDate(result.createdAt);
+      result.createdAt = toFirestoreTimestamp(result.createdAt);
     }
     
     if (result.completedAt) {
-      result.completedAt = toFirestoreDate(result.completedAt);
+      result.completedAt = toFirestoreTimestamp(result.completedAt);
     }
     
     return result;

@@ -1,3 +1,4 @@
+
 import { format, parse, isValid } from 'date-fns';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
@@ -33,16 +34,28 @@ export function ensureValidDate(date: any): Date {
   return new Date();
 }
 
-export function convertToUtc(date: Date): Date {
+/**
+ * Converts a date to UTC timezone representation
+ * Consistent naming: toUtc
+ */
+export function toUtc(date: Date): Date {
   const validDate = ensureValidDate(date);
   return fromZonedTime(validDate, 'UTC');
 }
 
-export function convertToLocal(date: Date): Date {
+/**
+ * Converts a date to local timezone representation
+ * Consistent naming: toLocal
+ */
+export function toLocal(date: Date): Date {
   const validDate = ensureValidDate(date);
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   return toZonedTime(validDate, timeZone);
 }
+
+// Legacy function names for compatibility
+export const convertToUtc = toUtc;
+export const convertToLocal = toLocal;
 
 export function debugDate(label: string, date: any): void {
   console.group(`Debug Info: ${label}`);
