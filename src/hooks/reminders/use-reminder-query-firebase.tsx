@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useCallback } from 'react';
 import {
@@ -17,6 +16,8 @@ import { getMockReminders } from "./mock-reminders";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { isMissingIndexError, getFirestoreIndexCreationUrl } from "@/lib/firebase/indexing";
+import { convertTimestampFields } from "@/lib/firebase/firestore";
+import { toPSTTime } from "@/utils/dateTimeUtils";
 
 export function useReminderQueryFirebase(user: any, db: any, useMockData: boolean = false) {
   const { toast } = useToast();
@@ -65,12 +66,15 @@ export function useReminderQueryFirebase(user: any, db: any, useMockData: boolea
         querySnapshot.forEach((doc) => {
           const data = doc.data();
           try {
-            // Process and validate dates before transformation
+            // Use convertTimestampFields to handle Firestore timestamps correctly
+            const convertedData = convertTimestampFields(data);
+            
+            // Process and validate dates to ensure PST timezone consistency
             const parsedData = {
-              ...data,
-              dueDate: data.dueDate ? ensureValidDate(data.dueDate) : new Date(),
-              createdAt: data.createdAt ? ensureValidDate(data.createdAt) : new Date(),
-              completedAt: data.completedAt ? ensureValidDate(data.completedAt) : null
+              ...convertedData,
+              dueDate: convertedData.dueDate ? toPSTTime(ensureValidDate(convertedData.dueDate)) : toPSTTime(new Date()),
+              createdAt: convertedData.createdAt ? toPSTTime(ensureValidDate(convertedData.createdAt)) : toPSTTime(new Date()),
+              completedAt: convertedData.completedAt ? toPSTTime(ensureValidDate(convertedData.completedAt)) : null
             };
             
             // Transform the document into a reminder object
@@ -119,12 +123,15 @@ export function useReminderQueryFirebase(user: any, db: any, useMockData: boolea
           fallbackSnapshot.forEach((doc) => {
             const data = doc.data();
             try {
-              // Process and validate dates before transformation
+              // Use convertTimestampFields to handle Firestore timestamps correctly
+              const convertedData = convertTimestampFields(data);
+              
+              // Process and validate dates to ensure PST timezone consistency
               const parsedData = {
-                ...data,
-                dueDate: data.dueDate ? ensureValidDate(data.dueDate) : new Date(),
-                createdAt: data.createdAt ? ensureValidDate(data.createdAt) : new Date(),
-                completedAt: data.completedAt ? ensureValidDate(data.completedAt) : null
+                ...convertedData,
+                dueDate: convertedData.dueDate ? toPSTTime(ensureValidDate(convertedData.dueDate)) : toPSTTime(new Date()),
+                createdAt: convertedData.createdAt ? toPSTTime(ensureValidDate(convertedData.createdAt)) : toPSTTime(new Date()),
+                completedAt: convertedData.completedAt ? toPSTTime(ensureValidDate(convertedData.completedAt)) : null
               };
               
               // Transform the document into a reminder object

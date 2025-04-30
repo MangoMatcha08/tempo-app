@@ -3,6 +3,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useReminderCache } from "./use-reminder-cache";
 import { doc, Timestamp, writeBatch } from "firebase/firestore";
 import { isQuotaError } from "@/lib/firebase/error-utils";
+import { toFirestoreDate } from "@/lib/firebase/firestore";
+import { toPSTTime } from "@/utils/dateTimeUtils";
 
 /**
  * Core hook for reminder operations, providing shared state and utilities
@@ -15,6 +17,50 @@ export function useReminderOperationsCore(user: any, db: any, isReady: boolean) 
     invalidateReminder,
     invalidateUserCache
   } = useReminderCache();
+
+  // Helper to prepare dates for Firestore
+  const prepareReminderDates = (reminder: any) => {
+    if (!reminder) return reminder;
+    
+    const result = { ...reminder };
+    
+    // Convert dates to Firestore Timestamps
+    if (result.dueDate) {
+      result.dueDate = toFirestoreDate(result.dueDate);
+    }
+    
+    if (result.createdAt) {
+      result.createdAt = toFirestoreDate(result.createdAt);
+    }
+    
+    if (result.completedAt) {
+      result.completedAt = toFirestoreDate(result.completedAt);
+    }
+    
+    return result;
+  };
+  
+  // Helper to ensure dates are in PST timezone
+  const ensurePSTDates = (reminder: any) => {
+    if (!reminder) return reminder;
+    
+    const result = { ...reminder };
+    
+    // Convert dates to PST timezone
+    if (result.dueDate) {
+      result.dueDate = toPSTTime(result.dueDate);
+    }
+    
+    if (result.createdAt) {
+      result.createdAt = toPSTTime(result.createdAt);
+    }
+    
+    if (result.completedAt && result.completedAt instanceof Date) {
+      result.completedAt = toPSTTime(result.completedAt);
+    }
+    
+    return result;
+  };
 
   // Helper to check if we're in offline mode
   const isOfflineMode = () => {
@@ -78,6 +124,8 @@ export function useReminderOperationsCore(user: any, db: any, isReady: boolean) 
     isOfflineMode,
     showErrorToast,
     handleQuotaError,
-    handleOperationError
+    handleOperationError,
+    prepareReminderDates,
+    ensurePSTDates
   };
 }

@@ -6,6 +6,7 @@ import {
   Timestamp
 } from "firebase/firestore";
 import { firebaseApp } from "./config";
+import { toFirestoreDate, fromFirestoreDate } from "./dateConversions";
 
 // Firestore status tracking
 let firestoreInitialized = false;
@@ -56,19 +57,40 @@ const initializeFirestoreWithSettings = async (db) => {
   }
 };
 
-// Utility to help with Firestore document conversion
-export const convertTimestampFields = (data: any, timestampFields: string[] = ['createdAt', 'updatedAt', 'dueDate', 'completedAt']) => {
+/**
+ * Utility to help with Firestore document conversion
+ * This ensures all timestamps are converted to PST dates
+ */
+export const convertTimestampFields = <T extends Record<string, any>>(data: T, timestampFields: string[] = ['createdAt', 'updatedAt', 'dueDate', 'completedAt']): T => {
   if (!data) return data;
   
   const result = { ...data };
   
-  for (const field of timestampFields) {
-    if (result[field] && typeof result[field].toDate === 'function') {
-      result[field] = result[field].toDate();
+  for (const key in result) {
+    // Convert Timestamp fields to PST dates
+    if (result[key] && typeof result[key] === 'object' && 'toDate' in result[key]) {
+      result[key] = fromFirestoreDate(result[key]);
     }
   }
   
   return result;
 };
 
-export { Timestamp };
+/**
+ * Utility to prepare data for Firestore by converting dates to Timestamps
+ */
+export const prepareForFirestore = <T extends Record<string, any>>(data: T, dateFields: string[] = ['createdAt', 'updatedAt', 'dueDate', 'completedAt']): T => {
+  if (!data) return data;
+  
+  const result = { ...data };
+  
+  for (const key of dateFields) {
+    if (result[key] && (result[key] instanceof Date || typeof result[key] === 'string')) {
+      result[key] = toFirestoreDate(result[key]);
+    }
+  }
+  
+  return result;
+};
+
+export { Timestamp, toFirestoreDate, fromFirestoreDate };
