@@ -87,7 +87,7 @@ export const prepareForFirestore = <T extends Record<string, any>>(data: T, date
   for (const key of dateFields) {
     const value = result[key as keyof T];
     if (value) {
-      if (value instanceof Date) {
+      if (value && typeof value === 'object' && value instanceof Date) {
         (result as any)[key] = toFirestoreTimestamp(value as Date);
       } else if (typeof value === 'string') {
         const date = new Date(value);
