@@ -1,6 +1,9 @@
+
 import { Button } from "@/components/ui/button";
 import { Mic, Plus, Bell, Calendar, RefreshCw } from "lucide-react";
 import { useState } from "react";
+import { APP_TIMEZONE } from "@/utils/dateTimeUtils";
+import { format } from "date-fns-tz";
 
 interface QuickActionsBarProps {
   onNewReminder: () => void;
@@ -37,6 +40,9 @@ const QuickActionsBar = ({
       return false;
     }
   };
+  
+  // Format current time in PST for streak display
+  const currentTimePST = format(new Date(), "'PST' h:mm a", { timeZone: APP_TIMEZONE });
   
   return (
     <div className="flex justify-between items-center p-2 bg-secondary/10 rounded-lg mb-4">
@@ -88,6 +94,7 @@ const QuickActionsBar = ({
           <path d="M12 .587l3.668 7.568 8.332 1.151-6.064 5.828 1.48 8.279-7.416-3.967-7.417 3.967 1.481-8.279-6.064-5.828 8.332-1.151z"/>
         </svg>
         <span className="font-bold">7 day streak</span>
+        <span className="text-xs ml-2 text-muted-foreground">{currentTimePST}</span>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 import { useState, useCallback } from 'react';
 import { 
   ensureValidDate, 
-  formatDateWithPeriod, 
+  formatDateWithPeriodName, 
   getRelativeTimeDisplay,
   getNearestPeriodTime 
 } from '@/utils/enhancedDateUtils';
@@ -11,21 +11,23 @@ import {
   isDateInRange,
   areDatesEqual 
 } from '@/utils/dateUtils';
+import { APP_TIMEZONE, toPSTTime } from '@/utils/dateTimeUtils';
 
 export const useDateOperations = () => {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(toPSTTime(new Date()));
   
   const handleDateSelection = useCallback((date: Date) => {
     const validDate = ensureValidDate(date);
-    setSelectedDate(validDate);
+    const pstDate = toPSTTime(validDate);
+    setSelectedDate(pstDate);
     
     // Find nearest period if any
-    const nearestPeriod = getNearestPeriodTime(validDate);
+    const nearestPeriod = getNearestPeriodTime(pstDate);
     return nearestPeriod;
   }, []);
   
   const formatWithPeriod = useCallback((date: Date, periodId?: string) => {
-    return formatDateWithPeriod(date, periodId);
+    return formatDateWithPeriodName(date, periodId);
   }, []);
   
   const getTimeDisplay = useCallback((date: Date) => {
@@ -33,7 +35,7 @@ export const useDateOperations = () => {
   }, []);
   
   const formatWithZone = useCallback((date: Date, format?: string) => {
-    return formatWithTimeZone(date, format);
+    return formatWithTimeZone(date, format, APP_TIMEZONE);
   }, []);
   
   return {

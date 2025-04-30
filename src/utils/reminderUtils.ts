@@ -1,3 +1,4 @@
+
 // Note: 'location' and 'type' fields were removed in April 2025 to streamline the data model
 // and resolve type inconsistencies across the application
 
@@ -11,6 +12,8 @@ import {
   DatabaseReminder 
 } from '../types/reminderTypes';
 import { ensureValidDate } from './enhancedDateUtils';
+import { APP_TIMEZONE, toPSTTime } from './dateTimeUtils';
+import { formatInTimeZone } from 'date-fns-tz';
 
 // Mock periods for testing/demo
 export const mockPeriods = [
@@ -31,15 +34,19 @@ export function createReminder(input: CreateReminderInput): DatabaseReminder {
   const now = new Date();
   const dueDate = ensureValidDate(input.dueDate || now);
   
+  // Always ensure dates are in PST
+  const pstDueDate = toPSTTime(dueDate);
+  const pstNow = toPSTTime(now);
+  
   return {
     id: crypto.randomUUID(),
     title: input.title,
     description: input.description || "",
-    dueDate: dueDate,
+    dueDate: pstDueDate,
     priority: input.priority || ReminderPriority.MEDIUM,
     completed: false,
     completedAt: null,
-    createdAt: now,
+    createdAt: pstNow,
     category: input.category || null,
     periodId: input.periodId || null,
     checklist: input.checklist || null,
@@ -51,6 +58,22 @@ export function createReminder(input: CreateReminderInput): DatabaseReminder {
 export const getPeriodNameById = (periodId: string): string => {
   const period = mockPeriods.find(p => p.id === periodId);
   return period ? period.name : "Unknown Period";
+};
+
+// Format period time consistently in PST
+export const formatPeriodTime = (timeString: string): string => {
+  try {
+    // Create a date object for today with the specified time
+    const [hours, minutes] = timeString.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes, 0, 0);
+    
+    // Format in 12-hour time in PST
+    return formatInTimeZone(date, APP_TIMEZONE, 'h:mm a');
+  } catch (error) {
+    console.error('Error formatting period time:', error);
+    return timeString;
+  }
 };
 
 // Helper function to format priority

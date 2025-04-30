@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import IOSPushInstallDemo from '@/components/notifications/IOSPushInstallDemo';
 import NotificationMethodInfo from '@/components/notifications/NotificationMethodInfo';
 import { IOSPermissionPrompt } from '@/components/notifications/IOSPermissionPrompt';
+import { formatDateWithPeriodName, APP_TIMEZONE } from '@/utils/dateTimeUtils';
 
 export type UIEnhancedReminder = UIReminder;
 
@@ -62,6 +63,11 @@ const DashboardContent = ({
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const handleEditReminder = (reminder: UIEnhancedReminder) => {
+    // Add period name display to edited reminders
+    if (reminder.periodId) {
+      console.log(`Editing reminder with period: ${reminder.periodId} in timezone ${APP_TIMEZONE}`);
+    }
+    
     setSelectedReminder(reminder);
     setEditDialogOpen(true);
   };

@@ -6,6 +6,7 @@ import {
   formatWithTimeZone, 
   DateFormats
 } from '../dateUtils';
+import { APP_TIMEZONE, formatDateWithPeriodName } from '../dateTimeUtils';
 
 export {
   formatDate,
@@ -15,15 +16,17 @@ export {
 };
 
 export function formatTimeWithPeriod(date: Date, periodName?: string): string {
+  return formatDateWithPeriodName(date, periodName ? 'period' : undefined);
+}
+
+// Format a time with the PST timezone
+export function formatTimePST(date: Date): string {
   const timeString = date.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
-    hour12: true
+    hour12: true,
+    timeZone: APP_TIMEZONE
   });
-  
-  if (periodName) {
-    return `${timeString} (${periodName})`;
-  }
   
   return timeString;
 }

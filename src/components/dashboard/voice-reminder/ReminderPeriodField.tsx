@@ -6,7 +6,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { mockPeriods } from "@/utils/reminderUtils";
+import { mockPeriods, formatPeriodTime } from "@/utils/reminderUtils";
 import { validatePeriodId } from "@/utils/dateUtils";
 import { toPeriodDate } from "@/types/periodTypes";
 
@@ -25,11 +25,6 @@ const ReminderPeriodField = ({ periodId, setPeriodId }: ReminderPeriodFieldProps
     }
   };
 
-  const formatTime = (time: Date | string) => {
-    const date = toPeriodDate(time);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
   return (
     <div className="space-y-2">
       <label htmlFor="period" className="text-sm font-medium">Period</label>
@@ -41,7 +36,7 @@ const ReminderPeriodField = ({ periodId, setPeriodId }: ReminderPeriodFieldProps
           <SelectItem value="none">None</SelectItem>
           {mockPeriods.map(period => (
             <SelectItem key={period.id} value={period.id}>
-              {period.name} ({formatTime(period.startTime)} - {formatTime(period.endTime)})
+              {period.name} ({formatPeriodTime(period.startTime)} - {formatPeriodTime(period.endTime)})
             </SelectItem>
           ))}
         </SelectContent>
