@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { mockPeriods } from "@/utils/reminderUtils";
+import { mockPeriods, formatPeriodTime } from "@/utils/reminderUtils";
 
 interface ReminderPeriodSelectProps {
   periodId: string;
@@ -27,7 +27,7 @@ export function ReminderPeriodSelect({ periodId, onChange }: ReminderPeriodSelec
           <SelectItem value="none">No specific period</SelectItem>
           {mockPeriods.map(period => (
             <SelectItem key={period.id} value={period.id}>
-              {period.name} ({period.startTime} - {period.endTime})
+              {period.name} ({formatPeriodTime(period.startTime)} - {formatPeriodTime(period.endTime)})
             </SelectItem>
           ))}
         </SelectContent>

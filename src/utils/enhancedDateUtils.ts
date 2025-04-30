@@ -1,8 +1,10 @@
+
 import { format, addDays, addWeeks, startOfDay } from "date-fns";
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { mockPeriods } from "./reminderUtils";
 import { formatDate, formatWithTimeZone } from './dateTransformations';
 import { ensureValidDate } from './dateCore';
+import { APP_TIMEZONE } from './dateTimeUtils';
 
 // Re-export the ensureValidDate function for backward compatibility
 export { ensureValidDate } from './dateCore';

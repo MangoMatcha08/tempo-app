@@ -2,7 +2,7 @@
 import { useState, useCallback } from 'react';
 import { 
   ensureValidDate, 
-  formatDateWithPeriodName, 
+  formatDateWithPeriod, 
   getRelativeTimeDisplay,
   getNearestPeriodTime 
 } from '@/utils/enhancedDateUtils';
@@ -27,7 +27,7 @@ export const useDateOperations = () => {
   }, []);
   
   const formatWithPeriod = useCallback((date: Date, periodId?: string) => {
-    return formatDateWithPeriodName(date, periodId);
+    return formatDateWithPeriod(date, periodId);
   }, []);
   
   const getTimeDisplay = useCallback((date: Date) => {

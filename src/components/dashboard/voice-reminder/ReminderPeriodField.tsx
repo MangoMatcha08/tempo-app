@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/select";
 import { mockPeriods, formatPeriodTime } from "@/utils/reminderUtils";
 import { validatePeriodId } from "@/utils/dateUtils";
-import { toPeriodDate } from "@/types/periodTypes";
+import { toPSTTime } from "@/utils/dateTimeUtils";
 
 interface ReminderPeriodFieldProps {
   periodId: string;
