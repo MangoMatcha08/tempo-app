@@ -8,8 +8,8 @@ import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 export function ensureValidDate(date: any): Date {
   // Already a valid Date
-  if (date instanceof Date && !isNaN(date.getTime())) {
-    return date;
+  if (typeof date === 'object' && Object.prototype.toString.call(date) === '[object Date]' && !isNaN((date as Date).getTime())) {
+    return date as Date;
   }
   
   // Firebase Timestamp
@@ -18,6 +18,7 @@ export function ensureValidDate(date: any): Date {
       return date.toDate();
     } catch (err) {
       console.warn('Invalid Timestamp object:', err);
+      throw new Error('Invalid Timestamp object');
     }
   }
   
@@ -27,11 +28,12 @@ export function ensureValidDate(date: any): Date {
     if (!isNaN(parsedDate.getTime())) {
       return parsedDate;
     }
+    throw new Error('Invalid date string');
   }
   
   // Default fallback
   console.warn('Invalid date input, using current date:', date);
-  return new Date();
+  throw new Error('Invalid date input');
 }
 
 /**
@@ -80,8 +82,12 @@ export function isTimeValid(hours: number, minutes: number): boolean {
 
 export function isDateValid(value: any): boolean {
   if (!value) return false;
-  const date = ensureValidDate(value);
-  return isValid(date);
+  try {
+    const date = ensureValidDate(value);
+    return isValid(date);
+  } catch {
+    return false;
+  }
 }
 
 export interface TimeComponents {

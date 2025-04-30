@@ -18,8 +18,8 @@ export function convertDatesToTimestamps<T extends Record<string, any>>(
     const value = document[field as string];
     
     // Use type assertions to safely check instance types
-    if (value && typeof value === 'object' && value instanceof Date) {
-      (result as Record<string, any>)[field as string] = toFirestoreTimestamp(value);
+    if (value && typeof value === 'object' && Object.prototype.toString.call(value) === '[object Date]') {
+      (result as Record<string, any>)[field as string] = toFirestoreTimestamp(value as Date);
     } else if (value && typeof value === 'string') {
       try {
         const date = new Date(value);

@@ -44,7 +44,7 @@ export const normalizeDocumentDates = <T extends Record<string, any>>(
       if (value && typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
         // Convert Firestore Timestamp to PST Date
         (result as any)[field] = timestampToDate(value as Timestamp);
-      } else if (value instanceof Date || typeof value === 'string') {
+      } else if (typeof value === 'object' && Object.prototype.toString.call(value) === '[object Date]' || typeof value === 'string') {
         // Ensure any existing Date is in PST timezone
         (result as any)[field] = toPSTTime(ensureValidDate(value));
       }

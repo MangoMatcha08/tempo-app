@@ -17,8 +17,8 @@ import { Timestamp } from "firebase/firestore";
  */
 export function toDate(value: any): Date {
   // Already a valid Date
-  if (value instanceof Date && !isNaN(value.getTime())) {
-    return value;
+  if (typeof value === 'object' && Object.prototype.toString.call(value) === '[object Date]' && !isNaN((value as Date).getTime())) {
+    return value as Date;
   }
   
   // Firebase Timestamp
@@ -51,15 +51,15 @@ export function isValidDate(value: any): boolean {
   if (!value) return false;
   
   // Check if it's a Date object with a valid time
-  if (value instanceof Date) {
-    return !isNaN(value.getTime());
+  if (typeof value === 'object' && Object.prototype.toString.call(value) === '[object Date]') {
+    return !isNaN((value as Date).getTime());
   }
   
   // Check if it's a Firestore timestamp
   if (typeof value === 'object' && value && typeof value.toDate === 'function') {
     try {
       const date = value.toDate();
-      return date instanceof Date && !isNaN(date.getTime());
+      return typeof date === 'object' && Object.prototype.toString.call(date) === '[object Date]' && !isNaN(date.getTime());
     } catch (e) {
       return false;
     }
@@ -122,12 +122,12 @@ export function logDateInfo(label: string, date: any): void {
   
   console.log('Original value:', date);
   
-  if (date instanceof Date) {
+  if (typeof date === 'object' && Object.prototype.toString.call(date) === '[object Date]') {
     console.log('Is Date object: Yes');
-    console.log('Is valid Date: ', !isNaN(date.getTime()));
-    console.log('ISO String: ', date.toISOString());
+    console.log('Is valid Date: ', !isNaN((date as Date).getTime()));
+    console.log('ISO String: ', (date as Date).toISOString());
     console.log('Local String: ', date.toString());
-  } else if (date && typeof date.toDate === 'function') {
+  } else if (date && typeof date === 'object' && 'toDate' in date && typeof date.toDate === 'function') {
     console.log('Is Firestore Timestamp: Yes');
     try {
       const jsDate = date.toDate();
