@@ -40,10 +40,11 @@ export const normalizeDocumentDates = <T extends Record<string, any>>(
   for (const field of dateFields) {
     const value = result[field as keyof T];
     if (value) {
-      if (value instanceof Timestamp) {
+      // Use type assertions to safely check instance types
+      if (value && typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
         // Convert Firestore Timestamp to PST Date
         (result as any)[field] = timestampToDate(value as Timestamp);
-      } else if (value instanceof Date || typeof value === 'string') {
+      } else if ((value instanceof Date) || typeof value === 'string') {
         // Ensure any existing Date is in PST timezone
         (result as any)[field] = toPSTTime(ensureValidDate(value));
       }

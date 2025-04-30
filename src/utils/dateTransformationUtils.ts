@@ -22,7 +22,7 @@ export function toDate(value: any): Date {
   }
   
   // Firebase Timestamp
-  if (value && typeof value.toDate === 'function') {
+  if (value && typeof value === 'object' && 'toDate' in value) {
     return value.toDate();
   }
   

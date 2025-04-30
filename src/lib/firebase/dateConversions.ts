@@ -13,8 +13,9 @@ export function toFirestoreTimestamp(date: Date | Timestamp | null | undefined):
   if (!date) return null;
   
   try {
-    if (date instanceof Timestamp) {
-      return date;
+    // Check if it's already a Timestamp
+    if (date && typeof date === 'object' && 'toDate' in date && typeof date.toDate === 'function') {
+      return date as Timestamp;
     }
     
     // Convert to UTC before storing in Firestore
@@ -39,6 +40,11 @@ export function fromFirestoreTimestamp(timestamp: Timestamp | null | undefined):
   if (!timestamp) return null;
   
   try {
+    // Check if it's a valid Timestamp
+    if (!(timestamp && typeof timestamp === 'object' && 'toDate' in timestamp && typeof timestamp.toDate === 'function')) {
+      return null;
+    }
+    
     // Get Date object from Timestamp (in UTC)
     const utcDate = timestamp.toDate();
     

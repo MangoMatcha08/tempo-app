@@ -67,8 +67,8 @@ export const convertTimestampFields = <T extends Record<string, any>>(data: T): 
   const result = { ...data };
   
   for (const key in result) {
-    // Convert Timestamp fields to PST dates
-    if (result[key] && typeof result[key] === 'object' && 'toDate' in result[key]) {
+    // Use type assertions to safely check instance types
+    if (result[key] && typeof result[key] === 'object' && 'toDate' in result[key] && typeof result[key].toDate === 'function') {
       (result as any)[key] = fromFirestoreTimestamp(result[key]);
     }
   }

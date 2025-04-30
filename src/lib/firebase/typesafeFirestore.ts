@@ -15,14 +15,16 @@ export function convertDatesToTimestamps<T extends Record<string, any>>(
   const result = { ...document };
   
   for (const field of dateFields) {
-    const value = document[field];
-    if (value instanceof Date) {
-      result[field as string] = toFirestoreTimestamp(value);
-    } else if (typeof value === 'string') {
+    const value = document[field as string];
+    
+    // Use type assertions to safely check instance types
+    if (value && typeof value === 'object' && value instanceof Date) {
+      (result as Record<string, any>)[field as string] = toFirestoreTimestamp(value);
+    } else if (value && typeof value === 'string') {
       try {
         const date = new Date(value);
         if (!isNaN(date.getTime())) {
-          result[field as string] = toFirestoreTimestamp(date);
+          (result as Record<string, any>)[field as string] = toFirestoreTimestamp(date);
         }
       } catch (error) {
         console.warn(`Failed to convert string to date for field: ${String(field)}`, error);
@@ -45,8 +47,9 @@ export function convertTimestampsToDate<T extends Record<string, any>>(
   
   for (const key in result) {
     const value = result[key];
-    if (value instanceof Timestamp) {
-      result[key] = fromFirestoreTimestamp(value);
+    // Use type assertions to safely check instance types
+    if (value && typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
+      result[key] = fromFirestoreTimestamp(value as Timestamp);
     }
   }
   
