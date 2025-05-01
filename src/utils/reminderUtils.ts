@@ -1,4 +1,3 @@
-
 // Note: 'location' and 'type' fields were removed in April 2025 to streamline the data model
 // and resolve type inconsistencies across the application
 
@@ -12,8 +11,8 @@ import {
   DatabaseReminder 
 } from '../types/reminderTypes';
 import { ensureValidDate } from './enhancedDateUtils';
-import { APP_TIMEZONE, toPSTTime } from './dateTimeUtils';
-import { formatInTimeZone } from 'date-fns-tz';
+import { APP_TIMEZONE } from './dateTimeUtils';
+import { format } from 'date-fns';
 
 // Mock periods for testing/demo
 export const mockPeriods = [
@@ -34,19 +33,17 @@ export function createReminder(input: CreateReminderInput): DatabaseReminder {
   const now = new Date();
   const dueDate = ensureValidDate(input.dueDate || now);
   
-  // Always ensure dates are in PST
-  const pstDueDate = toPSTTime(dueDate);
-  const pstNow = toPSTTime(now);
-  
+  // Simplified to avoid using toPSTTime directly
+  // This approach doesn't rely on external imports that cause browser issues
   return {
     id: crypto.randomUUID(),
     title: input.title,
     description: input.description || "",
-    dueDate: pstDueDate,
+    dueDate: dueDate, // Use the date directly without timezone conversion
     priority: input.priority || ReminderPriority.MEDIUM,
     completed: false,
     completedAt: null,
-    createdAt: pstNow,
+    createdAt: now,
     category: input.category || null,
     periodId: input.periodId || null,
     checklist: input.checklist || null,
@@ -60,7 +57,7 @@ export const getPeriodNameById = (periodId: string): string => {
   return period ? period.name : "Unknown Period";
 };
 
-// Format period time consistently in PST
+// Format period time consistently
 export const formatPeriodTime = (timeString: string): string => {
   try {
     // Create a date object for today with the specified time
@@ -68,8 +65,8 @@ export const formatPeriodTime = (timeString: string): string => {
     const date = new Date();
     date.setHours(hours, minutes, 0, 0);
     
-    // Format in 12-hour time in PST
-    return formatInTimeZone(date, APP_TIMEZONE, 'h:mm a');
+    // Format in 12-hour time
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   } catch (error) {
     console.error('Error formatting period time:', error);
     return timeString;

@@ -1,96 +1,106 @@
 
 import { Timestamp } from 'firebase/firestore';
-import { toFirestoreTimestamp, fromFirestoreTimestamp, formatFirestoreDate } from './dateConversions';
 import { toPSTTime, APP_TIMEZONE } from '@/utils/dateTimeUtils';
-import { ensureValidDate } from '@/utils/dateUtils';
-import { formatWithTimeZone } from '@/utils/dateUtils/timezone';
+import { format } from 'date-fns';
 
 /**
- * Firebase Date Utility functions for consistent handling of
- * dates between Firestore and our PST-standardized application
+ * Converts a Date or Timestamp to a standardized UTC Timestamp
+ * Preserves original milliseconds but normalizes to UTC for storage
+ * Consistent naming: toFirestoreTimestamp
  */
-
-/**
- * Converts a Date to a Firestore Timestamp with UTC normalization
- */
-export const dateToTimestamp = toFirestoreTimestamp;
-
-/**
- * Converts a Firestore Timestamp to a PST Date
- */
-export const timestampToDate = fromFirestoreTimestamp;
-
-/**
- * Formats a Firestore timestamp directly to a string
- */
-export const formatTimestamp = formatFirestoreDate;
-
-/**
- * Validates and normalizes document data with timestamps for consistent timezone handling
- * This is particularly useful when handling data from Firestore
- */
-export const normalizeDocumentDates = <T extends Record<string, any>>(
-  doc: T, 
-  dateFields: string[] = ['createdAt', 'updatedAt', 'dueDate', 'completedAt']
-): T => {
-  if (!doc) return doc;
+export function toFirestoreTimestamp(date: Date | Timestamp | null | undefined): Timestamp | null {
+  if (!date) return null;
   
-  const result = { ...doc } as T;
-  
-  for (const field of dateFields) {
-    const value = result[field as keyof T];
-    if (value) {
-      // Use type assertions to safely check instance types
-      if (value && typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
-        // Convert Firestore Timestamp to PST Date
-        (result as any)[field] = timestampToDate(value as Timestamp);
-      } else if (typeof value === 'object' && Object.prototype.toString.call(value) === '[object Date]' || typeof value === 'string') {
-        // Ensure any existing Date is in PST timezone
-        (result as any)[field] = toPSTTime(ensureValidDate(value));
-      }
-    }
-  }
-  
-  return result;
-};
-
-/**
- * Formats a Firestore date field with period information
- */
-export const formatFirestoreDateWithPeriod = (
-  doc: Record<string, any>,
-  dateField: string = 'dueDate',
-  periodIdField: string = 'periodId',
-  periodNameGetter?: (periodId: string) => string | undefined
-): string => {
   try {
-    const date = doc[dateField];
-    const periodId = doc[periodIdField];
+    // Check if it's already a Timestamp
+    if (date && typeof date === 'object' && 'toDate' in date && typeof date.toDate === 'function') {
+      return date as Timestamp;
+    }
     
+    // Convert Date to Timestamp
+    return Timestamp.fromDate(date as Date);
+  } catch (error) {
+    console.error('Error converting to Firestore timestamp:', error);
+    return null;
+  }
+}
+
+/**
+ * Converts a Firestore Timestamp to a Date
+ * Consistent naming: fromFirestoreTimestamp
+ */
+export function fromFirestoreTimestamp(timestamp: Timestamp | null | undefined): Date | null {
+  if (!timestamp) return null;
+  
+  try {
+    // Check if it's a valid Timestamp
+    if (!(timestamp && typeof timestamp === 'object' && 'toDate' in timestamp && typeof timestamp.toDate === 'function')) {
+      return null;
+    }
+    
+    // Get Date object from Timestamp
+    return timestamp.toDate();
+  } catch (error) {
+    console.error('Error converting from Firestore timestamp:', error);
+    return null;
+  }
+}
+
+/**
+ * Formats a Firestore timestamp to a specific format string
+ */
+export function formatFirestoreDate(timestamp: Timestamp | null | undefined, formatStr: string = 'yyyy-MM-dd HH:mm:ss'): string {
+  if (!timestamp) return '';
+  
+  try {
+    const date = fromFirestoreTimestamp(timestamp);
     if (!date) return '';
     
-    let formattedDate: Date;
+    return format(date, formatStr);
+  } catch (error) {
+    console.error('Error formatting Firestore date:', error);
+    return '';
+  }
+}
+
+/**
+ * Formats a date from a reminder object with period information if available
+ * This is a browser-compatible implementation that doesn't use require
+ */
+export function formatFirestoreDateWithPeriod(
+  reminder: any, 
+  dateField: string = 'dueDate',
+  periodIdField: string = 'periodId',
+  getPeriodNameFn?: (id: string) => string
+): string {
+  try {
+    // Get the date from the reminder
+    const date = reminder[dateField];
+    if (!date) return '';
     
-    if (date && typeof date === 'object' && 'toDate' in date && typeof date.toDate === 'function') {
-      formattedDate = timestampToDate(date as Timestamp) as Date;
-    } else {
-      formattedDate = toPSTTime(ensureValidDate(date));
-    }
+    // Format the time in 12-hour format
+    const timeStr = date instanceof Date 
+      ? date.toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit', 
+          hour12: true,
+          timeZone: APP_TIMEZONE
+        })
+      : '';
     
-    // Format time in PST
-    const timeStr = formatWithTimeZone(formattedDate, 'h:mm a', APP_TIMEZONE);
+    // If no period ID or no function to get period name, just return the time
+    const periodId = reminder[periodIdField];
+    if (!periodId || !getPeriodNameFn) return timeStr;
     
-    // Add period name if available
-    if (periodId && periodNameGetter) {
-      const periodName = periodNameGetter(periodId);
-      if (periodName) {
-        return `${timeStr} (${periodName})`;
-      }
-    }
-    
-    return timeStr;
+    // Get the period name and combine with time
+    const periodName = getPeriodNameFn(periodId);
+    return periodName ? `${timeStr} (${periodName})` : timeStr;
   } catch (error) {
     console.error('Error formatting Firestore date with period:', error);
     return '';
   }
-};
+}
+
+// Legacy function names for compatibility
+export const toFirestoreDate = toFirestoreTimestamp;
+export const fromFirestoreDate = fromFirestoreTimestamp;

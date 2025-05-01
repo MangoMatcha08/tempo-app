@@ -82,9 +82,14 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
       let finalDueDate = new Date(dueDate);
       
       if (periodId !== "none") {
+        // Apply period time without using complex timezone conversions
         const selectedPeriod = mockPeriods.find(p => p.id === periodId);
-        if (selectedPeriod) {
-          finalDueDate = applyPeriodTime(finalDueDate, selectedPeriod);
+        if (selectedPeriod && selectedPeriod.startTime) {
+          const [hours, minutes] = selectedPeriod.startTime.split(':').map(Number);
+          
+          // Create a new date with the period time
+          finalDueDate = new Date(finalDueDate);
+          finalDueDate.setHours(hours, minutes, 0, 0);
         }
       }
       

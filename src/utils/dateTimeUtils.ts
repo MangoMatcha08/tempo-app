@@ -29,21 +29,36 @@ export function formatDateWithPeriodName(date: Date, periodId?: string | null): 
   if (!periodId) return formattedTime;
   
   // Import at runtime to avoid circular dependencies
-  const { getPeriodNameById } = require('./reminderUtils');
-  const periodName = getPeriodNameById(periodId);
-  
-  if (periodName) {
-    return `${formattedTime} (${periodName})`;
-  }
+  // Use dynamic import pattern instead of require
+  import('./reminderUtils').then(module => {
+    const periodName = module.getPeriodNameById(periodId);
+    if (periodName) {
+      return `${formattedTime} (${periodName})`;
+    }
+  });
   
   return formattedTime;
 }
 
 /**
  * Convert any date to PST time
+ * Simplified to work in browser environments
  */
 export function toPSTTime(date: Date): Date {
   if (!date) return new Date();
-  const { formatInTimeZone } = require('date-fns-tz');
-  return new Date(formatInTimeZone(date, APP_TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX"));
+  
+  try {
+    // Create a new date to avoid mutating the original
+    const result = new Date(date);
+    
+    // Format the date as an ISO string in the target timezone
+    // This is browser-compatible and doesn't use require
+    return new Date(
+      new Date(date.toISOString())
+        .toLocaleString('en-US', { timeZone: APP_TIMEZONE })
+    );
+  } catch (error) {
+    console.error('Error converting to PST time:', error);
+    return new Date(date);
+  }
 }

@@ -49,7 +49,7 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
 
   const formattedDate = format(reminder.dueDate, 'MMM d');
   
-  // Use the new utility to format the time with period if available
+  // Use the updated utility to format the time with period if available
   const formattedTime = formatFirestoreDateWithPeriod(
     reminder,
     'dueDate',
