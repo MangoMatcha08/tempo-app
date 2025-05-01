@@ -8,6 +8,7 @@ import { Check, Clock, CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { getPeriodNameById } from '@/utils/reminderUtils';
 import { formatFirestoreDateWithPeriod } from '@/lib/firebase/dateUtils';
+import { normalizePriority } from '@/utils/typeUtils';
 
 interface ReminderCardProps {
   reminder: UIReminder;
@@ -36,10 +37,13 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
       onEdit(reminder);
     }
   };
+  
+  // Normalize priority to handle legacy formats
+  const normalizedPriority = normalizePriority(reminder.priority);
 
-  const priorityColorClass = reminder.priority === 'high' 
+  const priorityColorClass = normalizedPriority === 'high' 
     ? 'text-red-500 bg-red-50' 
-    : reminder.priority === 'medium'
+    : normalizedPriority === 'medium'
     ? 'text-yellow-500 bg-yellow-50'
     : 'text-green-500 bg-green-50';
 

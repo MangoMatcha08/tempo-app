@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { collection, query, where, orderBy, limit, startAfter, getDocs, getCountFromServer } from "firebase/firestore";
 import { useFirestore } from "@/contexts/FirestoreContext";
@@ -6,6 +7,7 @@ import { ReminderPriority, ReminderCategory, UIReminder, DatabaseReminder, Remin
 import { useReminderCache } from "./use-reminder-cache";
 import { convertTimestampFields } from "@/lib/firebase/conversions";
 import { useReminderOperations } from "./reminder-operations";
+import { isHighPriority, isMediumPriority, isLowPriority } from "@/utils/typeUtils";
 
 // Batch size for query pagination
 const BATCH_SIZE = 20; // Increased from 10 to 20
@@ -56,14 +58,14 @@ export function useReminders() {
   const urgentReminders = useMemo(() => {
     return reminders.filter(reminder => 
       !reminder.completed && 
-      reminder.priority === ReminderPriority.HIGH
+      isHighPriority(reminder.priority)
     );
   }, [reminders]);
   
   const upcomingReminders = useMemo(() => {
     return reminders.filter(reminder => 
       !reminder.completed && 
-      reminder.priority !== ReminderPriority.HIGH
+      !isHighPriority(reminder.priority)
     ).sort((a, b) => {
       // Sort by date/time
       const dateA = a.dueDate instanceof Date ? a.dueDate : new Date(a.dueDate);
@@ -112,9 +114,9 @@ export function useReminders() {
       overdue: overdue.length,
       total: reminders.length,
       active: reminders.filter(r => !r.completed).length,
-      high: reminders.filter(r => r.priority === ReminderPriority.HIGH && !r.completed).length,
-      medium: reminders.filter(r => r.priority === ReminderPriority.MEDIUM && !r.completed).length,
-      low: reminders.filter(r => r.priority === ReminderPriority.LOW && !r.completed).length,
+      high: reminders.filter(r => !r.completed && isHighPriority(r.priority)).length,
+      medium: reminders.filter(r => !r.completed && isMediumPriority(r.priority)).length,
+      low: reminders.filter(r => !r.completed && isLowPriority(r.priority)).length,
     };
   }, [reminders]);
 

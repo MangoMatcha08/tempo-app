@@ -21,6 +21,62 @@ export const ensureValidPriority = (priority: string | any): ReminderPriority =>
 };
 
 /**
+ * Normalizes priority values to handle legacy data formats
+ * This ensures backward compatibility with older reminder formats
+ */
+export const normalizePriority = (priority: string | any): string => {
+  if (!priority) return ReminderPriority.MEDIUM;
+  
+  // Handle string priorities case-insensitively
+  if (typeof priority === 'string') {
+    const lowerPriority = priority.toLowerCase();
+    if (lowerPriority.includes('high') || lowerPriority === 'h') {
+      return ReminderPriority.HIGH;
+    } else if (lowerPriority.includes('low') || lowerPriority === 'l') {
+      return ReminderPriority.LOW;
+    } else if (lowerPriority.includes('med') || lowerPriority === 'm') {
+      return ReminderPriority.MEDIUM;
+    }
+  }
+  
+  // Handle numeric priorities (from older versions)
+  if (typeof priority === 'number') {
+    if (priority >= 3) {
+      return ReminderPriority.HIGH;
+    } else if (priority <= 1) {
+      return ReminderPriority.LOW;
+    }
+  }
+  
+  // Return medium as default
+  return ReminderPriority.MEDIUM;
+};
+
+/**
+ * Checks if a reminder has high priority, handling legacy formats
+ */
+export const isHighPriority = (priority: string | any): boolean => {
+  const normalized = normalizePriority(priority);
+  return normalized === ReminderPriority.HIGH;
+};
+
+/**
+ * Checks if a reminder has medium priority, handling legacy formats
+ */
+export const isMediumPriority = (priority: string | any): boolean => {
+  const normalized = normalizePriority(priority);
+  return normalized === ReminderPriority.MEDIUM;
+};
+
+/**
+ * Checks if a reminder has low priority, handling legacy formats
+ */
+export const isLowPriority = (priority: string | any): boolean => {
+  const normalized = normalizePriority(priority);
+  return normalized === ReminderPriority.LOW;
+};
+
+/**
  * Converts a backend reminder to UI reminder format
  */
 export const convertToUIReminder = (reminder: DatabaseReminder): UIReminder => {

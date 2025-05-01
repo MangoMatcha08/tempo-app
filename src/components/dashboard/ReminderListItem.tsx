@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import { formatTimeWithPeriod, getPriorityBorderClass, getPriorityColorClass } from "@/utils/timeUtils";
+import { normalizePriority } from "@/utils/typeUtils";
 
 interface Reminder {
   id: string;
@@ -15,7 +16,7 @@ interface Reminder {
   location?: string;
   completed?: boolean;
   createdAt?: Date;
-  periodId?: string; // Add periodId to the interface
+  periodId?: string;
 }
 
 interface ReminderListItemProps {
@@ -28,8 +29,11 @@ interface ReminderListItemProps {
 const ReminderListItem = ({ reminder, onComplete, onEdit, isPending = false }: ReminderListItemProps) => {
   const [isCompleting, setIsCompleting] = useState(false);
   
+  // Normalize priority to handle legacy formats
+  const normalizedPriority = normalizePriority(reminder.priority);
+  
   // Get the correct border color for this priority
-  const priorityBorderClass = getPriorityBorderClass(reminder.priority);
+  const priorityBorderClass = getPriorityBorderClass(normalizedPriority);
   
   // Check if reminder was created in the last 2 hours
   const isRecentlyCreated = () => {
@@ -87,7 +91,7 @@ const ReminderListItem = ({ reminder, onComplete, onEdit, isPending = false }: R
       onClick={handleComplete}
     >
       <div 
-        className={`w-2 h-2 rounded-full ${isRecentlyCreated() ? 'bg-green-500' : getPriorityDotColor(reminder.priority)} mr-3`} 
+        className={`w-2 h-2 rounded-full ${isRecentlyCreated() ? 'bg-green-500' : getPriorityDotColor(normalizedPriority)} mr-3`} 
       />
       
       <div
