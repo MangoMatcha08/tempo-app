@@ -6,6 +6,8 @@ import { UIReminder } from '@/types/reminderTypes';
 import { Button } from '@/components/ui/button';
 import { Check, Clock, CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
+import { getPeriodNameById } from '@/utils/reminderUtils';
+import { formatFirestoreDateWithPeriod } from '@/lib/firebase/dateUtils';
 
 interface ReminderCardProps {
   reminder: UIReminder;
@@ -46,7 +48,14 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
   }
 
   const formattedDate = format(reminder.dueDate, 'MMM d');
-  const formattedTime = format(reminder.dueDate, 'h:mm a');
+  
+  // Use the new utility to format the time with period if available
+  const formattedTime = formatFirestoreDateWithPeriod(
+    reminder,
+    'dueDate',
+    'periodId',
+    getPeriodNameById
+  );
 
   return (
     <Card className={`w-full transition-all duration-300 ${isPending ? 'opacity-80' : ''}`}>

@@ -6,9 +6,8 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { mockPeriods, formatPeriodTime } from "@/utils/reminderUtils";
+import { mockPeriods, formatPeriodTime, getPeriodNameById } from "@/utils/reminderUtils";
 import { validatePeriodId } from "@/utils/dateUtils";
-import { toPSTTime } from "@/utils/dateTimeUtils";
 
 interface ReminderPeriodFieldProps {
   periodId: string;

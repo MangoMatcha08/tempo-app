@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,11 +21,10 @@ import {
 import { DatePicker } from "@/components/ui/date-picker";
 import { createReminder } from "@/utils/reminderUtils";
 import { ReminderPriority, ReminderCategory } from "@/types/reminderTypes";
-import { mockPeriods } from "@/utils/reminderUtils";
+import { mockPeriods, getPeriodNameById } from "@/utils/reminderUtils";
 import { Reminder as UIReminder } from "@/types/reminder";
 import { convertToUIReminder } from "@/utils/typeUtils";
 import { useToast } from "@/hooks/use-toast";
-import { toFirestoreDate } from '@/lib/firebase/dateConversions';
 import { applyPeriodTime } from '@/utils/dateUtils/periodTime';
 
 interface QuickReminderModalProps {
@@ -44,6 +44,7 @@ const QuickReminderModal = ({ open, onOpenChange, onReminderCreated }: QuickRemi
   
   useEffect(() => {
     if (open) {
+      // Reset the form when the dialog opens
       setTitle("");
       setDescription("");
       setDueDate(new Date());

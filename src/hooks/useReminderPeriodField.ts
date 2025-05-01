@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { mockPeriods } from '@/utils/reminderUtils';
 import { parseTimeString, createDateWithTime } from '@/utils/dateUtils';
 import { toPSTTime } from '@/utils/dateTimeUtils';
@@ -10,9 +10,18 @@ export function useReminderPeriodField(
   currentDate: Date
 ) {
   const [periodId, setPeriodId] = useState(initialPeriodId || 'none');
+  const lastProcessedDateRef = useRef<Date | null>(null);
+  const lastProcessedPeriodRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (periodId && periodId !== 'none') {
+    // Only process if we have a valid period and either the date or period has changed
+    if (periodId && 
+        periodId !== 'none' && 
+        (periodId !== lastProcessedPeriodRef.current || 
+         !currentDate.getTime || 
+         !lastProcessedDateRef.current || 
+         currentDate.getTime() !== lastProcessedDateRef.current.getTime())) {
+      
       const selectedPeriod = mockPeriods.find(p => p.id === periodId);
       
       if (selectedPeriod?.startTime) {
@@ -27,6 +36,12 @@ export function useReminderPeriodField(
           
           // Ensure the date is in PST
           const pstDate = toPSTTime(updatedDate);
+          
+          // Update the refs to track what we've processed
+          lastProcessedDateRef.current = pstDate;
+          lastProcessedPeriodRef.current = periodId;
+          
+          // Only trigger the callback if we've actually made changes
           onTimeUpdate(pstDate);
         }
       }
